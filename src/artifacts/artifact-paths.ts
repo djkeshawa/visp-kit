@@ -29,6 +29,14 @@ export function patternsArtifactPath(rootPath: string): string {
   return joinPath(memoryArtifactDir(rootPath), "patterns.md");
 }
 
+export function constitutionMarkdownArtifactPath(rootPath: string): string {
+  return joinPath(memoryArtifactDir(rootPath), "constitution.md");
+}
+
+export function compactConstitutionArtifactPath(rootPath: string): string {
+  return joinPath(memoryArtifactDir(rootPath), "constitution.compact.md");
+}
+
 export function constitutionArtifactPath(rootPath: string): string {
   return joinPath(memoryArtifactDir(rootPath), "constitution.json");
 }

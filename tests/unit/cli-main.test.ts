@@ -11,6 +11,7 @@ describe("createCli", () => {
     expect(help).toContain("Small context. Clear specs. Accurate code.");
     expect(help).toContain("-h, --help");
     expect(help).toContain("-V, --version");
+    expect(help).toContain("constitution");
     expect(help).toContain("init");
     expect(help).toContain("scan");
   });
@@ -61,5 +62,19 @@ describe("createCli", () => {
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
+  });
+
+  it("prints constitution command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "constitution")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp constitution [options] [path]");
+    expect(help).toContain("--preset");
+    expect(help).toContain("--budget");
+    expect(help).toContain("--force");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+    expect(help).toContain("--validate");
   });
 });

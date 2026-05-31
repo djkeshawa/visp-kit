@@ -2,6 +2,10 @@ import { Command } from "commander";
 import { z } from "zod";
 
 import {
+  createConstitutionCommand,
+  type ConstitutionCommandDependencies
+} from "./commands/constitution.command.js";
+import {
   createInitCommand,
   type InitCommandDependencies
 } from "./commands/init.command.js";
@@ -10,7 +14,9 @@ import {
   type ScanCommandDependencies
 } from "./commands/scan.command.js";
 
-export type CliDependencies = InitCommandDependencies & ScanCommandDependencies;
+export type CliDependencies = ConstitutionCommandDependencies &
+  InitCommandDependencies &
+  ScanCommandDependencies;
 
 const cliMetadataSchema = z.object({
   name: z.literal("visp"),
@@ -32,6 +38,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
     .showHelpAfterError()
     .helpOption("-h, --help", "Display help for command.");
 
+  program.addCommand(createConstitutionCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createScanCommand(dependencies));
 

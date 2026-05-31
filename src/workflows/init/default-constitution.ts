@@ -44,9 +44,7 @@ export function constitutionMarkdown(preset: Preset, budget: BudgetMode): string
 }
 
 export function compactConstitutionMarkdown(): string {
-  return `# Compact Visp Constitution
-
-C001: Keep functions small, specific, and readable.
+  return `C001: Keep functions small, specific, and readable.
 C002: Follow existing project structure and conventions.
 C003: Do not introduce dependencies without explicit approval.
 C004: Write or update tests for behavior changes.
