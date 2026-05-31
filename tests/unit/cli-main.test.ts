@@ -12,6 +12,7 @@ describe("createCli", () => {
     expect(help).toContain("-h, --help");
     expect(help).toContain("-V, --version");
     expect(help).toContain("init");
+    expect(help).toContain("scan");
   });
 
   it("prints the CLI version", () => {
@@ -46,6 +47,17 @@ describe("createCli", () => {
     expect(help).toContain("--agent");
     expect(help).toContain("--budget");
     expect(help).toContain("--preset");
+    expect(help).toContain("--force");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+  });
+
+  it("prints scan command help", () => {
+    const help = createCli().commands.find((command) => command.name() === "scan")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp scan [options] [path]");
+    expect(help).toContain("--changed");
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");

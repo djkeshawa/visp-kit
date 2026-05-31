@@ -5,8 +5,12 @@ import {
   createInitCommand,
   type InitCommandDependencies
 } from "./commands/init.command.js";
+import {
+  createScanCommand,
+  type ScanCommandDependencies
+} from "./commands/scan.command.js";
 
-export type CliDependencies = InitCommandDependencies;
+export type CliDependencies = InitCommandDependencies & ScanCommandDependencies;
 
 const cliMetadataSchema = z.object({
   name: z.literal("visp"),
@@ -29,6 +33,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
     .helpOption("-h, --help", "Display help for command.");
 
   program.addCommand(createInitCommand(dependencies));
+  program.addCommand(createScanCommand(dependencies));
 
   return program;
 }
