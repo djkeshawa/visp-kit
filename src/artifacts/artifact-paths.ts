@@ -213,6 +213,70 @@ export function verificationMarkdownPath(
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.md");
 }
 
+export function featureReviewArtifactPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "review.json");
+}
+
+export function featureReviewMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "review.md");
+}
+
+export function reviewArtifactDir(rootPath: string, featureKey: string): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "review");
+}
+
+export function taskReviewArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(reviewArtifactDir(rootPath, featureKey), `${taskId}.review.json`);
+}
+
+export function taskReviewMarkdownPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(reviewArtifactDir(rootPath, featureKey), `${taskId}.review.md`);
+}
+
+export function taskReviewPromptPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(reviewArtifactDir(rootPath, featureKey), `${taskId}.review-prompt.md`);
+}
+
+export function taskReviewChecklistPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(reviewArtifactDir(rootPath, featureKey), `${taskId}.review-checklist.md`);
+}
+
+export function featureReviewPromptPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "review-prompt.md");
+}
+
+export function featureReviewChecklistPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "review-checklist.md");
+}
+
 export function traceabilityArtifactPath(
   rootPath: string,
   featureKey: string

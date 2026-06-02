@@ -8,6 +8,7 @@ import {
   type ProjectProfile
 } from "../../../src/artifacts/schemas/project.schema.js";
 import { type Requirement } from "../../../src/artifacts/schemas/requirement.schema.js";
+import { type ReviewReport } from "../../../src/artifacts/schemas/review.schema.js";
 import { type TaskGraphArtifact } from "../../../src/artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../../../src/artifacts/schemas/traceability.schema.js";
 import { type VerificationReport } from "../../../src/artifacts/schemas/verification.schema.js";
@@ -313,6 +314,119 @@ export const validVerificationReport: VerificationReport = {
   warnings: [],
   errors: [],
   nextCommand: "visp review --diff-only"
+};
+
+export const validReviewReport: ReviewReport = {
+  id: "REV-001-T001",
+  featureId: "001",
+  featureSlug: "note-pinning",
+  taskId: "T001",
+  mode: "task",
+  startedAt: timestamp,
+  endedAt: timestamp,
+  durationMs: 100,
+  success: true,
+  result: "warnings",
+  changedFiles: [
+    {
+      path: "src/notes/sort.ts",
+      changeType: "modified",
+      additions: 10,
+      deletions: 2,
+      inAllowedFiles: true,
+      inExpectedFiles: false,
+      inForbiddenFiles: false,
+      isDependencyFile: false,
+      isTestFile: false,
+      isGeneratedVispFile: false,
+      isBinary: false,
+      diffTruncated: false,
+      diff: "diff --git a/src/notes/sort.ts b/src/notes/sort.ts"
+    }
+  ],
+  diffSummary: {
+    filesChanged: 1,
+    additions: 10,
+    deletions: 2,
+    truncatedFiles: 0,
+    totalDiffTruncated: false,
+    diffSource: "unstaged",
+    baseRef: null
+  },
+  scopeReview: {
+    status: "passed",
+    allowedFiles: ["src/notes/sort.ts"],
+    expectedFiles: ["tests/notes/sort.test.ts"],
+    forbiddenFiles: ["package.json"],
+    outOfScopeFiles: [],
+    forbiddenChangedFiles: [],
+    unmappedChangedFiles: [],
+    warnings: [],
+    errors: []
+  },
+  traceabilityReview: {
+    status: "passed",
+    requirementIds: ["REQ-001"],
+    acceptanceCriterionIds: ["AC-001"],
+    traceabilityFound: true,
+    warnings: [],
+    errors: []
+  },
+  verificationReview: {
+    status: "passed",
+    reportPath: ".visp/features/001-note-pinning/verification.json",
+    verificationPassed: true,
+    verificationTaskId: "T001",
+    warnings: [],
+    errors: []
+  },
+  testReview: {
+    status: "warnings",
+    testsChanged: false,
+    validationCommandsKnown: true,
+    behaviorChanging: true,
+    verificationCommandsPassed: true,
+    warnings: ["Behavior-changing task has no changed test files."],
+    errors: []
+  },
+  dependencyReview: {
+    status: "passed",
+    changedDependencyFiles: [],
+    approvedByTaskScope: false,
+    approvedByPlan: false,
+    warnings: [],
+    errors: []
+  },
+  securityChecklist: [
+    {
+      id: "SEC001",
+      category: "secrets",
+      attention: "standard",
+      text: "Confirm no secrets are exposed.",
+      reason: "Standard security review item."
+    }
+  ],
+  findings: [
+    {
+      id: "REVIEW001",
+      category: "tests",
+      severity: "warning",
+      title: "No test files changed",
+      description: "Behavior appears to change without test file changes.",
+      file: null,
+      evidence: "No test files changed.",
+      recommendation: "Add tests or justify existing coverage.",
+      relatedTaskId: "T001",
+      relatedRequirementIds: ["REQ-001"],
+      relatedAcceptanceCriterionIds: ["AC-001"]
+    }
+  ],
+  warnings: ["Behavior-changing task has no changed test files."],
+  errors: [],
+  promptPath: ".visp/features/001-note-pinning/review/T001.review-prompt.md",
+  reportPath: ".visp/features/001-note-pinning/review/T001.review.md",
+  checklistPath: ".visp/features/001-note-pinning/review/T001.review-checklist.md",
+  nextCommand: "visp reconcile --task T001"
 };
 
 export const validTraceabilityMatrix: TraceabilityMatrix = {

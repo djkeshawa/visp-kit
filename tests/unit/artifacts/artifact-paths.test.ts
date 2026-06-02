@@ -12,6 +12,10 @@ import {
   projectProfileArtifactPath,
   projectStatusArtifactPath,
   requirementsArtifactPath,
+  taskReviewArtifactPath,
+  taskReviewChecklistPath,
+  taskReviewMarkdownPath,
+  taskReviewPromptPath,
   taskGraphArtifactPath,
   traceabilityArtifactPath,
   verificationArtifactPath,
@@ -68,6 +72,18 @@ describe("artifact paths", () => {
     );
     expect(verificationMarkdownPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "verification.md")
+    );
+    expect(taskReviewArtifactPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "review", "T001.review.json")
+    );
+    expect(taskReviewMarkdownPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "review", "T001.review.md")
+    );
+    expect(taskReviewPromptPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "review", "T001.review-prompt.md")
+    );
+    expect(taskReviewChecklistPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "review", "T001.review-checklist.md")
     );
     expect(traceabilityArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "traceability.json")

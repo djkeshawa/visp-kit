@@ -48,7 +48,8 @@ describe("project schemas", () => {
       ["plan_ready", "plan"],
       ["tasks_ready", "tasks"],
       ["context_ready", "context"],
-      ["verified", "verify"]
+      ["verified", "verify"],
+      ["review_ready", "review"]
     ] as const;
 
     for (const [currentState, lastCommand] of states) {

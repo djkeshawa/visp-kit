@@ -34,6 +34,10 @@ import {
   type PlanCommandDependencies
 } from "./commands/plan.command.js";
 import {
+  createReviewCommand,
+  type ReviewCommandDependencies
+} from "./commands/review.command.js";
+import {
   createSpecCommand,
   type SpecCommandDependencies
 } from "./commands/spec.command.js";
@@ -53,6 +57,7 @@ export type CliDependencies = BudgetCommandDependencies &
   FeatureCommandDependencies &
   InitCommandDependencies &
   PlanCommandDependencies &
+  ReviewCommandDependencies &
   ScanCommandDependencies &
   SpecCommandDependencies &
   TasksCommandDependencies &
@@ -85,6 +90,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));
+  program.addCommand(createReviewCommand(dependencies));
   program.addCommand(createScanCommand(dependencies));
   program.addCommand(createSpecCommand(dependencies));
   program.addCommand(createTasksCommand(dependencies));

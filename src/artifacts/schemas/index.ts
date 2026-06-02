@@ -7,6 +7,7 @@ export * from "./feature.schema.js";
 export * from "./plan.schema.js";
 export * from "./project.schema.js";
 export * from "./requirement.schema.js";
+export * from "./review.schema.js";
 export * from "./spec.schema.js";
 export * from "./task.schema.js";
 export * from "./traceability.schema.js";
