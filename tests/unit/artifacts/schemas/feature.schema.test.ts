@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { featureSchema } from "../../../../src/artifacts/schemas/feature.schema.js";
+import {
+  featureIntentSchema,
+  featureSchema
+} from "../../../../src/artifacts/schemas/feature.schema.js";
 import { validFeature } from "../fixtures.js";
 
 describe("feature schema", () => {
@@ -24,5 +27,14 @@ describe("feature schema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts valid feature intent artifacts", () => {
+    const result = featureIntentSchema.safeParse({
+      ...validFeature,
+      rawUserRequest: "Add note pinning"
+    });
+
+    expect(result.success).toBe(true);
   });
 });

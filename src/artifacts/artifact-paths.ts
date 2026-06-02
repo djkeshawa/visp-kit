@@ -95,6 +95,20 @@ export function featureArtifactPath(
   return joinPath(featureArtifactDir(rootPath, featureKey), "feature.json");
 }
 
+export function featureIntentMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "intent.md");
+}
+
+export function featureIntentArtifactPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "intent.json");
+}
+
 export function requirementsArtifactPath(
   rootPath: string,
   featureKey: string

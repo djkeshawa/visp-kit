@@ -10,11 +10,16 @@ import {
   type InitCommandDependencies
 } from "./commands/init.command.js";
 import {
+  createFeatureCommand,
+  type FeatureCommandDependencies
+} from "./commands/feature.command.js";
+import {
   createScanCommand,
   type ScanCommandDependencies
 } from "./commands/scan.command.js";
 
 export type CliDependencies = ConstitutionCommandDependencies &
+  FeatureCommandDependencies &
   InitCommandDependencies &
   ScanCommandDependencies;
 
@@ -39,6 +44,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
     .helpOption("-h, --help", "Display help for command.");
 
   program.addCommand(createConstitutionCommand(dependencies));
+  program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createScanCommand(dependencies));
 

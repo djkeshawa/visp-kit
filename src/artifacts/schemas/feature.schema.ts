@@ -25,4 +25,11 @@ export const featureSchema = z
   })
   .strict();
 
+export const featureIntentSchema = featureSchema
+  .extend({
+    rawUserRequest: nonEmptyStringSchema
+  })
+  .strict();
+
 export type Feature = z.infer<typeof featureSchema>;
+export type FeatureIntent = z.infer<typeof featureIntentSchema>;

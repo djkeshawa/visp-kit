@@ -26,6 +26,21 @@ describe("project schemas", () => {
     ).toBe(true);
   });
 
+  it("accepts active feature status artifacts", () => {
+    expect(
+      projectStatusSchema.safeParse({
+        initialized: true,
+        activeFeatureId: "001",
+        activeFeatureSlug: "add-note-pinning",
+        activeFeaturePath: ".visp/features/001-add-note-pinning",
+        currentState: "feature_intent_ready",
+        lastCommand: "feature",
+        createdAt: validProjectConfig.createdAt,
+        updatedAt: validProjectConfig.updatedAt
+      }).success
+    ).toBe(true);
+  });
+
   it("rejects invalid package managers", () => {
     const result = projectProfileSchema.safeParse({
       ...validProjectProfile,

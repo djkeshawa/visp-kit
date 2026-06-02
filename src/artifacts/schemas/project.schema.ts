@@ -11,6 +11,13 @@ import {
   stringListSchema
 } from "./common.schema.js";
 
+export const projectWorkflowStateSchema = z.enum([
+  "initialized",
+  "feature_intent_ready"
+]);
+
+export const projectLastCommandSchema = z.enum(["init", "feature"]);
+
 export const projectProfileSchema = z
   .object({
     name: nonEmptyStringSchema,
@@ -47,8 +54,10 @@ export const projectStatusSchema = z
   .object({
     initialized: z.literal(true),
     activeFeatureId: nonEmptyStringSchema.nullable(),
-    currentState: z.literal("initialized"),
-    lastCommand: z.literal("init"),
+    activeFeatureSlug: nonEmptyStringSchema.nullable().optional(),
+    activeFeaturePath: pathStringSchema.nullable().optional(),
+    currentState: projectWorkflowStateSchema,
+    lastCommand: projectLastCommandSchema,
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema
   })
@@ -57,3 +66,5 @@ export const projectStatusSchema = z
 export type ProjectProfile = z.infer<typeof projectProfileSchema>;
 export type ProjectConfig = z.infer<typeof projectConfigSchema>;
 export type ProjectStatus = z.infer<typeof projectStatusSchema>;
+export type ProjectWorkflowState = z.infer<typeof projectWorkflowStateSchema>;
+export type ProjectLastCommand = z.infer<typeof projectLastCommandSchema>;

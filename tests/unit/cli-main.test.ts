@@ -12,6 +12,7 @@ describe("createCli", () => {
     expect(help).toContain("-h, --help");
     expect(help).toContain("-V, --version");
     expect(help).toContain("constitution");
+    expect(help).toContain("feature");
     expect(help).toContain("init");
     expect(help).toContain("scan");
   });
@@ -59,6 +60,22 @@ describe("createCli", () => {
 
     expect(help).toContain("Usage: visp scan [options] [path]");
     expect(help).toContain("--changed");
+    expect(help).toContain("--force");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+  });
+
+  it("prints feature command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "feature")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp feature [options] <feature idea> [path]");
+    expect(help).toContain("--budget");
+    expect(help).toContain("--risk");
+    expect(help).toContain("--branch");
+    expect(help).toContain("--no-branch");
+    expect(help).toContain("--branch-name");
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
