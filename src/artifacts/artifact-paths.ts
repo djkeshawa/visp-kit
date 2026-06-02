@@ -206,6 +206,13 @@ export function verificationArtifactPath(
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.json");
 }
 
+export function verificationMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "verification.md");
+}
+
 export function traceabilityArtifactPath(
   rootPath: string,
   featureKey: string

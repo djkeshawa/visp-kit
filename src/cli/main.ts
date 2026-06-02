@@ -41,6 +41,10 @@ import {
   createTasksCommand,
   type TasksCommandDependencies
 } from "./commands/tasks.command.js";
+import {
+  createVerifyCommand,
+  type VerifyCommandDependencies
+} from "./commands/verify.command.js";
 
 export type CliDependencies = BudgetCommandDependencies &
   ClarifyCommandDependencies &
@@ -51,7 +55,8 @@ export type CliDependencies = BudgetCommandDependencies &
   PlanCommandDependencies &
   ScanCommandDependencies &
   SpecCommandDependencies &
-  TasksCommandDependencies;
+  TasksCommandDependencies &
+  VerifyCommandDependencies;
 
 const cliMetadataSchema = z.object({
   name: z.literal("visp"),
@@ -83,6 +88,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createScanCommand(dependencies));
   program.addCommand(createSpecCommand(dependencies));
   program.addCommand(createTasksCommand(dependencies));
+  program.addCommand(createVerifyCommand(dependencies));
 
   return program;
 }

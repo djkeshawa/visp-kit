@@ -13,7 +13,7 @@ describe("verification schema", () => {
   it("rejects invalid verification statuses", () => {
     const result = verificationReportSchema.safeParse({
       ...validVerificationReport,
-      status: "unknown"
+      mode: "unknown"
     });
 
     expect(result.success).toBe(false);
@@ -22,12 +22,15 @@ describe("verification schema", () => {
   it("rejects negative command durations", () => {
     const result = verificationReportSchema.safeParse({
       ...validVerificationReport,
-      commandResults: [
-        {
-          ...validVerificationReport.commandResults[0],
-          durationMs: -1
-        }
-      ]
+      commandValidation: {
+        ...validVerificationReport.commandValidation,
+        commands: [
+          {
+            ...validVerificationReport.commandValidation.commands[0],
+            durationMs: -1
+          }
+        ]
+      }
     });
 
     expect(result.success).toBe(false);

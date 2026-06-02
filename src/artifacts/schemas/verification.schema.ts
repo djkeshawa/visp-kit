@@ -5,18 +5,123 @@ import {
   idSchema,
   isoDateTimeSchema,
   nonEmptyStringSchema,
-  stringListSchema,
-  verificationStatusSchema
+  pathStringSchema,
+  stringListSchema
 } from "./common.schema.js";
 
-export const validationCommandResultSchema = z
+export const verificationModeSchema = z.enum([
+  "targeted",
+  "all",
+  "feature",
+  "artifacts",
+  "traceability",
+  "scope",
+  "dependencies",
+  "custom"
+]);
+
+export const verificationCheckStatusSchema = z.enum([
+  "passed",
+  "failed",
+  "skipped",
+  "warned"
+]);
+
+export const verificationCommandResultSchema = z
   .object({
     command: commandStringSchema,
-    status: verificationStatusSchema,
+    cwd: pathStringSchema,
     exitCode: z.number().int().nullable(),
+    success: z.boolean(),
+    durationMs: z.number().int().nonnegative(),
+    startedAt: isoDateTimeSchema,
+    endedAt: isoDateTimeSchema,
     stdout: z.string(),
     stderr: z.string(),
-    durationMs: z.number().int().nonnegative()
+    stdoutTruncated: z.boolean(),
+    stderrTruncated: z.boolean(),
+    skipped: z.boolean(),
+    skipReason: z.string().nullable(),
+    timedOut: z.boolean()
+  })
+  .strict();
+
+export const artifactValidationResultSchema = z
+  .object({
+    path: pathStringSchema,
+    required: z.boolean(),
+    present: z.boolean(),
+    passed: z.boolean(),
+    errors: stringListSchema,
+    warnings: stringListSchema
+  })
+  .strict();
+
+export const artifactValidationSectionSchema = z
+  .object({
+    status: verificationCheckStatusSchema,
+    checked: z.array(artifactValidationResultSchema),
+    warnings: stringListSchema,
+    errors: stringListSchema
+  })
+  .strict();
+
+export const traceabilityValidationSectionSchema = z
+  .object({
+    status: verificationCheckStatusSchema,
+    checkedTaskId: idSchema.nullable(),
+    warnings: stringListSchema,
+    errors: stringListSchema
+  })
+  .strict();
+
+export const commandValidationSectionSchema = z
+  .object({
+    status: verificationCheckStatusSchema,
+    commands: z.array(verificationCommandResultSchema),
+    warnings: stringListSchema,
+    errors: stringListSchema
+  })
+  .strict();
+
+export const scopeValidationSectionSchema = z
+  .object({
+    status: verificationCheckStatusSchema,
+    changedFiles: z.array(pathStringSchema),
+    allowedFiles: z.array(pathStringSchema),
+    expectedFiles: z.array(pathStringSchema),
+    forbiddenFiles: z.array(pathStringSchema),
+    outOfScopeFiles: z.array(pathStringSchema),
+    forbiddenChangedFiles: z.array(pathStringSchema),
+    unmappedChangedFiles: z.array(pathStringSchema),
+    warnings: stringListSchema,
+    errors: stringListSchema
+  })
+  .strict();
+
+export const dependencyValidationSectionSchema = z
+  .object({
+    status: verificationCheckStatusSchema,
+    changedDependencyFiles: z.array(pathStringSchema),
+    approvedByTaskScope: z.boolean(),
+    approvedByPlan: z.boolean(),
+    warnings: stringListSchema,
+    errors: stringListSchema
+  })
+  .strict();
+
+export const verificationSummarySchema = z
+  .object({
+    passed: z.boolean(),
+    failed: z.boolean(),
+    warnings: z.number().int().nonnegative(),
+    commandsRun: z.number().int().nonnegative(),
+    commandsPassed: z.number().int().nonnegative(),
+    commandsFailed: z.number().int().nonnegative(),
+    artifactsChecked: z.number().int().nonnegative(),
+    artifactsFailed: z.number().int().nonnegative(),
+    scopeViolations: z.number().int().nonnegative(),
+    dependencyViolations: z.number().int().nonnegative()
   })
   .strict();
 
@@ -24,18 +129,33 @@ export const verificationReportSchema = z
   .object({
     id: idSchema,
     featureId: idSchema,
-    taskIds: z.array(idSchema),
-    status: verificationStatusSchema,
-    summary: nonEmptyStringSchema,
-    commandResults: z.array(validationCommandResultSchema),
-    verifiedRequirements: z.array(idSchema),
-    verifiedAcceptanceCriteria: z.array(idSchema),
-    notes: stringListSchema,
-    createdAt: isoDateTimeSchema
+    featureSlug: nonEmptyStringSchema,
+    taskId: idSchema.nullable(),
+    mode: verificationModeSchema,
+    startedAt: isoDateTimeSchema,
+    endedAt: isoDateTimeSchema,
+    durationMs: z.number().int().nonnegative(),
+    success: z.boolean(),
+    summary: verificationSummarySchema,
+    artifactValidation: artifactValidationSectionSchema,
+    traceabilityValidation: traceabilityValidationSectionSchema,
+    commandValidation: commandValidationSectionSchema,
+    scopeValidation: scopeValidationSectionSchema,
+    dependencyValidation: dependencyValidationSectionSchema,
+    warnings: stringListSchema,
+    errors: stringListSchema,
+    nextCommand: nonEmptyStringSchema
   })
   .strict();
 
-export type ValidationCommandResult = z.infer<
-  typeof validationCommandResultSchema
->;
+export type VerificationMode = z.infer<typeof verificationModeSchema>;
+export type VerificationCheckStatus = z.infer<typeof verificationCheckStatusSchema>;
+export type VerificationCommandResult = z.infer<typeof verificationCommandResultSchema>;
+export type ArtifactValidationResult = z.infer<typeof artifactValidationResultSchema>;
+export type ArtifactValidationSection = z.infer<typeof artifactValidationSectionSchema>;
+export type TraceabilityValidationSection = z.infer<typeof traceabilityValidationSectionSchema>;
+export type CommandValidationSection = z.infer<typeof commandValidationSectionSchema>;
+export type ScopeValidationSection = z.infer<typeof scopeValidationSectionSchema>;
+export type DependencyValidationSection = z.infer<typeof dependencyValidationSectionSchema>;
+export type VerificationSummary = z.infer<typeof verificationSummarySchema>;
 export type VerificationReport = z.infer<typeof verificationReportSchema>;

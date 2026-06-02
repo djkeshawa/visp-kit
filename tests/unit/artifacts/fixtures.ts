@@ -225,25 +225,94 @@ export const validContextPack: ContextPack = {
 };
 
 export const validVerificationReport: VerificationReport = {
-  id: "VER-001",
+  id: "VER-001-T001",
   featureId: "001",
-  taskIds: ["T001"],
-  status: "passed",
-  summary: "All task validation commands passed.",
-  commandResults: [
-    {
-      command: "pnpm test",
-      status: "passed",
-      exitCode: 0,
-      stdout: "pass",
-      stderr: "",
-      durationMs: 300
-    }
-  ],
-  verifiedRequirements: ["REQ-001"],
-  verifiedAcceptanceCriteria: ["AC-001"],
-  notes: [],
-  createdAt: timestamp
+  featureSlug: "note-pinning",
+  taskId: "T001",
+  mode: "targeted",
+  startedAt: timestamp,
+  endedAt: timestamp,
+  durationMs: 300,
+  success: true,
+  summary: {
+    passed: true,
+    failed: false,
+    warnings: 0,
+    commandsRun: 1,
+    commandsPassed: 1,
+    commandsFailed: 0,
+    artifactsChecked: 1,
+    artifactsFailed: 0,
+    scopeViolations: 0,
+    dependencyViolations: 0
+  },
+  artifactValidation: {
+    status: "passed",
+    checked: [
+      {
+        path: ".visp/features/001-note-pinning/task-graph.json",
+        required: true,
+        present: true,
+        passed: true,
+        errors: [],
+        warnings: []
+      }
+    ],
+    warnings: [],
+    errors: []
+  },
+  traceabilityValidation: {
+    status: "passed",
+    checkedTaskId: "T001",
+    warnings: [],
+    errors: []
+  },
+  commandValidation: {
+    status: "passed",
+    commands: [
+      {
+        command: "pnpm test",
+        cwd: "/workspace/visp-kit",
+        exitCode: 0,
+        success: true,
+        durationMs: 300,
+        startedAt: timestamp,
+        endedAt: timestamp,
+        stdout: "pass",
+        stderr: "",
+        stdoutTruncated: false,
+        stderrTruncated: false,
+        skipped: false,
+        skipReason: null,
+        timedOut: false
+      }
+    ],
+    warnings: [],
+    errors: []
+  },
+  scopeValidation: {
+    status: "passed",
+    changedFiles: ["src/notes/sort.ts"],
+    allowedFiles: ["src/notes/sort.ts"],
+    expectedFiles: ["tests/notes/sort.test.ts"],
+    forbiddenFiles: ["package.json"],
+    outOfScopeFiles: [],
+    forbiddenChangedFiles: [],
+    unmappedChangedFiles: [],
+    warnings: [],
+    errors: []
+  },
+  dependencyValidation: {
+    status: "passed",
+    changedDependencyFiles: [],
+    approvedByTaskScope: false,
+    approvedByPlan: false,
+    warnings: [],
+    errors: []
+  },
+  warnings: [],
+  errors: [],
+  nextCommand: "visp review --diff-only"
 };
 
 export const validTraceabilityMatrix: TraceabilityMatrix = {

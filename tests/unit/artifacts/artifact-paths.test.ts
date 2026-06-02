@@ -14,7 +14,8 @@ import {
   requirementsArtifactPath,
   taskGraphArtifactPath,
   traceabilityArtifactPath,
-  verificationArtifactPath
+  verificationArtifactPath,
+  verificationMarkdownPath
 } from "../../../src/artifacts/artifact-paths.js";
 
 describe("artifact paths", () => {
@@ -64,6 +65,9 @@ describe("artifact paths", () => {
     );
     expect(verificationArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "verification.json")
+    );
+    expect(verificationMarkdownPath(root, featureKey)).toBe(
+      path.join(root, ".visp", "features", featureKey, "verification.md")
     );
     expect(traceabilityArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "traceability.json")

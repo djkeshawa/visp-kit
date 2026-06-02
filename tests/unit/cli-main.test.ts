@@ -21,6 +21,7 @@ describe("createCli", () => {
     expect(help).toContain("scan");
     expect(help).toContain("spec");
     expect(help).toContain("tasks");
+    expect(help).toContain("verify");
   });
 
   it("prints the CLI version", () => {
@@ -145,6 +146,28 @@ describe("createCli", () => {
     expect(help).toContain("--budget");
     expect(help).toContain("--max-tokens");
     expect(help).toContain("--write-report");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+  });
+
+  it("prints verify command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "verify")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp verify [options] [path]");
+    expect(help).toContain("--feature");
+    expect(help).toContain("--task");
+    expect(help).toContain("--targeted");
+    expect(help).toContain("--all");
+    expect(help).toContain("--commands");
+    expect(help).toContain("--skip-commands");
+    expect(help).toContain("--artifacts");
+    expect(help).toContain("--traceability");
+    expect(help).toContain("--scope");
+    expect(help).toContain("--dependencies");
+    expect(help).toContain("--update-task-status");
+    expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
   });
