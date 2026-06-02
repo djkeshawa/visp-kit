@@ -31,6 +31,7 @@ export const taskSchema = z
 export const taskGraphArtifactSchema = z
   .object({
     featureId: idSchema,
+    featureSlug: nonEmptyStringSchema.optional(),
     tasks: z.array(taskSchema),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema

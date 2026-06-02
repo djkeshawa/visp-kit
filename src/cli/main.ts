@@ -2,9 +2,21 @@ import { Command } from "commander";
 import { z } from "zod";
 
 import {
+  createBudgetCommand,
+  type BudgetCommandDependencies
+} from "./commands/budget.command.js";
+import {
+  createClarifyCommand,
+  type ClarifyCommandDependencies
+} from "./commands/clarify.command.js";
+import {
   createConstitutionCommand,
   type ConstitutionCommandDependencies
 } from "./commands/constitution.command.js";
+import {
+  createContextCommand,
+  type ContextCommandDependencies
+} from "./commands/context.command.js";
 import {
   createInitCommand,
   type InitCommandDependencies
@@ -17,11 +29,29 @@ import {
   createScanCommand,
   type ScanCommandDependencies
 } from "./commands/scan.command.js";
+import {
+  createPlanCommand,
+  type PlanCommandDependencies
+} from "./commands/plan.command.js";
+import {
+  createSpecCommand,
+  type SpecCommandDependencies
+} from "./commands/spec.command.js";
+import {
+  createTasksCommand,
+  type TasksCommandDependencies
+} from "./commands/tasks.command.js";
 
-export type CliDependencies = ConstitutionCommandDependencies &
+export type CliDependencies = BudgetCommandDependencies &
+  ClarifyCommandDependencies &
+  ConstitutionCommandDependencies &
+  ContextCommandDependencies &
   FeatureCommandDependencies &
   InitCommandDependencies &
-  ScanCommandDependencies;
+  PlanCommandDependencies &
+  ScanCommandDependencies &
+  SpecCommandDependencies &
+  TasksCommandDependencies;
 
 const cliMetadataSchema = z.object({
   name: z.literal("visp"),
@@ -43,10 +73,16 @@ export function createCli(dependencies: CliDependencies = {}): Command {
     .showHelpAfterError()
     .helpOption("-h, --help", "Display help for command.");
 
+  program.addCommand(createBudgetCommand(dependencies));
+  program.addCommand(createClarifyCommand(dependencies));
   program.addCommand(createConstitutionCommand(dependencies));
+  program.addCommand(createContextCommand(dependencies));
   program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
+  program.addCommand(createPlanCommand(dependencies));
   program.addCommand(createScanCommand(dependencies));
+  program.addCommand(createSpecCommand(dependencies));
+  program.addCommand(createTasksCommand(dependencies));
 
   return program;
 }

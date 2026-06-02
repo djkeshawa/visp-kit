@@ -77,6 +77,10 @@ export function scanReportArtifactPath(rootPath: string): string {
   return joinPath(reportsArtifactDir(rootPath), "scan-report.md");
 }
 
+export function budgetReportArtifactPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "budget-report.md");
+}
+
 export function featuresArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "features");
 }
@@ -109,6 +113,43 @@ export function featureIntentArtifactPath(
   return joinPath(featureArtifactDir(rootPath, featureKey), "intent.json");
 }
 
+export function clarificationsMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "clarifications.md");
+}
+
+export function clarificationsArtifactPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "clarifications.json");
+}
+
+export function specMarkdownPath(rootPath: string, featureKey: string): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "spec.md");
+}
+
+export function specArtifactPath(rootPath: string, featureKey: string): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "spec.json");
+}
+
+export function planMarkdownPath(rootPath: string, featureKey: string): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "plan.md");
+}
+
+export function tasksMarkdownPath(rootPath: string, featureKey: string): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "tasks.md");
+}
+
+export function traceabilityMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "traceability.md");
+}
+
 export function requirementsArtifactPath(
   rootPath: string,
   featureKey: string
@@ -131,7 +172,7 @@ export function contextPacksArtifactDir(
   rootPath: string,
   featureKey: string
 ): string {
-  return joinPath(featureArtifactDir(rootPath, featureKey), "context-packs");
+  return joinPath(featureArtifactDir(rootPath, featureKey), "context");
 }
 
 export function contextPackArtifactPath(
@@ -140,6 +181,22 @@ export function contextPackArtifactPath(
   taskId: string
 ): string {
   return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.context.json`);
+}
+
+export function contextPackMarkdownPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.context.md`);
+}
+
+export function contextPromptPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.prompt.md`);
 }
 
 export function verificationArtifactPath(
@@ -158,4 +215,12 @@ export function traceabilityArtifactPath(
 
 export function budgetArtifactPath(rootPath: string): string {
   return joinPath(vispDir(rootPath), "budget.json");
+}
+
+export function promptsArtifactDir(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "prompts");
+}
+
+export function promptArtifactPath(rootPath: string, name: string): string {
+  return joinPath(promptsArtifactDir(rootPath), `${name}.prompt.md`);
 }

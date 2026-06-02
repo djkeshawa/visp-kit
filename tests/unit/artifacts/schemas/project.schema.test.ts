@@ -41,6 +41,32 @@ describe("project schemas", () => {
     ).toBe(true);
   });
 
+  it("accepts phase 7 workflow status artifacts", () => {
+    const states = [
+      ["clarification_ready", "clarify"],
+      ["spec_ready", "spec"],
+      ["plan_ready", "plan"],
+      ["tasks_ready", "tasks"],
+      ["context_ready", "context"]
+    ] as const;
+
+    for (const [currentState, lastCommand] of states) {
+      expect(
+        projectStatusSchema.safeParse({
+          initialized: true,
+          activeFeatureId: "001",
+          activeFeatureSlug: "add-note-pinning",
+          activeFeaturePath: ".visp/features/001-add-note-pinning",
+          activeTaskId: currentState === "context_ready" ? "T001" : null,
+          currentState,
+          lastCommand,
+          createdAt: validProjectConfig.createdAt,
+          updatedAt: validProjectConfig.updatedAt
+        }).success
+      ).toBe(true);
+    }
+  });
+
   it("rejects invalid package managers", () => {
     const result = projectProfileSchema.safeParse({
       ...validProjectProfile,

@@ -58,7 +58,7 @@ describe("artifact paths", () => {
         ".visp",
         "features",
         featureKey,
-        "context-packs",
+        "context",
         "T001.context.json"
       )
     );

@@ -1,4 +1,5 @@
 export * from "./budget.schema.js";
+export * from "./clarification.schema.js";
 export * from "./common.schema.js";
 export * from "./constitution.schema.js";
 export * from "./context-pack.schema.js";
@@ -6,6 +7,7 @@ export * from "./feature.schema.js";
 export * from "./plan.schema.js";
 export * from "./project.schema.js";
 export * from "./requirement.schema.js";
+export * from "./spec.schema.js";
 export * from "./task.schema.js";
 export * from "./traceability.schema.js";
 export * from "./verification.schema.js";

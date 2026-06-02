@@ -11,10 +11,16 @@ describe("createCli", () => {
     expect(help).toContain("Small context. Clear specs. Accurate code.");
     expect(help).toContain("-h, --help");
     expect(help).toContain("-V, --version");
+    expect(help).toContain("budget");
+    expect(help).toContain("clarify");
     expect(help).toContain("constitution");
+    expect(help).toContain("context");
     expect(help).toContain("feature");
     expect(help).toContain("init");
+    expect(help).toContain("plan");
     expect(help).toContain("scan");
+    expect(help).toContain("spec");
+    expect(help).toContain("tasks");
   });
 
   it("prints the CLI version", () => {
@@ -93,5 +99,53 @@ describe("createCli", () => {
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
     expect(help).toContain("--validate");
+  });
+
+  it("prints phase 7 command help", () => {
+    for (const name of ["clarify", "spec", "plan", "tasks"]) {
+      const help = createCli().commands
+        .find((command) => command.name() === name)
+        ?.helpInformation();
+
+      expect(help).toContain(`Usage: visp ${name} [options] [path]`);
+      expect(help).toContain("--feature");
+      expect(help).toContain("--force");
+      expect(help).toContain("--dry-run");
+      expect(help).toContain("--json");
+      expect(help).toContain("--validate");
+      expect(help).toContain("--prompt-only");
+    }
+  });
+
+  it("prints context command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "context")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp context [options] [task-id] [path]");
+    expect(help).toContain("--next");
+    expect(help).toContain("--feature");
+    expect(help).toContain("--budget");
+    expect(help).toContain("--max-tokens");
+    expect(help).toContain("--include-full-files");
+    expect(help).toContain("--prompt-only");
+    expect(help).toContain("--force");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+  });
+
+  it("prints budget command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "budget")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp budget [options] [path]");
+    expect(help).toContain("--feature");
+    expect(help).toContain("--task");
+    expect(help).toContain("--budget");
+    expect(help).toContain("--max-tokens");
+    expect(help).toContain("--write-report");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
   });
 });

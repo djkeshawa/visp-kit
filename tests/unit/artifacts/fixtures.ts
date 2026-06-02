@@ -147,33 +147,81 @@ export const validTaskGraph: TaskGraphArtifact = {
 export const validContextPack: ContextPack = {
   id: "CTX-T001",
   featureId: "001",
+  featureSlug: "note-pinning",
   taskId: "T001",
   budgetMode: "lean",
-  estimatedTokens: 1200,
-  includedRequirements: ["REQ-001"],
-  includedAcceptanceCriteria: ["AC-001"],
-  includedConstitutionRules: ["RULE-001"],
+  estimatedTokens: {
+    input: 1200,
+    expectedOutput: 1500,
+    total: 2700,
+    maxInput: 8000,
+    mode: "lean",
+    estimator: "chars-divided-by-four"
+  },
+  overBudget: false,
+  recommendation: "OK",
+  warnings: [],
+  selectedTask: validTaskGraph.tasks[0]!,
+  includedRequirements: [validRequirement],
+  includedAcceptanceCriteria: validRequirement.acceptanceCriteria,
+  includedPlanDecisions: [
+    {
+      id: "DEC-001",
+      title: "Keep sort deterministic",
+      summary: "Sort pinned notes before unpinned notes.",
+      requirementIds: ["REQ-001"]
+    }
+  ],
+  includedRisks: [
+    {
+      id: "RISK-001",
+      description: "Existing sort order could change unexpectedly.",
+      level: "medium",
+      mitigation: "Add unit coverage for pinned and unpinned ordering.",
+      requirementIds: ["REQ-001"]
+    }
+  ],
+  includedDependencyTasks: [],
+  includedConstitutionRules: [
+    {
+      id: "RULE-001",
+      text: "Keep changes scoped."
+    }
+  ],
+  includedProjectContext: {
+    summary: "Project summary.",
+    patterns: "",
+    warnings: []
+  },
   includedFiles: [
     {
       path: "src/notes/sort.ts",
       reason: "Primary implementation target.",
       includeMode: "full",
-      hash: "abc123"
+      hash: "abc123",
+      language: "TypeScript",
+      sizeBytes: 120,
+      tokenEstimate: 100,
+      summaryAvailable: true,
+      snippetIncluded: true,
+      summary: "{}"
     }
   ],
   includedSnippets: [
     {
-      path: "tests/notes/sort.test.ts",
+      filePath: "src/notes/sort.ts",
       reason: "Existing sort test pattern.",
       startLine: 1,
       endLine: 12,
-      hash: "def456",
-      content: "describe('sort notes', () => {})"
+      content: "describe('sort notes', () => {})",
+      tokenEstimate: 9
     }
   ],
   validationCommands: ["pnpm test"],
   constraints: ["Do not add production dependencies."],
-  instructions: ["Implement only task T001."]
+  instructions: ["Implement only task T001."],
+  createdAt: timestamp,
+  updatedAt: timestamp
 };
 
 export const validVerificationReport: VerificationReport = {

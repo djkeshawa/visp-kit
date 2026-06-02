@@ -13,10 +13,23 @@ import {
 
 export const projectWorkflowStateSchema = z.enum([
   "initialized",
-  "feature_intent_ready"
+  "feature_intent_ready",
+  "clarification_ready",
+  "spec_ready",
+  "plan_ready",
+  "tasks_ready",
+  "context_ready"
 ]);
 
-export const projectLastCommandSchema = z.enum(["init", "feature"]);
+export const projectLastCommandSchema = z.enum([
+  "init",
+  "feature",
+  "clarify",
+  "spec",
+  "plan",
+  "tasks",
+  "context"
+]);
 
 export const projectProfileSchema = z
   .object({
@@ -56,6 +69,7 @@ export const projectStatusSchema = z
     activeFeatureId: nonEmptyStringSchema.nullable(),
     activeFeatureSlug: nonEmptyStringSchema.nullable().optional(),
     activeFeaturePath: pathStringSchema.nullable().optional(),
+    activeTaskId: nonEmptyStringSchema.nullable().optional(),
     currentState: projectWorkflowStateSchema,
     lastCommand: projectLastCommandSchema,
     createdAt: isoDateTimeSchema,
