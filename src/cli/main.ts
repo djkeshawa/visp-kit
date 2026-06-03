@@ -30,6 +30,10 @@ import {
   type FeatureCommandDependencies
 } from "./commands/feature.command.js";
 import {
+  createGateCommand,
+  type GateCommandDependencies
+} from "./commands/gate.command.js";
+import {
   createScanCommand,
   type ScanCommandDependencies
 } from "./commands/scan.command.js";
@@ -80,6 +84,7 @@ export type CliDependencies = BudgetCommandDependencies &
   ContextCommandDependencies &
   DoctorCommandDependencies &
   FeatureCommandDependencies &
+  GateCommandDependencies &
   InitCommandDependencies &
   NextCommandDependencies &
   PlanCommandDependencies &
@@ -119,6 +124,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createContextCommand(dependencies));
   program.addCommand(createDoctorCommand(dependencies));
   program.addCommand(createFeatureCommand(dependencies));
+  program.addCommand(createGateCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createNextCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));

@@ -93,6 +93,10 @@ export function doctorReportArtifactPath(rootPath: string): string {
   return joinPath(reportsArtifactDir(rootPath), "doctor-report.md");
 }
 
+export function gateReportArtifactPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "gate-report.md");
+}
+
 export function featuresArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "features");
 }

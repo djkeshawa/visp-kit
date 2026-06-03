@@ -17,6 +17,7 @@ describe("createCli", () => {
     expect(help).toContain("context");
     expect(help).toContain("doctor");
     expect(help).toContain("feature");
+    expect(help).toContain("gate");
     expect(help).toContain("init");
     expect(help).toContain("next");
     expect(help).toContain("plan");
@@ -260,5 +261,19 @@ describe("createCli", () => {
         expect(help).toContain(flag);
       }
     }
+  });
+
+  it("prints gate command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "gate")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp gate [options] <stage> [path]");
+    expect(help).toContain("--feature");
+    expect(help).toContain("--task");
+    expect(help).toContain("--strictness");
+    expect(help).toContain("--explain");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
   });
 });
