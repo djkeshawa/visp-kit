@@ -4,14 +4,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   budgetArtifactPath,
+  doctorReportArtifactPath,
   constitutionArtifactPath,
   contextPackArtifactPath,
   featureArtifactPath,
+  featurePrArtifactPath,
+  featurePrMarkdownPath,
   planArtifactPath,
   projectConfigArtifactPath,
   projectProfileArtifactPath,
   projectStatusArtifactPath,
   requirementsArtifactPath,
+  statusReportArtifactPath,
   taskReconcileArtifactPath,
   taskReconcileMarkdownPath,
   taskReconcilePromptPath,
@@ -42,6 +46,12 @@ describe("artifact paths", () => {
       path.join(root, ".visp", "memory", "constitution.json")
     );
     expect(budgetArtifactPath(root)).toBe(path.join(root, ".visp", "budget.json"));
+    expect(statusReportArtifactPath(root)).toBe(
+      path.join(root, ".visp", "reports", "status-report.md")
+    );
+    expect(doctorReportArtifactPath(root)).toBe(
+      path.join(root, ".visp", "reports", "doctor-report.md")
+    );
   });
 
   it("builds feature artifact paths", () => {
@@ -96,6 +106,12 @@ describe("artifact paths", () => {
     );
     expect(taskReconcilePromptPath(root, featureKey, "T001")).toBe(
       path.join(root, ".visp", "features", featureKey, "reconcile", "T001.reconcile-prompt.md")
+    );
+    expect(featurePrArtifactPath(root, featureKey)).toBe(
+      path.join(root, ".visp", "features", featureKey, "pr.json")
+    );
+    expect(featurePrMarkdownPath(root, featureKey)).toBe(
+      path.join(root, ".visp", "features", featureKey, "pr.md")
     );
     expect(traceabilityArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "traceability.json")

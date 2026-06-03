@@ -22,7 +22,8 @@ export const projectWorkflowStateSchema = z.enum([
   "verified",
   "review_ready",
   "reconcile_ready",
-  "reconciled"
+  "reconciled",
+  "pr_ready"
 ]);
 
 export const projectLastCommandSchema = z.enum([
@@ -35,7 +36,8 @@ export const projectLastCommandSchema = z.enum([
   "context",
   "verify",
   "review",
-  "reconcile"
+  "reconcile",
+  "pr"
 ]);
 
 export const projectProfileSchema = z

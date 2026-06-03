@@ -14,6 +14,10 @@ import {
   type ConstitutionCommandDependencies
 } from "./commands/constitution.command.js";
 import {
+  createDoctorCommand,
+  type DoctorCommandDependencies
+} from "./commands/doctor.command.js";
+import {
   createContextCommand,
   type ContextCommandDependencies
 } from "./commands/context.command.js";
@@ -34,6 +38,14 @@ import {
   type PlanCommandDependencies
 } from "./commands/plan.command.js";
 import {
+  createNextCommand,
+  type NextCommandDependencies
+} from "./commands/next.command.js";
+import {
+  createPrCommand,
+  type PrCommandDependencies
+} from "./commands/pr.command.js";
+import {
   createReviewCommand,
   type ReviewCommandDependencies
 } from "./commands/review.command.js";
@@ -45,6 +57,10 @@ import {
   createSpecCommand,
   type SpecCommandDependencies
 } from "./commands/spec.command.js";
+import {
+  createStatusCommand,
+  type StatusCommandDependencies
+} from "./commands/status.command.js";
 import {
   createTasksCommand,
   type TasksCommandDependencies
@@ -58,13 +74,17 @@ export type CliDependencies = BudgetCommandDependencies &
   ClarifyCommandDependencies &
   ConstitutionCommandDependencies &
   ContextCommandDependencies &
+  DoctorCommandDependencies &
   FeatureCommandDependencies &
   InitCommandDependencies &
+  NextCommandDependencies &
   PlanCommandDependencies &
+  PrCommandDependencies &
   ReconcileCommandDependencies &
   ReviewCommandDependencies &
   ScanCommandDependencies &
   SpecCommandDependencies &
+  StatusCommandDependencies &
   TasksCommandDependencies &
   VerifyCommandDependencies;
 
@@ -92,13 +112,17 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createClarifyCommand(dependencies));
   program.addCommand(createConstitutionCommand(dependencies));
   program.addCommand(createContextCommand(dependencies));
+  program.addCommand(createDoctorCommand(dependencies));
   program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
+  program.addCommand(createNextCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));
+  program.addCommand(createPrCommand(dependencies));
   program.addCommand(createReconcileCommand(dependencies));
   program.addCommand(createReviewCommand(dependencies));
   program.addCommand(createScanCommand(dependencies));
   program.addCommand(createSpecCommand(dependencies));
+  program.addCommand(createStatusCommand(dependencies));
   program.addCommand(createTasksCommand(dependencies));
   program.addCommand(createVerifyCommand(dependencies));
 

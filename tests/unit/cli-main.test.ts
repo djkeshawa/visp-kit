@@ -15,13 +15,17 @@ describe("createCli", () => {
     expect(help).toContain("clarify");
     expect(help).toContain("constitution");
     expect(help).toContain("context");
+    expect(help).toContain("doctor");
     expect(help).toContain("feature");
     expect(help).toContain("init");
+    expect(help).toContain("next");
     expect(help).toContain("plan");
+    expect(help).toContain("pr");
     expect(help).toContain("reconcile");
     expect(help).toContain("review");
     expect(help).toContain("scan");
     expect(help).toContain("spec");
+    expect(help).toContain("status");
     expect(help).toContain("tasks");
     expect(help).toContain("verify");
   });
@@ -211,5 +215,25 @@ describe("createCli", () => {
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
+  });
+
+  it("prints orchestration command help", () => {
+    const expected = {
+      status: ["--feature", "--task", "--verbose", "--write-report", "--json"],
+      next: ["--feature", "--task", "--command-only", "--explain", "--strict", "--json"],
+      doctor: ["--check", "--fix", "--dry-run", "--verbose", "--json"],
+      pr: ["--feature", "--task", "--base", "--staged", "--unstaged", "--title", "--prompt-only", "--force", "--dry-run", "--json"]
+    };
+
+    for (const [name, flags] of Object.entries(expected)) {
+      const help = createCli().commands
+        .find((command) => command.name() === name)
+        ?.helpInformation();
+
+      expect(help).toContain(`Usage: visp ${name} [options] [path]`);
+      for (const flag of flags) {
+        expect(help).toContain(flag);
+      }
+    }
   });
 });

@@ -81,6 +81,14 @@ export function budgetReportArtifactPath(rootPath: string): string {
   return joinPath(reportsArtifactDir(rootPath), "budget-report.md");
 }
 
+export function statusReportArtifactPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "status-report.md");
+}
+
+export function doctorReportArtifactPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "doctor-report.md");
+}
+
 export function featuresArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "features");
 }
@@ -324,6 +332,20 @@ export function featureReconcilePromptPath(
   featureKey: string
 ): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile-prompt.md");
+}
+
+export function featurePrArtifactPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "pr.json");
+}
+
+export function featurePrMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "pr.md");
 }
 
 export function traceabilityArtifactPath(

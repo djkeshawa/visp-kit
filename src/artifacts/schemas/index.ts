@@ -6,6 +6,7 @@ export * from "./context-pack.schema.js";
 export * from "./feature.schema.js";
 export * from "./plan.schema.js";
 export * from "./project.schema.js";
+export * from "./pr.schema.js";
 export * from "./reconcile.schema.js";
 export * from "./requirement.schema.js";
 export * from "./review.schema.js";

@@ -51,7 +51,8 @@ describe("project schemas", () => {
       ["verified", "verify"],
       ["review_ready", "review"],
       ["reconcile_ready", "reconcile"],
-      ["reconciled", "reconcile"]
+      ["reconciled", "reconcile"],
+      ["pr_ready", "pr"]
     ] as const;
 
     for (const [currentState, lastCommand] of states) {

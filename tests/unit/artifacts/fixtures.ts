@@ -7,6 +7,7 @@ import {
   type ProjectConfig,
   type ProjectProfile
 } from "../../../src/artifacts/schemas/project.schema.js";
+import { type PrArtifact } from "../../../src/artifacts/schemas/pr.schema.js";
 import { type ReconcileReport } from "../../../src/artifacts/schemas/reconcile.schema.js";
 import { type Requirement } from "../../../src/artifacts/schemas/requirement.schema.js";
 import { type ReviewReport } from "../../../src/artifacts/schemas/review.schema.js";
@@ -593,4 +594,58 @@ export const validBudgetArtifact: BudgetArtifact = {
       generatedAt: timestamp
     }
   ]
+};
+
+export const validPrArtifact: PrArtifact = {
+  success: true,
+  featureId: "001",
+  featureSlug: "note-pinning",
+  title: "Add note pinning",
+  summary: "Deliver Add note pinning.",
+  requirementsCovered: [
+    {
+      requirementId: "REQ-001",
+      acceptanceCriterionIds: ["AC-001"],
+      status: "ready"
+    }
+  ],
+  tasksIncluded: [
+    {
+      taskId: "T001",
+      title: "Add note sorting helper",
+      status: "verified",
+      evidence: ["verification", "review", "reconcile"]
+    }
+  ],
+  changedFiles: [
+    {
+      path: "src/notes/sort.ts",
+      changeType: "modified",
+      additions: 10,
+      deletions: 2,
+      notes: "implementation change"
+    }
+  ],
+  validationEvidence: {
+    status: "ready",
+    reportPath: ".visp/features/001-note-pinning/verification.json",
+    summary: ["Command run: pnpm test"]
+  },
+  reviewEvidence: {
+    status: "warnings",
+    reportPath: ".visp/features/001-note-pinning/review/T001.review.md",
+    summary: ["Review result: warnings"]
+  },
+  reconcileEvidence: {
+    status: "ready",
+    reportPath: ".visp/features/001-note-pinning/reconcile/T001.reconcile.md",
+    summary: ["Reconciliation result: passed"]
+  },
+  risks: ["Feature risk: low"],
+  rollback: ["Revert this PR."],
+  checklist: ["Requirements are covered."],
+  followUps: ["None."],
+  warnings: [],
+  errors: [],
+  generatedAt: timestamp
 };
