@@ -17,6 +17,10 @@ export function projectStatusArtifactPath(rootPath: string): string {
   return vispStatusPath(rootPath);
 }
 
+export function policyArtifactPath(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "policy.json");
+}
+
 export function memoryArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "memory");
 }

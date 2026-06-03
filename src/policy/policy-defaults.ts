@@ -1,0 +1,287 @@
+import {
+  type PolicyArtifact,
+  type PolicyLimits,
+  type PolicyOverrides,
+  type PolicyRules,
+  type StrictnessMode
+} from "../artifacts/schemas/policy.schema.js";
+
+export type PolicyRuleDefinition = {
+  readonly id: string;
+  readonly key: keyof PolicyRules;
+  readonly name: string;
+  readonly description: string;
+};
+
+export const policyRuleDefinitions: readonly PolicyRuleDefinition[] = [
+  {
+    id: "VSP001",
+    key: "requireScanBeforeFeature",
+    name: "require_scan_before_feature",
+    description: "Project should be scanned before new feature workflow."
+  },
+  {
+    id: "VSP002",
+    key: "requireConstitutionBeforeFeature",
+    name: "require_constitution_before_feature",
+    description: "Constitution should exist before feature workflow."
+  },
+  {
+    id: "VSP003",
+    key: "requireClarifyBeforeSpec",
+    name: "require_clarify_before_spec",
+    description: "Clarifications must exist before spec."
+  },
+  {
+    id: "VSP004",
+    key: "requireSpecBeforePlan",
+    name: "require_spec_before_plan",
+    description: "Spec must exist before plan."
+  },
+  {
+    id: "VSP005",
+    key: "requirePlanBeforeTasks",
+    name: "require_plan_before_tasks",
+    description: "Plan must exist before task graph."
+  },
+  {
+    id: "VSP006",
+    key: "requireTasksBeforeContext",
+    name: "require_tasks_before_context",
+    description: "Task graph must exist before context."
+  },
+  {
+    id: "VSP007",
+    key: "requireContextBeforeImplementation",
+    name: "require_context_before_implementation",
+    description: "Implementation requires a context pack."
+  },
+  {
+    id: "VSP008",
+    key: "requireRequirementMappingForTasks",
+    name: "require_requirement_mapping_for_tasks",
+    description: "Tasks must map to requirements."
+  },
+  {
+    id: "VSP009",
+    key: "requireAcceptanceCriteriaForBehaviorTasks",
+    name: "require_acceptance_criteria_for_behavior_tasks",
+    description: "Behavior tasks must map to acceptance criteria."
+  },
+  {
+    id: "VSP010",
+    key: "requireValidationCommands",
+    name: "require_validation_commands",
+    description: "Tasks should have validation commands or manual/static validation."
+  },
+  {
+    id: "VSP011",
+    key: "blockForbiddenFileChanges",
+    name: "block_forbidden_file_changes",
+    description: "Forbidden file changes block workflow progress."
+  },
+  {
+    id: "VSP012",
+    key: "blockOutOfScopeChanges",
+    name: "block_out_of_scope_changes",
+    description: "Out-of-scope files block strict task progress."
+  },
+  {
+    id: "VSP013",
+    key: "blockUnapprovedDependencyChanges",
+    name: "block_unapproved_dependency_changes",
+    description: "Package and lockfile changes require explicit approval."
+  },
+  {
+    id: "VSP014",
+    key: "requireVerifyBeforeReview",
+    name: "require_verify_before_review",
+    description: "Review requires verification evidence."
+  },
+  {
+    id: "VSP015",
+    key: "requireReviewBeforeReconcile",
+    name: "require_review_before_reconcile",
+    description: "Reconcile requires review evidence."
+  },
+  {
+    id: "VSP016",
+    key: "requireReconcileBeforePr",
+    name: "require_reconcile_before_pr",
+    description: "PR readiness requires reconciliation."
+  },
+  {
+    id: "VSP017",
+    key: "requireTraceabilityUpdateBeforePr",
+    name: "require_traceability_update_before_pr",
+    description: "PR readiness requires traceability updates."
+  },
+  {
+    id: "VSP018",
+    key: "requirePolicyValidation",
+    name: "require_policy_validation",
+    description: "Agent workflow must validate policy before acting."
+  },
+  {
+    id: "VSP019",
+    key: "userPromptCannotOverridePolicy",
+    name: "user_prompt_cannot_override_policy",
+    description: "User prompts cannot bypass policy."
+  },
+  {
+    id: "VSP020",
+    key: "stopOnFailedGate",
+    name: "stop_on_failed_gate",
+    description: "Agent must stop when a Visp gate fails."
+  }
+];
+
+export const policyRuleKeys = policyRuleDefinitions.map((rule) => rule.key);
+
+const allRulesOff: PolicyRules = {
+  requireScanBeforeFeature: false,
+  requireConstitutionBeforeFeature: false,
+  requireClarifyBeforeSpec: false,
+  requireSpecBeforePlan: false,
+  requirePlanBeforeTasks: false,
+  requireTasksBeforeContext: false,
+  requireContextBeforeImplementation: false,
+  requireRequirementMappingForTasks: false,
+  requireAcceptanceCriteriaForBehaviorTasks: false,
+  requireValidationCommands: false,
+  blockForbiddenFileChanges: false,
+  blockOutOfScopeChanges: false,
+  blockUnapprovedDependencyChanges: false,
+  requireVerifyBeforeReview: false,
+  requireReviewBeforeReconcile: false,
+  requireReconcileBeforePr: false,
+  requireTraceabilityUpdateBeforePr: false,
+  requirePolicyValidation: false,
+  userPromptCannotOverridePolicy: false,
+  stopOnFailedGate: false
+};
+
+const strictRules: PolicyRules = {
+  requireScanBeforeFeature: true,
+  requireConstitutionBeforeFeature: true,
+  requireClarifyBeforeSpec: true,
+  requireSpecBeforePlan: true,
+  requirePlanBeforeTasks: true,
+  requireTasksBeforeContext: true,
+  requireContextBeforeImplementation: true,
+  requireRequirementMappingForTasks: true,
+  requireAcceptanceCriteriaForBehaviorTasks: true,
+  requireValidationCommands: true,
+  blockForbiddenFileChanges: true,
+  blockOutOfScopeChanges: true,
+  blockUnapprovedDependencyChanges: true,
+  requireVerifyBeforeReview: true,
+  requireReviewBeforeReconcile: true,
+  requireReconcileBeforePr: true,
+  requireTraceabilityUpdateBeforePr: true,
+  requirePolicyValidation: true,
+  userPromptCannotOverridePolicy: true,
+  stopOnFailedGate: true
+};
+
+const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {
+  relaxed: {
+    ...allRulesOff,
+    blockForbiddenFileChanges: true,
+    requirePolicyValidation: true,
+    userPromptCannotOverridePolicy: true,
+    stopOnFailedGate: true
+  },
+  standard: {
+    ...allRulesOff,
+    requireTasksBeforeContext: true,
+    requireContextBeforeImplementation: true,
+    requireRequirementMappingForTasks: true,
+    blockForbiddenFileChanges: true,
+    blockUnapprovedDependencyChanges: true,
+    requirePolicyValidation: true,
+    userPromptCannotOverridePolicy: true,
+    stopOnFailedGate: true
+  },
+  strict: strictRules,
+  locked: strictRules
+};
+
+const limitsByStrictness: Record<StrictnessMode, PolicyLimits> = {
+  relaxed: {
+    maxChangedFilesPerTask: 20,
+    maxOutOfScopeFiles: 5,
+    maxVerificationFailuresBeforeStop: 3,
+    maxReviewErrors: 5,
+    maxReconcileErrors: 3,
+    maxContextOverBudgetPercent: 50
+  },
+  standard: {
+    maxChangedFilesPerTask: 12,
+    maxOutOfScopeFiles: 1,
+    maxVerificationFailuresBeforeStop: 1,
+    maxReviewErrors: 0,
+    maxReconcileErrors: 0,
+    maxContextOverBudgetPercent: 25
+  },
+  strict: {
+    maxChangedFilesPerTask: 8,
+    maxOutOfScopeFiles: 0,
+    maxVerificationFailuresBeforeStop: 1,
+    maxReviewErrors: 0,
+    maxReconcileErrors: 0,
+    maxContextOverBudgetPercent: 20
+  },
+  locked: {
+    maxChangedFilesPerTask: 5,
+    maxOutOfScopeFiles: 0,
+    maxVerificationFailuresBeforeStop: 0,
+    maxReviewErrors: 0,
+    maxReconcileErrors: 0,
+    maxContextOverBudgetPercent: 0
+  }
+};
+
+const overridesByStrictness: Record<StrictnessMode, PolicyOverrides> = {
+  relaxed: {
+    allowed: true,
+    requireReason: false,
+    recordInReports: true
+  },
+  standard: {
+    allowed: true,
+    requireReason: true,
+    recordInReports: true
+  },
+  strict: {
+    allowed: true,
+    requireReason: true,
+    recordInReports: true
+  },
+  locked: {
+    allowed: false,
+    requireReason: true,
+    recordInReports: true
+  }
+};
+
+export function policyRulesForStrictness(mode: StrictnessMode): PolicyRules {
+  return { ...rulesByStrictness[mode] };
+}
+
+export function createDefaultPolicy(input: {
+  readonly strictnessMode?: StrictnessMode;
+  readonly now: string;
+}): PolicyArtifact {
+  const strictnessMode = input.strictnessMode ?? "standard";
+
+  return {
+    version: "1.0",
+    strictnessMode,
+    rules: policyRulesForStrictness(strictnessMode),
+    limits: { ...limitsByStrictness[strictnessMode] },
+    overrides: { ...overridesByStrictness[strictnessMode] },
+    createdAt: input.now,
+    updatedAt: input.now
+  };
+}

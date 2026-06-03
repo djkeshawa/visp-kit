@@ -38,6 +38,10 @@ import {
   type PlanCommandDependencies
 } from "./commands/plan.command.js";
 import {
+  createPolicyCommand,
+  type PolicyCommandDependencies
+} from "./commands/policy.command.js";
+import {
   createNextCommand,
   type NextCommandDependencies
 } from "./commands/next.command.js";
@@ -79,6 +83,7 @@ export type CliDependencies = BudgetCommandDependencies &
   InitCommandDependencies &
   NextCommandDependencies &
   PlanCommandDependencies &
+  PolicyCommandDependencies &
   PrCommandDependencies &
   ReconcileCommandDependencies &
   ReviewCommandDependencies &
@@ -117,6 +122,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createNextCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));
+  program.addCommand(createPolicyCommand(dependencies));
   program.addCommand(createPrCommand(dependencies));
   program.addCommand(createReconcileCommand(dependencies));
   program.addCommand(createReviewCommand(dependencies));

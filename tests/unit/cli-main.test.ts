@@ -20,6 +20,7 @@ describe("createCli", () => {
     expect(help).toContain("init");
     expect(help).toContain("next");
     expect(help).toContain("plan");
+    expect(help).toContain("policy");
     expect(help).toContain("pr");
     expect(help).toContain("reconcile");
     expect(help).toContain("review");
@@ -231,6 +232,30 @@ describe("createCli", () => {
         ?.helpInformation();
 
       expect(help).toContain(`Usage: visp ${name} [options] [path]`);
+      for (const flag of flags) {
+        expect(help).toContain(flag);
+      }
+    }
+  });
+
+  it("prints policy command help", () => {
+    const policy = createCli().commands.find((command) => command.name() === "policy");
+
+    expect(policy?.helpInformation()).toContain("Usage: visp policy [options] [command]");
+
+    const expected = {
+      init: ["--strictness", "--force", "--dry-run", "--json"],
+      show: ["--json"],
+      validate: ["--json"],
+      "set-strictness": ["--dry-run", "--json"]
+    };
+
+    for (const [name, flags] of Object.entries(expected)) {
+      const help = policy?.commands
+        .find((command) => command.name() === name)
+        ?.helpInformation();
+
+      expect(help).toContain(`Usage: visp policy ${name}`);
       for (const flag of flags) {
         expect(help).toContain(flag);
       }

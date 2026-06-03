@@ -5,6 +5,7 @@ export * from "./constitution.schema.js";
 export * from "./context-pack.schema.js";
 export * from "./feature.schema.js";
 export * from "./plan.schema.js";
+export * from "./policy.schema.js";
 export * from "./project.schema.js";
 export * from "./pr.schema.js";
 export * from "./reconcile.schema.js";
