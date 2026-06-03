@@ -38,6 +38,10 @@ import {
   type ReviewCommandDependencies
 } from "./commands/review.command.js";
 import {
+  createReconcileCommand,
+  type ReconcileCommandDependencies
+} from "./commands/reconcile.command.js";
+import {
   createSpecCommand,
   type SpecCommandDependencies
 } from "./commands/spec.command.js";
@@ -57,6 +61,7 @@ export type CliDependencies = BudgetCommandDependencies &
   FeatureCommandDependencies &
   InitCommandDependencies &
   PlanCommandDependencies &
+  ReconcileCommandDependencies &
   ReviewCommandDependencies &
   ScanCommandDependencies &
   SpecCommandDependencies &
@@ -90,6 +95,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));
+  program.addCommand(createReconcileCommand(dependencies));
   program.addCommand(createReviewCommand(dependencies));
   program.addCommand(createScanCommand(dependencies));
   program.addCommand(createSpecCommand(dependencies));

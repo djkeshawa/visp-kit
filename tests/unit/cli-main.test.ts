@@ -18,6 +18,7 @@ describe("createCli", () => {
     expect(help).toContain("feature");
     expect(help).toContain("init");
     expect(help).toContain("plan");
+    expect(help).toContain("reconcile");
     expect(help).toContain("review");
     expect(help).toContain("scan");
     expect(help).toContain("spec");
@@ -188,6 +189,25 @@ describe("createCli", () => {
     expect(help).toContain("--prompt-only");
     expect(help).toContain("--checklist-only");
     expect(help).toContain("--skip-verification");
+    expect(help).toContain("--force");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+  });
+
+  it("prints reconcile command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "reconcile")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp reconcile [options] [path]");
+    expect(help).toContain("--feature");
+    expect(help).toContain("--task");
+    expect(help).toContain("--staged");
+    expect(help).toContain("--unstaged");
+    expect(help).toContain("--base");
+    expect(help).toContain("--update-traceability");
+    expect(help).toContain("--update-task-status");
+    expect(help).toContain("--prompt-only");
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");

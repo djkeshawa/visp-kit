@@ -29,10 +29,19 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
   const normalized = normalizeReviewPath(filePath);
 
   return normalized.startsWith(".visp/reports/") ||
+    normalized.startsWith(".visp/cache/") ||
+    normalized === ".visp/status.json" ||
+    normalized === ".visp/project.json" ||
+    normalized === ".visp/memory/patterns.md" ||
+    normalized === ".visp/memory/project-summary.md" ||
     normalized === ".visp/prompts/review.prompt.md" ||
+    normalized === ".visp/prompts/reconcile.prompt.md" ||
     /^\.visp\/features\/[^/]+\/review\//.test(normalized) ||
     /^\.visp\/features\/[^/]+\/review\.(json|md)$/.test(normalized) ||
     /^\.visp\/features\/[^/]+\/review-(prompt|checklist)\.md$/.test(normalized) ||
+    /^\.visp\/features\/[^/]+\/reconcile\//.test(normalized) ||
+    /^\.visp\/features\/[^/]+\/reconcile\.(json|md)$/.test(normalized) ||
+    /^\.visp\/features\/[^/]+\/reconcile-prompt\.md$/.test(normalized) ||
     /^\.visp\/features\/[^/]+\/verification\.(json|md)$/.test(normalized);
 }
 

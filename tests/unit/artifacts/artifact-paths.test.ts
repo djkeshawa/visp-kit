@@ -12,6 +12,9 @@ import {
   projectProfileArtifactPath,
   projectStatusArtifactPath,
   requirementsArtifactPath,
+  taskReconcileArtifactPath,
+  taskReconcileMarkdownPath,
+  taskReconcilePromptPath,
   taskReviewArtifactPath,
   taskReviewChecklistPath,
   taskReviewMarkdownPath,
@@ -84,6 +87,15 @@ describe("artifact paths", () => {
     );
     expect(taskReviewChecklistPath(root, featureKey, "T001")).toBe(
       path.join(root, ".visp", "features", featureKey, "review", "T001.review-checklist.md")
+    );
+    expect(taskReconcileArtifactPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "reconcile", "T001.reconcile.json")
+    );
+    expect(taskReconcileMarkdownPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "reconcile", "T001.reconcile.md")
+    );
+    expect(taskReconcilePromptPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "reconcile", "T001.reconcile-prompt.md")
     );
     expect(traceabilityArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "traceability.json")

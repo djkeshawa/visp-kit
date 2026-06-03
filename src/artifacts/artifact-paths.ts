@@ -277,6 +277,55 @@ export function featureReviewChecklistPath(
   return joinPath(featureArtifactDir(rootPath, featureKey), "review-checklist.md");
 }
 
+export function featureReconcileArtifactPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile.json");
+}
+
+export function featureReconcileMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile.md");
+}
+
+export function reconcileArtifactDir(rootPath: string, featureKey: string): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile");
+}
+
+export function taskReconcileArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(reconcileArtifactDir(rootPath, featureKey), `${taskId}.reconcile.json`);
+}
+
+export function taskReconcileMarkdownPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(reconcileArtifactDir(rootPath, featureKey), `${taskId}.reconcile.md`);
+}
+
+export function taskReconcilePromptPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(reconcileArtifactDir(rootPath, featureKey), `${taskId}.reconcile-prompt.md`);
+}
+
+export function featureReconcilePromptPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile-prompt.md");
+}
+
 export function traceabilityArtifactPath(
   rootPath: string,
   featureKey: string

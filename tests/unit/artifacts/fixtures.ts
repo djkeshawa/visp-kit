@@ -7,6 +7,7 @@ import {
   type ProjectConfig,
   type ProjectProfile
 } from "../../../src/artifacts/schemas/project.schema.js";
+import { type ReconcileReport } from "../../../src/artifacts/schemas/reconcile.schema.js";
 import { type Requirement } from "../../../src/artifacts/schemas/requirement.schema.js";
 import { type ReviewReport } from "../../../src/artifacts/schemas/review.schema.js";
 import { type TaskGraphArtifact } from "../../../src/artifacts/schemas/task.schema.js";
@@ -427,6 +428,130 @@ export const validReviewReport: ReviewReport = {
   reportPath: ".visp/features/001-note-pinning/review/T001.review.md",
   checklistPath: ".visp/features/001-note-pinning/review/T001.review-checklist.md",
   nextCommand: "visp reconcile --task T001"
+};
+
+export const validReconcileReport: ReconcileReport = {
+  id: "REC-001-T001",
+  featureId: "001",
+  featureSlug: "note-pinning",
+  taskId: "T001",
+  mode: "task",
+  startedAt: timestamp,
+  endedAt: timestamp,
+  durationMs: 100,
+  success: true,
+  result: "warnings",
+  changedFiles: [
+    {
+      path: "src/notes/sort.ts",
+      changeType: "modified",
+      additions: 10,
+      deletions: 2,
+      mappingStatus: "mapped",
+      isTestFile: false,
+      isDependencyFile: false,
+      isVispGeneratedFile: false,
+      isAllowedByTask: true,
+      isExpectedByTask: false,
+      isForbiddenByTask: false,
+      relatedTaskIds: ["T001"],
+      relatedRequirementIds: ["REQ-001"],
+      relatedAcceptanceCriterionIds: ["AC-001"],
+      notes: ["allowed by task"]
+    }
+  ],
+  taskAlignment: {
+    status: "passed",
+    taskExists: true,
+    requirementLinks: ["REQ-001"],
+    acceptanceCriterionLinks: ["AC-001"],
+    changedFilesInScope: true,
+    forbiddenFilesChanged: [],
+    validationEvidenceFound: true,
+    contextPackFound: true,
+    warnings: [],
+    errors: []
+  },
+  requirementCoverage: {
+    status: "passed",
+    items: [
+      {
+        requirementId: "REQ-001",
+        acceptanceCriterionIds: ["AC-001"],
+        taskIds: ["T001"],
+        filePaths: ["src/notes/sort.ts"],
+        status: "passed"
+      }
+    ],
+    warnings: [],
+    errors: []
+  },
+  fileMapping: {
+    status: "passed",
+    mappedFiles: ["src/notes/sort.ts"],
+    unmappedFiles: [],
+    forbiddenFiles: [],
+    dependencyFiles: [],
+    generatedFiles: [],
+    warnings: [],
+    errors: []
+  },
+  verificationEvidence: {
+    status: "passed",
+    reportPath: ".visp/features/001-note-pinning/verification.json",
+    found: true,
+    passed: true,
+    result: "passed",
+    warnings: [],
+    errors: [],
+    summary: ["1 commands passed", "0 commands failed"]
+  },
+  reviewEvidence: {
+    status: "warnings",
+    reportPath: ".visp/features/001-note-pinning/review/T001.review.json",
+    found: true,
+    passed: true,
+    result: "warnings",
+    warnings: ["Review report has warnings."],
+    errors: [],
+    summary: ["0 review errors", "1 review warnings"]
+  },
+  dependencyEvidence: {
+    status: "passed",
+    changedDependencyFiles: [],
+    approvedByTaskScope: false,
+    approvedByPlan: false,
+    warnings: [],
+    errors: []
+  },
+  traceabilityUpdate: {
+    requested: false,
+    performed: false,
+    updatedFiles: [],
+    skippedReason: "not requested"
+  },
+  findings: [
+    {
+      id: "REC001",
+      category: "review",
+      severity: "warning",
+      driftType: "manual_review_needed",
+      title: "Review warnings remain",
+      description: "Review completed with warnings.",
+      file: null,
+      evidence: "Review report has warnings.",
+      recommendation: "Review warnings before PR.",
+      relatedTaskId: "T001",
+      relatedRequirementIds: ["REQ-001"],
+      relatedAcceptanceCriterionIds: ["AC-001"]
+    }
+  ],
+  followUpSuggestions: ["Review warnings before PR."],
+  warnings: ["Review report has warnings."],
+  errors: [],
+  reportPath: ".visp/features/001-note-pinning/reconcile/T001.reconcile.md",
+  promptPath: ".visp/features/001-note-pinning/reconcile/T001.reconcile-prompt.md",
+  nextCommand: "visp reconcile --task T001 --update-traceability"
 };
 
 export const validTraceabilityMatrix: TraceabilityMatrix = {
