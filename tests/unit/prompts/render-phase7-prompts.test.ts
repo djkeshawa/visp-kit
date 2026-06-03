@@ -40,4 +40,12 @@ describe("phase 7 prompt renderers", () => {
       expect(prompt).not.toContain("Add note pinning\n\nAdd note pinning");
     }
   });
+
+  it("renders spec prompt schema guardrails for common enum mistakes", () => {
+    const prompt = renderSpecPrompt(feature);
+
+    expect(prompt).toContain("validationMethod must be one of");
+    expect(prompt).toContain("requirement source must be one of");
+    expect(prompt).toContain("assumptions must be objects");
+  });
 });

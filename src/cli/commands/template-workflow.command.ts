@@ -66,7 +66,10 @@ export function createTemplateWorkflowCommand(input: {
     .option("--force", "Overwrite generated files for this command.")
     .option("--dry-run", "Show what would be created without writing files.")
     .option("--json", "Print a machine-readable summary.")
-    .option("--validate", "Validate existing artifacts without modifying files.")
+    .option(
+      "--validate",
+      "Validate existing artifacts and apply safe normalization when supported."
+    )
     .option("--prompt-only", "Write only the related Codex prompt file.")
     .action(async (targetPath: string | undefined, options: TemplateCommandOptions) => {
       const result = await input.runWorkflow(

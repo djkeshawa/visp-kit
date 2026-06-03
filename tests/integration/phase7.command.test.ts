@@ -30,6 +30,26 @@ async function initializedFeature(tempDir: string): Promise<void> {
   );
 }
 
+async function writeNormalizableSpecMistakes(specPath: string): Promise<void> {
+  const spec = JSON.parse(await readFile(specPath, "utf8")) as {
+    requirements: Array<{
+      source: string;
+      assumptions: unknown[];
+      acceptanceCriteria: Array<{ validationMethod: string }>;
+    }>;
+    acceptanceCriteria: Array<{ validationMethod: string }>;
+    assumptions: unknown[];
+  };
+
+  spec.requirements[0]!.source = "constitution";
+  spec.requirements[0]!.assumptions = ["Follow existing project conventions."];
+  spec.requirements[0]!.acceptanceCriteria[0]!.validationMethod = "review";
+  spec.acceptanceCriteria[0]!.validationMethod = "test";
+  spec.assumptions = ["Repository state may include user changes."];
+
+  await writeFile(specPath, `${JSON.stringify(spec, null, 2)}\n`, "utf8");
+}
+
 describe("phase 7 template commands", () => {
   let tempDir: string;
 
@@ -144,6 +164,62 @@ describe("phase 7 template commands", () => {
         )
       )
     ).toBe(true);
+  });
+
+  it("auto-normalizes common AI-generated spec JSON mistakes", async () => {
+    await initializedFeature(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+    const featureDir = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning"
+    );
+    const specPath = path.join(featureDir, "spec.json");
+
+    await program.parseAsync(["node", "visp", "clarify", tempDir]);
+    await program.parseAsync(["node", "visp", "spec", tempDir]);
+    await writeNormalizableSpecMistakes(specPath);
+
+    output.length = 0;
+    await program.parseAsync(["node", "visp", "spec", tempDir, "--validate"]);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(output.join("")).toContain("Auto-normalized");
+
+    const normalized = JSON.parse(await readFile(specPath, "utf8")) as {
+      requirements: Array<{
+        source: string;
+        assumptions: Array<{ id: string; description: string }>;
+        acceptanceCriteria: Array<{ validationMethod: string }>;
+      }>;
+      acceptanceCriteria: Array<{ validationMethod: string }>;
+      assumptions: Array<{ id: string; description: string }>;
+    };
+
+    expect(normalized.requirements[0]?.source).toBe("derived");
+    expect(normalized.requirements[0]?.acceptanceCriteria[0]?.validationMethod).toBe(
+      "manual"
+    );
+    expect(normalized.acceptanceCriteria[0]?.validationMethod).toBe("unit");
+    expect(normalized.assumptions[0]).toEqual({
+      id: "ASM001",
+      description: "Repository state may include user changes."
+    });
+    expect(normalized.requirements[0]?.assumptions[0]).toEqual({
+      id: "REQ001-ASM001",
+      description: "Follow existing project conventions."
+    });
+
+    await program.parseAsync(["node", "visp", "plan", tempDir]);
+    await writeNormalizableSpecMistakes(specPath);
+    await program.parseAsync(["node", "visp", "tasks", tempDir]);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(await readFile(path.join(featureDir, "tasks.md"), "utf8")).toContain(
+      "# Tasks"
+    );
   });
 
   it("skips existing generated files without force and overwrites with force", async () => {

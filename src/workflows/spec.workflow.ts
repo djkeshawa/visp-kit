@@ -36,11 +36,16 @@ import {
   type TemplateWorkflowSummary,
   type WorkflowValidation
 } from "./shared/workflow-summary.js";
+import { validateSpecArtifactWithNormalization } from "./shared/spec-artifact.js";
 
 async function validateExisting(input: {
   readonly targetPath: string;
   readonly featureKey: string;
-}): Promise<WorkflowValidation> {
+  readonly dryRun: boolean;
+}): Promise<{
+  readonly validation: WorkflowValidation;
+  readonly warnings: readonly string[];
+}> {
   const specMd = specMarkdownPath(input.targetPath, input.featureKey);
   const specJson = specArtifactPath(input.targetPath, input.featureKey);
   const traceJson = traceabilityArtifactPath(input.targetPath, input.featureKey);
@@ -49,12 +54,12 @@ async function validateExisting(input: {
     ...(await validateTextExists(specMd, relativePath(input.targetPath, specMd))),
     ...(await validateTextExists(traceMd, relativePath(input.targetPath, traceMd)))
   ];
-  const spec = await validateArtifactFile(
-    specJson,
-    relativePath(input.targetPath, specJson),
-    specArtifactSchema,
-    "spec"
-  );
+  const spec = await validateSpecArtifactWithNormalization({
+    artifactPath: specJson,
+    displayPath: relativePath(input.targetPath, specJson),
+    dryRun: input.dryRun,
+    writeNormalized: true
+  });
   const traceability = await validateArtifactFile(
     traceJson,
     relativePath(input.targetPath, traceJson),
@@ -72,7 +77,10 @@ async function validateExisting(input: {
     ...semantic.errors
   ];
 
-  return { passed: errors.length === 0, errors };
+  return {
+    validation: { passed: errors.length === 0, errors },
+    warnings: spec.warnings
+  };
 }
 
 export async function runSpecWorkflow(
@@ -96,6 +104,12 @@ export async function runSpecWorkflow(
   const promptDisplayPath = relativePath(targetPath, promptPath);
 
   if (validateOnly) {
+    const validation = await validateExisting({
+      targetPath,
+      featureKey: feature.value.key,
+      dryRun
+    });
+
     return completeTemplateWorkflow({
       command: "spec",
       targetPath,
@@ -110,9 +124,9 @@ export async function runSpecWorkflow(
       dryRun,
       promptOnly,
       validateOnly,
-      validation: await validateExisting({ targetPath, featureKey: feature.value.key }),
+      validation: validation.validation,
       promptPath: promptDisplayPath,
-      warnings: [],
+      warnings: validation.warnings,
       nextCommand: "visp plan",
       now
     });

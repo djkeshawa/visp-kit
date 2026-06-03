@@ -23,6 +23,10 @@ Rules:
 - Do not include implementation details unless explicitly required by the user.
 - Use stable IDs such as REQ001, REQ002, AC001, AC002.
 - Keep requirements testable.
+- In spec.json, requirement source must be one of: user, clarification, derived.
+- In spec.json, validationMethod must be one of: unit, integration, e2e, manual, static.
+- Use validationMethod "manual" for review-only checks and "unit" for ordinary automated tests.
+- In spec.json, assumptions must be objects like {"id":"ASM001","description":"..."}.
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.
 - Do not create plan or tasks.

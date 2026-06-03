@@ -12,7 +12,10 @@ import {
   traceabilityMarkdownPath
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
-import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
+import {
+  specArtifactSchema,
+  type SpecArtifact
+} from "../artifacts/schemas/spec.schema.js";
 import { taskGraphArtifactSchema } from "../artifacts/schemas/task.schema.js";
 import {
   traceabilityMatrixSchema,
@@ -48,11 +51,16 @@ import {
   type TemplateWorkflowSummary,
   type WorkflowValidation
 } from "./shared/workflow-summary.js";
+import {
+  readSpecArtifactWithNormalization,
+  validateSpecArtifactWithNormalization
+} from "./shared/spec-artifact.js";
 
 async function readTraceabilityOrSeed(input: {
   readonly targetPath: string;
   readonly featureKey: string;
   readonly feature: ActiveFeature;
+  readonly spec: SpecArtifact;
   readonly now: string;
 }): Promise<Result<TraceabilityMatrix, VispError>> {
   const traceabilityPath = traceabilityArtifactPath(input.targetPath, input.featureKey);
@@ -66,19 +74,11 @@ async function readTraceabilityOrSeed(input: {
     });
   }
 
-  const spec = await readArtifact(
-    specArtifactPath(input.targetPath, input.featureKey),
-    specArtifactSchema,
-    { artifactName: "spec" }
-  );
-
-  if (!spec.ok) return spec;
-
   return {
     ok: true,
     value: createTraceabilitySeed({
       feature: input.feature,
-      spec: spec.value,
+      spec: input.spec,
       now: input.now
     })
   };
@@ -87,7 +87,11 @@ async function readTraceabilityOrSeed(input: {
 async function validateExisting(input: {
   readonly targetPath: string;
   readonly featureKey: string;
-}): Promise<WorkflowValidation> {
+  readonly dryRun: boolean;
+}): Promise<{
+  readonly validation: WorkflowValidation;
+  readonly warnings: readonly string[];
+}> {
   const tasksMd = tasksMarkdownPath(input.targetPath, input.featureKey);
   const taskGraphJson = taskGraphArtifactPath(input.targetPath, input.featureKey);
   const specJson = specArtifactPath(input.targetPath, input.featureKey);
@@ -102,12 +106,12 @@ async function validateExisting(input: {
     taskGraphArtifactSchema,
     "task graph"
   );
-  const spec = await validateArtifactFile(
-    specJson,
-    relativePath(input.targetPath, specJson),
-    specArtifactSchema,
-    "spec"
-  );
+  const spec = await validateSpecArtifactWithNormalization({
+    artifactPath: specJson,
+    displayPath: relativePath(input.targetPath, specJson),
+    dryRun: input.dryRun,
+    writeNormalized: true
+  });
   const traceability = await validateArtifactFile(
     traceJson,
     relativePath(input.targetPath, traceJson),
@@ -130,7 +134,10 @@ async function validateExisting(input: {
     ...semantic.errors
   ];
 
-  return { passed: errors.length === 0, errors };
+  return {
+    validation: { passed: errors.length === 0, errors },
+    warnings: spec.warnings
+  };
 }
 
 export async function runTasksWorkflow(
@@ -154,6 +161,12 @@ export async function runTasksWorkflow(
   const promptDisplayPath = relativePath(targetPath, promptPath);
 
   if (validateOnly) {
+    const validation = await validateExisting({
+      targetPath,
+      featureKey: feature.value.key,
+      dryRun
+    });
+
     return completeTemplateWorkflow({
       command: "tasks",
       targetPath,
@@ -168,9 +181,9 @@ export async function runTasksWorkflow(
       dryRun,
       promptOnly,
       validateOnly,
-      validation: await validateExisting({ targetPath, featureKey: feature.value.key }),
+      validation: validation.validation,
       promptPath: promptDisplayPath,
-      warnings: [],
+      warnings: validation.warnings,
       nextCommand: "visp context T001",
       now
     });
@@ -206,11 +219,15 @@ export async function runTasksWorkflow(
     );
   }
 
-  const spec = await readArtifact(
-    specArtifactPath(targetPath, feature.value.key),
-    specArtifactSchema,
-    { artifactName: "spec" }
-  );
+  const spec = await readSpecArtifactWithNormalization({
+    artifactPath: specArtifactPath(targetPath, feature.value.key),
+    displayPath: relativePath(
+      targetPath,
+      specArtifactPath(targetPath, feature.value.key)
+    ),
+    dryRun,
+    writeNormalized: !promptOnly
+  });
 
   if (!spec.ok) return spec;
 
@@ -219,6 +236,7 @@ export async function runTasksWorkflow(
     targetPath,
     featureKey: feature.value.key,
     feature: feature.value,
+    spec: spec.value.value,
     now
   });
 
@@ -231,7 +249,7 @@ export async function runTasksWorkflow(
   });
   const validation = validateTaskGraph({
     taskGraph,
-    spec: spec.value,
+    spec: spec.value.value,
     traceability
   });
 
@@ -281,7 +299,7 @@ export async function runTasksWorkflow(
     validateOnly,
     validation,
     promptPath: promptDisplayPath,
-    warnings: [],
+    warnings: spec.value.warnings,
     nextCommand: "visp context T001",
     now
   });
