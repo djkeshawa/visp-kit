@@ -1,20 +1,42 @@
 {
   "name": "visp-kit",
-  "version": "0.0.0",
-  "description": "Small context. Clear specs. Accurate code.",
+  "version": "0.1.0",
+  "description": "Token-efficient, spec-driven workflow kit for accurate AI-assisted software development.",
   "type": "module",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djkeshawa/visp-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/djkeshawa/visp-kit/issues"
+  },
+  "homepage": "https://github.com/djkeshawa/visp-kit#readme",
+  "keywords": [
+    "ai",
+    "codex",
+    "spec-driven",
+    "context-engineering",
+    "token-efficient",
+    "cli",
+    "developer-tools"
+  ],
   "bin": {
     "visp": "dist/index.js"
   },
   "files": [
     "dist",
+    "docs",
+    "examples",
     "README.md",
-    "AGENTS.md"
+    "AGENTS.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepack": "pnpm build"
   },
   "engines": {
     "node": ">=24.0.0",

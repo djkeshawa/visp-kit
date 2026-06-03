@@ -11,7 +11,7 @@ function normalize(values: readonly string[] | undefined): string[] {
   ].sort();
 }
 
-function implementationFiles(files: readonly string[]): readonly string[] {
+function implementationFiles(files: readonly string[]): string[] {
   return files.filter((file) => !file.startsWith(".visp/"));
 }
 

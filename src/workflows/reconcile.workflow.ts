@@ -335,12 +335,15 @@ async function updateStatus(input: {
     updatedAt: input.now
   };
 
-  return writeArtifact(
+  const write = await writeArtifact(
     projectStatusArtifactPath(input.targetPath),
     projectStatusSchema,
     nextStatus,
     { artifactName: "project status" }
   );
+
+  if (!write.ok) return write;
+  return ok(undefined);
 }
 
 async function updateTaskStatus(input: {
@@ -365,12 +368,15 @@ async function updateTaskStatus(input: {
     updatedAt: input.now
   };
 
-  return writeArtifact(
+  const write = await writeArtifact(
     taskGraphArtifactPath(input.targetPath, input.featureKey),
     taskGraphArtifactSchema,
     nextGraph,
     { artifactName: "task graph" }
   );
+
+  if (!write.ok) return write;
+  return ok(undefined);
 }
 
 export async function runReconcileWorkflow(
@@ -562,7 +568,7 @@ export async function runReconcileWorkflow(
     coverage.requirementCoverage,
     dependencies.dependencyEvidence
   );
-  const baseReport: ReconcileReport = {
+  const baseReport = {
     id: `REC-${feature.value.id}-${selectedTask?.id ?? "feature"}`,
     featureId: feature.value.id,
     featureSlug: feature.value.slug,
@@ -589,7 +595,7 @@ export async function runReconcileWorkflow(
     promptPath: paths.promptRelative,
     nextCommand: "pending"
   };
-  const report: ReconcileReport = {
+  const report = {
     ...baseReport,
     followUpSuggestions: followUpSuggestions({
       changedFiles: baseReport.changedFiles,

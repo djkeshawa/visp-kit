@@ -261,7 +261,7 @@ function commandSection(input: {
         ? input.warnings.length > 0 ? "warned" : "skipped"
         : allSkipped ? "skipped"
         : errors.length > 0 ? "failed" : "passed",
-    commands: input.results,
+    commands: [...input.results],
     warnings: [...input.warnings],
     errors
   };

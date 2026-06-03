@@ -96,7 +96,7 @@ const cliMetadataSchema = z.object({
 
 const cliMetadata = cliMetadataSchema.parse({
   name: "visp",
-  version: "0.0.0",
+  version: "0.1.0",
   description: "Small context. Clear specs. Accurate code."
 });
 

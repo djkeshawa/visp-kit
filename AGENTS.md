@@ -14,11 +14,14 @@ Guidance for Codex and other coding agents working on this repository.
 
 ## Current Scope
 
-Phase 0 is project bootstrap only:
+The local MVP workflow has been implemented:
 
-- package and TypeScript configuration
-- Vitest and tsup configuration
-- basic `visp --help` CLI surface
-- README and agent guidance skeletons
+- `init`, `scan`, and `constitution`
+- `feature`, `clarify`, `spec`, `plan`, and `tasks`
+- `context` and `budget`
+- `verify`, `review`, and `reconcile`
+- `status`, `next`, `doctor`, and `pr`
 
-Workflow commands, artifact schemas, scanning, and context compilation belong to later phases.
+The current phase is documentation, examples, packaging, and release-readiness polish only.
+
+Do not add new workflow commands unless the user explicitly asks for a later phase or a tiny help/metadata fix.

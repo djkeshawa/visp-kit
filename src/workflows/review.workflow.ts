@@ -269,12 +269,15 @@ async function updateReviewStatus(input: {
     updatedAt: input.now
   };
 
-  return writeArtifact(
+  const write = await writeArtifact(
     projectStatusArtifactPath(input.targetPath),
     projectStatusSchema,
     nextStatus,
     { artifactName: "project status" }
   );
+
+  if (!write.ok) return write;
+  return ok(undefined);
 }
 
 export async function runReviewWorkflow(
@@ -439,7 +442,7 @@ export async function runReviewWorkflow(
   });
   const result = resultFromFindings(findings);
   const endedAt = new Date().toISOString();
-  const baseReport: ReviewReport = {
+  const baseReport = {
     id: `REV-${feature.value.id}-${selectedTask?.id ?? "feature"}`,
     featureId: feature.value.id,
     featureSlug: feature.value.slug,
@@ -481,7 +484,7 @@ export async function runReviewWorkflow(
           : paths.checklistPathRelative,
     nextCommand: "pending"
   };
-  const report: ReviewReport = {
+  const report = {
     ...baseReport,
     nextCommand: nextCommand(baseReport)
   };

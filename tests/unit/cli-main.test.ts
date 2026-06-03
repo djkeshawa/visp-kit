@@ -51,7 +51,7 @@ describe("createCli", () => {
       }
     }
 
-    expect(output.join("")).toContain("0.0.0");
+    expect(output.join("")).toContain("0.1.0");
   });
 
   it("prints init command help", () => {

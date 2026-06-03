@@ -27,6 +27,7 @@ import {
   traceabilityArtifactPath,
   verificationArtifactPath
 } from "../artifacts/artifact-paths.js";
+import { type ZodTypeAny } from "zod";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { contextPackSchema } from "../artifacts/schemas/context-pack.schema.js";
 import { featureIntentSchema } from "../artifacts/schemas/feature.schema.js";
@@ -182,7 +183,7 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
 
   const featureKey = state.selectedFeature?.key;
   const selectedTaskId = state.selectedTask?.id;
-  const schemaChecks = [
+  const schemaChecks: Array<readonly [string, string, ZodTypeAny]> = [
     [".visp/project.json", projectProfileArtifactPath(state.targetPath), projectProfileSchema],
     [".visp/config.json", projectConfigArtifactPath(state.targetPath), projectConfigSchema],
     [".visp/status.json", projectStatusArtifactPath(state.targetPath), projectStatusSchema],
@@ -202,7 +203,7 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
         [`.visp/features/${featureKey}/reconcile/${selectedTaskId}.reconcile.json`, taskReconcileArtifactPath(state.targetPath, featureKey, selectedTaskId), reconcileReportSchema]
       ] as const)
     ] as const)
-  ] as const;
+  ];
 
   for (const [label, filePath, schema] of schemaChecks) {
     if (!(await exists(filePath))) continue;
