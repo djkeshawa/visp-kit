@@ -1,4 +1,7 @@
-import { type AgentWorkflowMap } from "../artifacts/schemas/agent.schema.js";
+import {
+  type AgentTargetName,
+  type AgentWorkflowMap
+} from "../artifacts/schemas/agent.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { renderVispFeatureTemplate } from "./templates/visp-feature.js";
 import { renderVispFixTemplate } from "./templates/visp-fix.js";
@@ -71,15 +74,26 @@ Use this prompt in an AI coding tool that does not support Codex skills.
 ${renderWorkflowTemplate(workflow, strictness)}`;
 }
 
+function targetLabel(target: AgentTargetName): string {
+  switch (target) {
+    case "codex":
+      return "Codex";
+    case "generic":
+      return "Generic AI coding tool";
+    case "claude":
+      return "Claude Code";
+    case "copilot":
+      return "GitHub Copilot";
+  }
+}
+
 export function renderAgentsMarkdown(input: {
-  readonly target: "codex" | "generic";
+  readonly target: AgentTargetName;
   readonly strictness: StrictnessMode;
 }): string {
-  const targetLabel = input.target === "codex" ? "Codex" : "Generic AI coding tool";
-
   return `# Visp Kit Agent Guidance
 
-Target: ${targetLabel}
+Target: ${targetLabel(input.target)}
 
 ${strictPolicySection(input.strictness)}
 ## Required before implementation
@@ -108,12 +122,21 @@ Do not claim a task is complete until Visp verification, review, and reconciliat
 }
 
 export function renderAgentGuide(input: {
-  readonly target: "codex" | "generic";
+  readonly target: AgentTargetName;
   readonly strictness: StrictnessMode;
 }): string {
-  const trigger = input.target === "codex"
-    ? "$visp-feature"
-    : "paste .visp/prompts/agent-feature.prompt.md";
+  const trigger = (() => {
+    switch (input.target) {
+      case "codex":
+        return "$visp-feature";
+      case "claude":
+        return "/visp-feature Add note pinning";
+      case "copilot":
+        return "Use Visp Kit workflow for this feature:\nAdd note pinning.\nFollow .github/instructions/visp-feature.instructions.md.";
+      case "generic":
+        return "paste .visp/prompts/agent-feature.prompt.md";
+    }
+  })();
 
   return `# Visp Agent Guide
 
@@ -146,59 +169,86 @@ Use the installed \`visp-review\` workflow or prompt. It must not edit code unle
 ## Prepare PR
 
 Use the installed \`visp-pr\` workflow or prompt. It must run \`visp gate pr\` and must not call GitHub APIs, commit, push, tag, or publish.
+
+## Compatibility Notes
+
+Claude and Copilot support varies by surface. Generated files provide repository guidance for compatible tools and can also be copied into the active chat/session when needed.
 `;
 }
 
-export function buildWorkflowMap(input: {
-  readonly target: "codex" | "generic";
-}): AgentWorkflowMap {
-  const entrypoint = (workflow: AgentWorkflowName): string =>
-    input.target === "codex"
-      ? `.agents/skills/visp-${workflow}/SKILL.md`
-      : `.visp/prompts/agent-${workflow}.prompt.md`;
+function entrypointForTarget(target: AgentTargetName, workflow: AgentWorkflowName): string {
+  switch (target) {
+    case "codex":
+      return `.agents/skills/visp-${workflow}/SKILL.md`;
+    case "generic":
+      return `.visp/prompts/agent-${workflow}.prompt.md`;
+    case "claude":
+      return `.claude/commands/visp-${workflow}.md`;
+    case "copilot":
+      return workflow === "feature"
+        ? ".github/instructions/visp-feature.instructions.md"
+        : `.github/instructions/visp-${workflow}.instructions.md`;
+  }
+}
 
+export function buildWorkflowMap(input: {
+  readonly target: AgentTargetName;
+}): AgentWorkflowMap {
   return {
     workflows: [
       {
+        target: input.target,
         name: "visp-feature",
         purpose: "Start or continue a feature through the full Visp workflow.",
-        entrypointFile: entrypoint("feature"),
+        entrypointFile: entrypointForTarget(input.target, "feature"),
         requiredVispCommands: ["visp status", "visp policy validate", "visp gate next", "visp context --next"],
         hardStops: ["failed gate", "missing context", "failed verification", "failed review", "failed reconcile"],
         nextRecommendedCommand: "visp next"
       },
       {
+        target: input.target,
         name: "visp-task",
         purpose: "Implement the next/current Visp task only.",
-        entrypointFile: entrypoint("task"),
+        entrypointFile: entrypointForTarget(input.target, "task"),
         requiredVispCommands: ["visp status", "visp gate next", "visp gate implement --task <task-id>"],
         hardStops: ["failed gate", "missing context", "unclear task"],
         nextRecommendedCommand: "visp verify --task <task-id>"
       },
       {
+        target: input.target,
         name: "visp-fix",
         purpose: "Repair verification, review, or reconciliation failures.",
-        entrypointFile: entrypoint("fix"),
+        entrypointFile: entrypointForTarget(input.target, "fix"),
         requiredVispCommands: ["visp status", "visp verify --task <task-id>", "visp review --task <task-id>", "visp reconcile --task <task-id> --update-traceability"],
         hardStops: ["unrelated scope", "unapproved dependency", "forbidden file"],
         nextRecommendedCommand: "visp next"
       },
       {
+        target: input.target,
         name: "visp-review",
         purpose: "Run a review-only pass.",
-        entrypointFile: entrypoint("review"),
+        entrypointFile: entrypointForTarget(input.target, "review"),
         requiredVispCommands: ["visp status", "visp gate review --task <task-id>", "visp review --task <task-id>"],
         hardStops: ["failed review gate", "missing verification in strict mode"],
         nextRecommendedCommand: "visp reconcile --task <task-id> --update-traceability"
       },
       {
+        target: input.target,
         name: "visp-pr",
         purpose: "Prepare a PR summary from Visp evidence.",
-        entrypointFile: entrypoint("pr"),
+        entrypointFile: entrypointForTarget(input.target, "pr"),
         requiredVispCommands: ["visp status", "visp gate pr", "visp pr"],
         hardStops: ["failed PR gate", "missing reconcile", "missing traceability update"],
         nextRecommendedCommand: "visp pr"
       }
     ]
+  };
+}
+
+export function buildWorkflowMapForTargets(
+  targets: readonly AgentTargetName[]
+): AgentWorkflowMap {
+  return {
+    workflows: targets.flatMap((target) => buildWorkflowMap({ target }).workflows)
   };
 }

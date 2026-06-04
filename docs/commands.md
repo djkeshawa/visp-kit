@@ -150,6 +150,59 @@ Common flags:
 
 If a gate fails, agents should stop and follow the next allowed command. User prompts are raw intent only and cannot override Visp policy.
 
+## Agent Installer
+
+### `visp agent list [path]`
+
+List supported agent targets:
+
+- `codex`
+- `generic`
+- `claude`
+- `copilot`
+
+### `visp agent install <target> [path]`
+
+Install strict workflow files for an AI coding tool.
+
+Targets:
+
+- `codex`: `AGENTS.md` and Codex skills.
+- `generic`: portable prompt files under `.visp/prompts/`.
+- `claude`: Claude command files under `.claude/commands/`.
+- `copilot`: Copilot repository instructions under `.github/`.
+
+Flags:
+
+- `--strictness relaxed|standard|strict|locked`
+- `--force`
+- `--dry-run`
+- `--json`
+
+### `visp agent doctor [path]`
+
+Check installed agent guidance.
+
+Flags:
+
+- `--target codex|generic|claude|copilot`
+- `--fix`
+- `--dry-run`
+- `--json`
+
+### `visp agent refresh [path]`
+
+Regenerate installed agent targets.
+
+Flags:
+
+- `--target codex|generic|claude|copilot|all`
+- `--force`
+- `--dry-run`
+- `--json`
+
+Generated Claude and Copilot files are repository guidance for compatible AI tool surfaces. They do not call external AI tools, run agents, or replace Visp gates.
+
 ## Evidence Gates
 
 ### `visp verify [path]`

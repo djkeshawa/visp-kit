@@ -147,7 +147,7 @@ export function createAgentCommand(
           message: result.error.message,
           json: options.json,
           writeOut,
-          writeErr
+        writeErr
         });
         return;
       }
@@ -160,7 +160,7 @@ export function createAgentCommand(
   agent
     .command("install")
     .description("Install agent-native workflow files.")
-    .argument("<target>", "Target: codex or generic.")
+    .argument("<target>", "Target: codex, generic, claude, or copilot.")
     .argument("[path]", "Target project path.")
     .option("--force", "Overwrite existing generated files.")
     .option("--dry-run", "Show what would be created without writing files.")
@@ -179,7 +179,7 @@ export function createAgentCommand(
 
         if (target === undefined) {
           writeError({
-            message: "Agent target must be codex or generic.",
+            message: "Agent target must be codex, generic, claude, or copilot.",
             json: options.json,
             writeOut,
             writeErr
@@ -244,7 +244,7 @@ export function createAgentCommand(
     .argument("[path]", "Target project path.")
     .addOption(
       new Option("--target <target>", "Target to refresh.")
-        .choices(["codex", "generic", "all"])
+        .choices(["codex", "generic", "claude", "copilot", "all"])
     )
     .option("--force", "Overwrite generated files.")
     .option("--dry-run", "Show what would be refreshed without writing files.")

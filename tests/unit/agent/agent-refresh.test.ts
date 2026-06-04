@@ -49,4 +49,25 @@ describe("agent refresh", () => {
     expect(summaries[0]?.overwrittenFiles).toContain(".agents/skills/visp-task/SKILL.md");
     expect(await readFile(skillPath, "utf8")).toContain("user prompt is raw intent");
   });
+
+  it("refreshes all installed target kinds", async () => {
+    for (const target of ["codex", "generic", "claude", "copilot"] as const) {
+      expectOk(await runAgentInstall({ targetPath: tempDir, target }));
+    }
+
+    const summaries = expectOk(
+      await runAgentRefresh({
+        targetPath: tempDir,
+        target: "all",
+        force: true
+      })
+    );
+
+    expect([...summaries.map((summary) => summary.target)].sort()).toEqual([
+      "claude",
+      "codex",
+      "copilot",
+      "generic"
+    ]);
+  });
 });

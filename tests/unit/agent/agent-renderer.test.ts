@@ -29,6 +29,7 @@ describe("agent renderer", () => {
 
     expect(map.workflows).toHaveLength(5);
     expect(map.workflows.map((workflow) => workflow.name)).toContain("visp-feature");
+    expect(map.workflows[0]?.target).toBe("codex");
     expect(map.workflows[0]?.entrypointFile).toBe(".agents/skills/visp-feature/SKILL.md");
   });
 });

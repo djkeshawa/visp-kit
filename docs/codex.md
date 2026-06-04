@@ -71,9 +71,10 @@ With:
 
 ```bash
 visp init --agent codex --strictness strict
+visp agent install codex
 ```
 
-Visp Kit creates Codex-oriented guidance when safe. If an existing `AGENTS.md` is present, Visp Kit avoids destructive overwrites.
+Visp Kit creates Codex-oriented guidance and `visp-*` skills when safe. If an existing `AGENTS.md` is present, Visp Kit writes `AGENTS.visp.md` unless `--force` is used.
 
 ## Good Codex Request
 

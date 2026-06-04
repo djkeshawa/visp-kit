@@ -31,3 +31,15 @@ export function codexSkillPath(rootPath: string, name: string): string {
 export function genericAgentPromptPath(rootPath: string, name: string): string {
   return joinPath(vispDir(rootPath), "prompts", `agent-${name}.prompt.md`);
 }
+
+export function claudeCommandPath(rootPath: string, name: string): string {
+  return joinPath(rootPath, ".claude", "commands", `visp-${name}.md`);
+}
+
+export function copilotInstructionsPath(rootPath: string): string {
+  return joinPath(rootPath, ".github", "copilot-instructions.md");
+}
+
+export function copilotWorkflowInstructionPath(rootPath: string, name: string): string {
+  return joinPath(rootPath, ".github", "instructions", `visp-${name}.instructions.md`);
+}

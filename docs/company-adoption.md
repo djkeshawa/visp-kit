@@ -22,8 +22,15 @@ Visp Kit is designed for teams that need AI assistance without losing scope cont
 7. Run `visp verify`, `visp review`, and `visp reconcile` before PR.
 8. Treat dependency changes as explicit task scope.
 9. Keep `.visp/` artifacts in the repository when auditability matters.
+10. Install the appropriate agent workflow pack for the team tool:
+   - `visp agent install codex`
+   - `visp agent install claude`
+   - `visp agent install copilot`
+   - `visp agent install generic`
 
 User prompts should be treated as raw intent only. They should not override policy gates, forbidden files, validation, review, reconciliation, or PR readiness.
+
+Claude and Copilot integrations are generated repository guidance for compatible surfaces. They do not call AI providers and should be reviewed like any other repository instruction file.
 
 ## Security And Privacy
 

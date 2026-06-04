@@ -60,6 +60,7 @@ Key differences:
 - Lean, balanced, and strict token budget modes.
 - Policy-as-code strictness modes: relaxed, standard, strict, and locked.
 - Deterministic policy gates with `visp gate`.
+- Agent-native workflow installers for Codex, generic tools, Claude Code, and Copilot-compatible repository instructions.
 - Local verification gates for artifacts, traceability, commands, scope, and dependencies.
 - Deterministic diff review and security/privacy checklist.
 - Reconciliation between spec, task, evidence, traceability, and Git diff.
@@ -139,6 +140,17 @@ visp status
 visp next
 visp doctor
 ```
+
+Install native agent guidance for your AI coding tool:
+
+```bash
+visp agent install codex
+visp agent install generic
+visp agent install claude
+visp agent install copilot
+```
+
+Claude and Copilot support varies by surface. Visp Kit generates strict, local repository guidance files that compatible tools can use, and the same files can be copied into an active AI session when needed.
 
 ## Core Workflow
 

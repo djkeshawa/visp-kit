@@ -86,7 +86,7 @@ export async function runAgentRefresh(
     return err(
       new VispError(
         initialized.error.code,
-        `${initialized.error.message} Recommended: visp init --agent codex --strictness strict.`
+        `${initialized.error.message} Recommended: visp init --strictness strict.`
       )
     );
   }

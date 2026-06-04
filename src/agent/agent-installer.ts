@@ -24,7 +24,7 @@ import {
   workflowMapPath
 } from "./agent-paths.js";
 import {
-  buildWorkflowMap,
+  buildWorkflowMapForTargets,
   renderAgentGuide
 } from "./agent-renderer.js";
 import {
@@ -34,6 +34,8 @@ import {
 } from "./agent-file-plan.js";
 import { codexTargetFiles } from "./targets/codex.js";
 import { genericTargetFiles } from "./targets/generic.js";
+import { claudeTargetFiles } from "./targets/claude.js";
+import { copilotTargetFiles } from "./targets/copilot.js";
 
 export type AgentInstallOptions = {
   readonly targetPath?: string;
@@ -124,11 +126,16 @@ async function writePolicyForStrictness(input: {
 }
 
 function nextInstructions(target: AgentTargetName): string {
-  if (target === "codex") {
-    return "Open Codex and use:\n$visp-feature\n<your feature request>";
+  switch (target) {
+    case "codex":
+      return "Open Codex and use:\n$visp-feature\n<your feature request>";
+    case "claude":
+      return "Open Claude Code and use:\n/visp-feature Add note pinning";
+    case "copilot":
+      return "Use the repository instructions, or paste:\nUse Visp Kit workflow for this feature:\n<your feature request>\nFollow .github/instructions/visp-feature.instructions.md.";
+    case "generic":
+      return "Paste .visp/prompts/agent-feature.prompt.md into your AI coding tool with your feature request.";
   }
-
-  return "Paste .visp/prompts/agent-feature.prompt.md into your AI coding tool with your feature request.";
 }
 
 function bucketActions(actions: readonly { readonly path: string; readonly action: AgentFileAction }[]): {
@@ -151,40 +158,57 @@ async function targetFiles(input: {
   readonly strictness: StrictnessMode;
   readonly force: boolean;
 }): Promise<Result<{ readonly files: readonly AgentPlannedFile[]; readonly warnings: readonly string[] }, VispError>> {
-  const agentsPath = agentsMarkdownPath(input.targetPath);
-  const agentsExists = await pathExists(agentsPath);
+  const shouldPlanAgentsFile = input.target === "codex" || input.target === "generic" || input.target === "copilot";
+  const agentsExists = shouldPlanAgentsFile
+    ? await pathExists(agentsMarkdownPath(input.targetPath))
+    : ok(false);
 
   if (!agentsExists.ok) return agentsExists;
 
-  const useFallbackAgentsFile = agentsExists.value && !input.force;
+  const useFallbackAgentsFile = shouldPlanAgentsFile && agentsExists.value && !input.force;
   const warnings = useFallbackAgentsFile
     ? ["AGENTS.md already exists. Wrote AGENTS.visp.md for manual merge or reference."]
     : [];
 
-  const files = input.target === "codex"
-    ? codexTargetFiles({
-        targetPath: input.targetPath,
-        strictness: input.strictness,
-        useFallbackAgentsFile
-      })
-    : genericTargetFiles({
-        targetPath: input.targetPath,
-        strictness: input.strictness,
-        useFallbackAgentsFile
-      });
+  const files = (() => {
+    switch (input.target) {
+      case "codex":
+        return codexTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness,
+          useFallbackAgentsFile
+        });
+      case "generic":
+        return genericTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness,
+          useFallbackAgentsFile
+        });
+      case "claude":
+        return claudeTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness
+        });
+      case "copilot":
+        return copilotTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness,
+          useFallbackAgentsFile
+        });
+    }
+  })();
 
   return ok({ files, warnings });
 }
 
-function metadataFiles(input: {
-  readonly targetPath: string;
+function nextMetadata(input: {
   readonly target: AgentTargetName;
   readonly strictness: StrictnessMode;
   readonly now: string;
   readonly metadata: InstalledAgentTargets;
   readonly targetFilePaths: readonly string[];
   readonly warnings: readonly string[];
-}): readonly AgentPlannedFile[] {
+}): InstalledAgentTargets {
   const existing = input.metadata.installedTargets.find(
     (target) => target.target === input.target
   );
@@ -197,12 +221,25 @@ function metadataFiles(input: {
     version: "1.0",
     warnings: [...input.warnings]
   };
-  const nextMetadata: InstalledAgentTargets = {
+
+  return {
     installedTargets: [
       ...input.metadata.installedTargets.filter((target) => target.target !== input.target),
       nextTarget
     ].sort((left, right) => left.target.localeCompare(right.target))
   };
+}
+
+function metadataFiles(input: {
+  readonly targetPath: string;
+  readonly target: AgentTargetName;
+  readonly strictness: StrictnessMode;
+  readonly now: string;
+  readonly metadata: InstalledAgentTargets;
+  readonly targetFilePaths: readonly string[];
+  readonly warnings: readonly string[];
+}): readonly AgentPlannedFile[] {
+  const metadata = nextMetadata(input);
 
   return [
     {
@@ -210,7 +247,7 @@ function metadataFiles(input: {
       path: installedTargetsPath(input.targetPath),
       artifactName: "installed agent targets",
       schema: installedAgentTargetsSchema,
-      value: nextMetadata
+      value: metadata
     },
     {
       kind: "text",
@@ -225,7 +262,7 @@ function metadataFiles(input: {
       path: workflowMapPath(input.targetPath),
       artifactName: "agent workflow map",
       schema: agentWorkflowMapSchema,
-      value: buildWorkflowMap({ target: input.target })
+      value: buildWorkflowMapForTargets(metadata.installedTargets.map((target) => target.target))
     }
   ];
 }
@@ -243,7 +280,7 @@ export async function runAgentInstall(
     return err(
       new VispError(
         initialized.error.code,
-        `${initialized.error.message} Recommended: visp init --agent ${options.target} --strictness strict.`
+        `${initialized.error.message} Recommended: visp init --strictness strict.`
       )
     );
   }

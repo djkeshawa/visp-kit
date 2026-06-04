@@ -56,6 +56,8 @@ describe("visp agent command", () => {
     await program.parseAsync(["node", "visp", "agent", "list"]);
     expect(output.join("")).toContain("codex");
     expect(output.join("")).toContain("generic");
+    expect(output.join("")).toContain("claude");
+    expect(output.join("")).toContain("copilot");
 
     output.length = 0;
     await program.parseAsync(["node", "visp", "agent", "list", "--json"]);
@@ -64,7 +66,12 @@ describe("visp agent command", () => {
       targets: { name: string }[];
     };
     expect(summary.success).toBe(true);
-    expect(summary.targets.map((target) => target.name)).toEqual(["codex", "generic"]);
+    expect(summary.targets.map((target) => target.name)).toEqual([
+      "codex",
+      "generic",
+      "claude",
+      "copilot"
+    ]);
   });
 
   it("installs Codex guidance and skills", async () => {
@@ -173,6 +180,6 @@ describe("visp agent command", () => {
     await program.parseAsync(["node", "visp", "agent", "install", "codex", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init --agent codex --strictness strict");
+    expect(errors.join("")).toContain("visp init --strictness strict");
   });
 });

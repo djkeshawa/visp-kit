@@ -3,7 +3,12 @@ import { z } from "zod";
 import { isoDateTimeSchema } from "./common.schema.js";
 import { strictnessModeSchema } from "./policy.schema.js";
 
-export const agentTargetNameSchema = z.enum(["codex", "generic"]);
+export const agentTargetNameSchema = z.enum([
+  "codex",
+  "generic",
+  "claude",
+  "copilot"
+]);
 
 export const installedAgentTargetSchema = z
   .object({
@@ -25,6 +30,7 @@ export const installedAgentTargetsSchema = z
 
 export const agentWorkflowMapItemSchema = z
   .object({
+    target: agentTargetNameSchema,
     name: z.string().min(1),
     purpose: z.string().min(1),
     entrypointFile: z.string().min(1),

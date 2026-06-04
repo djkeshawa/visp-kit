@@ -11,7 +11,10 @@ import { ensureVispProject, loadEffectivePolicy } from "../policy/policy-loader.
 import {
   agentsMarkdownPath,
   agentsVispMarkdownPath,
+  claudeCommandPath,
   codexSkillPath,
+  copilotInstructionsPath,
+  copilotWorkflowInstructionPath,
   genericAgentPromptPath,
   installedTargetsPath
 } from "./agent-paths.js";
@@ -166,48 +169,66 @@ async function checkTarget(input: {
   readonly target: AgentTargetName;
   readonly findings: AgentDoctorFinding[];
 }): Promise<Result<void, VispError>> {
-  const guidance = await guidanceText(input.targetPath);
+  if (input.target !== "claude") {
+    const guidance = await guidanceText(input.targetPath);
 
-  if (!guidance.ok) return guidance;
+    if (!guidance.ok) return guidance;
 
-  if (guidance.value.text === null) {
-    input.findings.push(
-      finding(
-        {
-          category: "guidance",
-          severity: "warning",
-          title: "Agent guidance missing",
-          description: "AGENTS.md or AGENTS.visp.md is missing.",
-          recommendation: `Run \`visp agent install ${input.target}\`.`,
-          autoFixable: true
-        },
-        input.findings.length + 1
-      )
-    );
-  } else if (!containsRequiredGuidance(guidance.value.text)) {
-    input.findings.push(
-      finding(
-        {
-          category: "guidance",
-          severity: "warning",
-          title: "Agent guidance is incomplete",
-          description: "Generated guidance is missing strict Visp policy wording.",
-          file: guidance.value.path ?? undefined,
-          recommendation: `Run \`visp agent refresh --target ${input.target} --force\`.`,
-          autoFixable: false
-        },
-        input.findings.length + 1
-      )
-    );
+    if (guidance.value.text === null) {
+      input.findings.push(
+        finding(
+          {
+            category: "guidance",
+            severity: "warning",
+            title: "Agent guidance missing",
+            description: "AGENTS.md or AGENTS.visp.md is missing.",
+            recommendation: `Run \`visp agent install ${input.target}\`.`,
+            autoFixable: true
+          },
+          input.findings.length + 1
+        )
+      );
+    } else if (!containsRequiredGuidance(guidance.value.text)) {
+      input.findings.push(
+        finding(
+          {
+            category: "guidance",
+            severity: "warning",
+            title: "Agent guidance is incomplete",
+            description: "Generated guidance is missing strict Visp policy wording.",
+            file: guidance.value.path ?? undefined,
+            recommendation: `Run \`visp agent refresh --target ${input.target} --force\`.`,
+            autoFixable: false
+          },
+          input.findings.length + 1
+        )
+      );
+    }
   }
 
-  const targetFiles = input.target === "codex"
-    ? agentWorkflowNames.map((workflow) =>
-        codexSkillPath(input.targetPath, `visp-${workflow}`)
-      )
-    : agentWorkflowNames.map((workflow) =>
-        genericAgentPromptPath(input.targetPath, workflow)
-      );
+  const targetFiles = (() => {
+    switch (input.target) {
+      case "codex":
+        return agentWorkflowNames.map((workflow) =>
+          codexSkillPath(input.targetPath, `visp-${workflow}`)
+        );
+      case "generic":
+        return agentWorkflowNames.map((workflow) =>
+          genericAgentPromptPath(input.targetPath, workflow)
+        );
+      case "claude":
+        return agentWorkflowNames.map((workflow) =>
+          claudeCommandPath(input.targetPath, workflow)
+        );
+      case "copilot":
+        return [
+          copilotInstructionsPath(input.targetPath),
+          ...agentWorkflowNames.map((workflow) =>
+            copilotWorkflowInstructionPath(input.targetPath, workflow)
+          )
+        ];
+    }
+  })();
 
   for (const filePath of targetFiles) {
     const check = await checkFile({
@@ -255,7 +276,7 @@ export async function runAgentDoctor(
     return err(
       new VispError(
         initialized.error.code,
-        `${initialized.error.message} Recommended: visp init --agent codex --strictness strict.`
+        `${initialized.error.message} Recommended: visp init --strictness strict.`
       )
     );
   }
@@ -311,6 +332,22 @@ export async function runAgentDoctor(
   }
 
   for (const target of targets) {
+    if (!installed.value.includes(target)) {
+      findings.push(
+        finding(
+          {
+            category: "metadata",
+            severity: "warning",
+            title: "Target metadata missing",
+            description: `.visp/agent/installed-targets.json does not include ${target}.`,
+            recommendation: `Run \`visp agent install ${target}\`.`,
+            autoFixable: true
+          },
+          findings.length + 1
+        )
+      );
+    }
+
     const check = await checkTarget({ targetPath, target, findings });
     if (!check.ok) return check;
   }

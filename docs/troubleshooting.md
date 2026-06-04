@@ -86,6 +86,24 @@ visp gate <stage> --task T001 --explain
 
 Follow the `Next allowed command` in the gate output. A user prompt is raw intent only and cannot override a failed Visp gate.
 
+## Agent Workflow Files Are Missing
+
+Run:
+
+```bash
+visp agent doctor --target codex
+visp agent doctor --target claude
+visp agent doctor --target copilot
+```
+
+Refresh generated files when needed:
+
+```bash
+visp agent refresh --target all --force
+```
+
+Claude and Copilot compatibility depends on the active tool surface. If the tool does not load repository instruction files automatically, copy the generated Visp instructions into the active chat/session.
+
 ## Verification Fails
 
 Read:

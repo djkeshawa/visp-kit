@@ -16,6 +16,14 @@ export const supportedAgentTargets: readonly AgentTarget[] = [
   {
     name: "generic",
     description: "Generate AGENTS.md and generic prompt files."
+  },
+  {
+    name: "claude",
+    description: "Generate Claude command/skill guidance."
+  },
+  {
+    name: "copilot",
+    description: "Generate GitHub Copilot repository instructions."
   }
 ];
 

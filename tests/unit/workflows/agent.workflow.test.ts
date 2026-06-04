@@ -27,10 +27,15 @@ describe("agent workflow", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it("lists codex and generic targets only", () => {
+  it("lists supported agent targets", () => {
     const summary = expectOk(runAgentListWorkflow());
 
-    expect(summary.targets.map((target) => target.name)).toEqual(["codex", "generic"]);
+    expect(summary.targets.map((target) => target.name)).toEqual([
+      "codex",
+      "generic",
+      "claude",
+      "copilot"
+    ]);
   });
 
   it("installs generic prompts through workflow", async () => {
