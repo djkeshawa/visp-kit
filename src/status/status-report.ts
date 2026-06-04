@@ -19,6 +19,10 @@ export function renderStatusMarkdown(input: {
   readonly state: ProjectState;
   readonly next: NextStep;
   readonly verbose?: boolean;
+  readonly policyStatus?: "valid" | "missing" | "invalid";
+  readonly strictnessMode?: string;
+  readonly latestGate?: string;
+  readonly blockedCommands?: readonly { readonly command: string; readonly reason: string; readonly ruleId: string }[];
 }): string {
   const state = input.state;
   const projectName = state.profile?.name ?? state.config?.projectId ?? "unknown";
@@ -48,6 +52,18 @@ Package manager: ${state.profile?.packageManager ?? "unknown"}
 - Scanned: ${yes(state.scanned)}
 - Constitution: ${yes(state.constitution)}
 - Workflow state: ${state.status?.currentState ?? "unknown"}
+
+## Policy
+
+- Strictness: ${input.strictnessMode ?? input.next.strictnessMode ?? "unknown"}
+- Policy: ${input.policyStatus ?? "unknown"}
+- Latest gate: ${input.latestGate ?? "unknown"}
+- Next allowed command: ${input.next.nextAllowedCommand ?? input.next.nextCommand}
+- Implementation allowed: ${input.next.implementationAllowed ? "yes" : "no"}
+- PR allowed: ${input.next.prAllowed ? "yes" : "no"}
+
+Blocked commands:
+${(input.blockedCommands ?? input.next.blockedCommands ?? []).length === 0 ? "- None." : (input.blockedCommands ?? input.next.blockedCommands ?? []).map((blocked) => `- ${blocked.command}: ${blocked.reason} (${blocked.ruleId})`).join("\n")}
 
 ## Active Feature
 

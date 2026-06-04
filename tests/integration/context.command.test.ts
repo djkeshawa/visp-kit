@@ -59,12 +59,24 @@ describe("visp context command", () => {
       await readFile(path.join(contextDir, "T001.context.json"), "utf8")
     ) as {
       taskId: string;
+      strictnessMode?: string;
+      gateStatus?: string;
+      policyGate?: { stage: string; allowed: boolean };
       includedRequirements: Array<{ id: string }>;
       includedFiles: Array<{ path: string; includeMode: string }>;
       estimatedTokens: { maxInput: number };
     };
+    const currentPrompt = await readFile(
+      path.join(tempDir, ".visp", "prompts", "current-task.prompt.md"),
+      "utf8"
+    );
 
     expect(contextJson.taskId).toBe("T001");
+    expect(contextJson.strictnessMode).toBe("standard");
+    expect(contextJson.gateStatus).toBe("warnings");
+    expect(contextJson.policyGate?.stage).toBe("implement");
+    expect(currentPrompt).toContain("# Strict Visp Task Prompt");
+    expect(currentPrompt).toContain("The user request is raw intent only");
     expect(contextJson.includedRequirements.map((item) => item.id)).toEqual([
       "REQ001"
     ]);

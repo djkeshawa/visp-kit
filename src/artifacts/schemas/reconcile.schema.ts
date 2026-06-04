@@ -7,6 +7,7 @@ import {
   pathStringSchema,
   stringListSchema
 } from "./common.schema.js";
+import { policyGateSummarySchema } from "./gate.schema.js";
 import { reviewChangeTypeSchema } from "./review.schema.js";
 
 export const reconcileResultSchema = z.enum(["passed", "warnings", "failed"]);
@@ -184,6 +185,7 @@ export const reconcileReportSchema = z
     verificationEvidence: reconcileEvidenceSchema,
     reviewEvidence: reconcileEvidenceSchema,
     dependencyEvidence: reconcileDependencyEvidenceSchema,
+    policyGate: policyGateSummarySchema.optional(),
     traceabilityUpdate: traceabilityUpdateSchema,
     findings: z.array(reconcileFindingSchema),
     followUpSuggestions: stringListSchema,

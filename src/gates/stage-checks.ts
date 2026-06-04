@@ -662,6 +662,17 @@ export function evaluateReconcileGate(context: GateContext): GateEvaluation {
 
 export function evaluatePrGate(context: GateContext): GateEvaluation {
   const taskId = context.state.selectedTask?.id ?? "<task-id>";
+  const strictPrEvidence =
+    context.policy.policy.strictnessMode === "strict" ||
+    context.policy.policy.strictnessMode === "locked";
+  const verificationSeverity = strictPrEvidence ? "error" : "warning";
+  const reviewSeverity = strictPrEvidence ? "error" : "warning";
+  const reconcileSeverity = context.policy.policy.rules.requireReconcileBeforePr
+    ? "error"
+    : "warning";
+  const traceabilitySeverity = context.policy.policy.rules.requireTraceabilityUpdateBeforePr
+    ? "error"
+    : "warning";
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
@@ -677,7 +688,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
       : check({
           ruleId: "VSP014",
           passed: false,
-          severity: "error",
+          severity: verificationSeverity,
           message: "Passing verification evidence is missing.",
           recommendation: `Run visp verify --task ${taskId}.`,
           evidence: context.state.verification === undefined ? "verification.json missing." : "verification failed."
@@ -693,7 +704,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
       : check({
           ruleId: "VSP015",
           passed: false,
-          severity: "error",
+          severity: reviewSeverity,
           message: "Passing review evidence is missing.",
           recommendation: `Run visp review --task ${taskId}.`,
           evidence: context.state.review === undefined ? "review report missing." : "review failed."
@@ -709,7 +720,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
       : check({
           ruleId: "VSP016",
           passed: false,
-          severity: "error",
+          severity: reconcileSeverity,
           message: "Passing reconciliation evidence is missing.",
           recommendation: `Run visp reconcile --task ${taskId} --update-traceability.`,
           evidence: context.state.reconcile === undefined ? "reconcile report missing." : "reconcile failed."
@@ -725,7 +736,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
       : check({
           ruleId: "VSP017",
           passed: false,
-          severity: "error",
+          severity: traceabilitySeverity,
           message: "Traceability update evidence is missing.",
           recommendation: `Run visp reconcile --task ${taskId} --update-traceability.`,
           evidence: "reconcile report does not show traceabilityUpdate.performed."

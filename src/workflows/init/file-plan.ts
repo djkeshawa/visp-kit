@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   featuresArtifactDir,
   memoryArtifactDir,
+  policyArtifactPath,
   projectConfigArtifactPath,
   projectProfileArtifactPath,
   projectStatusArtifactPath
@@ -17,9 +18,14 @@ import {
   projectProfileSchema,
   projectStatusSchema
 } from "../../artifacts/schemas/project.schema.js";
+import {
+  policyArtifactSchema,
+  type StrictnessMode
+} from "../../artifacts/schemas/policy.schema.js";
 import { VispError } from "../../core/errors.js";
 import { pathExists } from "../../core/file-system.js";
 import { ok, type Result } from "../../core/result.js";
+import { createDefaultPolicy } from "../../policy/policy-defaults.js";
 import {
   codexAgentsMarkdown,
   codexSkillFiles
@@ -44,6 +50,7 @@ export type InitFilePlanInput = {
   readonly agent: AgentMode;
   readonly preset: Preset;
   readonly budget: BudgetMode;
+  readonly strictness: StrictnessMode;
   readonly force: boolean;
   readonly now: string;
 };
@@ -79,8 +86,8 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
     targetPath: input.targetPath,
     agent: input.agent,
     preset: input.preset,
-    budget: input.budget,
-    now: input.now
+      budget: input.budget,
+      now: input.now
   };
   const cacheDir = path.join(input.targetPath, ".visp", "cache");
   const memoryDir = memoryArtifactDir(input.targetPath);
@@ -107,6 +114,16 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
       "project status",
       projectStatusSchema,
       createDefaultProjectStatus(artifactInput)
+    ),
+    artifactFile(
+      input.targetPath,
+      policyArtifactPath(input.targetPath),
+      "policy",
+      policyArtifactSchema,
+      createDefaultPolicy({
+        strictnessMode: input.strictness,
+        now: input.now
+      })
     ),
     textFile(input.targetPath, path.join(memoryDir, "constitution.md"), constitutionMarkdown(input.preset, input.budget)),
     textFile(input.targetPath, path.join(memoryDir, "constitution.compact.md"), compactConstitutionMarkdown()),
@@ -173,7 +190,7 @@ async function agentPlan(
       textFile(
         input.targetPath,
         agentsFilePath,
-        codexAgentsMarkdown(input.preset, input.budget)
+        codexAgentsMarkdown(input.preset, input.budget, input.strictness)
       ),
       ...codexSkillFiles(input.targetPath).map((file) =>
         textFile(input.targetPath, file.path, file.contents)

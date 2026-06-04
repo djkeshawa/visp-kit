@@ -65,10 +65,16 @@ describe("visp next command", () => {
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
       nextCommand: string;
+      strictnessMode: string;
+      implementationAllowed: boolean;
+      blockedCommands: Array<{ command: string; ruleId: string }>;
     };
 
     expect(errors.join("")).toBe("");
     expect(summary.success).toBe(true);
     expect(summary.nextCommand).toBe("visp context --next");
+    expect(summary.strictnessMode).toBe("standard");
+    expect(summary.implementationAllowed).toBe(false);
+    expect(summary.blockedCommands.some((item) => item.ruleId === "VSP007")).toBe(true);
   });
 });

@@ -15,6 +15,13 @@ import {
   requirementSchema
 } from "./requirement.schema.js";
 import { taskSchema } from "./task.schema.js";
+import {
+  gateBlockedCommandSchema,
+  gateRuleFindingSchema,
+  policyGateSummarySchema,
+  policyStatusSchema
+} from "./gate.schema.js";
+import { strictnessModeSchema } from "./policy.schema.js";
 
 export const contextIncludeModeSchema = z.enum([
   "summary",
@@ -132,6 +139,12 @@ export const contextPackSchema = z
     validationCommands: z.array(commandStringSchema),
     constraints: stringListSchema,
     instructions: stringListSchema,
+    strictnessMode: strictnessModeSchema.optional(),
+    policyStatus: policyStatusSchema.optional(),
+    gateStatus: z.enum(["allowed", "blocked", "warnings", "not_evaluated"]).optional(),
+    failedGateRules: z.array(gateRuleFindingSchema).optional(),
+    blockedCommands: z.array(gateBlockedCommandSchema).optional(),
+    policyGate: policyGateSummarySchema.optional(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema
   })

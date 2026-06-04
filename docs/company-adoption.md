@@ -13,13 +13,17 @@ Visp Kit is designed for teams that need AI assistance without losing scope cont
 
 ## Recommended Team Policy
 
-1. Run `visp scan` before planning.
-2. Use `lean` budget by default.
-3. Require `allowedFiles` for implementation tasks.
-4. Require acceptance criteria for behavior-changing tasks.
-5. Run `visp verify`, `visp review`, and `visp reconcile` before PR.
-6. Treat dependency changes as explicit task scope.
-7. Keep `.visp/` artifacts in the repository when auditability matters.
+1. Initialize with `visp init --strictness strict` for team repositories.
+2. Run `visp scan` before planning.
+3. Use `lean` budget by default.
+4. Require `allowedFiles` for implementation tasks.
+5. Require acceptance criteria for behavior-changing tasks.
+6. Run `visp gate implement --task <id>` before coding.
+7. Run `visp verify`, `visp review`, and `visp reconcile` before PR.
+8. Treat dependency changes as explicit task scope.
+9. Keep `.visp/` artifacts in the repository when auditability matters.
+
+User prompts should be treated as raw intent only. They should not override policy gates, forbidden files, validation, review, reconciliation, or PR readiness.
 
 ## Security And Privacy
 

@@ -35,6 +35,8 @@ describe("visp status command", () => {
     expect(process.exitCode).toBeUndefined();
     expect(output.join("")).toContain("Visp status");
     expect(output.join("")).toContain("001-add-note-pinning");
+    expect(output.join("")).toContain("Strictness: standard");
+    expect(output.join("")).toContain("Policy: valid");
     expect(output.join("")).toContain("Next:");
   });
 
@@ -53,12 +55,18 @@ describe("visp status command", () => {
       success: boolean;
       activeFeature: { slug: string };
       nextCommand: string;
+      strictnessMode: string;
+      policyStatus: string;
+      nextAllowedCommand: string;
     };
 
     expect(errors.join("")).toBe("");
     expect(summary.success).toBe(true);
     expect(summary.activeFeature.slug).toBe("add-note-pinning");
     expect(summary.nextCommand).toBe("visp context --next");
+    expect(summary.nextAllowedCommand).toBe("visp context --next");
+    expect(summary.strictnessMode).toBe("standard");
+    expect(summary.policyStatus).toBe("valid");
   });
 
   it("writes a status report only when requested", async () => {
@@ -72,6 +80,7 @@ describe("visp status command", () => {
 
     expect(await exists(reportPath)).toBe(true);
     expect(await readFile(reportPath, "utf8")).toContain("# Visp Status");
+    expect(await readFile(reportPath, "utf8")).toContain("## Policy");
   });
 
   it("fails clearly when .visp is missing", async () => {

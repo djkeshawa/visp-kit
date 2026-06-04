@@ -7,6 +7,7 @@ import {
   pathStringSchema,
   stringListSchema
 } from "./common.schema.js";
+import { policyGateSummarySchema } from "./gate.schema.js";
 
 export const reviewResultSchema = z.enum(["passed", "warnings", "failed"]);
 export const reviewModeSchema = z.enum([
@@ -179,6 +180,7 @@ export const reviewReportSchema = z
     verificationReview: reviewVerificationSchema,
     testReview: reviewTestSchema,
     dependencyReview: reviewDependencySchema,
+    policyGate: policyGateSummarySchema.optional(),
     securityChecklist: z.array(securityChecklistItemSchema),
     findings: z.array(reviewFindingSchema),
     warnings: stringListSchema,

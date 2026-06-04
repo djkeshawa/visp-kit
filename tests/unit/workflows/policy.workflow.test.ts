@@ -24,6 +24,10 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
+async function removePolicy(rootPath: string): Promise<void> {
+  await rm(policyArtifactPath(rootPath), { force: true });
+}
+
 describe("policy workflow", () => {
   let tempDir: string;
 
@@ -37,6 +41,7 @@ describe("policy workflow", () => {
 
   it("initializes policy files with selected strictness", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await removePolicy(tempDir);
 
     const summary = expectOk(
       await runPolicyInitWorkflow({
@@ -54,7 +59,6 @@ describe("policy workflow", () => {
 
   it("does not overwrite existing policy without force", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
-    expectOk(await runPolicyInitWorkflow({ targetPath: tempDir }));
 
     const second = await runPolicyInitWorkflow({ targetPath: tempDir });
 
@@ -66,6 +70,7 @@ describe("policy workflow", () => {
 
   it("supports dry-run without writing policy files", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await removePolicy(tempDir);
 
     const summary = expectOk(
       await runPolicyInitWorkflow({
@@ -82,6 +87,7 @@ describe("policy workflow", () => {
 
   it("shows effective default when policy is missing", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await removePolicy(tempDir);
 
     const summary = expectOk(await runPolicyShowWorkflow({ targetPath: tempDir }));
 
@@ -93,7 +99,7 @@ describe("policy workflow", () => {
   it("validates existing policy and updates strictness", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     expectOk(
-      await runPolicyInitWorkflow({
+      await runPolicySetStrictnessWorkflow({
         targetPath: tempDir,
         strictness: "strict",
         now: "2026-01-01T00:00:00.000Z"
@@ -112,7 +118,7 @@ describe("policy workflow", () => {
     );
 
     expect(update.policy.strictnessMode).toBe("locked");
-    expect(update.policy.limits.maxChangedFilesPerTask).toBe(8);
+    expect(update.policy.limits.maxChangedFilesPerTask).toBe(12);
     expect(update.policy.overrides.allowed).toBe(true);
 
     const persisted = JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8")) as {

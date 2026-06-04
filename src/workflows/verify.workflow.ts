@@ -60,6 +60,12 @@ import {
   formatVerifySummary,
   type VerifySummary
 } from "../verification/verification-summary.js";
+import {
+  evaluatePolicyGate,
+  gateBlocksWorkflow,
+  gateFailureMessages,
+  gateWarningMessages
+} from "../gates/policy-gate-summary.js";
 import { validateScope } from "../verification/scope-validator.js";
 import { validateTraceability } from "../verification/traceability-validator.js";
 import {
@@ -393,6 +399,19 @@ export async function runVerifyWorkflow(
 
   const selectedTask = task?.value;
   const warnings: string[] = [];
+  const policyGateResult = await evaluatePolicyGate({
+    targetPath,
+    stage: "verify",
+    feature: feature.value.key,
+    taskId: selectedTask?.id,
+    now: startedAt
+  });
+  const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
+
+  if (!policyGateResult.ok) {
+    warnings.push(`Verification gate could not be evaluated: ${policyGateResult.error.message}`);
+  }
+
   const checks = checksFromOptions(options);
   const spec = await optionalArtifact({
     path: specArtifactPath(targetPath, feature.value.key),
@@ -510,12 +529,20 @@ export async function runVerifyWorkflow(
     commandValidation,
     scopeValidation,
     dependencyValidation,
+    policyGate,
     warnings,
     errors: [],
     nextCommand: "pending"
   };
-  const collectedWarnings = [...new Set([...warnings, ...collectWarnings(baseReport)])];
-  const collectedErrors = [...new Set(collectErrors(baseReport))];
+  const gateBlocks = policyGate === undefined
+    ? false
+    : gateBlocksWorkflow({ gate: policyGate, force: options.force });
+  const gateMessages = policyGate === undefined ? [] : gateFailureMessages(policyGate);
+  const gateWarnings = policyGate === undefined
+    ? []
+    : gateBlocks ? [] : gateWarningMessages(policyGate);
+  const collectedWarnings = [...new Set([...warnings, ...gateWarnings, ...collectWarnings(baseReport)])];
+  const collectedErrors = [...new Set([...collectErrors(baseReport), ...(gateBlocks ? gateMessages : [])])];
   const nextCommand =
     collectedErrors.length === 0
       ? "visp review --diff-only"

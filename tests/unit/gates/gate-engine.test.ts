@@ -5,9 +5,10 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { gateResultSchema } from "../../../src/artifacts/schemas/gate.schema.js";
+import { policyArtifactPath } from "../../../src/artifacts/artifact-paths.js";
 import { evaluateGate } from "../../../src/gates/gate-engine.js";
 import { runInitWorkflow } from "../../../src/workflows/init.workflow.js";
-import { runPolicyInitWorkflow } from "../../../src/workflows/policy.workflow.js";
+import { runPolicySetStrictnessWorkflow } from "../../../src/workflows/policy.workflow.js";
 import { createPhase8Fixture, expectOk } from "../../integration/phase8-fixture.js";
 
 describe("gate engine", () => {
@@ -39,6 +40,7 @@ describe("gate engine", () => {
 
   it("uses default policy when policy.json is missing", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await rm(policyArtifactPath(tempDir), { force: true });
 
     const result = expectOk(
       await evaluateGate({
@@ -81,7 +83,7 @@ describe("gate engine", () => {
   it("blocks implement when strict policy requires missing context", async () => {
     await createPhase8Fixture(tempDir);
     expectOk(
-      await runPolicyInitWorkflow({
+      await runPolicySetStrictnessWorkflow({
         targetPath: tempDir,
         strictness: "strict",
         now: "2026-01-01T00:00:00.000Z"

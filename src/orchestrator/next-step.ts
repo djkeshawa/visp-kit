@@ -1,4 +1,8 @@
 import { type Task } from "../artifacts/schemas/task.schema.js";
+import {
+  type GateBlockedCommand,
+  type GateRuleFinding
+} from "../artifacts/schemas/gate.schema.js";
 import { type ProjectState } from "./project-state.js";
 
 export type NextStep = {
@@ -19,6 +23,14 @@ export type NextStep = {
   readonly blockers: readonly string[];
   readonly warnings: readonly string[];
   readonly confidence: "high" | "medium" | "low";
+  readonly strictnessMode?: string;
+  readonly nextAllowedCommand?: string;
+  readonly allowed?: boolean;
+  readonly blockedCommands?: readonly GateBlockedCommand[];
+  readonly failedRules?: readonly GateRuleFinding[];
+  readonly implementationAllowed?: boolean;
+  readonly prAllowed?: boolean;
+  readonly agentInstruction?: string;
 };
 
 function taskFlag(task: Task | undefined): string {

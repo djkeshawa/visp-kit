@@ -2,11 +2,16 @@ import {
   cacheArtifactDir,
   featuresArtifactDir,
   memoryArtifactDir,
+  policyArtifactPath,
   promptsArtifactDir,
   reportsArtifactDir
 } from "../artifacts/artifact-paths.js";
-import { ensureDir } from "../core/file-system.js";
+import { writeArtifact } from "../artifacts/artifact-writer.js";
+import { policyArtifactSchema } from "../artifacts/schemas/policy.schema.js";
+import { ensureDir, pathExists } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
+import { createDefaultPolicy } from "../policy/policy-defaults.js";
+import { defaultPolicyStrictness } from "../policy/policy-loader.js";
 
 export type DoctorFixResult = {
   readonly path: string;
@@ -46,6 +51,39 @@ export async function applySafeDoctorFixes(input: {
       applied: created.ok,
       reason: created.ok ? "directory ensured" : created.error.message
     });
+  }
+
+  const policyPath = policyArtifactPath(input.targetPath);
+  const policyDisplay = relativePath(input.targetPath, policyPath);
+  const policyExists = await pathExists(policyPath);
+
+  if (policyExists.ok && !policyExists.value) {
+    if (input.dryRun) {
+      results.push({
+        path: policyDisplay,
+        applied: false,
+        reason: "dry-run"
+      });
+    } else {
+      const strictness = await defaultPolicyStrictness(input.targetPath);
+      const write = strictness.ok
+        ? await writeArtifact(
+            policyPath,
+            policyArtifactSchema,
+            createDefaultPolicy({
+              strictnessMode: strictness.value,
+              now: new Date().toISOString()
+            }),
+            { artifactName: "policy" }
+          )
+        : strictness;
+
+      results.push({
+        path: policyDisplay,
+        applied: write.ok,
+        reason: write.ok ? "policy created" : write.error.message
+      });
+    }
   }
 
   return results;

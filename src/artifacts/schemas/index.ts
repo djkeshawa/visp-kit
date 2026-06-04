@@ -1,4 +1,5 @@
 export * from "./budget.schema.js";
+export * from "./agent.schema.js";
 export * from "./clarification.schema.js";
 export * from "./common.schema.js";
 export * from "./constitution.schema.js";

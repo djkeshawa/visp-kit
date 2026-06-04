@@ -3,6 +3,7 @@ import {
   type ReviewFinding,
   type ReviewReport
 } from "../artifacts/schemas/review.schema.js";
+import { renderPolicyGateMarkdown } from "../gates/policy-gate-markdown.js";
 
 function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
@@ -72,6 +73,8 @@ export function renderReviewMarkdown(report: ReviewReport): string {
 - Changed files: ${report.changedFiles.length}
 - Findings: ${errors} errors, ${warnings} warnings, ${info} info
 - Verification: ${report.verificationReview.status}
+
+${renderPolicyGateMarkdown(report.policyGate)}
 
 ## Changed Files
 

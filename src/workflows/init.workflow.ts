@@ -5,6 +5,7 @@ import {
   type BudgetMode,
   type Preset
 } from "../artifacts/schemas/common.schema.js";
+import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { VispError } from "../core/errors.js";
 import { ensureDir } from "../core/file-system.js";
 import { ok, type Result } from "../core/result.js";
@@ -22,6 +23,7 @@ export type InitWorkflowOptions = {
   readonly agent?: AgentMode;
   readonly budget?: BudgetMode;
   readonly preset?: Preset;
+  readonly strictness?: StrictnessMode;
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly now?: string;
@@ -54,6 +56,7 @@ export async function runInitWorkflow(
   const agent = options.agent ?? "generic";
   const preset = options.preset ?? "generic";
   const budget = options.budget ?? "lean";
+  const strictness = options.strictness ?? "standard";
   const force = options.force ?? false;
   const dryRun = options.dryRun ?? false;
   const now = options.now ?? new Date().toISOString();
@@ -62,6 +65,7 @@ export async function runInitWorkflow(
     agent,
     preset,
     budget,
+    strictness,
     force,
     now
   });

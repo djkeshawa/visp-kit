@@ -72,6 +72,7 @@ import {
 } from "../reconcile/reconcile-evidence.js";
 import {
   numberReconcileFindings,
+  reconcileFinding,
   type ReconcileFindingDraft
 } from "../reconcile/reconcile-findings.js";
 import { renderReconcilePrompt } from "../reconcile/reconcile-prompt.js";
@@ -86,6 +87,12 @@ import {
   updateTraceabilityForReconcile
 } from "../reconcile/reconcile-traceability.js";
 import { loadGitDiff } from "../review/diff-loader.js";
+import {
+  evaluatePolicyGate,
+  gateBlocksWorkflow,
+  gateFailureMessages,
+  gateWarningMessages
+} from "../gates/policy-gate-summary.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
 
@@ -425,6 +432,19 @@ export async function runReconcileWorkflow(
   if (task !== undefined && !task.ok) return task;
 
   const selectedTask = task?.value;
+  const policyGateResult = await evaluatePolicyGate({
+    targetPath,
+    stage: "reconcile",
+    feature: feature.value.key,
+    taskId: selectedTask?.id,
+    now: startedAt
+  });
+  const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
+
+  if (!policyGateResult.ok) {
+    optionalWarnings.push(`Reconcile gate could not be evaluated: ${policyGateResult.error.message}`);
+  }
+
   const paths = outputPaths({
     targetPath,
     featureKey: feature.value.key,
@@ -524,7 +544,26 @@ export async function runReconcileWorkflow(
     task: selectedTask,
     plan: plan as PlanDraftArtifact | undefined
   });
+  const gateBlocks = policyGate === undefined
+    ? false
+    : gateBlocksWorkflow({ gate: policyGate, force });
+  const gateFindingSeverity = gateBlocks ? "error" : "warning";
+  const gateFindings: ReconcileFindingDraft[] = policyGate === undefined
+    ? []
+    : policyGate.failedRules.map((rule) =>
+        reconcileFinding({
+          category: "review",
+          severity: gateFindingSeverity,
+          driftType: "manual_review_needed",
+          title: `Policy gate ${rule.ruleId} did not pass`,
+          description: rule.message,
+          evidence: rule.evidence,
+          recommendation: rule.recommendation,
+          relatedTaskId: selectedTask?.id ?? null
+        })
+      );
   const findingDrafts: ReconcileFindingDraft[] = [
+    ...gateFindings,
     ...mapped.findings,
     ...verificationEvidence.findings,
     ...reviewEvidence.findings,
@@ -558,7 +597,8 @@ export async function runReconcileWorkflow(
     reviewEvidence.evidence,
     alignment.taskAlignment,
     coverage.requirementCoverage,
-    dependencies.dependencyEvidence
+    dependencies.dependencyEvidence,
+    { warnings: policyGate === undefined || gateBlocks ? [] : gateWarningMessages(policyGate) }
   );
   const errors = collectErrors(
     mapped.fileMapping,
@@ -566,7 +606,8 @@ export async function runReconcileWorkflow(
     reviewEvidence.evidence,
     alignment.taskAlignment,
     coverage.requirementCoverage,
-    dependencies.dependencyEvidence
+    dependencies.dependencyEvidence,
+    { errors: policyGate === undefined || !gateBlocks ? [] : gateFailureMessages(policyGate) }
   );
   const baseReport = {
     id: `REC-${feature.value.id}-${selectedTask?.id ?? "feature"}`,
@@ -586,6 +627,7 @@ export async function runReconcileWorkflow(
     verificationEvidence: verificationEvidence.evidence,
     reviewEvidence: reviewEvidence.evidence,
     dependencyEvidence: dependencies.dependencyEvidence,
+    policyGate,
     traceabilityUpdate,
     findings,
     followUpSuggestions: [],

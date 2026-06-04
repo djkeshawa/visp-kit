@@ -82,7 +82,13 @@ describe("visp pr command", () => {
     expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "prompts", "pr.prompt.md"))).toBe(true);
-    expect(await readFile(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"), "utf8")).toContain("src/notes.ts");
+    const prMarkdown = await readFile(
+      path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"),
+      "utf8"
+    );
+
+    expect(prMarkdown).toContain("src/notes.ts");
+    expect(prMarkdown).toContain("## Policy Readiness");
   });
 
   it("returns JSON only", async () => {
@@ -108,6 +114,32 @@ describe("visp pr command", () => {
     expect(summary.feature.slug).toBe("add-note-pinning");
     expect(summary.prPath).toBe(".visp/features/001-add-note-pinning/pr.md");
     expect(summary.promptPath).toBe(".visp/prompts/pr.prompt.md");
+  });
+
+  it("blocks PR readiness in strict mode when reconcile evidence is missing", async () => {
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "policy",
+      "set-strictness",
+      "strict",
+      tempDir
+    ]);
+    await program.parseAsync(["node", "visp", "pr", tempDir]);
+
+    const prMarkdown = await readFile(
+      path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"),
+      "utf8"
+    );
+
+    expect(process.exitCode).toBe(1);
+    expect(output.join("")).toContain("Visp PR readiness blocked");
+    expect(prMarkdown).toContain("Gate: pr");
+    expect(prMarkdown).toContain("VSP016");
   });
 
   it("prompt-only writes only the PR prompt", async () => {

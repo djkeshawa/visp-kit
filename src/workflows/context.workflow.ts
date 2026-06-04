@@ -11,22 +11,31 @@ import {
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { type BudgetMode } from "../artifacts/schemas/common.schema.js";
-import { contextPackSchema } from "../artifacts/schemas/context-pack.schema.js";
+import {
+  contextPackSchema,
+  type ContextPack
+} from "../artifacts/schemas/context-pack.schema.js";
+import { type PolicyGateSummary } from "../artifacts/schemas/gate.schema.js";
 import {
   projectStatusSchema,
   type ProjectStatus
 } from "../artifacts/schemas/project.schema.js";
 import { VispError } from "../core/errors.js";
-import { pathExists } from "../core/file-system.js";
+import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { compileContext } from "../context/context-compiler.js";
+import { renderContextMarkdown } from "../context/context-renderer.js";
 import {
   createContextSummary,
   type ContextSummary
 } from "../context/context-summary.js";
 import { renderCurrentTaskPrompt, renderTaskPrompt } from "../context/prompt-renderer.js";
 import { selectNextTask, selectTaskById, validateTaskDependencies } from "../context/task-selector.js";
+import {
+  evaluatePolicyGate,
+  gateResultLabel
+} from "../gates/policy-gate-summary.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import {
   artifactGeneratedFile,
@@ -136,6 +145,27 @@ function selectedTaskError(options: ContextWorkflowOptions): Result<string, Visp
   return ok(options.taskId);
 }
 
+function enrichPackWithGate(input: {
+  readonly pack: ContextPack;
+  readonly gate?: PolicyGateSummary;
+}): ContextPack {
+  if (input.gate === undefined) return input.pack;
+
+  return {
+    ...input.pack,
+    strictnessMode: input.gate.strictnessMode,
+    policyStatus: input.gate.policyStatus,
+    gateStatus: gateResultLabel(input.gate),
+    failedGateRules: input.gate.failedRules,
+    blockedCommands: input.gate.blockedCommands,
+    policyGate: input.gate
+  };
+}
+
+function actionFor(actions: readonly WorkflowFileAction[], filePath: string): WorkflowFileAction | undefined {
+  return actions.find((action) => action.path === filePath);
+}
+
 export async function runContextWorkflow(
   options: ContextWorkflowOptions = {}
 ): Promise<Result<ContextSummary, VispError>> {
@@ -230,18 +260,8 @@ export async function runContextWorkflow(
   const currentPrompt = promptArtifactPath(targetPath, "current-task");
   const contextMarkdownDisplayPath = relativePath(targetPath, contextMarkdown);
   const taskPromptDisplayPath = relativePath(targetPath, taskPrompt);
-  const taskPromptContents = renderTaskPrompt({
-    contextPath: contextMarkdownDisplayPath,
-    pack: compiled.value.pack
-  });
-  const files = promptOnly
-    ? [
-        textGeneratedFile({
-          targetPath,
-          path: taskPrompt,
-          contents: taskPromptContents
-        })
-      ]
+  const contextFiles = promptOnly
+    ? []
     : [
         textGeneratedFile({
           targetPath,
@@ -254,16 +274,69 @@ export async function runContextWorkflow(
           artifactName: "context pack",
           schema: contextPackSchema,
           value: compiled.value.pack
-        }),
-        textGeneratedFile({
-          targetPath,
-          path: taskPrompt,
-          contents: taskPromptContents
         })
       ];
-  const written = await writeGeneratedFiles(files, { force, dryRun });
+  const written = await writeGeneratedFiles(contextFiles, { force, dryRun });
 
   if (!written.ok) return written;
+
+  const gate = await evaluatePolicyGate({
+    targetPath,
+    stage: "implement",
+    feature: feature.value.key,
+    taskId: selected.value.id,
+    now
+  });
+  const gateWarnings = gate.ok ? gate.value.warnings : [`Implementation gate could not be evaluated: ${gate.error.message}`];
+  const enrichedPack = enrichPackWithGate({
+    pack: {
+      ...compiled.value.pack,
+      warnings: [...new Set([...compiled.value.pack.warnings, ...gateWarnings])]
+    },
+    gate: gate.ok ? gate.value : undefined
+  });
+  const enrichedMarkdown = renderContextMarkdown({
+    feature: feature.value,
+    pack: enrichedPack
+  });
+  const taskPromptContents = renderTaskPrompt({
+    contextPath: contextMarkdownDisplayPath,
+    pack: enrichedPack
+  });
+  const promptWrite = await writeGeneratedFiles(
+    [
+      textGeneratedFile({
+        targetPath,
+        path: taskPrompt,
+        contents: taskPromptContents
+      })
+    ],
+    { force, dryRun }
+  );
+
+  if (!promptWrite.ok) return promptWrite;
+
+  if (!promptOnly && !dryRun) {
+    const contextMarkdownAction = actionFor(written.value, contextMarkdownDisplayPath);
+    const contextJsonAction = actionFor(written.value, relativePath(targetPath, contextJson));
+
+    if (contextMarkdownAction !== undefined && contextMarkdownAction.action !== "skipped") {
+      const rewriteMarkdown = await writeTextFile(contextMarkdown, enrichedMarkdown);
+
+      if (!rewriteMarkdown.ok) return rewriteMarkdown;
+    }
+
+    if (contextJsonAction !== undefined && contextJsonAction.action !== "skipped") {
+      const rewriteJson = await writeArtifact(
+        contextJson,
+        contextPackSchema,
+        enrichedPack,
+        { artifactName: "context pack" }
+      );
+
+      if (!rewriteJson.ok) return rewriteJson;
+    }
+  }
 
   const current = await writeUpdatedGeneratedFiles(
     [
@@ -273,7 +346,7 @@ export async function runContextWorkflow(
         contents: renderCurrentTaskPrompt({
           promptPath: taskPromptDisplayPath,
           contextPath: contextMarkdownDisplayPath,
-          pack: compiled.value.pack
+          pack: enrichedPack
         })
       })
     ],
@@ -282,7 +355,7 @@ export async function runContextWorkflow(
 
   if (!current.ok) return current;
 
-  const actions: WorkflowFileAction[] = [...written.value, ...current.value];
+  const actions: WorkflowFileAction[] = [...written.value, ...promptWrite.value, ...current.value];
 
   if (!promptOnly) {
     const status = await updateContextStatus({
@@ -309,19 +382,19 @@ export async function runContextWorkflow(
         path: feature.value.relativePath
       },
       taskId: selected.value.id,
-      budgetMode: compiled.value.pack.budgetMode,
+      budgetMode: enrichedPack.budgetMode,
       estimatedTokens: {
-        input: compiled.value.pack.estimatedTokens.input,
-        expectedOutput: compiled.value.pack.estimatedTokens.expectedOutput,
-        total: compiled.value.pack.estimatedTokens.total,
-        maxInput: compiled.value.pack.estimatedTokens.maxInput
+        input: enrichedPack.estimatedTokens.input,
+        expectedOutput: enrichedPack.estimatedTokens.expectedOutput,
+        total: enrichedPack.estimatedTokens.total,
+        maxInput: enrichedPack.estimatedTokens.maxInput
       },
-      overBudget: compiled.value.pack.overBudget,
-      recommendation: compiled.value.pack.recommendation,
+      overBudget: enrichedPack.overBudget,
+      recommendation: enrichedPack.recommendation,
       actions,
       promptOnly,
       dryRun,
-      warnings: compiled.value.warnings
+      warnings: enrichedPack.warnings
     })
   );
 }

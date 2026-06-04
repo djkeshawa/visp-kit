@@ -3,6 +3,7 @@ import {
   type VerificationReport,
   type VerificationSummary
 } from "../artifacts/schemas/verification.schema.js";
+import { renderPolicyGateMarkdown } from "../gates/policy-gate-markdown.js";
 
 function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
@@ -106,6 +107,8 @@ export function renderVerificationMarkdown(report: VerificationReport): string {
 - Commands: ${statusText(report.commandValidation.status)}
 - Scope: ${statusText(report.scopeValidation.status)}
 - Dependencies: ${statusText(report.dependencyValidation.status)}
+
+${renderPolicyGateMarkdown(report.policyGate)}
 
 ## Artifact Validation
 

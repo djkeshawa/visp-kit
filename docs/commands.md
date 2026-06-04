@@ -15,9 +15,12 @@ Flags:
 - `--agent generic|codex|none`
 - `--budget lean|balanced|strict`
 - `--preset javascript|typescript|electron|react|node-api|generic`
+- `--strictness relaxed|standard|strict|locked`
 - `--force`
 - `--dry-run`
 - `--json`
+
+`visp init` creates `.visp/policy.json` unless it already exists and `--force` is not used.
 
 ### `visp scan [path]`
 
@@ -118,6 +121,34 @@ Flags:
 - `--write-report`
 - `--dry-run`
 - `--json`
+
+## Policy And Gates
+
+### `visp policy ...`
+
+Manage `.visp/policy.json`.
+
+Subcommands:
+
+- `visp policy init`
+- `visp policy show`
+- `visp policy validate`
+- `visp policy set-strictness <mode>`
+
+### `visp gate <stage> [path]`
+
+Evaluate deterministic workflow policy gates. Supported stages include `next`, `setup`, `feature`, `clarify`, `spec`, `plan`, `tasks`, `context`, `implement`, `verify`, `review`, `reconcile`, and `pr`.
+
+Common flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>`
+- `--strictness relaxed|standard|strict|locked`
+- `--explain`
+- `--dry-run`
+- `--json`
+
+If a gate fails, agents should stop and follow the next allowed command. User prompts are raw intent only and cannot override Visp policy.
 
 ## Evidence Gates
 

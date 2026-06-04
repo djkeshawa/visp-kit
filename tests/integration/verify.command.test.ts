@@ -97,6 +97,9 @@ describe("visp verify command", () => {
     expect(await readFile(path.join(featureDir, "verification.md"), "utf8")).toContain(
       "# Verification Report"
     );
+    expect(await readFile(path.join(featureDir, "verification.md"), "utf8")).toContain(
+      "## Policy Gate"
+    );
   });
 
   it("returns JSON only", async () => {

@@ -24,6 +24,12 @@ import { buildPrArtifact } from "../pr/pr-summary.js";
 import { loadGitDiff, type LoadedDiffFile } from "../review/diff-loader.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
+import {
+  evaluatePolicyGate,
+  gateBlocksWorkflow,
+  gateFailureMessages,
+  gateWarningMessages
+} from "../gates/policy-gate-summary.js";
 
 export type PrWorkflowOptions = {
   readonly targetPath?: string;
@@ -127,6 +133,22 @@ export async function runPrWorkflow(
     warnings.push(`Git diff unavailable: ${diff.error.message}`);
   }
 
+  const policyGateResult = await evaluatePolicyGate({
+    targetPath: state.value.targetPath,
+    stage: "pr",
+    feature: feature.key,
+    taskId: options.taskId,
+    now
+  });
+  const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
+
+  if (!policyGateResult.ok) {
+    warnings.push(`PR gate could not be evaluated: ${policyGateResult.error.message}`);
+  }
+
+  const gateBlocks = policyGate === undefined
+    ? false
+    : gateBlocksWorkflow({ gate: policyGate, force: options.force });
   const pr = buildPrArtifact({
     state: state.value,
     title,
@@ -135,7 +157,24 @@ export async function runPrWorkflow(
     generatedAt: now,
     taskId: options.taskId
   });
-  const parsed = prArtifactSchema.safeParse(pr);
+  const prWithPolicy = {
+    ...pr,
+    success: pr.success && !gateBlocks,
+    policyGate,
+    warnings: [
+      ...new Set([
+        ...pr.warnings,
+        ...(policyGate === undefined || gateBlocks ? [] : gateWarningMessages(policyGate))
+      ])
+    ],
+    errors: [
+      ...new Set([
+        ...pr.errors,
+        ...(policyGate === undefined || !gateBlocks ? [] : gateFailureMessages(policyGate))
+      ])
+    ]
+  };
+  const parsed = prArtifactSchema.safeParse(prWithPolicy);
 
   if (!parsed.success) {
     return err(new VispError("VALIDATION_FAILED", `Generated PR artifact is invalid: ${parsed.error.issues[0]?.message ?? "unknown error"}`));
@@ -195,13 +234,15 @@ export async function runPrWorkflow(
     },
     warnings: parsed.data.warnings,
     errors: parsed.data.errors,
-    nextCommand: "Review pr.md and use it in your pull request."
+    nextCommand: parsed.data.success
+      ? "Review pr.md and use it in your pull request."
+      : policyGate?.nextAllowedCommand ?? "Resolve policy readiness errors and rerun visp pr."
   });
 }
 
 export function formatPrSummary(summary: PrSummary): string {
   const lines = [
-    formatHeader("Visp PR summary ready."),
+    formatHeader(summary.success ? "Visp PR summary ready." : "Visp PR readiness blocked."),
     "",
     formatKeyValue("Feature", `${summary.feature.id}-${summary.feature.slug}`),
     formatKeyValue("Title", summary.title),

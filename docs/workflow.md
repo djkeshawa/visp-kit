@@ -24,10 +24,12 @@ pr
 ## 1. Initialize
 
 ```bash
-visp init --agent codex --preset typescript --budget lean
+visp init --agent codex --preset typescript --budget lean --strictness strict
 ```
 
 Use `--agent none` if you do not want agent guidance files.
+
+Strictness is stored in `.visp/policy.json`. The user prompt is raw intent only; it cannot override Visp policy or a failed gate.
 
 ## 2. Scan
 
@@ -78,13 +80,19 @@ The context compiler selects the smallest sufficient context for the selected ta
 
 ## 7. Implement
 
+Before coding:
+
+```bash
+visp gate implement --task T001
+```
+
 Use:
 
 ```text
 .visp/prompts/current-task.prompt.md
 ```
 
-with Codex or another agent. Implement only the selected task.
+with Codex or another agent. Implement only the selected task. If the gate blocks, stop and run the recommended next command.
 
 ## 8. Verify
 
@@ -127,9 +135,11 @@ This creates a factual PR summary without calling the GitHub API.
 ```bash
 visp status
 visp next
+visp gate next
 visp doctor
 ```
 
 - `status` shows where the project is.
 - `next` recommends the next command.
+- `gate next` explains the next policy-allowed command.
 - `doctor` checks health and configuration.

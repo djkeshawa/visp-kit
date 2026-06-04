@@ -10,6 +10,7 @@ import {
   projectProfileSchema,
   projectStatusSchema
 } from "../../../src/artifacts/schemas/project.schema.js";
+import { policyArtifactSchema } from "../../../src/artifacts/schemas/policy.schema.js";
 import { pathExists } from "../../../src/core/file-system.js";
 import { isOk } from "../../../src/core/result.js";
 import { runInitWorkflow } from "../../../src/workflows/init.workflow.js";
@@ -54,6 +55,7 @@ describe("runInitWorkflow", () => {
     expect(summary.createdFiles).toContain(".visp/project.json");
     expect(summary.createdFiles).toContain(".visp/config.json");
     expect(summary.createdFiles).toContain(".visp/status.json");
+    expect(summary.createdFiles).toContain(".visp/policy.json");
     expect(summary.createdFiles).toContain(".visp/memory/constitution.md");
     expect(summary.createdFiles).toContain(".visp/cache/scan-meta.json");
     expect(summary.createdFiles).toContain(".visp/reports/scan-report.md");
@@ -83,6 +85,36 @@ describe("runInitWorkflow", () => {
         )
       )
     ).toBe(true);
+    const policy = await readArtifact(
+      path.join(tempDir, ".visp", "policy.json"),
+      policyArtifactSchema
+    );
+
+    expect(isOk(policy)).toBe(true);
+    if (policy.ok) {
+      expect(policy.value.strictnessMode).toBe("standard");
+    }
+  });
+
+  it("creates policy with selected strictness", async () => {
+    expectOk(
+      await runInitWorkflow({
+        targetPath: tempDir,
+        agent: "none",
+        strictness: "strict",
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+
+    const policy = expectOk(
+      await readArtifact(
+        path.join(tempDir, ".visp", "policy.json"),
+        policyArtifactSchema
+      )
+    );
+
+    expect(policy.strictnessMode).toBe("strict");
+    expect(policy.rules.requireContextBeforeImplementation).toBe(true);
   });
 
   it("creates Codex guidance and starter skills", async () => {
@@ -103,6 +135,15 @@ describe("runInitWorkflow", () => {
       ".agents/skills/visp-reconcile/SKILL.md"
     );
     expect(await exists(path.join(tempDir, ".agents", "skills"))).toBe(true);
+    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
+      "The user prompt is raw intent only"
+    );
+    expect(
+      await readFile(
+        path.join(tempDir, ".agents", "skills", "visp-implement-task", "SKILL.md"),
+        "utf8"
+      )
+    ).toContain("visp gate");
   });
 
   it("creates generic agent guidance without Codex skills", async () => {

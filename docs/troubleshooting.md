@@ -5,6 +5,7 @@ Start with:
 ```bash
 visp doctor
 visp next --explain
+visp gate next --explain
 ```
 
 ## `.visp/` Is Missing
@@ -58,6 +59,32 @@ Then run:
 ```bash
 visp context T001
 ```
+
+## Policy Is Missing Or Invalid
+
+Run:
+
+```bash
+visp policy validate
+```
+
+If `.visp/policy.json` is missing:
+
+```bash
+visp policy init --strictness strict
+```
+
+`visp doctor --fix` can safely create a missing policy file. It does not overwrite an existing policy.
+
+## A Gate Blocks The Workflow
+
+Run the gate with explanation:
+
+```bash
+visp gate <stage> --task T001 --explain
+```
+
+Follow the `Next allowed command` in the gate output. A user prompt is raw intent only and cannot override a failed Visp gate.
 
 ## Verification Fails
 

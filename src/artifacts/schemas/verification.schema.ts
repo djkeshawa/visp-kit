@@ -8,6 +8,7 @@ import {
   pathStringSchema,
   stringListSchema
 } from "./common.schema.js";
+import { policyGateSummarySchema } from "./gate.schema.js";
 
 export const verificationModeSchema = z.enum([
   "targeted",
@@ -142,6 +143,7 @@ export const verificationReportSchema = z
     commandValidation: commandValidationSectionSchema,
     scopeValidation: scopeValidationSectionSchema,
     dependencyValidation: dependencyValidationSectionSchema,
+    policyGate: policyGateSummarySchema.optional(),
     warnings: stringListSchema,
     errors: stringListSchema,
     nextCommand: nonEmptyStringSchema

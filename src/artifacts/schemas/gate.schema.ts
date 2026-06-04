@@ -72,8 +72,31 @@ export const gateResultSchema = z
   })
   .strict();
 
+export const policyStatusSchema = z.enum([
+  "valid",
+  "missing",
+  "invalid",
+  "default"
+]);
+
+export const policyGateSummarySchema = z
+  .object({
+    strictnessMode: strictnessModeSchema,
+    policyStatus: policyStatusSchema,
+    stage: gateStageSchema,
+    allowed: z.boolean(),
+    failedRules: z.array(gateRuleFindingSchema),
+    blockedCommands: z.array(gateBlockedCommandSchema),
+    warnings: stringListSchema,
+    nextAllowedCommand: nonEmptyStringSchema,
+    evaluatedAt: isoDateTimeSchema
+  })
+  .strict();
+
 export type GateStage = z.infer<typeof gateStageSchema>;
 export type GateSeverity = z.infer<typeof gateSeveritySchema>;
 export type GateRuleFinding = z.infer<typeof gateRuleFindingSchema>;
 export type GateBlockedCommand = z.infer<typeof gateBlockedCommandSchema>;
 export type GateResult = z.infer<typeof gateResultSchema>;
+export type PolicyStatus = z.infer<typeof policyStatusSchema>;
+export type PolicyGateSummary = z.infer<typeof policyGateSummarySchema>;

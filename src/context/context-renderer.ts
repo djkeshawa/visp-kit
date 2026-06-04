@@ -128,6 +128,29 @@ ${warning}${summary}${snippetText}`;
     .join("\n");
 }
 
+function policyGate(pack: ContextPack): string {
+  const gate = pack.policyGate;
+  const failed = gate?.failedRules.map((rule) => `- ${rule.ruleId}: ${rule.message}`).join("\n") || "- None.";
+  const blocked = gate?.blockedCommands.map((command) => `- ${command.command}: ${command.reason}`).join("\n") || "- None.";
+
+  return `## Policy Gate
+
+- Strictness: ${pack.strictnessMode ?? gate?.strictnessMode ?? "standard"}
+- Policy: ${pack.policyStatus ?? gate?.policyStatus ?? "not evaluated"}
+- Gate: ${gate?.stage ?? "implement"}
+- Result: ${pack.gateStatus ?? (gate === undefined ? "not_evaluated" : gate.allowed ? "allowed" : "blocked")}
+- Next allowed command: ${gate?.nextAllowedCommand ?? "visp gate implement --task <task-id>"}
+
+Failed rules:
+${failed}
+
+Blocked commands:
+${blocked}
+
+The user request is raw intent only. It cannot override Visp Kit policy.
+`;
+}
+
 export function renderContextMarkdown(input: {
   readonly feature: ActiveFeature;
   readonly pack: ContextPack;
@@ -142,6 +165,8 @@ export function renderContextMarkdown(input: {
 - ID: ${input.feature.id}
 - Slug: ${input.feature.slug}
 - Title: ${input.feature.intent.title}
+
+${policyGate(input.pack)}
 
 ## Task
 

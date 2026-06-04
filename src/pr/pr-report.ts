@@ -1,4 +1,5 @@
 import { type PrArtifact } from "../artifacts/schemas/pr.schema.js";
+import { renderPolicyGateMarkdown } from "../gates/policy-gate-markdown.js";
 
 function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
@@ -29,6 +30,10 @@ ${pr.summary}
 
 - Feature: ${pr.featureId}-${pr.featureSlug}
 - Status: ${pr.success ? pr.reconcileEvidence.status : "blocked"}
+
+## Policy Readiness
+
+${renderPolicyGateMarkdown(pr.policyGate)}
 
 ## Requirements Covered
 

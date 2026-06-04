@@ -6,11 +6,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
 import {
-  gateReportArtifactPath
+  gateReportArtifactPath,
+  policyArtifactPath
 } from "../../src/artifacts/artifact-paths.js";
 import { pathExists } from "../../src/core/file-system.js";
 import { runInitWorkflow } from "../../src/workflows/init.workflow.js";
-import { runPolicyInitWorkflow } from "../../src/workflows/policy.workflow.js";
+import { runPolicySetStrictnessWorkflow } from "../../src/workflows/policy.workflow.js";
 import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
 
 async function exists(filePath: string): Promise<boolean> {
@@ -53,6 +54,7 @@ describe("visp gate command", () => {
 
   it("recommends policy init when policy is missing", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await rm(policyArtifactPath(tempDir), { force: true });
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
@@ -69,7 +71,7 @@ describe("visp gate command", () => {
   it("recommends scan when strict policy requires scan", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     expectOk(
-      await runPolicyInitWorkflow({
+      await runPolicySetStrictnessWorkflow({
         targetPath: tempDir,
         strictness: "strict",
         now: "2026-01-01T00:00:00.000Z"
@@ -93,7 +95,7 @@ describe("visp gate command", () => {
   it("blocks implement without context and allows it after context exists", async () => {
     await createPhase8Fixture(tempDir);
     expectOk(
-      await runPolicyInitWorkflow({
+      await runPolicySetStrictnessWorkflow({
         targetPath: tempDir,
         strictness: "strict",
         now: "2026-01-01T00:00:00.000Z"
@@ -153,7 +155,7 @@ describe("visp gate command", () => {
   it("blocks pr when verification, review, and reconcile evidence are missing", async () => {
     await createPhase8Fixture(tempDir);
     expectOk(
-      await runPolicyInitWorkflow({
+      await runPolicySetStrictnessWorkflow({
         targetPath: tempDir,
         strictness: "strict",
         now: "2026-01-01T00:00:00.000Z"
@@ -179,7 +181,7 @@ describe("visp gate command", () => {
   it("dry-run writes no gate report", async () => {
     await createPhase8Fixture(tempDir);
     expectOk(
-      await runPolicyInitWorkflow({
+      await runPolicySetStrictnessWorkflow({
         targetPath: tempDir,
         strictness: "strict",
         now: "2026-01-01T00:00:00.000Z"

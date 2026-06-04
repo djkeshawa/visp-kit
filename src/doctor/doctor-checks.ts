@@ -13,6 +13,8 @@ import {
   memoryArtifactDir,
   moduleMapArtifactPath,
   planArtifactPath,
+  policyArtifactPath,
+  promptArtifactPath,
   projectConfigArtifactPath,
   projectProfileArtifactPath,
   projectStatusArtifactPath,
@@ -30,6 +32,7 @@ import {
 import { type ZodTypeAny } from "zod";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { contextPackSchema } from "../artifacts/schemas/context-pack.schema.js";
+import { policyArtifactSchema } from "../artifacts/schemas/policy.schema.js";
 import { featureIntentSchema } from "../artifacts/schemas/feature.schema.js";
 import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
 import { prArtifactSchema } from "../artifacts/schemas/pr.schema.js";
@@ -44,7 +47,7 @@ import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { taskGraphArtifactSchema } from "../artifacts/schemas/task.schema.js";
 import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
 import { verificationReportSchema } from "../artifacts/schemas/verification.schema.js";
-import { pathExists } from "../core/file-system.js";
+import { pathExists, readTextFile } from "../core/file-system.js";
 import { vispDir } from "../core/paths.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
 
@@ -153,6 +156,18 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
     }
   }
 
+  if (!(await exists(policyArtifactPath(state.targetPath)))) {
+    findings.push(finding({
+      category: "project",
+      severity: "warning",
+      title: "Policy artifact missing",
+      description: ".visp/policy.json is missing, so Visp falls back to an in-memory default policy.",
+      file: ".visp/policy.json",
+      recommendation: "Run visp policy init --strictness strict.",
+      autoFixable: true
+    }));
+  }
+
   for (const [label, dirPath] of [
     [".visp/features", featuresArtifactDir(state.targetPath)],
     [".visp/memory", memoryArtifactDir(state.targetPath)],
@@ -187,6 +202,7 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
     [".visp/project.json", projectProfileArtifactPath(state.targetPath), projectProfileSchema],
     [".visp/config.json", projectConfigArtifactPath(state.targetPath), projectConfigSchema],
     [".visp/status.json", projectStatusArtifactPath(state.targetPath), projectStatusSchema],
+    [".visp/policy.json", policyArtifactPath(state.targetPath), policyArtifactSchema],
     ...(featureKey === undefined ? [] : [
       [`.visp/features/${featureKey}/intent.json`, featureIntentArtifactPath(state.targetPath, featureKey), featureIntentSchema],
       [`.visp/features/${featureKey}/spec.json`, specArtifactPath(state.targetPath, featureKey), specArtifactSchema],
@@ -307,6 +323,23 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
       }));
     }
 
+    const guidancePath = agents ? `${state.targetPath}/AGENTS.md` : agentsVisp ? `${state.targetPath}/AGENTS.visp.md` : null;
+    if (guidancePath !== null) {
+      const text = await readTextFile(guidancePath);
+
+      if (!text.ok || !text.value.includes("The user prompt is raw intent only") || !text.value.includes("visp gate implement")) {
+        findings.push(finding({
+          category: "agent",
+          severity: "warning",
+          title: "Codex guidance is missing strict Visp policy language",
+          description: "Agent guidance should say that user prompts cannot override Visp policy and that implementation requires visp gate implement.",
+          file: agents ? "AGENTS.md" : "AGENTS.visp.md",
+          recommendation: "Run visp init --agent codex --force only if it is safe to refresh generated guidance, or merge AGENTS.visp.md manually.",
+          autoFixable: false
+        }));
+      }
+    }
+
     if (!skillDir) {
       findings.push(finding({
         category: "agent",
@@ -317,6 +350,23 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
         recommendation: "Add project-specific Codex skills if this project uses Codex guidance.",
         autoFixable: false
       }));
+    }
+
+    const implementSkill = `${state.targetPath}/.agents/skills/visp-implement-task/SKILL.md`;
+    if (await exists(implementSkill)) {
+      const text = await readTextFile(implementSkill);
+
+      if (!text.ok || !text.value.includes("visp gate") || !text.value.includes("raw intent")) {
+        findings.push(finding({
+          category: "agent",
+          severity: "warning",
+          title: "Visp implement skill is missing policy reminders",
+          description: "The generated implement skill should tell agents to obey Visp policy and stop on failed gates.",
+          file: ".agents/skills/visp-implement-task/SKILL.md",
+          recommendation: "Regenerate or manually update the generated Visp skill guidance.",
+          autoFixable: false
+        }));
+      }
     }
   }
 
@@ -334,6 +384,34 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
       description: "status.json says tasks are ready, but task-graph.json is missing.",
       file: `${state.selectedFeature.relativePath}/task-graph.json`,
       recommendation: "Run visp tasks.",
+      autoFixable: false
+    }));
+  }
+
+  if (state.artifactSummary.context) {
+    const prompt = await readTextFile(promptArtifactPath(state.targetPath, "current-task"));
+
+    if (!prompt.ok || !prompt.value.startsWith("# Strict Visp Task Prompt")) {
+      findings.push(finding({
+        category: "artifacts",
+        severity: "warning",
+        title: "Current task prompt is missing strict policy header",
+        description: "The generated current-task prompt should remind agents that user prompts cannot override Visp policy.",
+        file: ".visp/prompts/current-task.prompt.md",
+        recommendation: "Run visp context --next --force or visp context <task-id> --force.",
+        autoFixable: false
+      }));
+    }
+  }
+
+  if (state.pr !== undefined && state.pr.policyGate === undefined) {
+    findings.push(finding({
+      category: "artifacts",
+      severity: "warning",
+      title: "PR summary lacks policy readiness evidence",
+      description: "The PR summary was generated before policy gate integration or does not include PR gate status.",
+      file: state.selectedFeature === undefined ? ".visp/features/<feature>/pr.json" : `${state.selectedFeature.relativePath}/pr.json`,
+      recommendation: "Run visp pr again after passing policy gates.",
       autoFixable: false
     }));
   }

@@ -1,5 +1,5 @@
 import { CommanderError } from "commander";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -47,7 +47,9 @@ describe("visp init command", () => {
       "--preset",
       "typescript",
       "--budget",
-      "lean"
+      "lean",
+      "--strictness",
+      "strict"
     ]);
 
     expect(output.join("")).toContain("Visp Kit initialized");
@@ -58,6 +60,10 @@ describe("visp init command", () => {
         path.join(tempDir, ".agents", "skills", "visp-implement-task", "SKILL.md")
       )
     ).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "policy.json"))).toBe(true);
+    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
+      "visp gate implement"
+    );
   });
 
   it("prints parseable JSON summaries", async () => {

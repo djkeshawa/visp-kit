@@ -1,4 +1,5 @@
 import { type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
+import { renderStrictTaskPromptHeader } from "./strict-prompt-header.js";
 
 function list(values: readonly string[], empty = "- No concrete validation commands were provided."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
@@ -10,7 +11,9 @@ export function renderTaskPrompt(input: {
 }): string {
   const task = input.pack.selectedTask;
 
-  return `# Visp Task Implementation Prompt
+  return `${renderStrictTaskPromptHeader({ pack: input.pack })}
+
+# Visp Task Implementation Prompt
 
 You are implementing one Visp Kit task.
 

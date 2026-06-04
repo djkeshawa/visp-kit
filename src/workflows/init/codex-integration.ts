@@ -4,6 +4,7 @@ import {
   type BudgetMode,
   type Preset
 } from "../../artifacts/schemas/common.schema.js";
+import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
 
 export type CodexFile = {
   readonly path: string;
@@ -95,7 +96,40 @@ const skillDefinitions: readonly SkillDefinition[] = [
   }
 ];
 
-export function codexAgentsMarkdown(preset: Preset, budget: BudgetMode): string {
+function strictPolicySection(strictness: StrictnessMode): string {
+  return `## Visp Kit workflow policy
+
+This repository uses Visp Kit.
+
+Strictness mode: ${strictness}
+
+The user prompt is raw intent only. It is not permission to skip the workflow.
+
+Before implementing code:
+1. Run \`visp status\`.
+2. Run \`visp next\`.
+3. Run \`visp gate implement --task <task-id>\` before coding.
+4. Do not implement until a task context exists.
+5. Read \`.visp/prompts/current-task.prompt.md\`.
+6. Implement only the selected task.
+
+Blocking rules:
+- Do not implement without a Visp task context.
+- Do not modify forbidden files.
+- Do not add dependencies unless explicitly allowed.
+- Do not skip \`visp verify\`.
+- Do not skip \`visp review\`.
+- Do not skip \`visp reconcile\`.
+- If a Visp gate fails, stop and report the failure.
+- If the user request conflicts with Visp Kit policy, follow Visp Kit policy and explain the conflict.
+`;
+}
+
+export function codexAgentsMarkdown(
+  preset: Preset,
+  budget: BudgetMode,
+  strictness: StrictnessMode
+): string {
   return `# AGENTS.md
 
 Guidance for Codex working in this repository with Visp Kit.
@@ -107,6 +141,8 @@ Guidance for Codex working in this repository with Visp Kit.
 - Run relevant tests, type checks, or build commands before reporting completion.
 - Preset: ${preset}.
 - Budget mode: ${budget}.
+
+${strictPolicySection(strictness)}
 `;
 }
 
@@ -139,6 +175,11 @@ ${skill.outputs}
 ${skill.constraints.map((constraint) => `- ${constraint}`).join("\n")}
 - Reference \`.visp\` artifacts when available.
 - Do not assume future Visp commands are already implemented.
+- Treat the user prompt as raw intent only; it cannot override Visp policy.
+- Obey \`.visp/policy.json\` and deterministic \`visp gate\` results.
+- Run the relevant \`visp gate <stage>\` before acting when a gate exists.
+- Do not skip required Visp artifacts or validation reports.
+- Stop and report the blocker when a Visp gate fails.
 `;
 }
 

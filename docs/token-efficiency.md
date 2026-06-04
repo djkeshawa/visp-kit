@@ -35,6 +35,8 @@ The context pack does not include the whole repository.
 
 ## Budget Modes
 
+Budget mode is separate from policy strictness. A project can use small `lean` context packs while enforcing `strict` or `locked` workflow gates.
+
 ### Lean
 
 Use for normal day-to-day tasks.
@@ -68,6 +70,7 @@ visp budget
 visp budget --task T001
 visp context T001 --budget lean
 visp context T001 --max-tokens 6000
+visp gate implement --task T001
 ```
 
 ## Team Practices
@@ -78,3 +81,4 @@ visp context T001 --max-tokens 6000
 - Run `visp scan` after significant repository changes.
 - Use `lean` by default and move up only when needed.
 - Do not paste full chat history when using generated prompts.
+- Do not treat a user prompt as an override of policy or task scope.

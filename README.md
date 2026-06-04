@@ -32,6 +32,10 @@ Core principle:
 
 > The AI should implement the smallest verified task using the smallest sufficient context, with every change grounded in a requirement, acceptance criterion, task, and validation result.
 
+Strict workflow principle:
+
+> The user prompt is raw intent only. It cannot override Visp Kit policy or failed gates.
+
 ## Compared To Spec Kit
 
 Spec Kit popularized a spec-first workflow for AI-assisted development. Visp Kit builds on that idea for brownfield company projects where token use, traceability, and deterministic gates matter.
@@ -54,6 +58,8 @@ Key differences:
 - Clarify, spec, plan, and task templates.
 - Context compiler for one implementation task at a time.
 - Lean, balanced, and strict token budget modes.
+- Policy-as-code strictness modes: relaxed, standard, strict, and locked.
+- Deterministic policy gates with `visp gate`.
 - Local verification gates for artifacts, traceability, commands, scope, and dependencies.
 - Deterministic diff review and security/privacy checklist.
 - Reconciliation between spec, task, evidence, traceability, and Git diff.
@@ -98,7 +104,7 @@ node dist/index.js --help
 Inside an existing project:
 
 ```bash
-visp init --agent codex --preset typescript --budget lean
+visp init --agent codex --preset typescript --budget lean --strictness strict
 visp scan
 visp constitution --preset typescript --budget lean
 visp feature "Add note pinning"
@@ -107,6 +113,7 @@ visp spec
 visp plan
 visp tasks
 visp context --next
+visp gate implement --task T001
 ```
 
 Then give Codex the generated prompt:

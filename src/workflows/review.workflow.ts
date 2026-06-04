@@ -47,7 +47,11 @@ import { reviewDependencies } from "../review/dependency-review.js";
 import { loadGitDiff } from "../review/diff-loader.js";
 import { summarizeDiff } from "../review/diff-summary.js";
 import { reviewDocumentation } from "../review/documentation-review.js";
-import { numberFindings, type ReviewFindingDraft } from "../review/review-findings.js";
+import {
+  finding,
+  numberFindings,
+  type ReviewFindingDraft
+} from "../review/review-findings.js";
 import { renderReviewChecklist } from "../review/review-checklist.js";
 import { renderReviewMarkdown } from "../review/review-report.js";
 import { renderReviewPrompt } from "../review/review-prompt.js";
@@ -61,6 +65,12 @@ import { securityChecklist } from "../review/security-checklist.js";
 import { reviewTestSignals } from "../review/test-signal-review.js";
 import { reviewTraceability } from "../review/traceability-review.js";
 import { reviewVerification } from "../review/verification-review.js";
+import {
+  evaluatePolicyGate,
+  gateBlocksWorkflow,
+  gateFailureMessages,
+  gateWarningMessages
+} from "../gates/policy-gate-summary.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
 
@@ -325,6 +335,19 @@ export async function runReviewWorkflow(
   if (task !== undefined && !task.ok) return task;
 
   const selectedTask = task?.value;
+  const policyGateResult = await evaluatePolicyGate({
+    targetPath,
+    stage: "review",
+    feature: feature.value.key,
+    taskId: selectedTask?.id,
+    now: startedAt
+  });
+  const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
+
+  if (!policyGateResult.ok) {
+    optionalWarnings.push(`Review gate could not be evaluated: ${policyGateResult.error.message}`);
+  }
+
   const spec = await optionalArtifact({
     path: specArtifactPath(targetPath, feature.value.key),
     schema: specArtifactSchema,
@@ -420,7 +443,25 @@ export async function runReviewWorkflow(
   const documentationFindings = reviewDocumentation({
     changedFiles: scope.changedFiles
   });
+  const gateBlocks = policyGate === undefined
+    ? false
+    : gateBlocksWorkflow({ gate: policyGate, force: options.force });
+  const gateFindingSeverity = gateBlocks ? "error" : "warning";
+  const gateFindings: ReviewFindingDraft[] = policyGate === undefined
+    ? []
+    : policyGate.failedRules.map((rule) =>
+        finding({
+          category: "verification",
+          severity: gateFindingSeverity,
+          title: `Policy gate ${rule.ruleId} did not pass`,
+          description: rule.message,
+          evidence: rule.evidence,
+          recommendation: rule.recommendation,
+          relatedTaskId: selectedTask?.id ?? null
+        })
+      );
   const findingDrafts: ReviewFindingDraft[] = [
+    ...gateFindings,
     ...scope.findings,
     ...trace.findings,
     ...verify.findings,
@@ -437,7 +478,11 @@ export async function runReviewWorkflow(
       trace.traceabilityReview,
       verify.verificationReview,
       test.testReview,
-      dependency.dependencyReview
+      dependency.dependencyReview,
+      {
+        warnings: policyGate === undefined || gateBlocks ? [] : gateWarningMessages(policyGate),
+        errors: policyGate === undefined || !gateBlocks ? [] : gateFailureMessages(policyGate)
+      }
     ]
   });
   const result = resultFromFindings(findings);
@@ -464,6 +509,7 @@ export async function runReviewWorkflow(
     verificationReview: verify.verificationReview,
     testReview: test.testReview,
     dependencyReview: dependency.dependencyReview,
+    policyGate,
     securityChecklist: security.checklist,
     findings,
     warnings: messages.warnings,

@@ -1,21 +1,25 @@
 import path from "node:path";
 
-import { statusReportArtifactPath } from "../artifacts/artifact-paths.js";
+import {
+  gateReportArtifactPath,
+  policyArtifactPath,
+  statusReportArtifactPath
+} from "../artifacts/artifact-paths.js";
+import { type GateBlockedCommand } from "../artifacts/schemas/gate.schema.js";
 import { VispError } from "../core/errors.js";
-import { writeTextFile } from "../core/file-system.js";
+import { pathExists, writeTextFile } from "../core/file-system.js";
 import { err, ok, type Result } from "../core/result.js";
 import {
   loadProjectState,
   type ProjectState
 } from "../orchestrator/project-state.js";
-import {
-  recommendNextStep,
-  type NextStep
-} from "../orchestrator/next-step.js";
+import { type NextStep } from "../orchestrator/next-step.js";
 import { renderStatusMarkdown } from "../status/status-report.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { relativePath } from "../core/paths.js";
 import { type CommandRunner } from "../core/command-runner.js";
+import { loadEffectivePolicy } from "../policy/policy-loader.js";
+import { runNextWorkflow } from "./next.workflow.js";
 
 export type StatusWorkflowOptions = {
   readonly targetPath?: string;
@@ -62,6 +66,13 @@ export type StatusSummary = {
     readonly reconcile: string;
     readonly pr: string;
   };
+  readonly policyStatus: "valid" | "missing" | "invalid";
+  readonly strictnessMode: string;
+  readonly latestGate: string;
+  readonly nextAllowedCommand: string;
+  readonly implementationAllowed: boolean;
+  readonly prAllowed: boolean;
+  readonly blockedCommands: readonly GateBlockedCommand[];
   readonly warnings: readonly string[];
   readonly nextCommand: string;
   readonly reportPath: string | null;
@@ -71,6 +82,9 @@ function summaryFromState(input: {
   readonly state: ProjectState;
   readonly next: NextStep;
   readonly reportPath: string | null;
+  readonly policyStatus: StatusSummary["policyStatus"];
+  readonly strictnessMode: string;
+  readonly latestGate: string;
 }): StatusSummary {
   const state = input.state;
 
@@ -112,10 +126,48 @@ function summaryFromState(input: {
       reconcile: state.reconcile === undefined ? "missing" : state.reconcile.result,
       pr: state.artifactSummary.pr ? "ready" : "missing"
     },
+    policyStatus: input.policyStatus,
+    strictnessMode: input.strictnessMode,
+    latestGate: input.latestGate,
+    nextAllowedCommand: input.next.nextAllowedCommand ?? input.next.nextCommand,
+    implementationAllowed: input.next.implementationAllowed ?? false,
+    prAllowed: input.next.prAllowed ?? false,
+    blockedCommands: input.next.blockedCommands ?? [],
     warnings: [...new Set([...state.warnings, ...input.next.warnings])],
     nextCommand: input.next.nextCommand,
     reportPath: input.reportPath
   };
+}
+
+async function loadPolicySummary(targetPath: string): Promise<{
+  readonly status: StatusSummary["policyStatus"];
+  readonly strictnessMode: string;
+  readonly warnings: readonly string[];
+}> {
+  const exists = await pathExists(policyArtifactPath(targetPath));
+  const loaded = await loadEffectivePolicy({
+    targetPath,
+    now: new Date().toISOString()
+  });
+
+  if (!loaded.ok) {
+    return {
+      status: "invalid",
+      strictnessMode: "unknown",
+      warnings: [loaded.error.message]
+    };
+  }
+
+  return {
+    status: exists.ok && exists.value ? "valid" : "missing",
+    strictnessMode: loaded.value.policy.strictnessMode,
+    warnings: loaded.value.warnings
+  };
+}
+
+async function latestGateSummary(targetPath: string): Promise<string> {
+  const exists = await pathExists(gateReportArtifactPath(targetPath));
+  return exists.ok && exists.value ? "gate report available" : "missing";
 }
 
 export async function runStatusWorkflow(
@@ -131,10 +183,17 @@ export async function runStatusWorkflow(
     return err(new VispError("VALIDATION_FAILED", state.value.errors.join(" ")));
   }
 
-  const next = recommendNextStep({
-    state: state.value,
-    taskId: options.taskId
+  const next = await runNextWorkflow({
+    targetPath: state.value.targetPath,
+    feature: options.feature,
+    taskId: options.taskId,
+    commandRunner: options.commandRunner
   });
+
+  if (!next.ok) return next;
+
+  const policy = await loadPolicySummary(state.value.targetPath);
+  const latestGate = await latestGateSummary(state.value.targetPath);
   let reportPath: string | null = null;
 
   if (options.writeReport) {
@@ -144,8 +203,12 @@ export async function runStatusWorkflow(
       absolute,
       renderStatusMarkdown({
         state: state.value,
-        next,
-        verbose: options.verbose
+        next: next.value,
+        verbose: options.verbose,
+        policyStatus: policy.status,
+        strictnessMode: policy.strictnessMode,
+        latestGate,
+        blockedCommands: next.value.blockedCommands ?? []
       })
     );
 
@@ -155,8 +218,11 @@ export async function runStatusWorkflow(
 
   return ok(summaryFromState({
     state: state.value,
-    next,
-    reportPath
+    next: next.value,
+    reportPath,
+    policyStatus: policy.status,
+    strictnessMode: policy.strictnessMode,
+    latestGate
   }));
 }
 
@@ -177,6 +243,13 @@ export function formatStatusSummary(
     `  Scanned: ${summary.scanned ? "yes" : "no"}`,
     `  Constitution: ${summary.constitution ? "yes" : "no"}`,
     "",
+    "Policy:",
+    `  Strictness: ${summary.strictnessMode}`,
+    `  Policy: ${summary.policyStatus}`,
+    `  Latest gate: ${summary.latestGate}`,
+    `  Implementation allowed: ${summary.implementationAllowed ? "yes" : "no"}`,
+    `  PR allowed: ${summary.prAllowed ? "yes" : "no"}`,
+    "",
     "Active feature:",
     `  ${summary.activeFeature === null ? "none" : `${summary.activeFeature.id}-${summary.activeFeature.slug}`}`,
     "",
@@ -192,7 +265,7 @@ export function formatStatusSummary(
     `  Reconcile: ${summary.latestEvidence.reconcile}`,
     "",
     "Next:",
-    `  ${summary.nextCommand}`
+    `  ${summary.nextAllowedCommand}`
   ];
 
   if (options.verbose) {

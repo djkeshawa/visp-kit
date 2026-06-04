@@ -11,6 +11,7 @@ describe("createCli", () => {
     expect(help).toContain("Small context. Clear specs. Accurate code.");
     expect(help).toContain("-h, --help");
     expect(help).toContain("-V, --version");
+    expect(help).toContain("agent");
     expect(help).toContain("budget");
     expect(help).toContain("clarify");
     expect(help).toContain("constitution");
@@ -64,6 +65,7 @@ describe("createCli", () => {
     expect(help).toContain("--agent");
     expect(help).toContain("--budget");
     expect(help).toContain("--preset");
+    expect(help).toContain("--strictness");
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
@@ -275,5 +277,29 @@ describe("createCli", () => {
     expect(help).toContain("--explain");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
+  });
+
+  it("prints agent command help", () => {
+    const agent = createCli().commands.find((command) => command.name() === "agent");
+
+    expect(agent?.helpInformation()).toContain("Usage: visp agent [options] [command]");
+
+    const expected = {
+      list: ["--json"],
+      install: ["--force", "--dry-run", "--json", "--strictness"],
+      doctor: ["--target", "--fix", "--dry-run", "--json"],
+      refresh: ["--target", "--force", "--dry-run", "--json"]
+    };
+
+    for (const [name, flags] of Object.entries(expected)) {
+      const help = agent?.commands
+        .find((command) => command.name() === name)
+        ?.helpInformation();
+
+      expect(help).toContain(`Usage: visp agent ${name}`);
+      for (const flag of flags) {
+        expect(help).toContain(flag);
+      }
+    }
   });
 });

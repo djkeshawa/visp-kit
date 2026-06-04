@@ -7,6 +7,7 @@ import {
   pathStringSchema,
   stringListSchema
 } from "./common.schema.js";
+import { policyGateSummarySchema } from "./gate.schema.js";
 import { reviewChangeTypeSchema } from "./review.schema.js";
 
 export const prStatusSchema = z.enum([
@@ -64,6 +65,7 @@ export const prArtifactSchema = z
     validationEvidence: prEvidenceSchema,
     reviewEvidence: prEvidenceSchema,
     reconcileEvidence: prEvidenceSchema,
+    policyGate: policyGateSummarySchema.optional(),
     risks: stringListSchema,
     rollback: stringListSchema,
     checklist: stringListSchema,

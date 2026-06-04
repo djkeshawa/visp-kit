@@ -35,6 +35,7 @@ describe("policy loader", () => {
 
   it("loads effective default policy when policy file is missing", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await rm(policyArtifactPath(tempDir), { force: true });
 
     const loaded = expectOk(
       await loadEffectivePolicy({

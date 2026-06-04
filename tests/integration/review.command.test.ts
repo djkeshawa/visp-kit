@@ -122,6 +122,9 @@ describe("visp review command", () => {
     expect(await exists(path.join(reviewDir, "T001.review-prompt.md"))).toBe(true);
     expect(await exists(path.join(reviewDir, "T001.review-checklist.md"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "prompts", "review.prompt.md"))).toBe(true);
+    expect(await readFile(path.join(reviewDir, "T001.review.md"), "utf8")).toContain(
+      "## Policy Gate"
+    );
   });
 
   it("works at feature level when no task is selected", async () => {

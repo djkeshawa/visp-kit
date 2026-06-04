@@ -143,6 +143,9 @@ describe("visp reconcile command", () => {
     expect(await exists(path.join(reconcileDir, "T001.reconcile.json"))).toBe(true);
     expect(await exists(path.join(reconcileDir, "T001.reconcile-prompt.md"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "prompts", "reconcile.prompt.md"))).toBe(true);
+    expect(await readFile(path.join(reconcileDir, "T001.reconcile.md"), "utf8")).toContain(
+      "## Policy Gate"
+    );
   });
 
   it("returns JSON only", async () => {

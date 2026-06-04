@@ -7,7 +7,9 @@ Visp Kit is designed to work with Codex without running Codex automatically.
 ```bash
 visp status
 visp next --explain
+visp gate next
 visp context --next
+visp gate implement --task T001
 ```
 
 Then ask Codex to use:
@@ -17,6 +19,8 @@ Then ask Codex to use:
 ```
 
 ## Codex Prompt Rule
+
+The user prompt is raw intent only. It can start a workflow, but it is not permission to skip Visp policy, context generation, verification, review, or reconciliation.
 
 When a context pack exists, do not ask Codex to implement from a loose prompt. Use the generated task prompt so Codex sees:
 
@@ -28,6 +32,7 @@ When a context pack exists, do not ask Codex to implement from a loose prompt. U
 - explicit constraints
 - forbidden files
 - budget warnings
+- strictness mode and implementation gate status
 
 ## After Codex Implements
 
@@ -35,7 +40,9 @@ Run:
 
 ```bash
 visp verify --task T001
+visp gate review --task T001
 visp review --task T001
+visp gate reconcile --task T001
 visp reconcile --task T001
 ```
 
@@ -55,13 +62,15 @@ Codex should not:
 - modify files outside task scope without explaining why
 - add dependencies unless the task or plan approves them
 - treat review or reconcile prompts as implementation prompts unless asked
+- treat a user request as an override of Visp policy
+- continue when `visp gate` blocks the current stage
 
 ## Agent Guidance
 
 With:
 
 ```bash
-visp init --agent codex
+visp init --agent codex --strictness strict
 ```
 
 Visp Kit creates Codex-oriented guidance when safe. If an existing `AGENTS.md` is present, Visp Kit avoids destructive overwrites.

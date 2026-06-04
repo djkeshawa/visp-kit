@@ -88,7 +88,7 @@ describe("runPrWorkflow", () => {
       commandRunner: runner()
     }));
 
-    expect(summary.success).toBe(true);
+    expect(summary.success).toBe(false);
     expect(summary.prPath).toBe(".visp/features/001-add-note-pinning/pr.md");
     expect(summary.prJsonPath).toBe(".visp/features/001-add-note-pinning/pr.json");
     expect(summary.promptPath).toBe(".visp/prompts/pr.prompt.md");

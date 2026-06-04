@@ -2,6 +2,10 @@ import { Command } from "commander";
 import { z } from "zod";
 
 import {
+  createAgentCommand,
+  type AgentCommandDependencies
+} from "./commands/agent.command.js";
+import {
   createBudgetCommand,
   type BudgetCommandDependencies
 } from "./commands/budget.command.js";
@@ -78,7 +82,8 @@ import {
   type VerifyCommandDependencies
 } from "./commands/verify.command.js";
 
-export type CliDependencies = BudgetCommandDependencies &
+export type CliDependencies = AgentCommandDependencies &
+  BudgetCommandDependencies &
   ClarifyCommandDependencies &
   ConstitutionCommandDependencies &
   ContextCommandDependencies &
@@ -119,6 +124,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
     .helpOption("-h, --help", "Display help for command.");
 
   program.addCommand(createBudgetCommand(dependencies));
+  program.addCommand(createAgentCommand(dependencies));
   program.addCommand(createClarifyCommand(dependencies));
   program.addCommand(createConstitutionCommand(dependencies));
   program.addCommand(createContextCommand(dependencies));

@@ -34,6 +34,7 @@ describe("visp policy command", () => {
 
   it("initializes, shows, validates, and updates policy", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await rm(policyArtifactPath(tempDir), { force: true });
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 

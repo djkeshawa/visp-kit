@@ -60,11 +60,13 @@ describe("visp doctor command", () => {
   it("applies safe fixes and writes a report on initialized projects", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     await rm(path.join(tempDir, ".visp", "prompts"), { recursive: true, force: true });
+    await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
     const program = createCli({ writeOut: () => undefined });
 
     await program.parseAsync(["node", "visp", "doctor", tempDir, "--fix"]);
 
     expect(await exists(path.join(tempDir, ".visp", "prompts"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "policy.json"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "reports", "doctor-report.md"))).toBe(true);
   });
 

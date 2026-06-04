@@ -3,6 +3,7 @@ import {
   type ReconcileFinding,
   type ReconcileReport
 } from "../artifacts/schemas/reconcile.schema.js";
+import { renderPolicyGateMarkdown } from "../gates/policy-gate-markdown.js";
 
 function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
@@ -71,6 +72,8 @@ export function renderReconcileMarkdown(report: ReconcileReport): string {
 - Verification: ${report.verificationEvidence.status}
 - Review: ${report.reviewEvidence.status}
 - Traceability updated: ${report.traceabilityUpdate.performed ? "yes" : "no"}
+
+${renderPolicyGateMarkdown(report.policyGate)}
 
 ## Task Alignment
 

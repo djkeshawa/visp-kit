@@ -8,6 +8,10 @@ import {
   type BudgetMode,
   type Preset
 } from "../../artifacts/schemas/common.schema.js";
+import {
+  strictnessModeSchema,
+  type StrictnessMode
+} from "../../artifacts/schemas/policy.schema.js";
 import { formatError } from "../../theme/terminal.js";
 import {
   runInitWorkflow,
@@ -26,6 +30,7 @@ type InitCommandOptions = {
   readonly agent: AgentMode;
   readonly budget: BudgetMode;
   readonly preset: Preset;
+  readonly strictness: StrictnessMode;
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly json?: boolean;
@@ -42,6 +47,7 @@ function workflowOptions(
     agent: options.agent,
     budget: options.budget,
     preset: options.preset,
+    strictness: options.strictness,
     force: options.force ?? false,
     dryRun: options.dryRun ?? false
   };
@@ -71,6 +77,11 @@ export function createInitCommand(
       new Option("--preset <preset>", "Project preset to save.")
         .choices(presetSchema.options)
         .default("generic")
+    )
+    .addOption(
+      new Option("--strictness <mode>", "Policy strictness mode to save.")
+        .choices(strictnessModeSchema.options)
+        .default("standard")
     )
     .option("--force", "Overwrite existing generated files.")
     .option("--dry-run", "Show what would be created without writing files.")
