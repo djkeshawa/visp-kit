@@ -52,6 +52,8 @@ function defaultShell(): string | null {
 
 function runnerMetadata(input: {
   readonly command: string;
+  readonly executable: string;
+  readonly args: readonly string[];
   readonly commandResult?: Partial<CommandResult>;
   readonly profile: VerificationCommandProfile;
 }): VerificationCommandRunner {
@@ -67,8 +69,8 @@ function runnerMetadata(input: {
     shell:
       result?.shell ??
       (input.profile.executionMode === "shell" ? defaultShell() : null),
-    executable: result?.command ?? input.command,
-    args: [...(result?.args ?? [])],
+    executable: result?.command ?? input.executable,
+    args: [...(result?.args ?? input.args)],
     pid: result?.pid ?? null,
     profile: input.profile.profile,
     profileReason: input.profile.reason
@@ -114,8 +116,10 @@ export async function runVerificationCommands(
       cwd: options.targetPath,
       jsonOutput: options.jsonOutput
     });
+    const executable = profile.executable ?? command;
+    const args = [...profile.args];
     const startMs = Date.now();
-    const result = await runner.run(command, [], {
+    const result = await runner.run(executable, args, {
       cwd: options.targetPath,
       timeoutMs: 120_000,
       executionMode: profile.executionMode,
@@ -158,6 +162,8 @@ export async function runVerificationCommands(
       timedOut: result.ok ? result.value.timedOut : commandResult?.timedOut ?? false,
       runner: runnerMetadata({
         command,
+        executable,
+        args,
         commandResult,
         profile
       })

@@ -86,4 +86,19 @@ describe("command runner", () => {
       expect(result.value.outputCaptureMode).toBe("inherited");
     }
   });
+
+  it("captures output through files when requested", async () => {
+    const result = await runCommand(process.execPath, ["-e", "console.log('file visp')"], {
+      stdioMode: "file"
+    });
+
+    expect(isOk(result)).toBe(true);
+
+    if (isOk(result)) {
+      expect(result.value.stdout.trim()).toBe("file visp");
+      expect(result.value.stderr).toBe("");
+      expect(result.value.stdioMode).toBe("file");
+      expect(result.value.outputCaptureMode).toBe("file");
+    }
+  });
 });

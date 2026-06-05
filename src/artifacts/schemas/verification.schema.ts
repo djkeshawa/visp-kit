@@ -31,8 +31,8 @@ export const verificationCheckStatusSchema = z.enum([
 export const verificationCommandRunnerSchema = z
   .object({
     executionMode: z.enum(["argv", "shell"]),
-    stdioMode: z.enum(["capture", "inherit"]),
-    outputCaptureMode: z.enum(["captured", "inherited"]),
+    stdioMode: z.enum(["capture", "inherit", "file"]),
+    outputCaptureMode: z.enum(["captured", "inherited", "file"]),
     platform: nonEmptyStringSchema,
     shell: z.string().nullable(),
     executable: nonEmptyStringSchema,

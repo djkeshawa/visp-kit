@@ -143,7 +143,9 @@ describe("verification runner", () => {
             executionMode: options?.executionMode,
             stdioMode: options?.stdioMode,
             outputCaptureMode:
-              options?.stdioMode === "inherit" ? "inherited" : "captured"
+              options?.stdioMode === "inherit"
+                ? "inherited"
+                : options?.stdioMode === "file" ? "file" : "captured"
           });
         }
       };
@@ -156,25 +158,27 @@ describe("verification runner", () => {
       });
 
       expect(calls[0]).toMatchObject({
-        command: "npm run test:all",
-        args: [],
+        command: process.platform === "win32" ? "npm.cmd" : "npm",
+        args: ["run", "test:all"],
         options: {
-          executionMode: "shell",
+          executionMode: "argv",
           stdioMode: "inherit"
         }
       });
       expect(results[0]?.runner).toMatchObject({
-        executionMode: "shell",
+        executionMode: "argv",
         stdioMode: "inherit",
         outputCaptureMode: "inherited",
-        profile: "terminal-compatible"
+        profile: "terminal-compatible",
+        executable: process.platform === "win32" ? "npm.cmd" : "npm",
+        args: ["run", "test:all"]
       });
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
   });
 
-  it("keeps Electron-sensitive commands captured in JSON mode", async () => {
+  it("keeps Electron-sensitive direct commands captured in JSON mode", async () => {
     const calls: unknown[] = [];
     const runner: CommandRunner = {
       async run(command, args, options) {
@@ -191,7 +195,9 @@ describe("verification runner", () => {
           executionMode: options?.executionMode,
           stdioMode: options?.stdioMode,
           outputCaptureMode:
-            options?.stdioMode === "inherit" ? "inherited" : "captured"
+            options?.stdioMode === "inherit"
+              ? "inherited"
+              : options?.stdioMode === "file" ? "file" : "captured"
         });
       }
     };
@@ -207,13 +213,82 @@ describe("verification runner", () => {
     expect(calls[0]).toMatchObject({
       options: {
         executionMode: "shell",
-        stdioMode: "capture"
+        stdioMode: "file"
       }
     });
     expect(results[0]?.runner).toMatchObject({
-      stdioMode: "capture",
-      outputCaptureMode: "captured",
-      profile: "default"
+      stdioMode: "file",
+      outputCaptureMode: "file",
+      profile: "terminal-compatible"
     });
+  });
+
+  it("uses direct argv with captured output for Electron-sensitive npm scripts in JSON mode", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "visp-verify-json-"));
+
+    try {
+      await writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify(
+          {
+            scripts: {
+              "test:all": "npm run regression:renderer",
+              "regression:renderer": "electron --no-sandbox scripts/regression-electron.js"
+            }
+          },
+          null,
+          2
+        ),
+        "utf8"
+      );
+
+      const calls: unknown[] = [];
+      const runner: CommandRunner = {
+        async run(command, args, options) {
+          calls.push({ command, args, options });
+          return ok({
+            command,
+            args: args ?? [],
+            cwd: options?.cwd,
+            exitCode: 0,
+            signal: null,
+            stdout: "ok",
+            stderr: "",
+            timedOut: false,
+            executionMode: options?.executionMode,
+            stdioMode: options?.stdioMode,
+            outputCaptureMode:
+              options?.stdioMode === "inherit"
+                ? "inherited"
+                : options?.stdioMode === "file" ? "file" : "captured"
+          });
+        }
+      };
+
+      const results = await runVerificationCommands({
+        targetPath: tempDir,
+        commands: ["npm run test:all"],
+        commandRunner: runner,
+        jsonOutput: true,
+        now: () => "2026-01-01T00:00:00.000Z"
+      });
+
+      expect(calls[0]).toMatchObject({
+        command: process.platform === "win32" ? "npm.cmd" : "npm",
+        args: ["run", "test:all"],
+        options: {
+          executionMode: "argv",
+          stdioMode: "file"
+        }
+      });
+      expect(results[0]?.runner).toMatchObject({
+        executionMode: "argv",
+        stdioMode: "file",
+        outputCaptureMode: "file",
+        profile: "terminal-compatible"
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

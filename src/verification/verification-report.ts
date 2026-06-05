@@ -87,6 +87,8 @@ function commandResults(report: VerificationReport): string {
               `Output capture: ${runner.outputCaptureMode}`,
               `Platform: ${runner.platform}`,
               `Shell: ${runner.shell ?? "n/a"}`,
+              `Executable: ${runner.executable}`,
+              `Args: ${runner.args.length === 0 ? "[]" : runner.args.join(" ")}`,
               `Profile: ${runner.profile}`,
               `Profile reason: ${runner.profileReason ?? "n/a"}`
             ].join("\n");

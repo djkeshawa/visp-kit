@@ -26,7 +26,9 @@ describe("verification command profile", () => {
     expect(profile).toMatchObject({
       executionMode: "shell",
       stdioMode: "inherit",
-      profile: "terminal-compatible"
+      profile: "terminal-compatible",
+      executable: null,
+      args: []
     });
   });
 
@@ -53,10 +55,12 @@ describe("verification command profile", () => {
     });
 
     expect(profile).toMatchObject({
-      executionMode: "shell",
+      executionMode: "argv",
       stdioMode: "inherit",
       profile: "terminal-compatible",
-      reason: "npm script test:all references Electron/Chromium-style browser execution."
+      reason: "npm script test:all references Electron/Chromium-style browser execution.",
+      executable: process.platform === "win32" ? "npm.cmd" : "npm",
+      args: ["run", "test:all"]
     });
   });
 
@@ -69,8 +73,10 @@ describe("verification command profile", () => {
 
     expect(profile).toMatchObject({
       executionMode: "shell",
-      stdioMode: "capture",
-      profile: "default"
+      stdioMode: "file",
+      profile: "terminal-compatible",
+      executable: null,
+      args: []
     });
   });
 });

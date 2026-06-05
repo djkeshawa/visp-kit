@@ -13,6 +13,8 @@ export type VerificationCommandProfile = {
   readonly stdioMode: CommandStdioMode;
   readonly profile: VerificationCommandProfileName;
   readonly reason: string | null;
+  readonly executable: string | null;
+  readonly args: readonly string[];
 };
 
 type PackageJsonShape = {
@@ -21,6 +23,7 @@ type PackageJsonShape = {
 
 const sensitiveCommandPattern =
   /(^|[\s;&|])(?:electron|chromium|playwright)(?:\s|$)|--no-sandbox|--disable-setuid-sandbox/i;
+const shellControlPattern = /[;&|<>]/;
 
 function scriptsFromPackageJson(value: PackageJsonShape): Record<string, string> {
   return Object.fromEntries(
@@ -54,6 +57,72 @@ function directScriptNames(command: string): readonly string[] {
 
 function referencedScriptNames(script: string): readonly string[] {
   return directScriptNames(script);
+}
+
+function packageManagerExecutable(command: string): string {
+  if (process.platform !== "win32") {
+    return command;
+  }
+
+  return ["npm", "pnpm", "yarn", "bun"].includes(command)
+    ? `${command}.cmd`
+    : command;
+}
+
+function parsePackageRunCommand(command: string): {
+  readonly executable: string;
+  readonly args: readonly string[];
+} | undefined {
+  const trimmed = command.trim();
+
+  if (trimmed.length === 0 || shellControlPattern.test(trimmed)) {
+    return undefined;
+  }
+
+  const tokens = trimmed.split(/\s+/);
+  const packageManager = tokens[0];
+
+  if (packageManager === undefined) {
+    return undefined;
+  }
+
+  if (["npm", "pnpm", "bun"].includes(packageManager)) {
+    const subcommand = tokens[1];
+
+    if ((subcommand === "run" || subcommand === "run-script") && tokens[2] !== undefined) {
+      return {
+        executable: packageManagerExecutable(packageManager),
+        args: tokens.slice(1)
+      };
+    }
+
+    if (["test", "start", "build"].includes(subcommand ?? "")) {
+      return {
+        executable: packageManagerExecutable(packageManager),
+        args: tokens.slice(1)
+      };
+    }
+  }
+
+  if (packageManager === "yarn") {
+    const subcommand = tokens[1];
+
+    if (subcommand === "run" && tokens[2] !== undefined) {
+      return {
+        executable: packageManagerExecutable(packageManager),
+        args: tokens.slice(1)
+      };
+    }
+
+    if (subcommand !== undefined && !subcommand.startsWith("-")) {
+      return {
+        executable: packageManagerExecutable(packageManager),
+        args: tokens.slice(1)
+      };
+    }
+  }
+
+  return undefined;
 }
 
 function scriptReferencesSensitiveCommand(input: {
@@ -90,21 +159,21 @@ export async function profileVerificationCommand(input: {
   readonly cwd: string;
   readonly jsonOutput?: boolean;
 }): Promise<VerificationCommandProfile> {
-  if (input.jsonOutput) {
-    return {
-      executionMode: "shell",
-      stdioMode: "capture",
-      profile: "default",
-      reason: "JSON output requires captured validation command output."
-    };
-  }
+  const stdioMode: CommandStdioMode = input.jsonOutput ? "file" : "inherit";
 
   if (sensitiveCommandPattern.test(input.command)) {
+    const packageRun = parsePackageRunCommand(input.command);
+
     return {
-      executionMode: "shell",
-      stdioMode: "inherit",
+      executionMode: packageRun === undefined ? "shell" : "argv",
+      stdioMode,
       profile: "terminal-compatible",
-      reason: "Validation command references Electron/Chromium-style browser execution."
+      reason:
+        input.jsonOutput
+          ? "Validation command references Electron/Chromium-style browser execution. Output is captured through files for JSON mode."
+          : "Validation command references Electron/Chromium-style browser execution.",
+      executable: packageRun?.executable ?? null,
+      args: packageRun?.args ?? []
     };
   }
 
@@ -126,11 +195,18 @@ export async function profileVerificationCommand(input: {
       );
 
       if (sensitiveScript !== undefined) {
+        const packageRun = parsePackageRunCommand(input.command);
+
         return {
-          executionMode: "shell",
-          stdioMode: "inherit",
+          executionMode: packageRun === undefined ? "shell" : "argv",
+          stdioMode,
           profile: "terminal-compatible",
-          reason: `npm script ${sensitiveScript} references Electron/Chromium-style browser execution.`
+          reason:
+            input.jsonOutput
+              ? `npm script ${sensitiveScript} references Electron/Chromium-style browser execution. Output is captured through files for JSON mode.`
+              : `npm script ${sensitiveScript} references Electron/Chromium-style browser execution.`,
+          executable: packageRun?.executable ?? null,
+          args: packageRun?.args ?? []
         };
       }
     }
@@ -140,6 +216,8 @@ export async function profileVerificationCommand(input: {
     executionMode: "shell",
     stdioMode: "capture",
     profile: "default",
-    reason: null
+    reason: null,
+    executable: null,
+    args: []
   };
 }
