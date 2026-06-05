@@ -1,8 +1,16 @@
 import {
   defaultCommandRunner,
+  type CommandResult,
   type CommandRunner
 } from "../core/command-runner.js";
-import { type VerificationCommandResult } from "../artifacts/schemas/verification.schema.js";
+import {
+  type VerificationCommandResult,
+  type VerificationCommandRunner
+} from "../artifacts/schemas/verification.schema.js";
+import {
+  profileVerificationCommand,
+  type VerificationCommandProfile
+} from "./command-profile.js";
 import { captureOutput } from "./output-capture.js";
 
 export type VerificationRunnerOptions = {
@@ -11,41 +19,8 @@ export type VerificationRunnerOptions = {
   readonly dryRun?: boolean;
   readonly commandRunner?: CommandRunner;
   readonly now?: () => string;
+  readonly jsonOutput?: boolean;
 };
-
-function splitCommand(command: string): readonly string[] {
-  const parts: string[] = [];
-  let current = "";
-  let quote: '"' | "'" | null = null;
-
-  for (const char of command) {
-    if ((char === '"' || char === "'") && quote === null) {
-      quote = char;
-      continue;
-    }
-
-    if (char === quote) {
-      quote = null;
-      continue;
-    }
-
-    if (/\s/.test(char) && quote === null) {
-      if (current.length > 0) {
-        parts.push(current);
-        current = "";
-      }
-      continue;
-    }
-
-    current += char;
-  }
-
-  if (current.length > 0) {
-    parts.push(current);
-  }
-
-  return parts;
-}
 
 function skippedResult(input: {
   readonly command: string;
@@ -71,6 +46,35 @@ function skippedResult(input: {
   };
 }
 
+function defaultShell(): string | null {
+  return process.platform === "win32" ? "cmd.exe" : "/bin/sh";
+}
+
+function runnerMetadata(input: {
+  readonly command: string;
+  readonly commandResult?: Partial<CommandResult>;
+  readonly profile: VerificationCommandProfile;
+}): VerificationCommandRunner {
+  const result = input.commandResult;
+  const stdioMode = result?.stdioMode ?? input.profile.stdioMode;
+
+  return {
+    executionMode: result?.executionMode ?? input.profile.executionMode,
+    stdioMode,
+    outputCaptureMode:
+      result?.outputCaptureMode ?? (stdioMode === "inherit" ? "inherited" : "captured"),
+    platform: result?.platform ?? process.platform,
+    shell:
+      result?.shell ??
+      (input.profile.executionMode === "shell" ? defaultShell() : null),
+    executable: result?.command ?? input.command,
+    args: [...(result?.args ?? [])],
+    pid: result?.pid ?? null,
+    profile: input.profile.profile,
+    profileReason: input.profile.reason
+  };
+}
+
 export async function runVerificationCommands(
   options: VerificationRunnerOptions
 ): Promise<readonly VerificationCommandResult[]> {
@@ -93,11 +97,7 @@ export async function runVerificationCommands(
       continue;
     }
 
-    const parts = splitCommand(command);
-    const executable = parts[0];
-    const args = parts.slice(1);
-
-    if (executable === undefined) {
+    if (command.trim().length === 0) {
       results.push(
         skippedResult({
           command,
@@ -109,16 +109,24 @@ export async function runVerificationCommands(
       continue;
     }
 
-    const startMs = Date.now();
-    const result = await runner.run(executable, args, {
+    const profile = await profileVerificationCommand({
+      command,
       cwd: options.targetPath,
-      timeoutMs: 120_000
+      jsonOutput: options.jsonOutput
+    });
+    const startMs = Date.now();
+    const result = await runner.run(command, [], {
+      cwd: options.targetPath,
+      timeoutMs: 120_000,
+      executionMode: profile.executionMode,
+      stdioMode: profile.stdioMode
     });
     const endedAt = now();
     const durationMs = Math.max(0, Date.now() - startMs);
     const commandResult = result.ok
       ? result.value
       : result.error.details as
+          | Partial<CommandResult>
           | {
               readonly exitCode?: number | null;
               readonly stdout?: string;
@@ -147,7 +155,12 @@ export async function runVerificationCommands(
       stderrTruncated: stderr.truncated,
       skipped: false,
       skipReason: null,
-      timedOut: result.ok ? result.value.timedOut : commandResult?.timedOut ?? false
+      timedOut: result.ok ? result.value.timedOut : commandResult?.timedOut ?? false,
+      runner: runnerMetadata({
+        command,
+        commandResult,
+        profile
+      })
     });
   }
 

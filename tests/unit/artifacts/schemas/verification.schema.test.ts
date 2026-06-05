@@ -35,4 +35,32 @@ describe("verification schema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts command runner execution metadata", () => {
+    const result = verificationReportSchema.safeParse({
+      ...validVerificationReport,
+      commandValidation: {
+        ...validVerificationReport.commandValidation,
+        commands: [
+          {
+            ...validVerificationReport.commandValidation.commands[0],
+            runner: {
+              executionMode: "shell",
+              stdioMode: "inherit",
+              outputCaptureMode: "inherited",
+              platform: "linux",
+              shell: "/bin/sh",
+              executable: "npm run test:all",
+              args: [],
+              pid: 123,
+              profile: "terminal-compatible",
+              profileReason: "npm script test:all references Electron/Chromium-style browser execution."
+            }
+          }
+        ]
+      }
+    });
+
+    expect(result.success).toBe(true);
+  });
 });

@@ -255,9 +255,8 @@ export function createAgentCommand(
         .default("strict")
     )
     .addOption(
-      new Option("--preset <preset>", "Project preset to save during init.")
+      new Option("--preset <preset>", "Project preset to save during init. Omit to auto-detect.")
         .choices(presetSchema.options)
-        .default("generic")
     )
     .addOption(
       new Option("--budget <budget>", "Budget mode to save during init.")

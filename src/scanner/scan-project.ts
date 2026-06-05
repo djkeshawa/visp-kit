@@ -16,12 +16,84 @@ function unique(values: readonly string[]): string[] {
 }
 
 function lockFiles(files: readonly FileIndexEntry[]): string[] {
-  const names = new Set(["pnpm-lock.yaml", "package-lock.json", "yarn.lock", "bun.lock", "bun.lockb"]);
+  const names = new Set([
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "yarn.lock",
+    "bun.lock",
+    "bun.lockb",
+    "go.sum",
+    "poetry.lock",
+    "uv.lock",
+    "Pipfile.lock",
+    "Cargo.lock",
+    "gradle.lockfile"
+  ]);
 
   return files
     .map((file) => file.path)
     .filter((filePath) => names.has(filePath))
     .sort((a, b) => a.localeCompare(b));
+}
+
+function mergeCommands(
+  left: readonly string[],
+  right: readonly string[]
+): readonly string[] {
+  return unique([...left, ...right]);
+}
+
+function manifestCommands(files: readonly FileIndexEntry[]): {
+  readonly buildCommands: readonly string[];
+  readonly testCommands: readonly string[];
+  readonly lintCommands: readonly string[];
+  readonly typecheckCommands: readonly string[];
+} {
+  const paths = new Set(files.map((file) => file.path));
+  const buildCommands: string[] = [];
+  const testCommands: string[] = [];
+  const lintCommands: string[] = [];
+  const typecheckCommands: string[] = [];
+
+  if (paths.has("go.mod")) {
+    buildCommands.push("go build ./...");
+    testCommands.push("go test ./...");
+    lintCommands.push("go vet ./...");
+  }
+
+  if (paths.has("Cargo.toml")) {
+    buildCommands.push("cargo build");
+    testCommands.push("cargo test");
+    lintCommands.push("cargo clippy --all-targets --all-features");
+    typecheckCommands.push("cargo check");
+  }
+
+  if (paths.has("pom.xml")) {
+    buildCommands.push("mvn verify");
+    testCommands.push("mvn test");
+  }
+
+  if (paths.has("build.gradle") || paths.has("build.gradle.kts")) {
+    const gradle = paths.has("gradlew") ? "./gradlew" : "gradle";
+    buildCommands.push(`${gradle} build`);
+    testCommands.push(`${gradle} test`);
+    lintCommands.push(`${gradle} check`);
+  }
+
+  if (
+    paths.has("pyproject.toml") ||
+    paths.has("requirements.txt") ||
+    paths.has("setup.py")
+  ) {
+    testCommands.push("python -m pytest");
+  }
+
+  return {
+    buildCommands: unique(buildCommands),
+    testCommands: unique(testCommands),
+    lintCommands: unique(lintCommands),
+    typecheckCommands: unique(typecheckCommands)
+  };
 }
 
 export type ProjectScanInput = {
@@ -51,6 +123,7 @@ export async function scanProject(
   });
   const frameworks = detectFrameworks(packageJsonResult.value);
   const commands = detectScriptCommands(packageJsonResult.value, packageManager);
+  const nonPackageCommands = manifestCommands(files);
 
   return {
     files,
@@ -67,7 +140,10 @@ export async function scanProject(
       ),
       sourceRoots: await detectSourceRoots(input.rootPath),
       testRoots: await detectTestRoots(input.rootPath),
-      ...commands
+      buildCommands: mergeCommands(commands.buildCommands, nonPackageCommands.buildCommands),
+      testCommands: mergeCommands(commands.testCommands, nonPackageCommands.testCommands),
+      lintCommands: mergeCommands(commands.lintCommands, nonPackageCommands.lintCommands),
+      typecheckCommands: mergeCommands(commands.typecheckCommands, nonPackageCommands.typecheckCommands)
     }
   };
 }

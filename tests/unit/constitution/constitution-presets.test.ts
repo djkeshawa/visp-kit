@@ -16,6 +16,10 @@ describe("constitution presets", () => {
     expect(presetGuidance["node-api"].guidance.join(" ")).toContain(
       "request inputs"
     );
+    expect(presetGuidance.go.guidance.join(" ")).toContain("package boundaries");
+    expect(presetGuidance.java.guidance.join(" ")).toContain("public API");
+    expect(presetGuidance.python.guidance.join(" ")).toContain("modules");
+    expect(presetGuidance.rust.guidance.join(" ")).toContain("ownership");
   });
 
   it("includes budget-specific guidance", () => {

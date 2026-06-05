@@ -14,7 +14,7 @@ For team auditability, yes. For private experiments, you can keep it local. The 
 
 ## Is Visp Kit only for TypeScript?
 
-The MVP is strongest for JavaScript and TypeScript projects, but it has generic presets and can scan other text files.
+No. Visp Kit supports JavaScript, TypeScript, Electron, React, Node API, Go, Java, Python, Rust, and generic presets. It auto-detects common manifests when `--preset` is omitted.
 
 ## Can I use it with Copilot or Claude Code?
 

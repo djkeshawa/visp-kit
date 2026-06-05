@@ -1,21 +1,12 @@
+import { isDependencyFile } from "../dependencies/dependency-files.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
-
-export const dependencyFiles = new Set([
-  "package.json",
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "bun.lock",
-  "bun.lockb",
-  "npm-shrinkwrap.json"
-]);
 
 export function sourceChangedFiles(state: ProjectState): readonly string[] {
   return state.git.changedFiles.filter((file) => !file.startsWith(".visp/"));
 }
 
 export function changedDependencyFiles(state: ProjectState): readonly string[] {
-  return sourceChangedFiles(state).filter((file) => dependencyFiles.has(file));
+  return sourceChangedFiles(state).filter((file) => isDependencyFile(file));
 }
 
 export function hasValidationFallback(state: ProjectState): boolean {

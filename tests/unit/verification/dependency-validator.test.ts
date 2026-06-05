@@ -16,7 +16,7 @@ describe("dependency validator", () => {
 
   it("fails dependency file changes without approval", () => {
     const result = validateDependencies({
-      changedFiles: ["package.json"],
+      changedFiles: ["go.mod", "pom.xml", "pyproject.toml", "Cargo.toml"],
       task: {
         ...validTaskGraph.tasks[0]!,
         allowedFiles: ["src/notes/sort.ts"],
@@ -25,7 +25,10 @@ describe("dependency validator", () => {
     });
 
     expect(result.status).toBe("failed");
-    expect(result.errors.join(" ")).toContain("package.json");
+    expect(result.errors.join(" ")).toContain("go.mod");
+    expect(result.errors.join(" ")).toContain("pom.xml");
+    expect(result.errors.join(" ")).toContain("pyproject.toml");
+    expect(result.errors.join(" ")).toContain("Cargo.toml");
   });
 
   it("warns when dependency files are allowed by task scope", () => {

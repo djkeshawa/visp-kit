@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   extractExports,
   extractImports,
+  extractLanguageImports,
+  extractLanguageSymbols,
   extractSymbols,
   summarizeFile
 } from "../../../src/scanner/file-summary.js";
@@ -64,6 +66,50 @@ describe("file summaries", () => {
     expect(summary.exports).toContain("hello");
     expect(summary.symbols).toContain("value");
     expect(summary.comments[0]).toContain("Greets a user");
+  });
+
+  it("extracts core language imports and symbols", () => {
+    expect(
+      extractLanguageImports(
+        `package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+func Serve() {}
+type Handler struct {}
+`,
+        "Go"
+      )
+    ).toEqual(["fmt", "net/http"]);
+    expect(extractLanguageSymbols("func Serve() {}\ntype Handler struct {}", "Go")).toEqual([
+      "Handler",
+      "Serve"
+    ]);
+    expect(extractLanguageImports("import java.util.List;\nclass App {}", "Java")).toEqual([
+      "java.util.List"
+    ]);
+    expect(extractLanguageSymbols("public class App {}\ninterface Runner {}", "Java")).toEqual([
+      "App",
+      "Runner"
+    ]);
+    expect(extractLanguageImports("import os\nfrom pathlib import Path", "Python")).toEqual([
+      "os",
+      "pathlib"
+    ]);
+    expect(extractLanguageSymbols("def run(): pass\nclass Worker: pass", "Python")).toEqual(
+      expect.arrayContaining(["Worker", "run"])
+    );
+    expect(extractLanguageImports("use std::fs;\nmod worker;", "Rust")).toEqual([
+      "std::fs",
+      "worker"
+    ]);
+    expect(extractLanguageSymbols("pub fn run() {}\nstruct Job;", "Rust")).toEqual([
+      "Job",
+      "run"
+    ]);
   });
 
   it("skips large files while keeping metadata", async () => {

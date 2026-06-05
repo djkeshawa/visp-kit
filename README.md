@@ -119,7 +119,7 @@ Observability and evaluation:
 
 ## Install
 
-Visp Kit is ready for local alpha use and internal pilots. It is not assumed to be published to npm yet, so the recommended install is a local global link from this repository.
+Visp Kit is ready for local alpha use and internal pilots. It is not assumed to be published to npm yet, so install it from this repository.
 
 ### 1. Use Node.js 24+
 
@@ -139,19 +139,38 @@ corepack prepare pnpm@11.3.0 --activate
 pnpm --version
 ```
 
-### 2. Build And Link Visp Kit
+### 2. Build Visp Kit
 
 ```bash
 git clone https://github.com/djkeshawa/visp-kit.git
 cd visp-kit
 pnpm install
 pnpm build
-pnpm link --global
 ```
 
-Verify the global command:
+### 3. Install The CLI
+
+Fast local global install:
 
 ```bash
+pnpm run install:global
+visp --version
+visp --help
+```
+
+For package-style testing in other projects, install a local package tarball. This behaves closer to a future published npm install than a development symlink:
+
+```bash
+npm pack
+npm install -g ./visp-kit-0.1.0.tgz
+visp --version
+visp --help
+```
+
+For active Visp Kit development, use a global pnpm link instead. This keeps the global `visp` command pointed at your current checkout:
+
+```bash
+pnpm link --global
 visp --version
 visp --help
 ```
@@ -169,7 +188,7 @@ pnpm link --global
 visp --help
 ```
 
-### 3. Use It In Another Project
+### 4. Use It In Another Project
 
 From any target project:
 
@@ -465,6 +484,33 @@ visp agent refresh
 ```
 
 Visp Kit generates local instructions, skills, commands, or prompt files depending on the target. Compatibility depends on the specific AI tool surface. Visp Kit does not call the AI tool for you.
+
+## Presets
+
+Presets tune Visp Kit's generated guidance, validation hints, scan behavior, dependency checks, and review focus. If `--preset` is omitted during `visp init` or `visp agent bootstrap`, Visp Kit auto-detects from project manifests.
+
+Supported presets:
+
+- `javascript`
+- `typescript`
+- `electron`
+- `react`
+- `node-api`
+- `go`
+- `java`
+- `python`
+- `rust`
+- `generic`
+
+Examples:
+
+```bash
+visp agent bootstrap codex --strictness strict
+visp agent bootstrap codex --preset go --strictness strict
+visp init --preset python
+```
+
+Auto-detection uses files such as `package.json`, `go.mod`, `pom.xml`, `build.gradle`, `pyproject.toml`, `requirements.txt`, and `Cargo.toml`. Use `--preset generic` if you want to force generic behavior.
 
 ## Strictness Modes
 

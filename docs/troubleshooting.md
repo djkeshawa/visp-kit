@@ -239,6 +239,22 @@ Symptom: `visp` command is not found.
 Fix from the Visp Kit repository:
 
 ```bash
+pnpm run install:global
+visp --help
+```
+
+Or use a package-style install:
+
+```bash
+pnpm build
+npm pack
+npm install -g ./visp-kit-0.1.0.tgz
+visp --help
+```
+
+For active development, a pnpm link also works:
+
+```bash
 pnpm build
 pnpm link --global
 visp --help

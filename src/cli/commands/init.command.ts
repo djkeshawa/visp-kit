@@ -29,7 +29,7 @@ export type InitCommandDependencies = {
 type InitCommandOptions = {
   readonly agent: AgentMode;
   readonly budget: BudgetMode;
-  readonly preset: Preset;
+  readonly preset?: Preset;
   readonly strictness: StrictnessMode;
   readonly force?: boolean;
   readonly dryRun?: boolean;
@@ -74,9 +74,8 @@ export function createInitCommand(
         .default("lean")
     )
     .addOption(
-      new Option("--preset <preset>", "Project preset to save.")
+      new Option("--preset <preset>", "Project preset to save. Omit to auto-detect.")
         .choices(presetSchema.options)
-        .default("generic")
     )
     .addOption(
       new Option("--strictness <mode>", "Policy strictness mode to save.")

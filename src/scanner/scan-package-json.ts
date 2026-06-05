@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { type PackageManager } from "../artifacts/schemas/common.schema.js";
+import { type VispError } from "../core/errors.js";
 import { readJsonFile } from "../core/file-system.js";
 import { type Result, ok } from "../core/result.js";
 import { type FrameworkDetection, type PackageJsonInfo } from "./types.js";
@@ -49,7 +50,7 @@ const knownFrameworks = new Set([
 
 export async function readPackageJson(
   rootPath: string
-): Promise<Result<PackageJsonInfo | undefined>> {
+): Promise<Result<PackageJsonInfo | undefined, VispError>> {
   const packagePath = path.join(rootPath, "package.json");
   const result = await readJsonFile<PackageJsonShape>(packagePath);
 

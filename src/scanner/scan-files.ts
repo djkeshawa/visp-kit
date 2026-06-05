@@ -13,9 +13,19 @@ import { detectLanguage } from "./language.js";
 import { type FileIndexEntry } from "./types.js";
 
 function isSourceLanguage(language: string): boolean {
-  return ["TypeScript", "JavaScript", "CSS", "HTML", "JSON", "Markdown"].includes(
-    language
-  );
+  return [
+    "TypeScript",
+    "JavaScript",
+    "CSS",
+    "HTML",
+    "JSON",
+    "Markdown",
+    "Java",
+    "Kotlin",
+    "Python",
+    "Go",
+    "Rust"
+  ].includes(language);
 }
 
 export async function scanFiles(

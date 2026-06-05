@@ -9,6 +9,10 @@ const presetHints: Record<Preset, string> = {
   electron: "Protect desktop app startup, IPC boundaries, and local data safety.",
   react: "Keep components focused, accessible, and consistent with existing UI structure.",
   "node-api": "Preserve API contracts and validate external input at service boundaries.",
+  go: "Keep package boundaries clear and handle errors explicitly.",
+  java: "Preserve public API contracts and follow Maven or Gradle conventions.",
+  python: "Keep modules focused and preserve typing or validation conventions where present.",
+  rust: "Keep ownership changes explicit and avoid unsafe code unless approved.",
   generic: "Follow the existing project conventions before adding new patterns."
 };
 

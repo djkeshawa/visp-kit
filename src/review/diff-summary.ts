@@ -1,28 +1,25 @@
 import { type ReviewChangedFile } from "../artifacts/schemas/review.schema.js";
 
-const dependencyFiles = new Set([
-  "package.json",
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "bun.lock",
-  "bun.lockb",
-  "npm-shrinkwrap.json"
-]);
+import { isDependencyFile as isKnownDependencyFile } from "../dependencies/dependency-files.js";
 
 export function normalizeReviewPath(value: string): string {
   return value.replaceAll("\\", "/").trim();
 }
 
 export function isDependencyFile(filePath: string): boolean {
-  return dependencyFiles.has(normalizeReviewPath(filePath));
+  return isKnownDependencyFile(normalizeReviewPath(filePath));
 }
 
 export function isTestFile(filePath: string): boolean {
   const normalized = normalizeReviewPath(filePath).toLowerCase();
 
   return /(^|\/)(tests?|__tests__)\//.test(normalized) ||
-    /\.(test|spec)\.[cm]?[jt]sx?$/.test(normalized);
+    /\.(test|spec)\.[cm]?[jt]sx?$/.test(normalized) ||
+    /_test\.go$/.test(normalized) ||
+    /(?:test|tests)\.java$/.test(normalized) ||
+    /(^|\/)test_[^/]+\.py$/.test(normalized) ||
+    /_test\.py$/.test(normalized) ||
+    /_test\.rs$/.test(normalized);
 }
 
 export function isGeneratedVispReviewFile(filePath: string): boolean {

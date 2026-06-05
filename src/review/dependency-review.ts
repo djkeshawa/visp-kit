@@ -1,6 +1,7 @@
 import { type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
 import { type ReviewChangedFile } from "../artifacts/schemas/review.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
+import { isDependencyFile } from "../dependencies/dependency-files.js";
 import { normalizeReviewPath } from "./diff-summary.js";
 import { finding, type ReviewFindingDraft } from "./review-findings.js";
 
@@ -13,8 +14,8 @@ function dependencyApprovedByTask(task: Task | undefined): boolean {
   ]);
   const text = `${task.title} ${task.description}`.toLowerCase();
 
-  return [...scoped].some((file) => file.includes("package") || file.includes("lock")) ||
-    /dependency|package|lockfile|install/.test(text);
+  return [...scoped].some((file) => isDependencyFile(file)) ||
+    /dependency|package|manifest|lockfile|install/.test(text);
 }
 
 function dependencyApprovedByPlan(plan: PlanDraftArtifact | undefined): boolean {

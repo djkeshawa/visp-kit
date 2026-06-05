@@ -98,4 +98,15 @@ describe("project schemas", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts core language presets", () => {
+    for (const preset of ["go", "java", "python", "rust"] as const) {
+      expect(
+        projectConfigSchema.safeParse({
+          ...validProjectConfig,
+          preset
+        }).success
+      ).toBe(true);
+    }
+  });
 });

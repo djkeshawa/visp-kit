@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { runCommand } from "../../src/core/command-runner.js";
+import { runCommand, runShellCommand } from "../../src/core/command-runner.js";
 import { isErr, isOk } from "../../src/core/result.js";
 
 function successCommand(): { command: string; args: string[] } {
@@ -56,6 +56,34 @@ describe("command runner", () => {
         stderr: "not ok",
         timedOut: false
       });
+    }
+  });
+
+  it("runs full command strings through the shell when requested", async () => {
+    const result = await runShellCommand("echo shell visp");
+
+    expect(isOk(result)).toBe(true);
+
+    if (isOk(result)) {
+      expect(result.value.stdout.trim()).toBe("shell visp");
+      expect(result.value.executionMode).toBe("shell");
+      expect(result.value.stdioMode).toBe("capture");
+      expect(result.value.outputCaptureMode).toBe("captured");
+    }
+  });
+
+  it("supports inherited stdio for terminal-compatible validation commands", async () => {
+    const result = await runCommand(process.execPath, ["-e", ""], {
+      stdioMode: "inherit"
+    });
+
+    expect(isOk(result)).toBe(true);
+
+    if (isOk(result)) {
+      expect(result.value.stdout).toBe("");
+      expect(result.value.stderr).toBe("");
+      expect(result.value.stdioMode).toBe("inherit");
+      expect(result.value.outputCaptureMode).toBe("inherited");
     }
   });
 });

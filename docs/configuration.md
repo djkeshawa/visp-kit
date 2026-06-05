@@ -11,6 +11,10 @@ Supported presets:
 - `electron`
 - `react`
 - `node-api`
+- `go`
+- `java`
+- `python`
+- `rust`
 - `generic`
 
 Example:
@@ -19,6 +23,10 @@ Example:
 visp init --preset typescript
 visp constitution --preset typescript
 ```
+
+If `--preset` is omitted during `visp init` or `visp agent bootstrap`, Visp Kit auto-detects a preset from project manifests such as `package.json`, `go.mod`, `pom.xml`, `pyproject.toml`, or `Cargo.toml`.
+
+Use `--preset generic` to force generic behavior.
 
 ## Budget Modes
 

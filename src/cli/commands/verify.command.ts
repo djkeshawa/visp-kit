@@ -51,7 +51,8 @@ function workflowOptions(
     dependencies: options.dependencies ?? false,
     updateTaskStatus: options.updateTaskStatus ?? false,
     force: options.force ?? false,
-    dryRun: options.dryRun ?? false
+    dryRun: options.dryRun ?? false,
+    jsonOutput: options.json ?? false
   };
 }
 

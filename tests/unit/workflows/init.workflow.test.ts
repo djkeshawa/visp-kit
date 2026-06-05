@@ -117,6 +117,43 @@ describe("runInitWorkflow", () => {
     expect(policy.rules.requireContextBeforeImplementation).toBe(true);
   });
 
+  it("auto-detects the preset when none is provided", async () => {
+    await writeFile(path.join(tempDir, "go.mod"), "module example.com/app\n", "utf8");
+
+    const summary = expectOk(
+      await runInitWorkflow({
+        targetPath: tempDir,
+        agent: "none",
+        budget: "lean",
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+    const config = expectOk(
+      await readArtifact(
+        path.join(tempDir, ".visp", "config.json"),
+        projectConfigSchema
+      )
+    );
+
+    expect(summary.preset).toBe("go");
+    expect(config.preset).toBe("go");
+  });
+
+  it("uses an explicit preset even when a manifest can be detected", async () => {
+    await writeFile(path.join(tempDir, "go.mod"), "module example.com/app\n", "utf8");
+
+    const summary = expectOk(
+      await runInitWorkflow({
+        targetPath: tempDir,
+        agent: "none",
+        preset: "generic",
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+
+    expect(summary.preset).toBe("generic");
+  });
+
   it("creates Codex guidance and starter skills", async () => {
     const summary = expectOk(
       await runInitWorkflow({

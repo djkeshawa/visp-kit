@@ -1,12 +1,20 @@
 import { spawn } from "node:child_process";
+import { type ChildProcess, type StdioOptions } from "node:child_process";
 
 import { VispError } from "./errors.js";
 import { err, ok, type Result } from "./result.js";
+
+export type CommandExecutionMode = "argv" | "shell";
+export type CommandStdioMode = "capture" | "inherit";
+export type CommandOutputCaptureMode = "captured" | "inherited";
 
 export type RunCommandOptions = {
   readonly cwd?: string;
   readonly env?: NodeJS.ProcessEnv;
   readonly timeoutMs?: number;
+  readonly executionMode?: CommandExecutionMode;
+  readonly stdioMode?: CommandStdioMode;
+  readonly shell?: boolean | string;
 };
 
 export type CommandResult = {
@@ -18,6 +26,12 @@ export type CommandResult = {
   readonly stdout: string;
   readonly stderr: string;
   readonly timedOut: boolean;
+  readonly executionMode?: CommandExecutionMode;
+  readonly stdioMode?: CommandStdioMode;
+  readonly outputCaptureMode?: CommandOutputCaptureMode;
+  readonly platform?: NodeJS.Platform;
+  readonly shell?: string | null;
+  readonly pid?: number | null;
 };
 
 export interface CommandRunner {
@@ -38,12 +52,42 @@ export async function runCommand(
     let stderr = "";
     let timedOut = false;
     let settled = false;
+    const executionMode = options.executionMode ?? "argv";
+    const stdioMode = options.stdioMode ?? "capture";
+    const outputCaptureMode =
+      stdioMode === "inherit" ? "inherited" : "captured";
+    const shellOption =
+      executionMode === "shell"
+        ? options.shell ?? true
+        : false;
+    const shell =
+      typeof shellOption === "string"
+        ? shellOption
+        : shellOption
+          ? process.platform === "win32" ? "cmd.exe" : "/bin/sh"
+          : null;
+    const stdio: StdioOptions =
+      stdioMode === "inherit"
+        ? "inherit"
+        : ["ignore", "pipe", "pipe"];
 
-    const child = spawn(command, [...args], {
+    const child: ChildProcess = spawn(command, [...args], {
       cwd: options.cwd,
       env: options.env ? { ...process.env, ...options.env } : process.env,
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"]
+      shell: shellOption,
+      stdio
+    });
+
+    const baseResult = (): Omit<CommandResult, "exitCode" | "signal" | "stdout" | "stderr" | "timedOut"> => ({
+      command,
+      args,
+      cwd: options.cwd,
+      executionMode,
+      stdioMode,
+      outputCaptureMode,
+      platform: process.platform,
+      shell,
+      pid: child.pid ?? null
     });
 
     const settle = (result: Result<CommandResult, VispError>): void => {
@@ -64,37 +108,31 @@ export async function runCommand(
             child.kill("SIGTERM");
           }, options.timeoutMs);
 
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
 
-    child.stdout.on("data", (chunk: string) => {
+    child.stdout?.on("data", (chunk: string) => {
       stdout += chunk;
     });
 
-    child.stderr.on("data", (chunk: string) => {
+    child.stderr?.on("data", (chunk: string) => {
       stderr += chunk;
     });
 
-    child.on("error", (error) => {
+    child.on("error", (error: Error) => {
       settle(
         err(
           new VispError("COMMAND_FAILED", `Failed to run command: ${command}.`, {
             cause: error,
-            details: {
-              command,
-              args,
-              cwd: options.cwd
-            }
+            details: baseResult()
           })
         )
       );
     });
 
-    child.on("close", (exitCode, signal) => {
+    child.on("close", (exitCode: number | null, signal: NodeJS.Signals | null) => {
       const result: CommandResult = {
-        command,
-        args,
-        cwd: options.cwd,
+        ...baseResult(),
         exitCode,
         signal,
         stdout,
@@ -116,6 +154,13 @@ export async function runCommand(
       );
     });
   });
+}
+
+export function runShellCommand(
+  command: string,
+  options: RunCommandOptions = {}
+): Promise<Result<CommandResult, VispError>> {
+  return runCommand(command, [], { ...options, executionMode: "shell" });
 }
 
 export const defaultCommandRunner: CommandRunner = {

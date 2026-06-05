@@ -568,7 +568,7 @@ export function createTaskGraphArtifact(input: {
         dependsOn: [],
         allowedFiles: ["TBD"],
         expectedFiles: ["TBD"],
-        forbiddenFiles: ["package.json unless dependency approval is part of this task"],
+        forbiddenFiles: ["Dependency manifests and lockfiles unless dependency approval is part of this task"],
         validationCommands: ["TBD"],
         status: "ready",
         parallelizable: false,
@@ -626,7 +626,7 @@ Expected Files:
 - TBD
 
 Forbidden Files:
-- package.json unless dependency approval is part of this task
+- Dependency manifests and lockfiles unless dependency approval is part of this task
 
 Validation Commands:
 - TBD

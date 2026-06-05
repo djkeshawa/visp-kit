@@ -12,11 +12,13 @@ Common flags:
 
 - `--agent generic|codex|none`
 - `--budget lean|balanced|strict`
-- `--preset javascript|typescript|electron|react|node-api|generic`
+- `--preset javascript|typescript|electron|react|node-api|go|java|python|rust|generic`
 - `--strictness relaxed|standard|strict|locked`
 - `--force`
 - `--dry-run`
 - `--json`
+
+If `--preset` is omitted, Visp Kit auto-detects from project manifests.
 
 Next: `visp scan`
 
@@ -422,11 +424,13 @@ Subcommands:
 Common install flags:
 
 - `--strictness relaxed|standard|strict|locked`
-- `--preset javascript|typescript|electron|react|node-api|generic` for bootstrap
+- `--preset javascript|typescript|electron|react|node-api|go|java|python|rust|generic` for bootstrap
 - `--budget lean|balanced|strict` for bootstrap
 - `--force`
 - `--dry-run`
 - `--json`
+
+If bootstrap omits `--preset`, Visp Kit auto-detects before creating `.visp/config.json`.
 
 Doctor flags:
 

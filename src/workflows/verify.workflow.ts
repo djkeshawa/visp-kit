@@ -95,6 +95,7 @@ export type VerifyWorkflowOptions = {
   readonly updateTaskStatus?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
+  readonly jsonOutput?: boolean;
   readonly now?: string;
   readonly commandRunner?: CommandRunner;
 };
@@ -485,7 +486,8 @@ export async function runVerifyWorkflow(
           targetPath,
           commands: commandSelection.commands,
           dryRun,
-          commandRunner: options.commandRunner
+          commandRunner: options.commandRunner,
+          jsonOutput: options.jsonOutput
         })
       : [];
   const commandValidation = checks.commands
@@ -701,7 +703,8 @@ export async function runVerifyWorkflow(
       success: command.success,
       durationMs: command.durationMs,
       skipped: command.skipped,
-      skipReason: command.skipReason
+      skipReason: command.skipReason,
+      runner: command.runner
     })),
     reportPath: dryRun ? null : reportPath,
     warnings: [...new Set([...parsed.data.warnings, ...budgetRefresh.warnings, ...timeline.warnings, ...run.warnings])],

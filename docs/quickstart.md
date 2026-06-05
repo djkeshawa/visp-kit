@@ -10,7 +10,7 @@ This guide shows the shortest practical Visp Kit loop for a local project.
 
 ## Install Locally
 
-Visp Kit is intended for local alpha use and internal pilots. Until it is published to npm, install it by building this repository and linking the `visp` command globally.
+Visp Kit is intended for local alpha use and internal pilots. Until it is published to npm, install it by building this repository and installing or linking the local CLI package.
 
 Use Node.js 24:
 
@@ -28,13 +28,35 @@ corepack prepare pnpm@11.3.0 --activate
 pnpm --version
 ```
 
-Build and link:
+Build:
 
 ```bash
 git clone https://github.com/djkeshawa/visp-kit.git
 cd visp-kit
 pnpm install
 pnpm build
+```
+
+Recommended for testing in other projects:
+
+```bash
+pnpm run install:global
+visp --version
+visp --help
+```
+
+Package-style install for a closer npm publishing smoke test:
+
+```bash
+npm pack
+npm install -g ./visp-kit-0.1.0.tgz
+visp --version
+visp --help
+```
+
+Recommended while actively editing Visp Kit:
+
+```bash
 pnpm link --global
 visp --version
 visp --help

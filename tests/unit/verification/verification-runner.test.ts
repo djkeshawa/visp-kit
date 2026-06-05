@@ -1,3 +1,7 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { type CommandRunner } from "../../../src/core/command-runner.js";
@@ -7,8 +11,10 @@ import { runVerificationCommands } from "../../../src/verification/verification-
 
 describe("verification runner", () => {
   it("captures passing command results", async () => {
+    const calls: unknown[] = [];
     const runner: CommandRunner = {
       async run(command, args, options) {
+        calls.push({ command, args, options });
         return ok({
           command,
           args: args ?? [],
@@ -35,7 +41,21 @@ describe("verification runner", () => {
       exitCode: 0,
       success: true,
       stdout: "ok",
-      skipped: false
+      skipped: false,
+      runner: {
+        executionMode: "shell",
+        stdioMode: "capture",
+        outputCaptureMode: "captured",
+        profile: "default"
+      }
+    });
+    expect(calls[0]).toMatchObject({
+      command: "pnpm test",
+      args: [],
+      options: {
+        executionMode: "shell",
+        stdioMode: "capture"
+      }
     });
   });
 
@@ -85,6 +105,115 @@ describe("verification runner", () => {
       skipReason: "dry-run",
       success: true,
       exitCode: null
+    });
+  });
+
+  it("uses inherited stdio for npm scripts that call Electron", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "visp-verify-runner-"));
+
+    try {
+      await writeFile(
+        path.join(tempDir, "package.json"),
+        JSON.stringify(
+          {
+            scripts: {
+              "test:all": "npm run regression:renderer",
+              "regression:renderer": "electron --no-sandbox scripts/regression-electron.js"
+            }
+          },
+          null,
+          2
+        ),
+        "utf8"
+      );
+
+      const calls: unknown[] = [];
+      const runner: CommandRunner = {
+        async run(command, args, options) {
+          calls.push({ command, args, options });
+          return ok({
+            command,
+            args: args ?? [],
+            cwd: options?.cwd,
+            exitCode: 0,
+            signal: null,
+            stdout: "",
+            stderr: "",
+            timedOut: false,
+            executionMode: options?.executionMode,
+            stdioMode: options?.stdioMode,
+            outputCaptureMode:
+              options?.stdioMode === "inherit" ? "inherited" : "captured"
+          });
+        }
+      };
+
+      const results = await runVerificationCommands({
+        targetPath: tempDir,
+        commands: ["npm run test:all"],
+        commandRunner: runner,
+        now: () => "2026-01-01T00:00:00.000Z"
+      });
+
+      expect(calls[0]).toMatchObject({
+        command: "npm run test:all",
+        args: [],
+        options: {
+          executionMode: "shell",
+          stdioMode: "inherit"
+        }
+      });
+      expect(results[0]?.runner).toMatchObject({
+        executionMode: "shell",
+        stdioMode: "inherit",
+        outputCaptureMode: "inherited",
+        profile: "terminal-compatible"
+      });
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps Electron-sensitive commands captured in JSON mode", async () => {
+    const calls: unknown[] = [];
+    const runner: CommandRunner = {
+      async run(command, args, options) {
+        calls.push({ command, args, options });
+        return ok({
+          command,
+          args: args ?? [],
+          cwd: options?.cwd,
+          exitCode: 0,
+          signal: null,
+          stdout: "ok",
+          stderr: "",
+          timedOut: false,
+          executionMode: options?.executionMode,
+          stdioMode: options?.stdioMode,
+          outputCaptureMode:
+            options?.stdioMode === "inherit" ? "inherited" : "captured"
+        });
+      }
+    };
+
+    const results = await runVerificationCommands({
+      targetPath: "/workspace/project",
+      commands: ["electron --no-sandbox scripts/regression.js"],
+      commandRunner: runner,
+      jsonOutput: true,
+      now: () => "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(calls[0]).toMatchObject({
+      options: {
+        executionMode: "shell",
+        stdioMode: "capture"
+      }
+    });
+    expect(results[0]?.runner).toMatchObject({
+      stdioMode: "capture",
+      outputCaptureMode: "captured",
+      profile: "default"
     });
   });
 });

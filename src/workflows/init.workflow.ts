@@ -15,6 +15,7 @@ import {
   type InitFileAction,
   type InitSummary
 } from "./init/init-summary.js";
+import { detectPreset } from "../presets/preset-detection.js";
 import { writePlannedFile } from "./init/planned-file.js";
 import { recordWorkflowRun } from "./shared/run-recorder.js";
 
@@ -55,12 +56,18 @@ export async function runInitWorkflow(
   const cwd = options.cwd ?? process.cwd();
   const targetPath = path.resolve(cwd, options.targetPath ?? ".");
   const agent = options.agent ?? "generic";
-  const preset = options.preset ?? "generic";
   const budget = options.budget ?? "lean";
   const strictness = options.strictness ?? "standard";
   const force = options.force ?? false;
   const dryRun = options.dryRun ?? false;
   const now = options.now ?? new Date().toISOString();
+  const detectedPreset = options.preset === undefined
+    ? await detectPreset(targetPath)
+    : ok({ preset: options.preset, reason: "Preset provided by --preset." });
+
+  if (!detectedPreset.ok) return detectedPreset;
+
+  const preset = detectedPreset.value.preset;
   const plan = await buildInitFilePlan({
     targetPath,
     agent,

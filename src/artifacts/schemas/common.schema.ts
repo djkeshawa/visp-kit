@@ -28,6 +28,10 @@ export const presetSchema = z.enum([
   "electron",
   "react",
   "node-api",
+  "go",
+  "java",
+  "python",
+  "rust",
   "generic"
 ]);
 export const riskLevelSchema = z.enum(["low", "medium", "high"]);

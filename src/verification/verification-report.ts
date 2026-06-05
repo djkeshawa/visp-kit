@@ -69,20 +69,45 @@ function commandResults(report: VerificationReport): string {
   }
 
   return report.commandValidation.commands
-    .map(
-      (result) => `### ${result.command}
+    .map((result) => {
+      const output =
+        result.stderr ||
+        result.stdout ||
+        result.skipReason ||
+        (result.runner?.outputCaptureMode === "inherited"
+          ? "Output was inherited by the terminal for compatibility and was not captured in this report."
+          : "No output.");
+      const runner = result.runner;
+      const runnerDetails =
+        runner === undefined
+          ? "Runner: n/a"
+          : [
+              `Runner: ${runner.executionMode}`,
+              `Stdio: ${runner.stdioMode}`,
+              `Output capture: ${runner.outputCaptureMode}`,
+              `Platform: ${runner.platform}`,
+              `Shell: ${runner.shell ?? "n/a"}`,
+              `Profile: ${runner.profile}`,
+              `Profile reason: ${runner.profileReason ?? "n/a"}`
+            ].join("\n");
+
+      return `### ${result.command}
 
 Status: ${result.skipped ? "skipped" : result.success ? "passed" : "failed"}
 Exit code: ${result.exitCode ?? "n/a"}
 Duration: ${result.durationMs}ms
 
+Command execution:
+
+${runnerDetails}
+
 Output summary:
 
 \`\`\`
-${result.stderr || result.stdout || result.skipReason || "No output."}
+${output}
 \`\`\`
-`
-    )
+`;
+    })
     .join("\n");
 }
 

@@ -159,6 +159,31 @@ describe("runScanWorkflow", () => {
     );
   });
 
+  it("detects Go project validation commands", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await writeFile(path.join(tempDir, "go.mod"), "module example.com/app\n", "utf8");
+    await mkdir(path.join(tempDir, "cmd"), { recursive: true });
+    await writeFile(path.join(tempDir, "cmd", "main.go"), "package main\n", "utf8");
+
+    const summary = expectOk(
+      await runScanWorkflow({
+        targetPath: tempDir,
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+    const project = expectOk(
+      await readArtifact(
+        path.join(tempDir, ".visp", "project.json"),
+        projectProfileSchema
+      )
+    );
+
+    expect(summary.languages.map((language) => language.name)).toContain("Go");
+    expect(project.testCommands).toContain("go test ./...");
+    expect(project.lintCommands).toContain("go vet ./...");
+    expect(project.buildCommands).toContain("go build ./...");
+  });
+
   it("reuses unchanged summaries with changed mode", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     await createTypeScriptFixture(tempDir);

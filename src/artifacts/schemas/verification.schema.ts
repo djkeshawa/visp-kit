@@ -28,6 +28,21 @@ export const verificationCheckStatusSchema = z.enum([
   "warned"
 ]);
 
+export const verificationCommandRunnerSchema = z
+  .object({
+    executionMode: z.enum(["argv", "shell"]),
+    stdioMode: z.enum(["capture", "inherit"]),
+    outputCaptureMode: z.enum(["captured", "inherited"]),
+    platform: nonEmptyStringSchema,
+    shell: z.string().nullable(),
+    executable: nonEmptyStringSchema,
+    args: z.array(z.string()),
+    pid: z.number().int().positive().nullable(),
+    profile: z.enum(["default", "terminal-compatible"]),
+    profileReason: z.string().nullable()
+  })
+  .strict();
+
 export const verificationCommandResultSchema = z
   .object({
     command: commandStringSchema,
@@ -43,7 +58,8 @@ export const verificationCommandResultSchema = z
     stderrTruncated: z.boolean(),
     skipped: z.boolean(),
     skipReason: z.string().nullable(),
-    timedOut: z.boolean()
+    timedOut: z.boolean(),
+    runner: verificationCommandRunnerSchema.optional()
   })
   .strict();
 
@@ -152,6 +168,7 @@ export const verificationReportSchema = z
 
 export type VerificationMode = z.infer<typeof verificationModeSchema>;
 export type VerificationCheckStatus = z.infer<typeof verificationCheckStatusSchema>;
+export type VerificationCommandRunner = z.infer<typeof verificationCommandRunnerSchema>;
 export type VerificationCommandResult = z.infer<typeof verificationCommandResultSchema>;
 export type ArtifactValidationResult = z.infer<typeof artifactValidationResultSchema>;
 export type ArtifactValidationSection = z.infer<typeof artifactValidationSectionSchema>;

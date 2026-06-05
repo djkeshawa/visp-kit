@@ -43,6 +43,22 @@ const presetRules: Record<Preset, readonly string[]> = {
   "node-api": [
     "Validate API request inputs.",
     "Keep handlers thin and domain logic separate."
+  ],
+  go: [
+    "Keep Go package boundaries clear.",
+    "Handle errors explicitly and consistently."
+  ],
+  java: [
+    "Preserve Java public API contracts.",
+    "Keep service and domain boundaries explicit."
+  ],
+  python: [
+    "Keep Python modules focused and imports clear.",
+    "Preserve typing and validation conventions where present."
+  ],
+  rust: [
+    "Keep Rust ownership and borrowing changes explicit.",
+    "Avoid unsafe code unless explicitly approved."
   ]
 };
 

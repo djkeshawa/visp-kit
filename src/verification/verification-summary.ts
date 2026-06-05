@@ -1,4 +1,7 @@
-import { type VerificationMode } from "../artifacts/schemas/verification.schema.js";
+import {
+  type VerificationCommandRunner,
+  type VerificationMode
+} from "../artifacts/schemas/verification.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 
 export type VerifySummary = {
@@ -24,6 +27,7 @@ export type VerifySummary = {
     readonly durationMs: number;
     readonly skipped: boolean;
     readonly skipReason: string | null;
+    readonly runner?: VerificationCommandRunner;
   }[];
   readonly reportPath: string | null;
   readonly warnings: readonly string[];

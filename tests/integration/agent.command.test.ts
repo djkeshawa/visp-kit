@@ -129,6 +129,32 @@ describe("visp agent command", () => {
     );
   });
 
+  it("bootstraps with auto-detected preset when preset is omitted", async () => {
+    await writeFile(path.join(tempDir, "Cargo.toml"), "[package]\nname='fixture'\n", "utf8");
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "agent",
+      "bootstrap",
+      "codex",
+      tempDir,
+      "--budget",
+      "lean",
+      "--strictness",
+      "strict",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      init?: { preset: string };
+    };
+
+    expect(summary.init?.preset).toBe("rust");
+  });
+
   it("supports bootstrap dry-run without writing files", async () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });

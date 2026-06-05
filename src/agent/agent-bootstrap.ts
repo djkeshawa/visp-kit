@@ -152,7 +152,7 @@ export async function runAgentBootstrap(
     : await runInitWorkflow({
         targetPath,
         agent: "none",
-        preset: options.preset ?? "generic",
+        preset: options.preset,
         budget: options.budget ?? "lean",
         strictness,
         force,

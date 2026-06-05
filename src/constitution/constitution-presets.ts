@@ -57,6 +57,42 @@ export const presetGuidance: Record<Preset, PresetGuidance> = {
       "Separate business logic from the transport layer.",
       "Handle errors consistently."
     ]
+  },
+  go: {
+    title: "Go",
+    guidance: [
+      "Keep package boundaries clear.",
+      "Prefer explicit error handling.",
+      "Avoid broad global state.",
+      "Run Go validation commands for behavior changes."
+    ]
+  },
+  java: {
+    title: "Java",
+    guidance: [
+      "Keep service and domain boundaries clear.",
+      "Preserve public API contracts.",
+      "Handle exceptions consistently.",
+      "Use existing Maven or Gradle conventions."
+    ]
+  },
+  python: {
+    title: "Python",
+    guidance: [
+      "Keep modules focused and import boundaries clear.",
+      "Preserve typing and runtime validation where present.",
+      "Avoid hidden global state.",
+      "Use existing test and lint conventions."
+    ]
+  },
+  rust: {
+    title: "Rust",
+    guidance: [
+      "Keep ownership and borrowing changes explicit.",
+      "Avoid unsafe code unless explicitly approved.",
+      "Use clear error types and propagation.",
+      "Run cargo validation commands for behavior changes."
+    ]
   }
 };
 

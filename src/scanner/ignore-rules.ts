@@ -1,5 +1,7 @@
 import path from "node:path";
 
+import { isDependencyFile } from "../dependencies/dependency-files.js";
+
 export const defaultIgnoredPaths = [
   "node_modules",
   "dist",
@@ -41,14 +43,6 @@ const binaryExtensions = new Set([
   ".wasm"
 ]);
 
-const lockFileNames = new Set([
-  "pnpm-lock.yaml",
-  "package-lock.json",
-  "yarn.lock",
-  "bun.lock",
-  "bun.lockb"
-]);
-
 export function shouldIgnorePath(relativePath: string): boolean {
   const parts = relativePath.split(/[\\/]+/);
   return parts.some((part) => defaultIgnoredPaths.includes(part as never));
@@ -59,17 +53,21 @@ export function isBinaryPath(filePath: string): boolean {
 }
 
 export function isLockFile(relativePath: string): boolean {
-  return lockFileNames.has(path.basename(relativePath));
+  return isDependencyFile(path.basename(relativePath));
 }
 
 export function isTestFilePath(relativePath: string): boolean {
   return /(?:^|[/\\])(?:test|tests|__tests__|spec|specs|e2e|integration)(?:[/\\]|$)/.test(
     relativePath
-  ) || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(relativePath);
+  ) ||
+    /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(relativePath) ||
+    /_test\.go$/.test(relativePath) ||
+    /(?:Test|Tests)\.java$/.test(relativePath) ||
+    /(?:^|[/\\])test_[^/\\]+\.py$/.test(relativePath) ||
+    /_test\.py$/.test(relativePath) ||
+    /_test\.rs$/.test(relativePath);
 }
 
 export function isConfigFilePath(relativePath: string): boolean {
-  return /(?:^|[/\\])(?:package\.json|tsconfig.*\.json|vitest\.config\.[jt]s|vite\.config\.[jt]s|webpack\.config\.[jt]s|eslint\.config\.[jt]s)$/u.test(
-    relativePath
-  );
+  return /(?:^|[/\\])(?:package\.json|tsconfig.*\.json|vitest\.config\.[jt]s|vite\.config\.[jt]s|webpack\.config\.[jt]s|eslint\.config\.[jt]s|go\.mod|pom\.xml|build\.gradle|build\.gradle\.kts|settings\.gradle|settings\.gradle\.kts|pyproject\.toml|requirements(?:-dev)?\.txt|Cargo\.toml)$/u.test(relativePath);
 }

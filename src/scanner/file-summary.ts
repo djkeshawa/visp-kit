@@ -48,6 +48,75 @@ export function extractSymbols(content: string): string[] {
   ]);
 }
 
+export function extractLanguageImports(content: string, language: string): string[] {
+  if (language === "TypeScript" || language === "JavaScript") {
+    return extractImports(content);
+  }
+
+  if (language === "Go") {
+    return unique([
+      ...matches(content, /^\s*import\s+"([^"]+)"/gm),
+      ...matches(content, /^\s*"([^"]+)"$/gm)
+    ]);
+  }
+
+  if (language === "Java" || language === "Kotlin") {
+    return matches(content, /^\s*import\s+(?:static\s+)?([A-Za-z0-9_.*]+);?/gm);
+  }
+
+  if (language === "Python") {
+    return unique([
+      ...matches(content, /^\s*import\s+([A-Za-z_][\w.]*)/gm),
+      ...matches(content, /^\s*from\s+([A-Za-z_][\w.]*)\s+import\s+/gm)
+    ]);
+  }
+
+  if (language === "Rust") {
+    return unique([
+      ...matches(content, /^\s*use\s+([^;]+);/gm),
+      ...matches(content, /^\s*mod\s+([A-Za-z_][\w]*);/gm)
+    ]);
+  }
+
+  return [];
+}
+
+export function extractLanguageSymbols(content: string, language: string): string[] {
+  if (language === "TypeScript" || language === "JavaScript") {
+    return extractSymbols(content);
+  }
+
+  if (language === "Go") {
+    return unique([
+      ...matches(content, /^\s*func\s+(?:\([^)]+\)\s*)?([A-Za-z_][\w]*)\s*\(/gm),
+      ...matches(content, /^\s*type\s+([A-Za-z_][\w]*)\s+(?:struct|interface|=|\w+)/gm)
+    ]);
+  }
+
+  if (language === "Java" || language === "Kotlin") {
+    return unique([
+      ...matches(content, /\b(?:class|interface|enum|record)\s+([A-Za-z_][\w]*)/gm),
+      ...matches(content, /^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[\w<>\[\], ?]+\s+([A-Za-z_][\w]*)\s*\(/gm)
+    ]);
+  }
+
+  if (language === "Python") {
+    return unique([
+      ...matches(content, /^\s*def\s+([A-Za-z_][\w]*)\s*\(/gm),
+      ...matches(content, /^\s*class\s+([A-Za-z_][\w]*)\s*[:(]/gm)
+    ]);
+  }
+
+  if (language === "Rust") {
+    return unique([
+      ...matches(content, /^\s*(?:pub\s+)?fn\s+([A-Za-z_][\w]*)\s*\(/gm),
+      ...matches(content, /^\s*(?:pub\s+)?(?:struct|enum|trait)\s+([A-Za-z_][\w]*)/gm)
+    ]);
+  }
+
+  return [];
+}
+
 function extractComments(content: string): string[] {
   const comments = [
     ...matches(content, /^\s*\/\/\s?(.{4,120})$/gm),
@@ -98,7 +167,6 @@ export async function summarizeFile(
 
   const content = await readFile(path.join(rootPath, file.path), "utf8");
   const lineCount = content.length === 0 ? 0 : content.split(/\r?\n/).length;
-  const isJsTs = file.language === "TypeScript" || file.language === "JavaScript";
 
   return {
     path: file.path,
@@ -106,9 +174,11 @@ export async function summarizeFile(
     language: file.language,
     sizeBytes: file.sizeBytes,
     lineCount,
-    imports: isJsTs ? extractImports(content) : [],
-    exports: isJsTs ? extractExports(content) : [],
-    symbols: isJsTs ? extractSymbols(content) : [],
+    imports: extractLanguageImports(content, file.language),
+    exports: file.language === "TypeScript" || file.language === "JavaScript"
+      ? extractExports(content)
+      : [],
+    symbols: extractLanguageSymbols(content, file.language),
     comments: extractComments(content),
     summaryKind: "deterministic"
   };

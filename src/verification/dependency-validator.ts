@@ -1,16 +1,7 @@
 import { type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type DependencyValidationSection } from "../artifacts/schemas/verification.schema.js";
-
-const dependencyFiles = new Set([
-  "package.json",
-  "package-lock.json",
-  "pnpm-lock.yaml",
-  "yarn.lock",
-  "bun.lock",
-  "bun.lockb",
-  "npm-shrinkwrap.json"
-]);
+import { dependencyFiles, isDependencyFile } from "../dependencies/dependency-files.js";
 
 function normalize(values: readonly string[] | undefined): readonly string[] {
   return (values ?? []).map((value) => value.replaceAll("\\", "/"));
@@ -27,7 +18,7 @@ function taskApprovesDependencies(task: Task | undefined): boolean {
 
   return (
     [...dependencyFiles].some((file) => scoped.has(file)) ||
-    /dependency|package|lockfile|install/.test(text)
+    /dependency|package|manifest|lockfile|install/.test(text)
   );
 }
 
@@ -44,7 +35,7 @@ export function validateDependencies(input: {
   readonly plan?: PlanDraftArtifact;
 }): DependencyValidationSection {
   const changedDependencyFiles = normalize(input.changedFiles)
-    .filter((file) => dependencyFiles.has(file))
+    .filter((file) => isDependencyFile(file))
     .sort();
   const approvedByTaskScope = taskApprovesDependencies(input.task);
   const approvedByPlan = planApprovesDependencies(input.plan);

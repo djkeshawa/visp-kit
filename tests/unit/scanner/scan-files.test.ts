@@ -34,4 +34,25 @@ describe("file scanner", () => {
     expect(files[0].isTestFile).toBe(true);
     expect(files[1].language).toBe("TypeScript");
   });
+
+  it("marks core language files and tests as source files", async () => {
+    await mkdir(path.join(tempDir, "src", "main", "java"), { recursive: true });
+    await mkdir(path.join(tempDir, "tests"), { recursive: true });
+    await writeFile(path.join(tempDir, "main.go"), "package main\n");
+    await writeFile(path.join(tempDir, "main_test.go"), "package main\n");
+    await writeFile(path.join(tempDir, "src", "main", "java", "App.java"), "class App {}\n");
+    await writeFile(path.join(tempDir, "tests", "test_app.py"), "def test_app(): pass\n");
+    await writeFile(path.join(tempDir, "lib.rs"), "pub fn run() {}\n");
+
+    const files = await scanFiles(tempDir, "2026-01-01T00:00:00.000Z");
+    const byPath = new Map(files.map((file) => [file.path, file]));
+
+    expect(byPath.get("main.go")?.language).toBe("Go");
+    expect(byPath.get("main.go")?.isSourceFile).toBe(true);
+    expect(byPath.get("main_test.go")?.isTestFile).toBe(true);
+    expect(byPath.get("src/main/java/App.java")?.language).toBe("Java");
+    expect(byPath.get("tests/test_app.py")?.isTestFile).toBe(true);
+    expect(byPath.get("lib.rs")?.language).toBe("Rust");
+    expect(byPath.get("lib.rs")?.isSourceFile).toBe(true);
+  });
 });
