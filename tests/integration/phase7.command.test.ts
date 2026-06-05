@@ -115,6 +115,9 @@ describe("phase 7 template commands", () => {
     expect(await readFile(path.join(featureDir, "traceability.json"), "utf8")).toContain(
       "T001"
     );
+    expect(await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8")).toContain(
+      "# Visp Budget Report"
+    );
   });
 
   it("fails clearly when .visp or active feature is missing", async () => {
@@ -164,6 +167,56 @@ describe("phase 7 template commands", () => {
         )
       )
     ).toBe(true);
+  });
+
+  it("records clarification answers through the CLI", async () => {
+    await initializedFeature(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "clarify", tempDir]);
+    output.length = 0;
+    await program.parseAsync([
+      "node",
+      "visp",
+      "clarify",
+      "answer",
+      "CQ001",
+      tempDir,
+      "--answer",
+      "Use the existing note model and keep pinning behavior task-scoped.",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.at(-1) ?? "{}") as {
+      success: boolean;
+      artifactStatus: string;
+      questionId: string;
+      updatedFiles: string[];
+    };
+    const featureDir = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning"
+    );
+    const artifact = JSON.parse(
+      await readFile(path.join(featureDir, "clarifications.json"), "utf8")
+    ) as {
+      status: string;
+      questions: Array<{ id: string; status: string; answer: string }>;
+    };
+
+    expect(summary.success).toBe(true);
+    expect(summary.artifactStatus).toBe("ready");
+    expect(summary.questionId).toBe("CQ001");
+    expect(summary.updatedFiles).toContain(".visp/features/001-add-note-pinning/clarifications.json");
+    expect(artifact.status).toBe("ready");
+    expect(artifact.questions[0]?.status).toBe("answered");
+    expect(artifact.questions[0]?.answer).toContain("existing note model");
+    expect(await readFile(path.join(featureDir, "clarifications.md"), "utf8")).toContain(
+      "existing note model"
+    );
   });
 
   it("auto-normalizes common AI-generated spec JSON mistakes", async () => {

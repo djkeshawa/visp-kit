@@ -129,29 +129,32 @@ describe("runInitWorkflow", () => {
 
     expect(summary.createdFiles).toContain("AGENTS.md");
     expect(summary.createdFiles).toContain(
-      ".agents/skills/visp-orchestrator/SKILL.md"
+      ".agents/skills/visp-feature/SKILL.md"
     );
     expect(summary.createdFiles).toContain(
-      ".agents/skills/visp-reconcile/SKILL.md"
+      ".agents/skills/visp-pr/SKILL.md"
     );
+    expect(summary.createdFiles).toContain(".visp/agent/installed-targets.json");
     expect(await exists(path.join(tempDir, ".agents", "skills"))).toBe(true);
     expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
       "The user prompt is raw intent only"
     );
     expect(
       await readFile(
-        path.join(tempDir, ".agents", "skills", "visp-implement-task", "SKILL.md"),
+        path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md"),
         "utf8"
       )
     ).toContain("visp gate");
   });
 
-  it("creates generic agent guidance without Codex skills", async () => {
+  it("creates generic agent guidance and portable prompts without Codex skills", async () => {
     const summary = expectOk(
       await runInitWorkflow({ targetPath: tempDir, agent: "generic" })
     );
 
-    expect(summary.createdFiles).toContain(".visp/memory/agent-guidance.md");
+    expect(summary.createdFiles).toContain("AGENTS.md");
+    expect(summary.createdFiles).toContain(".visp/prompts/agent-feature.prompt.md");
+    expect(summary.createdFiles).toContain(".visp/prompts/agent-task.prompt.md");
     expect(await exists(path.join(tempDir, ".agents"))).toBe(false);
   });
 
@@ -227,7 +230,7 @@ describe("runInitWorkflow", () => {
 
     expect(summary.overwrittenFiles).toContain("AGENTS.md");
     expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
-      "Guidance for Codex"
+      "Visp Kit Agent Guidance"
     );
   });
 

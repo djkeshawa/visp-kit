@@ -21,6 +21,10 @@ export function policyArtifactPath(rootPath: string): string {
   return joinPath(vispDir(rootPath), "policy.json");
 }
 
+export function overridesArtifactPath(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "overrides.json");
+}
+
 export function memoryArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "memory");
 }
@@ -95,6 +99,46 @@ export function doctorReportArtifactPath(rootPath: string): string {
 
 export function gateReportArtifactPath(rootPath: string): string {
   return joinPath(reportsArtifactDir(rootPath), "gate-report.md");
+}
+
+export function evaluationReportArtifactPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "evaluation-report.json");
+}
+
+export function evaluationReportMarkdownPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "evaluation-report.md");
+}
+
+export function runsArtifactDir(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "runs");
+}
+
+export function runIndexArtifactPath(rootPath: string): string {
+  return joinPath(runsArtifactDir(rootPath), "index.json");
+}
+
+export function runArtifactDir(rootPath: string, runId: string): string {
+  return joinPath(runsArtifactDir(rootPath), runId);
+}
+
+export function runArtifactPath(rootPath: string, runId: string): string {
+  return joinPath(runArtifactDir(rootPath, runId), "run.json");
+}
+
+export function runMarkdownPath(rootPath: string, runId: string): string {
+  return joinPath(runArtifactDir(rootPath, runId), "run.md");
+}
+
+export function runEventsPath(rootPath: string, runId: string): string {
+  return joinPath(runArtifactDir(rootPath, runId), "events.jsonl");
+}
+
+export function workflowManifestArtifactPath(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "workflow.json");
+}
+
+export function presetsArtifactDir(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "presets");
 }
 
 export function featuresArtifactDir(rootPath: string): string {
@@ -213,6 +257,14 @@ export function contextPromptPath(
   taskId: string
 ): string {
   return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.prompt.md`);
+}
+
+export function contextChecklistPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.implementation-checklist.md`);
 }
 
 export function verificationArtifactPath(
@@ -361,6 +413,20 @@ export function traceabilityArtifactPath(
   featureKey: string
 ): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "traceability.json");
+}
+
+export function featureTimelineArtifactPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "timeline.json");
+}
+
+export function featureTimelineMarkdownPath(
+  rootPath: string,
+  featureKey: string
+): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "timeline.md");
 }
 
 export function budgetArtifactPath(rootPath: string): string {

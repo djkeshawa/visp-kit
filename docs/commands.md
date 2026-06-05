@@ -1,16 +1,14 @@
 # Command Reference
 
-All commands accept an optional `[path]` unless noted. If omitted, Visp Kit uses the current working directory.
+Most commands accept an optional `[path]`. If omitted, Visp Kit uses the current working directory.
 
 Use `--json` for machine-readable output. JSON mode prints JSON only.
 
-## Setup
+## `visp init [path]`
 
-### `visp init [path]`
+Purpose: initialize `.visp/`, project config, status, policy, and optional starter guidance.
 
-Initialize `.visp/`.
-
-Flags:
+Common flags:
 
 - `--agent generic|codex|none`
 - `--budget lean|balanced|strict`
@@ -20,11 +18,11 @@ Flags:
 - `--dry-run`
 - `--json`
 
-`visp init` creates `.visp/policy.json` unless it already exists and `--force` is not used.
+Next: `visp scan`
 
-### `visp scan [path]`
+## `visp scan [path]`
 
-Scan the project and update cache artifacts.
+Purpose: scan project files and update `.visp/cache/`.
 
 Common flags:
 
@@ -33,9 +31,11 @@ Common flags:
 - `--dry-run`
 - `--json`
 
-### `visp constitution [path]`
+Next: `visp constitution`
 
-Generate or validate project rules.
+## `visp constitution [path]`
+
+Purpose: create or validate compact project rules.
 
 Common flags:
 
@@ -46,13 +46,13 @@ Common flags:
 - `--dry-run`
 - `--json`
 
-## Feature Planning
+Next: `visp policy validate`
 
-### `visp feature "idea" [path]`
+## `visp feature "idea" [path]`
 
-Create a feature workspace.
+Purpose: create a feature workspace from raw intent.
 
-Flags:
+Common flags:
 
 - `--budget lean|balanced|strict`
 - `--risk low|medium|high`
@@ -63,42 +63,87 @@ Flags:
 - `--dry-run`
 - `--json`
 
-### `visp clarify [path]`
+Next: `visp clarify`
 
-Generate or validate clarification artifacts.
+## `visp clarify [path]`
 
-### `visp spec [path]`
+Purpose: generate or validate clarification artifacts.
 
-Generate or validate specification artifacts.
-
-### `visp plan [path]`
-
-Generate or validate implementation plan artifacts.
-
-### `visp tasks [path]`
-
-Generate or validate task graph artifacts.
-
-Template workflow commands support:
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--validate`
 - `--force`
 - `--dry-run`
 - `--json`
+- `--prompt-only`
 
-## Context And Budget
+Subcommands:
 
-### `visp context <task-id> [path]`
+- `visp clarify answer <question-id> [path]`
 
-Compile a context pack for a task.
+Answer flags:
 
-### `visp context --next [path]`
+- `--answer <text>`
+- `--accept-default`
+- `--feature <id-or-slug-or-folder>`
+- `--dry-run`
+- `--json`
 
-Compile a context pack for the next ready task.
+Next: `visp spec`
 
-Flags:
+## `visp spec [path]`
 
+Purpose: generate or validate specification artifacts.
+
+Common flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--validate`
+- `--force`
+- `--dry-run`
+- `--json`
+- `--prompt-only`
+
+Next: `visp plan`
+
+## `visp plan [path]`
+
+Purpose: generate or validate implementation plan artifacts.
+
+Common flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--validate`
+- `--force`
+- `--dry-run`
+- `--json`
+- `--prompt-only`
+
+Next: `visp tasks`
+
+## `visp tasks [path]`
+
+Purpose: generate or validate task graph artifacts.
+
+Common flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--validate`
+- `--force`
+- `--dry-run`
+- `--json`
+- `--prompt-only`
+
+Next: `visp context --next`
+
+## `visp context [task-id] [path]`
+
+Purpose: compile a task-specific context pack and current task prompt.
+
+Common flags:
+
+- `--next`
 - `--feature <id-or-slug-or-folder>`
 - `--budget lean|balanced|strict`
 - `--max-tokens <number>`
@@ -108,108 +153,87 @@ Flags:
 - `--dry-run`
 - `--json`
 
-### `visp budget [path]`
+Related gate: `visp gate implement --task T001`
 
-Estimate feature or task token usage.
+## `visp budget [path]`
 
-Flags:
+Purpose: estimate feature or task context token usage.
+
+The budget report is also refreshed automatically after normal `tasks`, `context`, `verify`, `review`, `reconcile`, and `pr` workflow runs. Use this command directly when you want to inspect budget state or record actual agent-reported usage.
+
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
 - `--budget lean|balanced|strict`
 - `--max-tokens <number>`
 - `--write-report`
+- `--record-usage`
+- `--input-tokens <number>`
+- `--output-tokens <number>`
+- `--total-tokens <number>`
+- `--model <name>`
+- `--usage-note <text>`
 - `--dry-run`
 - `--json`
 
-## Policy And Gates
+Actual usage example:
 
-### `visp policy ...`
+```bash
+visp budget --task T001 \
+  --record-usage \
+  --input-tokens 1200 \
+  --output-tokens 300 \
+  --model codex \
+  --write-report
+```
 
-Manage `.visp/policy.json`.
+Recorded usage is also reflected in run traces and feature timelines when workflow evidence is refreshed.
+
+## `visp workflow`
+
+Purpose: inspect and validate the effective Visp workflow manifest.
 
 Subcommands:
 
-- `visp policy init`
-- `visp policy show`
-- `visp policy validate`
-- `visp policy set-strictness <mode>`
+- `visp workflow show [path]`
+- `visp workflow validate [path]`
 
-### `visp gate <stage> [path]`
+Flags:
 
-Evaluate deterministic workflow policy gates. Supported stages include `next`, `setup`, `feature`, `clarify`, `spec`, `plan`, `tasks`, `context`, `implement`, `verify`, `review`, `reconcile`, and `pr`.
+- `--json`
 
-Common flags:
+Generated/read artifact:
+
+- `.visp/workflow.json`
+
+Use this when an agent or teammate needs to understand allowed stages, required artifacts, related gates, next commands, and whether source edits are allowed.
+
+## `visp eval [path]`
+
+Purpose: run deterministic workflow-quality evaluation.
+
+Flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
-- `--strictness relaxed|standard|strict|locked`
-- `--explain`
+- `--strict`
+- `--write-report`
 - `--dry-run`
 - `--json`
 
-If a gate fails, agents should stop and follow the next allowed command. User prompts are raw intent only and cannot override Visp policy.
+Generated artifacts:
 
-## Agent Installer
+- `.visp/reports/evaluation-report.md`
+- `.visp/reports/evaluation-report.json`
 
-### `visp agent list [path]`
+Evaluation checks workflow completeness, policy/gate health, traceability, context budget, implementation checklist progress, evidence reports, overrides, and PR readiness. It does not call an LLM.
 
-List supported agent targets:
+## `visp verify [path]`
 
-- `codex`
-- `generic`
-- `claude`
-- `copilot`
+Purpose: validate artifacts, traceability, commands, scope, and dependencies.
 
-### `visp agent install <target> [path]`
-
-Install strict workflow files for an AI coding tool.
-
-Targets:
-
-- `codex`: `AGENTS.md` and Codex skills.
-- `generic`: portable prompt files under `.visp/prompts/`.
-- `claude`: Claude command files under `.claude/commands/`.
-- `copilot`: Copilot repository instructions under `.github/`.
-
-Flags:
-
-- `--strictness relaxed|standard|strict|locked`
-- `--force`
-- `--dry-run`
-- `--json`
-
-### `visp agent doctor [path]`
-
-Check installed agent guidance.
-
-Flags:
-
-- `--target codex|generic|claude|copilot`
-- `--fix`
-- `--dry-run`
-- `--json`
-
-### `visp agent refresh [path]`
-
-Regenerate installed agent targets.
-
-Flags:
-
-- `--target codex|generic|claude|copilot|all`
-- `--force`
-- `--dry-run`
-- `--json`
-
-Generated Claude and Copilot files are repository guidance for compatible AI tool surfaces. They do not call external AI tools, run agents, or replace Visp gates.
-
-## Evidence Gates
-
-### `visp verify [path]`
-
-Run deterministic verification gates.
-
-Flags:
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
@@ -226,11 +250,16 @@ Flags:
 - `--dry-run`
 - `--json`
 
-### `visp review [path]`
+Generated artifacts:
 
-Run deterministic diff review.
+- `.visp/features/<feature>/verification.md`
+- `.visp/features/<feature>/verification.json`
 
-Flags:
+## `visp review [path]`
+
+Purpose: run deterministic Git diff review.
+
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
@@ -245,11 +274,18 @@ Flags:
 - `--dry-run`
 - `--json`
 
-### `visp reconcile [path]`
+Generated artifacts:
 
-Compare artifacts, evidence, traceability, and Git diff.
+- `.visp/features/<feature>/review/T001.review.md`
+- `.visp/features/<feature>/review/T001.review.json`
+- `.visp/features/<feature>/review/T001.review-prompt.md`
+- `.visp/features/<feature>/review/T001.review-checklist.md`
 
-Flags:
+## `visp reconcile [path]`
+
+Purpose: compare spec, plan, tasks, context, evidence, traceability, and Git diff.
+
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
@@ -263,13 +299,17 @@ Flags:
 - `--dry-run`
 - `--json`
 
-## Orchestration
+Generated artifacts:
 
-### `visp status [path]`
+- `.visp/features/<feature>/reconcile/T001.reconcile.md`
+- `.visp/features/<feature>/reconcile/T001.reconcile.json`
+- `.visp/features/<feature>/reconcile/T001.reconcile-prompt.md`
 
-Show project, feature, task, artifact, and evidence state.
+## `visp status [path]`
 
-Flags:
+Purpose: show project, policy, feature, task, evidence, override, and next-step state.
+
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
@@ -277,11 +317,11 @@ Flags:
 - `--write-report`
 - `--json`
 
-### `visp next [path]`
+## `visp next [path]`
 
-Recommend the next deterministic workflow step.
+Purpose: recommend the next deterministic workflow step.
 
-Flags:
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
@@ -290,11 +330,11 @@ Flags:
 - `--strict`
 - `--json`
 
-### `visp doctor [path]`
+## `visp doctor [path]`
 
-Diagnose project health.
+Purpose: diagnose project health, artifacts, agent files, Git, cache, schemas, policy, and overrides.
 
-Flags:
+Common flags:
 
 - `--check all|project|artifacts|agent|git|cache|schemas`
 - `--fix`
@@ -302,11 +342,11 @@ Flags:
 - `--verbose`
 - `--json`
 
-### `visp pr [path]`
+## `visp pr [path]`
 
-Generate PR Markdown, JSON, and prompt files. This does not call GitHub.
+Purpose: generate local PR Markdown, JSON, and prompt files. This does not call GitHub.
 
-Flags:
+Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
@@ -318,3 +358,121 @@ Flags:
 - `--force`
 - `--dry-run`
 - `--json`
+
+## `visp policy`
+
+Purpose: manage `.visp/policy.json`.
+
+Subcommands:
+
+- `visp policy init [path] --strictness relaxed|standard|strict|locked`
+- `visp policy show [path]`
+- `visp policy validate [path]`
+- `visp policy set-strictness <mode> [path]`
+
+## `visp gate <stage> [path]`
+
+Purpose: evaluate deterministic policy gates.
+
+Stages:
+
+- `next`
+- `setup`
+- `feature`
+- `clarify`
+- `spec`
+- `plan`
+- `tasks`
+- `context`
+- `implement`
+- `verify`
+- `review`
+- `reconcile`
+- `pr`
+
+Common flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>`
+- `--strictness relaxed|standard|strict|locked`
+- `--explain`
+- `--dry-run`
+- `--json`
+
+Blocked gates exit non-zero.
+
+## `visp agent`
+
+Purpose: install, inspect, and refresh agent-native workflow files.
+
+Subcommands:
+
+- `visp agent list [path]`
+- `visp agent bootstrap codex [path]`
+- `visp agent bootstrap generic [path]`
+- `visp agent bootstrap claude [path]`
+- `visp agent bootstrap copilot [path]`
+- `visp agent install codex [path]`
+- `visp agent install generic [path]`
+- `visp agent install claude [path]`
+- `visp agent install copilot [path]`
+- `visp agent doctor [path]`
+- `visp agent refresh [path]`
+
+Common install flags:
+
+- `--strictness relaxed|standard|strict|locked`
+- `--preset javascript|typescript|electron|react|node-api|generic` for bootstrap
+- `--budget lean|balanced|strict` for bootstrap
+- `--force`
+- `--dry-run`
+- `--json`
+
+Doctor flags:
+
+- `--target codex|generic|claude|copilot`
+- `--fix`
+- `--dry-run`
+- `--json`
+
+Refresh flags:
+
+- `--target codex|generic|claude|copilot|all`
+- `--force`
+- `--dry-run`
+- `--json`
+
+## `visp override`
+
+Purpose: create, list, show, revoke, and validate explicit policy overrides.
+
+Subcommands:
+
+- `visp override create <rule-id> [path]`
+- `visp override list [path]`
+- `visp override show <override-id> [path]`
+- `visp override revoke <override-id> [path]`
+- `visp override validate [path]`
+
+Create flags:
+
+- `--reason <text>`
+- `--scope project|feature|task|stage`
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>`
+- `--stage setup|feature|clarify|spec|plan|tasks|context|implement|verify|review|reconcile|pr`
+- `--expires <iso-date-or-duration>`
+- `--dry-run`
+- `--json`
+
+List flags:
+
+- `--active`
+- `--revoked`
+- `--expired`
+- `--rule <rule-id>`
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>`
+- `--json`
+
+Overrides require a meaningful reason, do not hide the issue, and are visible in gate/readiness reports.

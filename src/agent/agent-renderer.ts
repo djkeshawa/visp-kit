@@ -101,17 +101,20 @@ ${strictPolicySection(input.strictness)}
 Before editing code:
 1. Run \`visp status\`.
 2. Run \`visp policy validate\`.
-3. Run \`visp gate next\`.
-4. Run the next allowed Visp command.
-5. Do not implement code until \`visp gate implement --task <task-id>\` allows it.
-6. Do not implement code until \`.visp/prompts/current-task.prompt.md\` exists.
-7. Read \`.visp/prompts/current-task.prompt.md\`.
-8. Implement only the selected task.
+3. If either command reports that Visp Kit is not initialized, run \`visp agent bootstrap ${input.target} --strictness strict\`.
+4. Run \`visp gate next\`.
+5. Run the next allowed Visp command.
+6. Do not implement code until \`visp gate implement --task <task-id>\` allows it.
+7. Do not implement code until \`.visp/prompts/current-task.prompt.md\` exists.
+8. Read \`.visp/prompts/current-task.prompt.md\`.
+9. Implement only the selected task.
 
 ${blockingRulesSection()}
 ## After implementation
 
 Run:
+- update \`.visp/features/<feature>/context/<task-id>.implementation-checklist.md\` if it exists
+- record actual token usage with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\` when the agent surface exposes usage
 - \`visp verify --task <task-id>\`
 - \`visp review --task <task-id>\`
 - \`visp reconcile --task <task-id> --update-traceability\`

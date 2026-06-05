@@ -1,11 +1,16 @@
 import path from "node:path";
 
 import {
+  evaluationReportArtifactPath,
   gateReportArtifactPath,
   policyArtifactPath,
+  runIndexArtifactPath,
   statusReportArtifactPath
 } from "../artifacts/artifact-paths.js";
 import { type GateBlockedCommand } from "../artifacts/schemas/gate.schema.js";
+import { readArtifact } from "../artifacts/artifact-reader.js";
+import { evaluationReportSchema } from "../artifacts/schemas/evaluation.schema.js";
+import { runIndexSchema } from "../artifacts/schemas/run.schema.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { err, ok, type Result } from "../core/result.js";
@@ -19,6 +24,8 @@ import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { relativePath } from "../core/paths.js";
 import { type CommandRunner } from "../core/command-runner.js";
 import { loadEffectivePolicy } from "../policy/policy-loader.js";
+import { overrideExpired } from "../overrides/override-expiry.js";
+import { readOverrideStore } from "../overrides/override-store.js";
 import { runNextWorkflow } from "./next.workflow.js";
 
 export type StatusWorkflowOptions = {
@@ -69,6 +76,9 @@ export type StatusSummary = {
   readonly policyStatus: "valid" | "missing" | "invalid";
   readonly strictnessMode: string;
   readonly latestGate: string;
+  readonly latestRun: string;
+  readonly evaluation: string;
+  readonly activeOverrideCount: number;
   readonly nextAllowedCommand: string;
   readonly implementationAllowed: boolean;
   readonly prAllowed: boolean;
@@ -85,6 +95,10 @@ function summaryFromState(input: {
   readonly policyStatus: StatusSummary["policyStatus"];
   readonly strictnessMode: string;
   readonly latestGate: string;
+  readonly latestRun: string;
+  readonly evaluation: string;
+  readonly activeOverrideCount: number;
+  readonly overrideWarnings?: readonly string[];
 }): StatusSummary {
   const state = input.state;
 
@@ -129,11 +143,14 @@ function summaryFromState(input: {
     policyStatus: input.policyStatus,
     strictnessMode: input.strictnessMode,
     latestGate: input.latestGate,
+    latestRun: input.latestRun,
+    evaluation: input.evaluation,
+    activeOverrideCount: input.activeOverrideCount,
     nextAllowedCommand: input.next.nextAllowedCommand ?? input.next.nextCommand,
     implementationAllowed: input.next.implementationAllowed ?? false,
     prAllowed: input.next.prAllowed ?? false,
     blockedCommands: input.next.blockedCommands ?? [],
-    warnings: [...new Set([...state.warnings, ...input.next.warnings])],
+    warnings: [...new Set([...state.warnings, ...input.next.warnings, ...(input.overrideWarnings ?? [])])],
     nextCommand: input.next.nextCommand,
     reportPath: input.reportPath
   };
@@ -170,6 +187,56 @@ async function latestGateSummary(targetPath: string): Promise<string> {
   return exists.ok && exists.value ? "gate report available" : "missing";
 }
 
+async function latestRunSummary(targetPath: string): Promise<string> {
+  const exists = await pathExists(runIndexArtifactPath(targetPath));
+
+  if (!exists.ok || !exists.value) return "missing";
+
+  const index = await readArtifact(runIndexArtifactPath(targetPath), runIndexSchema, {
+    artifactName: "run index"
+  });
+
+  if (!index.ok || index.value.latestRunId === null) return "missing";
+  const latest = index.value.runs.find((run) => run.id === index.value.latestRunId);
+  return latest === undefined ? index.value.latestRunId : `${latest.id} ${latest.command} ${latest.result}`;
+}
+
+async function evaluationSummary(targetPath: string): Promise<string> {
+  const exists = await pathExists(evaluationReportArtifactPath(targetPath));
+
+  if (!exists.ok || !exists.value) return "missing";
+
+  const report = await readArtifact(evaluationReportArtifactPath(targetPath), evaluationReportSchema, {
+    artifactName: "evaluation report"
+  });
+
+  if (!report.ok) return "invalid";
+  return report.value.result;
+}
+
+async function activeOverrideCount(targetPath: string): Promise<{
+  readonly count: number;
+  readonly warnings: readonly string[];
+}> {
+  const now = new Date().toISOString();
+  const store = await readOverrideStore(targetPath);
+
+  if (!store.ok) {
+    return {
+      count: 0,
+      warnings: [`Overrides unavailable: ${store.error.message}`]
+    };
+  }
+
+  return {
+    count: store.value.artifact.overrides.filter((override) =>
+      override.status === "active" &&
+        !overrideExpired({ expiresAt: override.expiresAt, now })
+    ).length,
+    warnings: []
+  };
+}
+
 export async function runStatusWorkflow(
   options: StatusWorkflowOptions = {}
 ): Promise<Result<StatusSummary, VispError>> {
@@ -194,6 +261,9 @@ export async function runStatusWorkflow(
 
   const policy = await loadPolicySummary(state.value.targetPath);
   const latestGate = await latestGateSummary(state.value.targetPath);
+  const latestRun = await latestRunSummary(state.value.targetPath);
+  const evaluation = await evaluationSummary(state.value.targetPath);
+  const overrides = await activeOverrideCount(state.value.targetPath);
   let reportPath: string | null = null;
 
   if (options.writeReport) {
@@ -208,6 +278,10 @@ export async function runStatusWorkflow(
         policyStatus: policy.status,
         strictnessMode: policy.strictnessMode,
         latestGate,
+        latestRun,
+        evaluation,
+        activeOverrideCount: overrides.count,
+        overrideWarnings: overrides.warnings,
         blockedCommands: next.value.blockedCommands ?? []
       })
     );
@@ -222,7 +296,11 @@ export async function runStatusWorkflow(
     reportPath,
     policyStatus: policy.status,
     strictnessMode: policy.strictnessMode,
-    latestGate
+    latestGate,
+    latestRun,
+    evaluation,
+    activeOverrideCount: overrides.count,
+    overrideWarnings: overrides.warnings
   }));
 }
 
@@ -247,6 +325,9 @@ export function formatStatusSummary(
     `  Strictness: ${summary.strictnessMode}`,
     `  Policy: ${summary.policyStatus}`,
     `  Latest gate: ${summary.latestGate}`,
+    `  Latest run: ${summary.latestRun}`,
+    `  Evaluation: ${summary.evaluation}`,
+    `  Active overrides: ${summary.activeOverrideCount}`,
     `  Implementation allowed: ${summary.implementationAllowed ? "yes" : "no"}`,
     `  PR allowed: ${summary.prAllowed ? "yes" : "no"}`,
     "",

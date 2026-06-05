@@ -2,6 +2,7 @@ import { type GateResult } from "../artifacts/schemas/gate.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 
 function resultLabel(result: GateResult): string {
+  if (result.allowed && result.appliedOverrides.length > 0) return "allowed with override";
   return result.allowed ? "allowed" : "blocked";
 }
 
@@ -45,6 +46,24 @@ export function renderGateReport(result: GateResult): string {
         "Recommendation:",
         rule.recommendation,
         ""
+      );
+    }
+  }
+
+  lines.push(
+    "",
+    "## Policy Overrides",
+    "",
+    "| Override | Rule | Scope | Reason | Expires |",
+    "|----------|------|-------|--------|---------|"
+  );
+
+  if (result.appliedOverrides.length === 0) {
+    lines.push("| none |  |  |  |  |");
+  } else {
+    for (const override of result.appliedOverrides) {
+      lines.push(
+        `| ${override.overrideId} | ${override.ruleId} | ${override.scope} | ${override.reason} | ${override.expiresAt ?? "none"} |`
       );
     }
   }
@@ -108,6 +127,16 @@ export function formatGateResult(result: GateResult, options: {
       "",
       "Failed:",
       ...failed.map((rule) => `  ${rule.ruleId}: ${rule.message}`)
+    );
+  }
+
+  if (result.appliedOverrides.length > 0) {
+    lines.push(
+      "",
+      "Overridden:",
+      ...result.appliedOverrides.map((override) =>
+        `  ${override.ruleId} by ${override.overrideId}: ${override.reason}`
+      )
     );
   }
 

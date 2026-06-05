@@ -30,6 +30,9 @@ import {
   gateFailureMessages,
   gateWarningMessages
 } from "../gates/policy-gate-summary.js";
+import { refreshBudgetReport } from "./shared/budget-refresh.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
+import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
 
 export type PrWorkflowOptions = {
   readonly targetPath?: string;
@@ -210,6 +213,64 @@ export async function runPrWorkflow(
     }
   }
 
+  const budgetRefresh = options.promptOnly
+    ? { warnings: [] as readonly string[] }
+    : await refreshBudgetReport({
+        targetPath: state.value.targetPath,
+        feature: feature.key,
+        taskId: options.taskId,
+        dryRun: options.dryRun ?? false,
+        now
+      });
+  const timeline = options.promptOnly
+    ? { writtenFiles: [] as readonly string[], warnings: [] as readonly string[] }
+    : await refreshFeatureTimeline({
+        targetPath: state.value.targetPath,
+        feature: feature.key,
+        taskId: options.taskId,
+        dryRun: options.dryRun ?? false,
+        now
+      });
+  const writtenFiles = [
+    ...(options.dryRun ? [] : [relativePath(state.value.targetPath, promptPath)]),
+    ...(options.dryRun || options.promptOnly
+      ? []
+      : [
+          relativePath(state.value.targetPath, prMdPath),
+          relativePath(state.value.targetPath, prJsonPath)
+        ]),
+    ...("writtenFiles" in budgetRefresh ? budgetRefresh.writtenFiles : []),
+    ...timeline.writtenFiles
+  ];
+  const run = await recordWorkflowRun({
+    targetPath: state.value.targetPath,
+    command: "pr",
+    endedAt: now,
+    feature: {
+      id: feature.id,
+      slug: feature.slug
+    },
+    taskId: options.taskId,
+    success: parsed.data.success,
+    result: parsed.data.success
+      ? parsed.data.warnings.length > 0 ? "warnings" : "passed"
+      : "failed",
+    actions: writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    })),
+    warnings: [...parsed.data.warnings, ...budgetRefresh.warnings, ...timeline.warnings],
+    errors: parsed.data.errors,
+    events: [
+      {
+        type: "evidence_recorded",
+        message: `PR readiness ${parsed.data.success ? "ready" : "blocked"}.`,
+        artifactPath: options.promptOnly ? relativePath(state.value.targetPath, promptPath) : relativePath(state.value.targetPath, prMdPath)
+      }
+    ],
+    dryRun: options.dryRun ?? false
+  });
+
   return ok({
     success: parsed.data.success,
     targetPath: state.value.targetPath,
@@ -232,7 +293,7 @@ export async function runPrWorkflow(
       review: parsed.data.reviewEvidence.status,
       reconcile: parsed.data.reconcileEvidence.status
     },
-    warnings: parsed.data.warnings,
+    warnings: [...new Set([...parsed.data.warnings, ...budgetRefresh.warnings, ...timeline.warnings, ...run.warnings])],
     errors: parsed.data.errors,
     nextCommand: parsed.data.success
       ? "Review pr.md and use it in your pull request."

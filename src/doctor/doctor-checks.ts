@@ -3,6 +3,7 @@ import {
   compactConstitutionArtifactPath,
   contextPackArtifactPath,
   dependencyMapArtifactPath,
+  evaluationReportArtifactPath,
   featureIntentArtifactPath,
   featurePrArtifactPath,
   featureReconcileArtifactPath,
@@ -12,6 +13,7 @@ import {
   fileSummariesArtifactPath,
   memoryArtifactDir,
   moduleMapArtifactPath,
+  overridesArtifactPath,
   planArtifactPath,
   policyArtifactPath,
   promptArtifactPath,
@@ -20,6 +22,8 @@ import {
   projectStatusArtifactPath,
   promptsArtifactDir,
   reportsArtifactDir,
+  runIndexArtifactPath,
+  runsArtifactDir,
   scanMetaArtifactPath,
   specArtifactPath,
   taskGraphArtifactPath,
@@ -27,12 +31,18 @@ import {
   taskReviewArtifactPath,
   testMapArtifactPath,
   traceabilityArtifactPath,
-  verificationArtifactPath
+  verificationArtifactPath,
+  workflowManifestArtifactPath,
+  presetsArtifactDir
 } from "../artifacts/artifact-paths.js";
 import { type ZodTypeAny } from "zod";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { contextPackSchema } from "../artifacts/schemas/context-pack.schema.js";
+import { evaluationReportSchema } from "../artifacts/schemas/evaluation.schema.js";
 import { policyArtifactSchema } from "../artifacts/schemas/policy.schema.js";
+import { overrideArtifactSchema } from "../artifacts/schemas/override.schema.js";
+import { agentCapabilitiesPath } from "../agent/agent-paths.js";
+import { agentCapabilitiesSchema } from "../artifacts/schemas/agent.schema.js";
 import { featureIntentSchema } from "../artifacts/schemas/feature.schema.js";
 import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
 import { prArtifactSchema } from "../artifacts/schemas/pr.schema.js";
@@ -47,9 +57,14 @@ import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { taskGraphArtifactSchema } from "../artifacts/schemas/task.schema.js";
 import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
 import { verificationReportSchema } from "../artifacts/schemas/verification.schema.js";
+import { runIndexSchema } from "../artifacts/schemas/run.schema.js";
+import { workflowManifestSchema } from "../artifacts/schemas/workflow.schema.js";
 import { pathExists, readTextFile } from "../core/file-system.js";
 import { vispDir } from "../core/paths.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
+import { loadEffectivePolicy } from "../policy/policy-loader.js";
+import { readOverrideStore } from "../overrides/override-store.js";
+import { validateOverrideArtifact } from "../overrides/override-validator.js";
 
 export type DoctorCheckName =
   | "project"
@@ -173,7 +188,9 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
     [".visp/memory", memoryArtifactDir(state.targetPath)],
     [".visp/cache", cacheArtifactDir(state.targetPath)],
     [".visp/reports", reportsArtifactDir(state.targetPath)],
-    [".visp/prompts", promptsArtifactDir(state.targetPath)]
+    [".visp/prompts", promptsArtifactDir(state.targetPath)],
+    [".visp/runs", runsArtifactDir(state.targetPath)],
+    [".visp/presets", presetsArtifactDir(state.targetPath)]
   ] as const) {
     if (!(await exists(dirPath))) {
       findings.push(finding({
@@ -203,6 +220,11 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
     [".visp/config.json", projectConfigArtifactPath(state.targetPath), projectConfigSchema],
     [".visp/status.json", projectStatusArtifactPath(state.targetPath), projectStatusSchema],
     [".visp/policy.json", policyArtifactPath(state.targetPath), policyArtifactSchema],
+    [".visp/overrides.json", overridesArtifactPath(state.targetPath), overrideArtifactSchema],
+    [".visp/workflow.json", workflowManifestArtifactPath(state.targetPath), workflowManifestSchema],
+    [".visp/runs/index.json", runIndexArtifactPath(state.targetPath), runIndexSchema],
+    [".visp/reports/evaluation-report.json", evaluationReportArtifactPath(state.targetPath), evaluationReportSchema],
+    [".visp/agent/capabilities.json", agentCapabilitiesPath(state.targetPath), agentCapabilitiesSchema],
     ...(featureKey === undefined ? [] : [
       [`.visp/features/${featureKey}/intent.json`, featureIntentArtifactPath(state.targetPath, featureKey), featureIntentSchema],
       [`.visp/features/${featureKey}/spec.json`, specArtifactPath(state.targetPath, featureKey), specArtifactSchema],
@@ -318,7 +340,7 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
         title: "Codex guidance file missing",
         description: "Neither AGENTS.md nor AGENTS.visp.md exists.",
         file: "AGENTS.md",
-        recommendation: "Run visp init --agent codex or add agent guidance.",
+        recommendation: "Run visp agent bootstrap codex or visp agent install codex.",
         autoFixable: false
       }));
     }
@@ -334,7 +356,7 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
           title: "Codex guidance is missing strict Visp policy language",
           description: "Agent guidance should say that user prompts cannot override Visp policy and that implementation requires visp gate implement.",
           file: agents ? "AGENTS.md" : "AGENTS.visp.md",
-          recommendation: "Run visp init --agent codex --force only if it is safe to refresh generated guidance, or merge AGENTS.visp.md manually.",
+          recommendation: "Run visp agent refresh --target codex --force only if it is safe to refresh generated guidance, or merge AGENTS.visp.md manually.",
           autoFixable: false
         }));
       }
@@ -352,18 +374,18 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
       }));
     }
 
-    const implementSkill = `${state.targetPath}/.agents/skills/visp-implement-task/SKILL.md`;
-    if (await exists(implementSkill)) {
-      const text = await readTextFile(implementSkill);
+    const taskSkill = `${state.targetPath}/.agents/skills/visp-task/SKILL.md`;
+    if (await exists(taskSkill)) {
+      const text = await readTextFile(taskSkill);
 
       if (!text.ok || !text.value.includes("visp gate") || !text.value.includes("raw intent")) {
         findings.push(finding({
           category: "agent",
           severity: "warning",
-          title: "Visp implement skill is missing policy reminders",
-          description: "The generated implement skill should tell agents to obey Visp policy and stop on failed gates.",
-          file: ".agents/skills/visp-implement-task/SKILL.md",
-          recommendation: "Regenerate or manually update the generated Visp skill guidance.",
+          title: "Visp task skill is missing policy reminders",
+          description: "The generated task skill should tell agents to obey Visp policy and stop on failed gates.",
+          file: ".agents/skills/visp-task/SKILL.md",
+          recommendation: "Run visp agent refresh --target codex --force.",
           autoFixable: false
         }));
       }
@@ -414,6 +436,54 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
       recommendation: "Run visp pr again after passing policy gates.",
       autoFixable: false
     }));
+  }
+
+  if (await exists(overridesArtifactPath(state.targetPath))) {
+    const now = new Date().toISOString();
+    const policy = await loadEffectivePolicy({ targetPath: state.targetPath, now });
+    const store = await readOverrideStore(state.targetPath);
+
+    if (!store.ok) {
+      findings.push(finding({
+        category: "artifacts",
+        severity: "error",
+        title: "Overrides artifact is invalid",
+        description: store.error.message,
+        file: ".visp/overrides.json",
+        recommendation: "Repair .visp/overrides.json or revoke invalid overrides.",
+        autoFixable: false
+      }));
+    } else {
+      const validation = validateOverrideArtifact({
+        artifact: store.value.artifact,
+        policy: policy.ok ? policy.value.policy : undefined,
+        now
+      });
+
+      for (const error of validation.errors) {
+        findings.push(finding({
+          category: "artifacts",
+          severity: "error",
+          title: "Invalid policy override",
+          description: error,
+          file: ".visp/overrides.json",
+          recommendation: "Run visp override validate, then fix or revoke the override.",
+          autoFixable: false
+        }));
+      }
+
+      for (const warning of validation.warnings) {
+        findings.push(finding({
+          category: "artifacts",
+          severity: "warning",
+          title: "Policy override needs attention",
+          description: warning,
+          file: ".visp/overrides.json",
+          recommendation: "Run visp override validate or revoke expired overrides.",
+          autoFixable: false
+        }));
+      }
+    }
   }
 
   return result("artifacts", findings);

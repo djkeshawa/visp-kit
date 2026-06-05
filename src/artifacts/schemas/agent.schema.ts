@@ -46,8 +46,32 @@ export const agentWorkflowMapSchema = z
   })
   .strict();
 
+export const agentCapabilitySchema = z
+  .object({
+    target: agentTargetNameSchema,
+    supportsSkillFiles: z.boolean(),
+    supportsCommandFiles: z.boolean(),
+    supportsRepositoryInstructions: z.boolean(),
+    canRunShellExpected: z.boolean(),
+    canEditFilesExpected: z.boolean(),
+    tokenUsageVisibility: z.enum(["manual", "reported", "unknown"]),
+    recommendedWorkflowTriggers: z.array(z.string().min(1)),
+    generatedFiles: z.array(z.string().min(1)),
+    limitations: z.array(z.string())
+  })
+  .strict();
+
+export const agentCapabilitiesSchema = z
+  .object({
+    generatedAt: isoDateTimeSchema,
+    capabilities: z.array(agentCapabilitySchema)
+  })
+  .strict();
+
 export type AgentTargetName = z.infer<typeof agentTargetNameSchema>;
 export type InstalledAgentTarget = z.infer<typeof installedAgentTargetSchema>;
 export type InstalledAgentTargets = z.infer<typeof installedAgentTargetsSchema>;
 export type AgentWorkflowMapItem = z.infer<typeof agentWorkflowMapItemSchema>;
 export type AgentWorkflowMap = z.infer<typeof agentWorkflowMapSchema>;
+export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
+export type AgentCapabilities = z.infer<typeof agentCapabilitiesSchema>;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isoDateTimeSchema } from "./common.schema.js";
+import { isoDateTimeSchema, nonEmptyStringSchema } from "./common.schema.js";
 
 export const strictnessModeSchema = z.enum([
   "relaxed",
@@ -49,7 +49,9 @@ export const policyOverridesSchema = z
   .object({
     allowed: z.boolean(),
     requireReason: z.boolean(),
-    recordInReports: z.boolean()
+    recordInReports: z.boolean(),
+    allowedInLockedMode: z.boolean(),
+    nonOverridableRules: z.array(nonEmptyStringSchema.regex(/^VSP\d{3}$/))
   })
   .strict();
 

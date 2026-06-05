@@ -5,19 +5,28 @@ import {
   type AgentTargetName
 } from "../../artifacts/schemas/agent.schema.js";
 import {
+  budgetModeSchema,
+  presetSchema,
+  type BudgetMode,
+  type Preset
+} from "../../artifacts/schemas/common.schema.js";
+import {
   strictnessModeSchema,
   type StrictnessMode
 } from "../../artifacts/schemas/policy.schema.js";
 import { formatError } from "../../theme/terminal.js";
 import {
   formatAgentDoctor,
+  formatAgentBootstrap,
   formatAgentInstall,
   formatAgentList,
   formatAgentRefresh,
+  runAgentBootstrapWorkflow,
   runAgentDoctorWorkflow,
   runAgentInstallWorkflow,
   runAgentListWorkflow,
   runAgentRefreshWorkflow,
+  type AgentBootstrapWorkflowOptions,
   type AgentDoctorWorkflowOptions,
   type AgentInstallWorkflowOptions,
   type AgentRefreshWorkflowOptions
@@ -26,6 +35,7 @@ import {
 export type AgentCommandDependencies = {
   readonly runAgentList?: typeof runAgentListWorkflow;
   readonly runAgentInstall?: typeof runAgentInstallWorkflow;
+  readonly runAgentBootstrap?: typeof runAgentBootstrapWorkflow;
   readonly runAgentDoctor?: typeof runAgentDoctorWorkflow;
   readonly runAgentRefresh?: typeof runAgentRefreshWorkflow;
   readonly writeOut?: (value: string) => void;
@@ -41,6 +51,11 @@ type AgentInstallOptions = JsonOption & {
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly strictness?: StrictnessMode;
+};
+
+type AgentBootstrapOptions = AgentInstallOptions & {
+  readonly preset?: Preset;
+  readonly budget?: BudgetMode;
 };
 
 type AgentDoctorOptions = JsonOption & {
@@ -91,6 +106,24 @@ function installOptions(
   };
 }
 
+function bootstrapOptions(
+  targetPath: string | undefined,
+  target: AgentTargetName,
+  options: AgentBootstrapOptions,
+  cwd: string | undefined
+): AgentBootstrapWorkflowOptions {
+  return {
+    targetPath,
+    cwd,
+    target,
+    force: options.force ?? false,
+    dryRun: options.dryRun ?? false,
+    strictness: options.strictness,
+    preset: options.preset,
+    budget: options.budget
+  };
+}
+
 function doctorOptions(
   targetPath: string | undefined,
   options: AgentDoctorOptions,
@@ -124,6 +157,7 @@ export function createAgentCommand(
 ): Command {
   const runList = dependencies.runAgentList ?? runAgentListWorkflow;
   const runInstall = dependencies.runAgentInstall ?? runAgentInstallWorkflow;
+  const runBootstrap = dependencies.runAgentBootstrap ?? runAgentBootstrapWorkflow;
   const runDoctor = dependencies.runAgentDoctor ?? runAgentDoctorWorkflow;
   const runRefresh = dependencies.runAgentRefresh ?? runAgentRefreshWorkflow;
   const writeOut =
@@ -147,7 +181,7 @@ export function createAgentCommand(
           message: result.error.message,
           json: options.json,
           writeOut,
-        writeErr
+          writeErr
         });
         return;
       }
@@ -204,6 +238,67 @@ export function createAgentCommand(
         writeOut(options.json
           ? `${JSON.stringify(result.value, null, 2)}\n`
           : formatAgentInstall(result.value));
+      }
+    );
+
+  agent
+    .command("bootstrap")
+    .description("Initialize Visp Kit if needed and install agent-native workflow files.")
+    .argument("<target>", "Target: codex, generic, claude, or copilot.")
+    .argument("[path]", "Target project path.")
+    .option("--force", "Overwrite existing generated files.")
+    .option("--dry-run", "Show what would be created without writing files.")
+    .option("--json", "Print a machine-readable summary.")
+    .addOption(
+      new Option("--strictness <mode>", "Policy strictness mode to save.")
+        .choices(strictnessModeSchema.options)
+        .default("strict")
+    )
+    .addOption(
+      new Option("--preset <preset>", "Project preset to save during init.")
+        .choices(presetSchema.options)
+        .default("generic")
+    )
+    .addOption(
+      new Option("--budget <budget>", "Budget mode to save during init.")
+        .choices(budgetModeSchema.options)
+        .default("lean")
+    )
+    .action(
+      async (
+        targetValue: string,
+        targetPath: string | undefined,
+        options: AgentBootstrapOptions
+      ) => {
+        const target = parseTarget(targetValue);
+
+        if (target === undefined) {
+          writeError({
+            message: "Agent target must be codex, generic, claude, or copilot.",
+            json: options.json,
+            writeOut,
+            writeErr
+          });
+          return;
+        }
+
+        const result = await runBootstrap(
+          bootstrapOptions(targetPath, target, options, dependencies.cwd)
+        );
+
+        if (!result.ok) {
+          writeError({
+            message: result.error.message,
+            json: options.json,
+            writeOut,
+            writeErr
+          });
+          return;
+        }
+
+        writeOut(options.json
+          ? `${JSON.stringify(result.value, null, 2)}\n`
+          : formatAgentBootstrap(result.value));
       }
     );
 

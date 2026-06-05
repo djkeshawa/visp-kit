@@ -101,6 +101,63 @@ describe("visp agent command", () => {
     expect(output.join("")).toContain("Result: passed");
   });
 
+  it("bootstraps a fresh project and installs Codex guidance", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "agent",
+      "bootstrap",
+      "codex",
+      tempDir,
+      "--preset",
+      "typescript",
+      "--budget",
+      "lean",
+      "--strictness",
+      "strict"
+    ]);
+
+    expect(output.join("")).toContain("Visp agent bootstrapped");
+    expect(await exists(path.join(tempDir, ".visp", "project.json"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "policy.json"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-feature", "SKILL.md"))).toBe(true);
+    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
+      "visp agent bootstrap codex"
+    );
+  });
+
+  it("supports bootstrap dry-run without writing files", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "agent",
+      "bootstrap",
+      "codex",
+      tempDir,
+      "--dry-run",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      success: boolean;
+      dryRun: boolean;
+      initialized: boolean;
+      install: { createdFiles: string[] };
+    };
+
+    expect(summary.success).toBe(true);
+    expect(summary.dryRun).toBe(true);
+    expect(summary.initialized).toBe(true);
+    expect(summary.install.createdFiles).toContain(".agents/skills/visp-feature/SKILL.md");
+    expect(await exists(path.join(tempDir, ".visp"))).toBe(false);
+  });
+
   it("installs generic guidance and prompt files with JSON output", async () => {
     await initProject(tempDir);
     const output: string[] = [];

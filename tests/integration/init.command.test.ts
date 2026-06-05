@@ -57,7 +57,7 @@ describe("visp init command", () => {
     expect(await exists(path.join(tempDir, "AGENTS.md"))).toBe(true);
     expect(
       await exists(
-        path.join(tempDir, ".agents", "skills", "visp-implement-task", "SKILL.md")
+        path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md")
       )
     ).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "policy.json"))).toBe(true);

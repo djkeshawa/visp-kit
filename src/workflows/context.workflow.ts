@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import {
+  contextChecklistPath,
   contextPackArtifactPath,
   contextPackMarkdownPath,
   contextPromptPath,
@@ -25,7 +26,10 @@ import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { compileContext } from "../context/context-compiler.js";
-import { renderContextMarkdown } from "../context/context-renderer.js";
+import {
+  renderContextMarkdown,
+  renderImplementationChecklistMarkdown
+} from "../context/context-renderer.js";
 import {
   createContextSummary,
   type ContextSummary
@@ -37,6 +41,9 @@ import {
   gateResultLabel
 } from "../gates/policy-gate-summary.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
+import { refreshBudgetReport } from "./shared/budget-refresh.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
+import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
 import {
   artifactGeneratedFile,
   textGeneratedFile
@@ -257,9 +264,11 @@ export async function runContextWorkflow(
     selected.value.id
   );
   const taskPrompt = contextPromptPath(targetPath, feature.value.key, selected.value.id);
+  const checklist = contextChecklistPath(targetPath, feature.value.key, selected.value.id);
   const currentPrompt = promptArtifactPath(targetPath, "current-task");
   const contextMarkdownDisplayPath = relativePath(targetPath, contextMarkdown);
   const taskPromptDisplayPath = relativePath(targetPath, taskPrompt);
+  const checklistDisplayPath = relativePath(targetPath, checklist);
   const contextFiles = promptOnly
     ? []
     : [
@@ -274,6 +283,17 @@ export async function runContextWorkflow(
           artifactName: "context pack",
           schema: contextPackSchema,
           value: compiled.value.pack
+        }),
+        textGeneratedFile({
+          targetPath,
+          path: checklist,
+          contents: renderImplementationChecklistMarkdown({
+            taskId: selected.value.id,
+            taskTitle: selected.value.title,
+            featureId: feature.value.id,
+            featureSlug: feature.value.slug,
+            generatedAt: now
+          })
         })
       ];
   const written = await writeGeneratedFiles(contextFiles, { force, dryRun });
@@ -301,6 +321,7 @@ export async function runContextWorkflow(
   });
   const taskPromptContents = renderTaskPrompt({
     contextPath: contextMarkdownDisplayPath,
+    checklistPath: promptOnly ? undefined : checklistDisplayPath,
     pack: enrichedPack
   });
   const promptWrite = await writeGeneratedFiles(
@@ -346,6 +367,7 @@ export async function runContextWorkflow(
         contents: renderCurrentTaskPrompt({
           promptPath: taskPromptDisplayPath,
           contextPath: contextMarkdownDisplayPath,
+          checklistPath: promptOnly ? undefined : checklistDisplayPath,
           pack: enrichedPack
         })
       })
@@ -356,6 +378,7 @@ export async function runContextWorkflow(
   if (!current.ok) return current;
 
   const actions: WorkflowFileAction[] = [...written.value, ...promptWrite.value, ...current.value];
+  const budgetRefreshWarnings: string[] = [];
 
   if (!promptOnly) {
     const status = await updateContextStatus({
@@ -371,7 +394,78 @@ export async function runContextWorkflow(
     if (!status.ok) return status;
 
     actions.push(status.value);
+
+    const budgetRefresh = await refreshBudgetReport({
+      targetPath,
+      feature: feature.value.key,
+      taskId: selected.value.id,
+      dryRun,
+      now
+    });
+
+    actions.push(
+      ...budgetRefresh.writtenFiles.map((filePath) => ({
+        path: filePath,
+        action: "updated" as const
+      }))
+    );
+    budgetRefreshWarnings.push(...budgetRefresh.warnings);
+
+    const timeline = await refreshFeatureTimeline({
+      targetPath,
+      feature: feature.value.key,
+      taskId: selected.value.id,
+      dryRun,
+      now
+    });
+
+    actions.push(
+      ...timeline.writtenFiles.map((filePath) => ({
+        path: filePath,
+        action: "updated" as const
+      }))
+    );
+    budgetRefreshWarnings.push(...timeline.warnings);
   }
+
+  const run = await recordWorkflowRun({
+    targetPath,
+    command: "context",
+    endedAt: now,
+    feature: {
+      id: feature.value.id,
+      slug: feature.value.slug
+    },
+    taskId: selected.value.id,
+    success: true,
+    result: [...enrichedPack.warnings, ...budgetRefreshWarnings].length > 0 ? "warnings" : "passed",
+    actions,
+    estimatedTokens: enrichedPack.estimatedTokens.total,
+    warnings: [...new Set([...enrichedPack.warnings, ...budgetRefreshWarnings])],
+    events: [
+      {
+        type: "budget_estimated",
+        message: `Estimated ${enrichedPack.estimatedTokens.total} total tokens for ${selected.value.id}.`,
+        data: {
+          input: enrichedPack.estimatedTokens.input,
+          expectedOutput: enrichedPack.estimatedTokens.expectedOutput,
+          total: enrichedPack.estimatedTokens.total
+        }
+      },
+      {
+        type: "gate_evaluated",
+        message: `Implementation gate ${gate.ok && gate.value.allowed ? "allowed" : "blocked or unavailable"}.`
+      }
+    ],
+    dryRun
+  });
+
+  actions.push(
+    ...run.writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    }))
+  );
 
   return ok(
     createContextSummary({
@@ -394,7 +488,7 @@ export async function runContextWorkflow(
       actions,
       promptOnly,
       dryRun,
-      warnings: enrichedPack.warnings
+      warnings: [...new Set([...enrichedPack.warnings, ...budgetRefreshWarnings, ...run.warnings])]
     })
   );
 }

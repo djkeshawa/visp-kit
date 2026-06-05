@@ -42,6 +42,7 @@ import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
+import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
 import { selectTaskById } from "../context/task-selector.js";
 import { reviewDependencies } from "../review/dependency-review.js";
 import { loadGitDiff } from "../review/diff-loader.js";
@@ -72,7 +73,10 @@ import {
   gateWarningMessages
 } from "../gates/policy-gate-summary.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
+import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
+import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
 
 export type ReviewWorkflowOptions = {
   readonly targetPath?: string;
@@ -603,9 +607,97 @@ export async function runReviewWorkflow(
     if (!statusUpdate.ok) return statusUpdate;
   }
 
+  const extraWarnings: string[] = [];
+  const writtenFiles: string[] = [];
+
+  if (!options.promptOnly && !options.checklistOnly && !dryRun) {
+    writtenFiles.push(paths.reportPathRelative, relativePath(targetPath, paths.reportJsonPath));
+  }
+
+  if (!dryRun && (!options.checklistOnly || options.promptOnly) && (selectedTask !== undefined || options.promptOnly)) {
+    writtenFiles.push(paths.promptPathRelative);
+  }
+
+  if (!dryRun && !options.checklistOnly) {
+    writtenFiles.push(relativePath(targetPath, paths.currentPromptPath));
+  }
+
+  if (!dryRun && (!options.promptOnly || options.checklistOnly) && (selectedTask !== undefined || options.checklistOnly)) {
+    writtenFiles.push(paths.checklistPathRelative);
+  }
+
+  if (!options.promptOnly && !options.checklistOnly) {
+    if (selectedTask !== undefined && parsed.data.result !== "failed") {
+      const checklist = await markImplementationChecklistSteps({
+        targetPath,
+        featureKey: feature.value.key,
+        taskId: selectedTask.id,
+        steps: ["review"],
+        dryRun
+      });
+
+      if (!checklist.ok) return checklist;
+    }
+
+    const budgetRefresh = await refreshBudgetReport({
+      targetPath,
+      feature: feature.value.key,
+      taskId: selectedTask?.id,
+      dryRun,
+      now: endedAt
+    });
+
+    writtenFiles.push(...budgetRefresh.writtenFiles);
+    extraWarnings.push(...budgetRefresh.warnings);
+
+    const timeline = await refreshFeatureTimeline({
+      targetPath,
+      feature: feature.value.key,
+      taskId: selectedTask?.id,
+      dryRun,
+      now: endedAt
+    });
+
+    writtenFiles.push(...timeline.writtenFiles);
+    extraWarnings.push(...timeline.warnings);
+  }
+
+  const run = await recordWorkflowRun({
+    targetPath,
+    command: "review",
+    startedAt,
+    endedAt,
+    feature: {
+      id: feature.value.id,
+      slug: feature.value.slug
+    },
+    taskId: selectedTask?.id,
+    success: parsed.data.success,
+    result: parsed.data.result,
+    actions: writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    })),
+    warnings: [...parsed.data.warnings, ...extraWarnings],
+    errors: parsed.data.errors,
+    events: [
+      {
+        type: "evidence_recorded",
+        message: `Review completed with result ${parsed.data.result}.`,
+        artifactPath: parsed.data.reportPath ?? undefined
+      }
+    ],
+    dryRun
+  });
+
+  extraWarnings.push(...run.warnings);
+
   return ok(
     reviewSummaryFromReport({
-      report: parsed.data,
+      report: {
+        ...parsed.data,
+        warnings: [...new Set([...parsed.data.warnings, ...extraWarnings])]
+      },
       targetPath,
       dryRun
     })

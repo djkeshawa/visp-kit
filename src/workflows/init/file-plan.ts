@@ -3,16 +3,26 @@ import path from "node:path";
 import {
   featuresArtifactDir,
   memoryArtifactDir,
+  presetsArtifactDir,
   policyArtifactPath,
   projectConfigArtifactPath,
   projectProfileArtifactPath,
-  projectStatusArtifactPath
+  projectStatusArtifactPath,
+  runsArtifactDir,
+  workflowManifestArtifactPath
 } from "../../artifacts/artifact-paths.js";
 import {
   type AgentMode,
   type BudgetMode,
   type Preset
 } from "../../artifacts/schemas/common.schema.js";
+import {
+  agentCapabilitiesSchema,
+  agentWorkflowMapSchema,
+  installedAgentTargetsSchema,
+  type AgentTargetName,
+  type InstalledAgentTargets
+} from "../../artifacts/schemas/agent.schema.js";
 import {
   projectConfigSchema,
   projectProfileSchema,
@@ -27,9 +37,21 @@ import { pathExists } from "../../core/file-system.js";
 import { ok, type Result } from "../../core/result.js";
 import { createDefaultPolicy } from "../../policy/policy-defaults.js";
 import {
-  codexAgentsMarkdown,
-  codexSkillFiles
-} from "./codex-integration.js";
+  agentCapabilitiesPath,
+  agentGuidePath,
+  agentsMarkdownPath,
+  installedTargetsPath,
+  workflowMapPath
+} from "../../agent/agent-paths.js";
+import {
+  buildWorkflowMapForTargets,
+  renderAgentGuide
+} from "../../agent/agent-renderer.js";
+import { buildAgentCapabilities } from "../../agent/agent-capabilities.js";
+import { codexTargetFiles } from "../../agent/targets/codex.js";
+import { genericTargetFiles } from "../../agent/targets/generic.js";
+import { workflowManifestSchema } from "../../artifacts/schemas/workflow.schema.js";
+import { defaultWorkflowManifest } from "../../workflow-manifest/default-workflow.js";
 import {
   createDefaultProjectConfig,
   createDefaultProjectProfile,
@@ -38,7 +60,6 @@ import {
 import {
   compactConstitutionMarkdown,
   constitutionMarkdown,
-  genericAgentGuidanceMarkdown,
   placeholderMemoryMarkdown,
   placeholderReportMarkdown
 } from "./default-constitution.js";
@@ -76,8 +97,12 @@ function baseDirectories(targetPath: string): readonly string[] {
     path.join(targetPath, ".visp"),
     memoryArtifactDir(targetPath),
     path.join(targetPath, ".visp", "cache"),
+    path.join(targetPath, ".visp", "agent"),
     featuresArtifactDir(targetPath),
-    path.join(targetPath, ".visp", "reports")
+    path.join(targetPath, ".visp", "prompts"),
+    path.join(targetPath, ".visp", "reports"),
+    runsArtifactDir(targetPath),
+    presetsArtifactDir(targetPath)
   ];
 }
 
@@ -86,8 +111,8 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
     targetPath: input.targetPath,
     agent: input.agent,
     preset: input.preset,
-      budget: input.budget,
-      now: input.now
+    budget: input.budget,
+    now: input.now
   };
   const cacheDir = path.join(input.targetPath, ".visp", "cache");
   const memoryDir = memoryArtifactDir(input.targetPath);
@@ -125,6 +150,13 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
         now: input.now
       })
     ),
+    artifactFile(
+      input.targetPath,
+      workflowManifestArtifactPath(input.targetPath),
+      "workflow manifest",
+      workflowManifestSchema,
+      defaultWorkflowManifest(input.now)
+    ),
     textFile(input.targetPath, path.join(memoryDir, "constitution.md"), constitutionMarkdown(input.preset, input.budget)),
     textFile(input.targetPath, path.join(memoryDir, "constitution.compact.md"), compactConstitutionMarkdown()),
     textFile(input.targetPath, path.join(memoryDir, "project-summary.md"), placeholderMemoryMarkdown("Project Summary")),
@@ -144,38 +176,19 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
 async function agentPlan(
   input: InitFilePlanInput
 ): Promise<Result<InitFilePlan, VispError>> {
-  if (input.agent === "none") {
-    return ok({ directories: [], files: [], actions: [], warnings: [] });
-  }
+  const target = agentTargetFromMode(input.agent);
 
-  if (input.agent === "generic") {
-    return ok({
-      directories: [],
-      files: [
-        textFile(
-          input.targetPath,
-          path.join(memoryArtifactDir(input.targetPath), "agent-guidance.md"),
-          genericAgentGuidanceMarkdown(input.preset, input.budget)
-        )
-      ],
-      actions: [],
-      warnings: []
-    });
+  if (target === undefined) {
+    return ok({ directories: [], files: [], actions: [], warnings: [] });
   }
 
   const actions: InitFileAction[] = [];
   const warnings: string[] = [];
-  const agentsPath = path.join(input.targetPath, "AGENTS.md");
-  const agentsExists = await pathExists(agentsPath);
+  const agentsExists = await pathExists(agentsMarkdownPath(input.targetPath));
 
   if (!agentsExists.ok) {
     return agentsExists;
   }
-
-  const agentsFilePath =
-    agentsExists.value && !input.force
-      ? path.join(input.targetPath, "AGENTS.visp.md")
-      : agentsPath;
 
   if (agentsExists.value && !input.force) {
     actions.push({ path: "AGENTS.md", action: "skipped" });
@@ -184,21 +197,83 @@ async function agentPlan(
     );
   }
 
+  const useFallbackAgentsFile = agentsExists.value && !input.force;
+  const targetFiles = target === "codex"
+    ? codexTargetFiles({
+        targetPath: input.targetPath,
+        strictness: input.strictness,
+        useFallbackAgentsFile
+      })
+    : genericTargetFiles({
+        targetPath: input.targetPath,
+        strictness: input.strictness,
+        useFallbackAgentsFile
+      });
+  const targetFilePaths = targetFiles.map((file) =>
+    path.relative(input.targetPath, file.path).split(path.sep).join("/")
+  );
+  const installedTargets: InstalledAgentTargets = {
+    installedTargets: [
+      {
+        target,
+        strictnessMode: input.strictness,
+        installedAt: input.now,
+        refreshedAt: input.now,
+        files: targetFilePaths,
+        version: "1.0",
+        warnings
+      }
+    ]
+  };
+
   return ok({
-    directories: [path.join(input.targetPath, ".agents", "skills")],
+    directories: target === "codex" ? [path.join(input.targetPath, ".agents", "skills")] : [],
     files: [
+      ...targetFiles.map((file) =>
+        textFile(input.targetPath, file.path, file.contents)
+      ),
+      artifactFile(
+        input.targetPath,
+        installedTargetsPath(input.targetPath),
+        "installed agent targets",
+        installedAgentTargetsSchema,
+        installedTargets
+      ),
       textFile(
         input.targetPath,
-        agentsFilePath,
-        codexAgentsMarkdown(input.preset, input.budget, input.strictness)
+        agentGuidePath(input.targetPath),
+        renderAgentGuide({
+          target,
+          strictness: input.strictness
+        })
       ),
-      ...codexSkillFiles(input.targetPath).map((file) =>
-        textFile(input.targetPath, file.path, file.contents)
+      artifactFile(
+        input.targetPath,
+        workflowMapPath(input.targetPath),
+        "agent workflow map",
+        agentWorkflowMapSchema,
+        buildWorkflowMapForTargets([target])
+      ),
+      artifactFile(
+        input.targetPath,
+        agentCapabilitiesPath(input.targetPath),
+        "agent capabilities",
+        agentCapabilitiesSchema,
+        buildAgentCapabilities({
+          metadata: installedTargets,
+          generatedAt: input.now
+        })
       )
     ],
     actions,
     warnings
   });
+}
+
+function agentTargetFromMode(agent: AgentMode): AgentTargetName | undefined {
+  if (agent === "codex") return "codex";
+  if (agent === "generic") return "generic";
+  return undefined;
 }
 
 export async function buildInitFilePlan(

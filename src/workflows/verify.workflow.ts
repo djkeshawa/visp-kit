@@ -47,6 +47,7 @@ import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
+import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
 import { selectTaskById } from "../context/task-selector.js";
 import { validateArtifacts } from "../verification/artifact-validator.js";
 import { validateDependencies } from "../verification/dependency-validator.js";
@@ -73,7 +74,10 @@ import {
   type VerificationCommandMode
 } from "../verification/validation-command-selector.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
+import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
+import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
 
 export type VerifyWorkflowOptions = {
   readonly targetPath?: string;
@@ -611,6 +615,70 @@ export async function runVerifyWorkflow(
     if (!update.ok) return update;
   }
 
+  if (selectedTask !== undefined && parsed.data.success) {
+    const checklist = await markImplementationChecklistSteps({
+      targetPath,
+      featureKey: feature.value.key,
+      taskId: selectedTask.id,
+      steps: ["verify"],
+      dryRun
+    });
+
+    if (!checklist.ok) return checklist;
+  }
+
+  const budgetRefresh = await refreshBudgetReport({
+    targetPath,
+    feature: feature.value.key,
+    taskId: selectedTask?.id,
+    dryRun,
+    now: endedAt
+  });
+  const timeline = await refreshFeatureTimeline({
+    targetPath,
+    feature: feature.value.key,
+    taskId: selectedTask?.id,
+    dryRun,
+    now: endedAt
+  });
+  const writtenFiles = dryRun
+    ? []
+    : [
+        relativePath(targetPath, reportJsonPath),
+        reportPath,
+        ...budgetRefresh.writtenFiles,
+        ...timeline.writtenFiles
+      ];
+  const run = await recordWorkflowRun({
+    targetPath,
+    command: "verify",
+    startedAt,
+    endedAt,
+    feature: {
+      id: feature.value.id,
+      slug: feature.value.slug
+    },
+    taskId: selectedTask?.id,
+    success: parsed.data.success,
+    result: parsed.data.success
+      ? parsed.data.warnings.length > 0 ? "warnings" : "passed"
+      : "failed",
+    actions: writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    })),
+    warnings: [...parsed.data.warnings, ...budgetRefresh.warnings, ...timeline.warnings],
+    errors: parsed.data.errors,
+    events: [
+      {
+        type: "evidence_recorded",
+        message: `Verification ${parsed.data.success ? "passed" : "failed"}.`,
+        artifactPath: reportPath
+      }
+    ],
+    dryRun
+  });
+
   return ok({
     success: parsed.data.success || dryRun,
     targetPath,
@@ -636,7 +704,7 @@ export async function runVerifyWorkflow(
       skipReason: command.skipReason
     })),
     reportPath: dryRun ? null : reportPath,
-    warnings: parsed.data.warnings,
+    warnings: [...new Set([...parsed.data.warnings, ...budgetRefresh.warnings, ...timeline.warnings, ...run.warnings])],
     errors: parsed.data.errors,
     nextCommand: parsed.data.nextCommand,
     dryRun

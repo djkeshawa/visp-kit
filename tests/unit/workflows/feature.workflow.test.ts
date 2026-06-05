@@ -73,7 +73,13 @@ describe("runFeatureWorkflow", () => {
       ".visp/features/001-add-note-pinning/intent.md",
       ".visp/features/001-add-note-pinning/intent.json"
     ]);
-    expect(summary.updatedFiles).toEqual([".visp/status.json"]);
+    expect(summary.updatedFiles).toEqual(
+      expect.arrayContaining([
+        ".visp/status.json",
+        ".visp/features/001-add-note-pinning/timeline.json",
+        ".visp/features/001-add-note-pinning/timeline.md"
+      ])
+    );
 
     const intent = expectOk(
       await readArtifact(

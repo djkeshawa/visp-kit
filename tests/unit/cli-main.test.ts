@@ -17,10 +17,12 @@ describe("createCli", () => {
     expect(help).toContain("constitution");
     expect(help).toContain("context");
     expect(help).toContain("doctor");
+    expect(help).toContain("eval");
     expect(help).toContain("feature");
     expect(help).toContain("gate");
     expect(help).toContain("init");
     expect(help).toContain("next");
+    expect(help).toContain("override");
     expect(help).toContain("plan");
     expect(help).toContain("policy");
     expect(help).toContain("pr");
@@ -31,6 +33,7 @@ describe("createCli", () => {
     expect(help).toContain("status");
     expect(help).toContain("tasks");
     expect(help).toContain("verify");
+    expect(help).toContain("workflow");
   });
 
   it("prints the CLI version", () => {
@@ -118,13 +121,20 @@ describe("createCli", () => {
         .find((command) => command.name() === name)
         ?.helpInformation();
 
-      expect(help).toContain(`Usage: visp ${name} [options] [path]`);
+      expect(help).toContain(
+        name === "clarify"
+          ? "Usage: visp clarify [options] [command] [path]"
+          : `Usage: visp ${name} [options] [path]`
+      );
       expect(help).toContain("--feature");
       expect(help).toContain("--force");
       expect(help).toContain("--dry-run");
       expect(help).toContain("--json");
       expect(help).toContain("--validate");
       expect(help).toContain("--prompt-only");
+      if (name === "clarify") {
+        expect(help).toContain("answer [options] <question-id> [path]");
+      }
     }
   });
 
@@ -156,6 +166,11 @@ describe("createCli", () => {
     expect(help).toContain("--budget");
     expect(help).toContain("--max-tokens");
     expect(help).toContain("--write-report");
+    expect(help).toContain("--record-usage");
+    expect(help).toContain("--input-tokens");
+    expect(help).toContain("--output-tokens");
+    expect(help).toContain("--total-tokens");
+    expect(help).toContain("--model");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
   });
@@ -277,6 +292,31 @@ describe("createCli", () => {
     expect(help).toContain("--explain");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
+  });
+
+  it("prints override command help", () => {
+    const override = createCli().commands.find((command) => command.name() === "override");
+
+    expect(override?.helpInformation()).toContain("Usage: visp override [options] [command]");
+
+    const expected = {
+      create: ["--reason", "--scope", "--feature", "--task", "--stage", "--expires", "--dry-run", "--json"],
+      list: ["--active", "--revoked", "--expired", "--rule", "--feature", "--task", "--json"],
+      show: ["--json"],
+      revoke: ["--reason", "--dry-run", "--json"],
+      validate: ["--json"]
+    };
+
+    for (const [name, flags] of Object.entries(expected)) {
+      const help = override?.commands
+        .find((command) => command.name() === name)
+        ?.helpInformation();
+
+      expect(help).toContain(`Usage: visp override ${name}`);
+      for (const flag of flags) {
+        expect(help).toContain(flag);
+      }
+    }
   });
 
   it("prints agent command help", () => {

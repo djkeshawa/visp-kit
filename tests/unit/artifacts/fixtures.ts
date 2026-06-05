@@ -593,7 +593,8 @@ export const validBudgetArtifact: BudgetArtifact = {
       notes: [],
       generatedAt: timestamp
     }
-  ]
+  ],
+  usage: []
 };
 
 export const validPrArtifact: PrArtifact = {

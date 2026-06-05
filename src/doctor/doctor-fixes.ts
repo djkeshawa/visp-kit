@@ -3,15 +3,20 @@ import {
   featuresArtifactDir,
   memoryArtifactDir,
   policyArtifactPath,
+  presetsArtifactDir,
   promptsArtifactDir,
-  reportsArtifactDir
+  reportsArtifactDir,
+  runsArtifactDir,
+  workflowManifestArtifactPath
 } from "../artifacts/artifact-paths.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { policyArtifactSchema } from "../artifacts/schemas/policy.schema.js";
+import { workflowManifestSchema } from "../artifacts/schemas/workflow.schema.js";
 import { ensureDir, pathExists } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { createDefaultPolicy } from "../policy/policy-defaults.js";
 import { defaultPolicyStrictness } from "../policy/policy-loader.js";
+import { defaultWorkflowManifest } from "../workflow-manifest/default-workflow.js";
 
 export type DoctorFixResult = {
   readonly path: string;
@@ -28,7 +33,9 @@ export async function applySafeDoctorFixes(input: {
     memoryArtifactDir(input.targetPath),
     cacheArtifactDir(input.targetPath),
     reportsArtifactDir(input.targetPath),
-    promptsArtifactDir(input.targetPath)
+    promptsArtifactDir(input.targetPath),
+    runsArtifactDir(input.targetPath),
+    presetsArtifactDir(input.targetPath)
   ];
   const results: DoctorFixResult[] = [];
 
@@ -82,6 +89,33 @@ export async function applySafeDoctorFixes(input: {
         path: policyDisplay,
         applied: write.ok,
         reason: write.ok ? "policy created" : write.error.message
+      });
+    }
+  }
+
+  const workflowPath = workflowManifestArtifactPath(input.targetPath);
+  const workflowDisplay = relativePath(input.targetPath, workflowPath);
+  const workflowExists = await pathExists(workflowPath);
+
+  if (workflowExists.ok && !workflowExists.value) {
+    if (input.dryRun) {
+      results.push({
+        path: workflowDisplay,
+        applied: false,
+        reason: "dry-run"
+      });
+    } else {
+      const write = await writeArtifact(
+        workflowPath,
+        workflowManifestSchema,
+        defaultWorkflowManifest(new Date().toISOString()),
+        { artifactName: "workflow manifest" }
+      );
+
+      results.push({
+        path: workflowDisplay,
+        applied: write.ok,
+        reason: write.ok ? "workflow manifest created" : write.error.message
       });
     }
   }

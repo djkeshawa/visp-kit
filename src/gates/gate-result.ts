@@ -100,6 +100,8 @@ export function buildGateResult(input: {
     failedRules,
     warnings,
     blockedCommands: blockingRules.map((rule) => blockedCommand(input.stage, rule)),
+    overriddenRules: [],
+    appliedOverrides: [],
     nextAllowedCommand: input.evaluation.nextAllowedCommand,
     reportPath: input.reportPath,
     evaluatedAt: input.evaluatedAt

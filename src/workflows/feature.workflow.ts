@@ -60,6 +60,8 @@ import {
 } from "../features/feature-summary.js";
 import { slugifyFeatureTitle } from "../features/slugify.js";
 import { updateStatusForFeatureIntent } from "../features/status-update.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
+import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
 
 export type FeatureWorkflowOptions = {
   readonly featureIdea?: string;
@@ -472,6 +474,34 @@ export async function runFeatureWorkflow(
 
   if (!actions.ok) return actions;
 
+  const timeline = await refreshFeatureTimeline({
+    targetPath,
+    feature: planned.value.key,
+    dryRun,
+    now
+  });
+  const allActions = [
+    ...actions.value,
+    ...timeline.writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    }))
+  ];
+  const run = await recordWorkflowRun({
+    targetPath,
+    command: "feature",
+    endedAt: now,
+    feature: {
+      id: intent.id,
+      slug: intent.slug
+    },
+    success: true,
+    result: [...branch.value.warnings, ...timeline.warnings].length > 0 ? "warnings" : "passed",
+    actions: allActions,
+    warnings: [...branch.value.warnings, ...timeline.warnings],
+    dryRun
+  });
+
   return ok(
     createFeatureSummary({
       targetPath,
@@ -484,10 +514,16 @@ export async function runFeatureWorkflow(
         budgetMode: intent.budgetMode,
         riskLevel: intent.riskLevel
       },
-      actions: actions.value,
+      actions: [
+        ...allActions,
+        ...run.writtenFiles.map((filePath) => ({
+          path: filePath,
+          action: "updated" as const
+        }))
+      ],
       branch: branch.value.branch,
       dryRun,
-      warnings: branch.value.warnings
+      warnings: [...branch.value.warnings, ...timeline.warnings, ...run.warnings]
     })
   );
 }

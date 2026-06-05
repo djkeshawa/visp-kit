@@ -98,10 +98,62 @@ Do not ask cosmetic questions unless the feature is explicitly UI, design, or br
 
 ## How to Use
 
-1. Use \`.visp/prompts/clarify.prompt.md\` with Codex to refine this file.
+1. Use \`.visp/prompts/clarify.prompt.md\` with your AI coding tool to refine this file.
 2. Answer or accept defaults for blocking questions.
 3. Re-run \`visp clarify --validate\`.
 4. Run \`visp spec\`.
+`;
+}
+
+function tableText(value: string): string {
+  return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim() || "TBD";
+}
+
+export function renderClarificationsMarkdownFromArtifact(input: {
+  readonly feature: ActiveFeature;
+  readonly artifact: ClarificationArtifact;
+}): string {
+  const questions = input.artifact.questions
+    .map((question) =>
+      `| ${question.id} | ${tableText(question.question)} | ${tableText(question.recommendedDefault)} | ${tableText(question.reason)} | ${question.status} | ${tableText(question.answer)} |`
+    )
+    .join("\n");
+  const assumptions = input.artifact.assumptions
+    .map((assumption) =>
+      `| ${assumption.id} | ${tableText(assumption.text)} | ${tableText(assumption.reason)} | ${assumption.source} | ${assumption.accepted ? "yes" : "no"} |`
+    )
+    .join("\n");
+
+  return `# Clarifications: ${input.feature.intent.title}
+
+## Feature
+
+- ID: ${input.feature.id}
+- Slug: ${input.feature.slug}
+- Title: ${input.feature.intent.title}
+- Status: ${input.artifact.status}
+
+## Source Intent
+
+${request(input.feature)}
+
+## Blocking Questions
+
+| ID | Question | Recommended Default | Reason | Status | Answer |
+|----|----------|---------------------|--------|--------|--------|
+${questions}
+
+## Non-Blocking Assumptions
+
+| ID | Assumption | Reason | Source | Accepted |
+|----|------------|--------|--------|----------|
+${assumptions}
+
+## Next Step
+
+Run:
+
+visp spec
 `;
 }
 
@@ -596,7 +648,7 @@ Run:
 visp context T001
 
 Note:
-\`visp context\` is implemented in Phase 8. Until then, use \`.visp/prompts/tasks.prompt.md\` with Codex to refine this task graph.
+Run \`visp context T001\`, then use \`.visp/prompts/current-task.prompt.md\` with your agent to implement the selected task.
 `;
 }
 

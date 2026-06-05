@@ -1,4 +1,5 @@
 import { type AgentTarget } from "./agent-target.js";
+import { type AgentBootstrapSummary } from "./agent-bootstrap.js";
 import { type AgentInstallSummary } from "./agent-installer.js";
 import { type AgentDoctorSummary } from "./agent-doctor.js";
 import { type AgentRefreshSummary } from "./agent-refresh.js";
@@ -49,6 +50,43 @@ export function formatAgentInstall(summary: AgentInstallSummary): string {
   }
 
   lines.push("", "Next:", ...summary.nextInstructions.split("\n").map((line) => `  ${line}`));
+
+  return `${lines.join("\n")}\n`;
+}
+
+export function formatAgentBootstrap(summary: AgentBootstrapSummary): string {
+  const lines = [
+    formatHeader(summary.dryRun ? "Visp agent bootstrap dry run." : "Visp agent bootstrapped."),
+    "",
+    formatKeyValue("Target", summary.target),
+    formatKeyValue("Strictness", summary.strictnessMode),
+    formatKeyValue("Initialized", summary.initialized ? "yes" : "already initialized")
+  ];
+
+  appendFiles(lines, "Created", [
+    ...(summary.init?.createdFiles ?? []),
+    ...summary.install.createdFiles
+  ]);
+  appendFiles(lines, "Updated", summary.install.updatedFiles);
+  appendFiles(lines, "Overwritten", [
+    ...(summary.init?.overwrittenFiles ?? []),
+    ...summary.install.overwrittenFiles
+  ]);
+  appendFiles(lines, "Skipped", [
+    ...(summary.init?.skippedFiles ?? []),
+    ...summary.install.skippedFiles
+  ]);
+
+  if (summary.warnings.length > 0) {
+    lines.push("", "Warnings:", ...summary.warnings.map((warning) => `  ${warning}`));
+  }
+
+  lines.push(
+    "",
+    "Next:",
+    `  ${summary.nextCommand}`,
+    ...summary.nextInstructions.split("\n").map((line) => `  ${line}`)
+  );
 
   return `${lines.join("\n")}\n`;
 }

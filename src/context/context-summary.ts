@@ -71,7 +71,7 @@ export function createContextSummary(input: {
     promptOnly: input.promptOnly,
     dryRun: input.dryRun,
     warnings: input.warnings,
-    nextCommand: "Use .visp/prompts/current-task.prompt.md with Codex"
+    nextCommand: "Use .visp/prompts/current-task.prompt.md with your agent"
   };
 }
 

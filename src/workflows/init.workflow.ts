@@ -16,6 +16,7 @@ import {
   type InitSummary
 } from "./init/init-summary.js";
 import { writePlannedFile } from "./init/planned-file.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
 
 export type InitWorkflowOptions = {
   readonly targetPath?: string;
@@ -92,6 +93,24 @@ export async function runInitWorkflow(
     actions.push(result.value);
   }
 
+  const run = await recordWorkflowRun({
+    targetPath,
+    command: "init",
+    endedAt: now,
+    success: true,
+    result: plan.value.warnings.length > 0 ? "warnings" : "passed",
+    actions,
+    warnings: plan.value.warnings,
+    dryRun
+  });
+
+  actions.push(
+    ...run.writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    }))
+  );
+
   return ok(
     createInitSummary({
       targetPath,
@@ -100,7 +119,7 @@ export async function runInitWorkflow(
       budget,
       actions,
       dryRun,
-      warnings: plan.value.warnings
+      warnings: [...plan.value.warnings, ...run.warnings]
     })
   );
 }

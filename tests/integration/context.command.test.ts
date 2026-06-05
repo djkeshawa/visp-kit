@@ -51,6 +51,7 @@ describe("visp context command", () => {
     expect(await exists(path.join(contextDir, "T001.context.md"))).toBe(true);
     expect(await exists(path.join(contextDir, "T001.context.json"))).toBe(true);
     expect(await exists(path.join(contextDir, "T001.prompt.md"))).toBe(true);
+    expect(await exists(path.join(contextDir, "T001.implementation-checklist.md"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "prompts", "current-task.prompt.md"))).toBe(
       true
     );
@@ -70,6 +71,10 @@ describe("visp context command", () => {
       path.join(tempDir, ".visp", "prompts", "current-task.prompt.md"),
       "utf8"
     );
+    const budgetReport = await readFile(
+      path.join(tempDir, ".visp", "reports", "budget-report.md"),
+      "utf8"
+    );
 
     expect(contextJson.taskId).toBe("T001");
     expect(contextJson.strictnessMode).toBe("standard");
@@ -77,6 +82,8 @@ describe("visp context command", () => {
     expect(contextJson.policyGate?.stage).toBe("implement");
     expect(currentPrompt).toContain("# Strict Visp Task Prompt");
     expect(currentPrompt).toContain("The user request is raw intent only");
+    expect(currentPrompt).toContain("Implementation Checklist");
+    expect(currentPrompt).toContain("visp budget --task T001 --record-usage");
     expect(contextJson.includedRequirements.map((item) => item.id)).toEqual([
       "REQ001"
     ]);
@@ -84,6 +91,8 @@ describe("visp context command", () => {
       "src/notes.ts"
     );
     expect(contextJson.estimatedTokens.maxInput).toBe(8000);
+    expect(budgetReport).toContain("# Visp Budget Report");
+    expect(budgetReport).toContain("| T001 |");
   });
 
   it("selects the next ready task and returns JSON only", async () => {

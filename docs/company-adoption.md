@@ -1,42 +1,79 @@
 # Company Adoption
 
-Visp Kit is designed for teams that need AI assistance without losing scope control, auditability, or token discipline.
+Visp Kit is designed for teams that want AI assistance without losing scope control, auditability, or token discipline.
 
-## Why Teams Use It
+Recommended pilot default:
 
-- Keep implementation tied to requirements.
-- Reduce token usage with task-specific context packs.
-- Avoid sending whole repositories to agents.
-- Create auditable local artifacts.
-- Run deterministic gates before human review.
-- Make PR summaries factual and evidence-based.
+```bash
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+```
 
-## Recommended Team Policy
+## Rollout Plan
 
-1. Initialize with `visp init --strictness strict` for team repositories.
-2. Run `visp scan` before planning.
-3. Use `lean` budget by default.
-4. Require `allowedFiles` for implementation tasks.
-5. Require acceptance criteria for behavior-changing tasks.
-6. Run `visp gate implement --task <id>` before coding.
-7. Run `visp verify`, `visp review`, and `visp reconcile` before PR.
-8. Treat dependency changes as explicit task scope.
-9. Keep `.visp/` artifacts in the repository when auditability matters.
-10. Install the appropriate agent workflow pack for the team tool:
-   - `visp agent install codex`
-   - `visp agent install claude`
-   - `visp agent install copilot`
-   - `visp agent install generic`
+1. Pilot in one repository.
+2. Use `lean` budget and `strict` policy.
+3. Run `visp scan` and `visp constitution`.
+4. Commit `.visp/policy.json`.
+5. Decide which `.visp/` artifacts to commit for auditability.
+6. Install or bootstrap the agent target used by the team.
+7. Require `visp verify`, `visp review`, and `visp reconcile` before PR.
+8. Use overrides only with a recorded reason.
+9. Use `visp pr` for factual PR summaries.
 
-User prompts should be treated as raw intent only. They should not override policy gates, forbidden files, validation, review, reconciliation, or PR readiness.
+## What To Commit
 
-Claude and Copilot integrations are generated repository guidance for compatible surfaces. They do not call AI providers and should be reviewed like any other repository instruction file.
+Usually useful:
+
+- `.visp/policy.json`
+- `.visp/overrides.json` if overrides are used
+- `.visp/memory/constitution.md`
+- `.visp/memory/constitution.compact.md`
+- `.visp/features/`
+
+Team choice:
+
+- `.visp/cache/`
+
+Commit cache if reproducibility and lower context setup cost matter. Keep it local if the team prefers smaller commits.
+
+## Agent Target Selection
+
+Use the team tool:
+
+```bash
+visp agent bootstrap codex
+visp agent install codex
+visp agent install generic
+visp agent install claude
+visp agent install copilot
+```
+
+Then check:
+
+```bash
+visp agent doctor --target codex
+```
+
+Use the matching target name for other tools.
+
+## Governance
+
+Visp Kit provides:
+
+- policy-as-code
+- deterministic gates
+- explicit override artifacts
+- traceability from requirements to tasks and files
+- verification/review/reconcile evidence
+- PR readiness summaries
+
+No silent prompt overrides are allowed. A user prompt can start a workflow, but it cannot bypass policy or failed gates.
 
 ## Security And Privacy
 
-Visp Kit does not call LLM providers. It writes local artifacts and prompts. Teams can decide which prompts or context packs are sent to an external tool.
+Visp Kit does not call LLM providers. It writes local artifacts and prompts. Teams decide what to paste or expose to an AI tool.
 
-Review generated context before use when working with:
+Review generated context before using it with external tools when working with:
 
 - secrets
 - personal data
@@ -46,39 +83,24 @@ Review generated context before use when working with:
 - regulated systems
 - proprietary algorithms
 
-## Token Budgets
+## Overrides
 
-Suggested defaults:
+Overrides should be rare and reviewed.
 
-- Product feature: `lean`
-- Cross-module feature: `balanced`
-- Security-sensitive or data migration task: `strict`
-
-Use:
+Good override:
 
 ```bash
-visp budget --feature <feature>
-visp budget --task T001
+visp override create VSP014 \
+  --scope task \
+  --feature 001 \
+  --task T001 \
+  --reason "Prototype branch has no automated verification yet; manual validation is documented."
 ```
 
-## Audit Trail
+Bad override:
 
-Useful artifacts for audit:
+```text
+reason: skip
+```
 
-- `spec.json`
-- `task-graph.json`
-- `traceability.json`
-- `context/T001.context.json`
-- `verification.json`
-- `review/T001.review.json`
-- `reconcile/T001.reconcile.json`
-- `pr.json`
-
-## Rollout Plan
-
-1. Start with one TypeScript project.
-2. Keep `.visp/` committed for one feature.
-3. Compare PR quality and review time.
-4. Standardize budget and task-scope rules.
-5. Add team-specific constitution rules.
-6. Extend usage to more repositories.
+Overrides are visible in gate and readiness reports, so reviewers can decide whether the risk is acceptable.

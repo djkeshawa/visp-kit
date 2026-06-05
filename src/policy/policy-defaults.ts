@@ -246,22 +246,30 @@ const overridesByStrictness: Record<StrictnessMode, PolicyOverrides> = {
   relaxed: {
     allowed: true,
     requireReason: false,
-    recordInReports: true
+    recordInReports: true,
+    allowedInLockedMode: false,
+    nonOverridableRules: ["VSP019", "VSP020"]
   },
   standard: {
     allowed: true,
     requireReason: true,
-    recordInReports: true
+    recordInReports: true,
+    allowedInLockedMode: false,
+    nonOverridableRules: ["VSP019", "VSP020"]
   },
   strict: {
     allowed: true,
     requireReason: true,
-    recordInReports: true
+    recordInReports: true,
+    allowedInLockedMode: false,
+    nonOverridableRules: ["VSP019", "VSP020"]
   },
   locked: {
     allowed: false,
     requireReason: true,
-    recordInReports: true
+    recordInReports: true,
+    allowedInLockedMode: false,
+    nonOverridableRules: ["VSP019", "VSP020"]
   }
 };
 

@@ -31,6 +31,8 @@ Follow this priority:
 
 If the user request conflicts with Visp Kit policy, follow Visp Kit policy and explain the conflict.
 
+If Visp Kit is not initialized in the target project, run \`visp agent bootstrap <target> --strictness strict\` or ask the user which target to install. Do not edit implementation code before bootstrap and policy validation succeed.
+
 Core evidence commands are \`visp verify --task <task-id>\`, \`visp review --task <task-id>\`, and \`visp reconcile --task <task-id> --update-traceability\`. Do not skip them when policy requires them.
 `;
 }
@@ -48,7 +50,10 @@ export function implementationRulesSection(): string {
 
 - Do not implement code until \`visp gate implement --task <task-id>\` allows it.
 - Do not implement code until \`.visp/prompts/current-task.prompt.md\` exists.
+- If \`.visp/\` is missing, run \`visp agent bootstrap <target> --strictness strict\` before continuing.
 - Read \`.visp/prompts/current-task.prompt.md\` before editing code.
+- Update \`.visp/features/<feature>/context/<task-id>.implementation-checklist.md\` as work progresses when that file exists.
+- If your agent surface exposes token usage, record it after implementation with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\`.
 - Implement only one selected task at a time.
 - Do not modify forbidden files.
 - Do not add dependencies unless the task or plan explicitly allows them.
@@ -62,6 +67,8 @@ export function completionCriteriaSection(): string {
 
 A task is complete only when:
 - selected task implementation is done
+- implementation checklist is updated or included in the final response
+- actual token usage is recorded when the agent surface exposes it
 - validation commands ran or failure is reported
 - \`visp verify --task <task-id>\` passes
 - \`visp review --task <task-id>\` has no blocking findings

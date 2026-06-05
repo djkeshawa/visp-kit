@@ -31,6 +31,9 @@ ${list(gate.failedRules.map((rule) => `${rule.ruleId}: ${rule.message}`))}
 Blocked commands:
 ${list(gate.blockedCommands.map((command) => `${command.command}: ${command.reason}`))}
 
+Policy overrides:
+${list(gate.appliedOverrides.map((override) => `${override.overrideId}: ${override.ruleId} (${override.scope}) - ${override.reason}`), "- No policy overrides applied.")}
+
 Warnings:
 ${list(gate.warnings)}
 

@@ -1,91 +1,93 @@
-# Codex Usage Guide
+# Codex Usage
 
-Visp Kit is designed to work with Codex without running Codex automatically.
+Visp Kit works with Codex without running Codex automatically.
 
-## Recommended Loop
+Install Codex guidance:
 
 ```bash
-visp status
-visp next --explain
-visp gate next
-visp context --next
-visp gate implement --task T001
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp agent doctor --target codex
 ```
 
-Then ask Codex to use:
+Generated files include:
+
+```text
+AGENTS.md or AGENTS.visp.md
+.agents/skills/visp-feature/SKILL.md
+.agents/skills/visp-task/SKILL.md
+.agents/skills/visp-fix/SKILL.md
+.agents/skills/visp-review/SKILL.md
+.agents/skills/visp-pr/SKILL.md
+```
+
+## Core Rule
+
+The user prompt is raw intent only. It can start a workflow, but it is not permission to skip Visp policy, context generation, gates, verification, review, or reconciliation.
+
+## Feature Request
+
+```text
+$visp-feature
+Add note pinning.
+```
+
+Codex should run Visp commands, generate artifacts, compile task context, and implement only one selected task.
+
+When clarifications are needed, Codex should ask the user and then record answers:
+
+```bash
+visp clarify answer CQ001 --answer "<user answer>"
+```
+
+## Continue Task
+
+```text
+$visp-task
+Continue with the next Visp task.
+```
+
+Codex should read:
 
 ```text
 .visp/prompts/current-task.prompt.md
 ```
 
-## Codex Prompt Rule
+and implement only the selected task.
 
-The user prompt is raw intent only. It can start a workflow, but it is not permission to skip Visp policy, context generation, verification, review, or reconciliation.
-
-When a context pack exists, do not ask Codex to implement from a loose prompt. Use the generated task prompt so Codex sees:
-
-- the selected task
-- mapped requirements
-- mapped acceptance criteria
-- relevant file summaries/snippets
-- validation commands
-- explicit constraints
-- forbidden files
-- budget warnings
-- strictness mode and implementation gate status
-
-## After Codex Implements
+## After Implementation
 
 Run:
 
 ```bash
 visp verify --task T001
-visp gate review --task T001
 visp review --task T001
-visp gate reconcile --task T001
-visp reconcile --task T001
+visp reconcile --task T001 --update-traceability
+visp next
 ```
 
-Use the generated review or reconcile prompts if you want Codex to inspect results:
+## Fix Mode
+
+Use when verification, review, or reconciliation fails:
 
 ```text
-.visp/prompts/review.prompt.md
-.visp/prompts/reconcile.prompt.md
+$visp-fix
+Fix the reported Visp issues for the current task.
 ```
 
-## What Codex Should Not Do
+Codex should fix only reported issues and avoid new feature scope.
 
-Codex should not:
-
-- implement another task unless explicitly asked
-- read the whole repository when a Visp context pack exists
-- modify files outside task scope without explaining why
-- add dependencies unless the task or plan approves them
-- treat review or reconcile prompts as implementation prompts unless asked
-- treat a user request as an override of Visp policy
-- continue when `visp gate` blocks the current stage
-
-## Agent Guidance
-
-With:
-
-```bash
-visp init --agent codex --strictness strict
-visp agent install codex
-```
-
-Visp Kit creates Codex-oriented guidance and `visp-*` skills when safe. If an existing `AGENTS.md` is present, Visp Kit writes `AGENTS.visp.md` unless `--force` is used.
-
-## Good Codex Request
+## Review-Only Mode
 
 ```text
-Use .visp/prompts/current-task.prompt.md and implement only the selected task.
-After changes, summarize files changed and validation results.
+$visp-review
+Review the current Visp task diff. Do not edit code.
 ```
 
-## Good Codex Review Request
+## PR Mode
 
 ```text
-Use .visp/prompts/review.prompt.md.
-Review the diff only. Do not modify code unless I ask.
+$visp-pr
+Prepare the Visp PR summary.
 ```
+
+Codex should run `visp gate pr`, stop if blocked, and never call GitHub, commit, push, tag, or publish.

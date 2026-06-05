@@ -42,7 +42,7 @@ async function readInstalledTargetNames(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "No installed agent targets found. Run `visp agent install codex` or `visp agent install generic` first."
+        "No installed agent targets found. Run `visp agent bootstrap codex` or `visp agent install <target>` first."
       )
     );
   }
@@ -68,7 +68,7 @@ async function readInstalledTargetNames(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "No installed agent targets found. Run `visp agent install codex` or `visp agent install generic` first."
+        "No installed agent targets found. Run `visp agent bootstrap codex` or `visp agent install <target>` first."
       )
     );
   }

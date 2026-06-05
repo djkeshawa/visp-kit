@@ -80,7 +80,17 @@ describe("visp verify command", () => {
     await createPhase8Fixture(tempDir);
     await useFastPassingCommand(tempDir);
     const output: string[] = [];
+    const contextProgram = createCli({ writeOut: () => undefined });
     const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await contextProgram.parseAsync([
+      "node",
+      "visp",
+      "context",
+      "T001",
+      tempDir,
+      "--force"
+    ]);
 
     await program.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001"]);
 
@@ -100,6 +110,12 @@ describe("visp verify command", () => {
     expect(await readFile(path.join(featureDir, "verification.md"), "utf8")).toContain(
       "## Policy Gate"
     );
+    expect(
+      await readFile(
+        path.join(featureDir, "context", "T001.implementation-checklist.md"),
+        "utf8"
+      )
+    ).toContain("- [x] Run `visp verify --task T001`.");
   });
 
   it("returns JSON only", async () => {

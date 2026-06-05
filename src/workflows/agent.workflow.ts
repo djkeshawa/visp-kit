@@ -1,10 +1,18 @@
 import { type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
+import {
+  type BudgetMode,
+  type Preset
+} from "../artifacts/schemas/common.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { supportedAgentTargets } from "../agent/agent-target.js";
 import {
   runAgentInstall,
   type AgentInstallSummary
 } from "../agent/agent-installer.js";
+import {
+  runAgentBootstrap,
+  type AgentBootstrapSummary
+} from "../agent/agent-bootstrap.js";
 import {
   runAgentDoctor,
   type AgentDoctorSummary
@@ -15,6 +23,7 @@ import {
 } from "../agent/agent-refresh.js";
 import {
   formatAgentDoctor,
+  formatAgentBootstrap,
   formatAgentInstall,
   formatAgentList,
   formatAgentRefresh,
@@ -35,6 +44,11 @@ export type AgentInstallWorkflowOptions = {
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly strictness?: StrictnessMode;
+};
+
+export type AgentBootstrapWorkflowOptions = AgentInstallWorkflowOptions & {
+  readonly preset?: Preset;
+  readonly budget?: BudgetMode;
 };
 
 export type AgentDoctorWorkflowOptions = {
@@ -69,6 +83,12 @@ export async function runAgentInstallWorkflow(
   return runAgentInstall(options);
 }
 
+export async function runAgentBootstrapWorkflow(
+  options: AgentBootstrapWorkflowOptions
+): Promise<Result<AgentBootstrapSummary, VispError>> {
+  return runAgentBootstrap(options);
+}
+
 export async function runAgentDoctorWorkflow(
   options: AgentDoctorWorkflowOptions = {}
 ): Promise<Result<AgentDoctorSummary, VispError>> {
@@ -83,6 +103,7 @@ export async function runAgentRefreshWorkflow(
 
 export {
   formatAgentDoctor,
+  formatAgentBootstrap,
   formatAgentInstall,
   formatAgentList,
   formatAgentRefresh

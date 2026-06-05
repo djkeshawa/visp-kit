@@ -41,10 +41,27 @@ export const budgetReportSchema = z
   })
   .strict();
 
+export const budgetUsageSchema = z
+  .object({
+    id: idSchema,
+    featureId: idSchema,
+    featureSlug: nonEmptyStringSchema,
+    taskId: idSchema,
+    inputTokens: z.number().int().nonnegative(),
+    outputTokens: z.number().int().nonnegative(),
+    totalTokens: z.number().int().nonnegative(),
+    model: nonEmptyStringSchema.optional(),
+    source: z.enum(["agent-reported", "manual"]),
+    note: z.string().optional(),
+    recordedAt: isoDateTimeSchema
+  })
+  .strict();
+
 export const budgetArtifactSchema = z
   .object({
     policies: z.array(budgetPolicySchema),
-    reports: z.array(budgetReportSchema)
+    reports: z.array(budgetReportSchema),
+    usage: z.array(budgetUsageSchema)
   })
   .strict();
 
@@ -53,4 +70,5 @@ export type ReviewLevel = z.infer<typeof reviewLevelSchema>;
 export type SecurityReviewPolicy = z.infer<typeof securityReviewPolicySchema>;
 export type BudgetPolicy = z.infer<typeof budgetPolicySchema>;
 export type BudgetReport = z.infer<typeof budgetReportSchema>;
+export type BudgetUsage = z.infer<typeof budgetUsageSchema>;
 export type BudgetArtifact = z.infer<typeof budgetArtifactSchema>;

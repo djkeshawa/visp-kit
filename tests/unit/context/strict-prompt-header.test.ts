@@ -44,6 +44,8 @@ describe("strict prompt header", () => {
               ruleId: "VSP007"
             }
           ],
+          overriddenRules: [],
+          appliedOverrides: [],
           warnings: [],
           nextAllowedCommand: "visp context --next",
           evaluatedAt: "2026-01-01T00:00:00.000Z"

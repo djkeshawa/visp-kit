@@ -52,6 +52,19 @@ export const gateBlockedCommandSchema = z
   })
   .strict();
 
+export const appliedPolicyOverrideSchema = z
+  .object({
+    overrideId: idSchema,
+    ruleId: idSchema,
+    scope: z.enum(["project", "feature", "task", "stage"]),
+    reason: nonEmptyStringSchema,
+    expiresAt: isoDateTimeSchema.nullable(),
+    appliedToStage: gateStageSchema,
+    appliedToFeatureId: idSchema.nullable(),
+    appliedToTaskId: idSchema.nullable()
+  })
+  .strict();
+
 export const gateResultSchema = z
   .object({
     success: z.boolean(),
@@ -66,6 +79,8 @@ export const gateResultSchema = z
     failedRules: z.array(gateRuleFindingSchema),
     warnings: stringListSchema,
     blockedCommands: z.array(gateBlockedCommandSchema),
+    overriddenRules: z.array(idSchema),
+    appliedOverrides: z.array(appliedPolicyOverrideSchema),
     nextAllowedCommand: nonEmptyStringSchema,
     reportPath: pathStringSchema,
     evaluatedAt: isoDateTimeSchema
@@ -87,6 +102,8 @@ export const policyGateSummarySchema = z
     allowed: z.boolean(),
     failedRules: z.array(gateRuleFindingSchema),
     blockedCommands: z.array(gateBlockedCommandSchema),
+    overriddenRules: z.array(idSchema),
+    appliedOverrides: z.array(appliedPolicyOverrideSchema),
     warnings: stringListSchema,
     nextAllowedCommand: nonEmptyStringSchema,
     evaluatedAt: isoDateTimeSchema
@@ -97,6 +114,7 @@ export type GateStage = z.infer<typeof gateStageSchema>;
 export type GateSeverity = z.infer<typeof gateSeveritySchema>;
 export type GateRuleFinding = z.infer<typeof gateRuleFindingSchema>;
 export type GateBlockedCommand = z.infer<typeof gateBlockedCommandSchema>;
+export type AppliedPolicyOverride = z.infer<typeof appliedPolicyOverrideSchema>;
 export type GateResult = z.infer<typeof gateResultSchema>;
 export type PolicyStatus = z.infer<typeof policyStatusSchema>;
 export type PolicyGateSummary = z.infer<typeof policyGateSummarySchema>;

@@ -57,14 +57,14 @@ C007: Every implementation task should map to requirements and acceptance criter
 export function placeholderMemoryMarkdown(title: string): string {
   return `# ${title}
 
-This file is a placeholder. Future phases such as \`visp scan\` will populate it with project-specific context.
+This file is a placeholder. Run \`visp scan\` and related Visp workflows to populate project-specific context.
 `;
 }
 
 export function placeholderReportMarkdown(title: string): string {
   return `# ${title}
 
-No report has been generated yet. Future Visp Kit phases will populate this file.
+No report has been generated yet. Visp Kit commands will replace this placeholder when a report is available.
 `;
 }
 

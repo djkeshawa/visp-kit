@@ -21,6 +21,8 @@ import {
   type WorkflowValidation,
   workflowStateByCommand
 } from "./workflow-summary.js";
+import { recordWorkflowRun } from "./run-recorder.js";
+import { refreshFeatureTimeline } from "./timeline-refresh.js";
 
 export type TemplateWorkflowOptions = {
   readonly targetPath?: string;
@@ -177,7 +179,46 @@ export async function completeTemplateWorkflow(input: {
       path: relativePath(input.targetPath, projectStatusArtifactPath(input.targetPath)),
       action: "updated"
     });
+
+    const timeline = await refreshFeatureTimeline({
+      targetPath: input.targetPath,
+      feature: input.feature.key,
+      dryRun: input.dryRun,
+      now: input.now
+    });
+
+    finalActions.push(
+      ...timeline.writtenFiles.map((filePath) => ({
+        path: filePath,
+        action: "updated" as const
+      }))
+    );
   }
+
+  const run = await recordWorkflowRun({
+    targetPath: input.targetPath,
+    command: input.command,
+    endedAt: input.now,
+    feature: {
+      id: input.feature.id,
+      slug: input.feature.slug
+    },
+    success: input.validation.passed,
+    result: input.validation.passed
+      ? input.warnings.length > 0 ? "warnings" : "passed"
+      : "failed",
+    actions: finalActions,
+    warnings: input.warnings,
+    errors: input.validation.errors,
+    dryRun: input.dryRun
+  });
+
+  finalActions.push(
+    ...run.writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    }))
+  );
 
   return ok(
     createTemplateWorkflowSummary({
@@ -189,7 +230,7 @@ export async function completeTemplateWorkflow(input: {
       validation: input.validation,
       dryRun: input.dryRun,
       promptPath: input.promptPath,
-      warnings: input.warnings,
+      warnings: [...input.warnings, ...run.warnings],
       nextCommand: input.nextCommand
     })
   );

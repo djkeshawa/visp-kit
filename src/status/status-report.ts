@@ -22,6 +22,10 @@ export function renderStatusMarkdown(input: {
   readonly policyStatus?: "valid" | "missing" | "invalid";
   readonly strictnessMode?: string;
   readonly latestGate?: string;
+  readonly latestRun?: string;
+  readonly evaluation?: string;
+  readonly activeOverrideCount?: number;
+  readonly overrideWarnings?: readonly string[];
   readonly blockedCommands?: readonly { readonly command: string; readonly reason: string; readonly ruleId: string }[];
 }): string {
   const state = input.state;
@@ -35,9 +39,10 @@ export function renderStatusMarkdown(input: {
   const artifacts = Object.entries(state.artifactSummary)
     .map(([name, present]) => `- ${name}: ${yes(present)}`)
     .join("\n");
-  const warnings = state.warnings.length === 0
+  const allWarnings = [...state.warnings, ...(input.overrideWarnings ?? [])];
+  const warnings = allWarnings.length === 0
     ? "- None."
-    : state.warnings.map((warning) => `- ${warning}`).join("\n");
+    : allWarnings.map((warning) => `- ${warning}`).join("\n");
 
   return `# Visp Status
 
@@ -58,6 +63,9 @@ Package manager: ${state.profile?.packageManager ?? "unknown"}
 - Strictness: ${input.strictnessMode ?? input.next.strictnessMode ?? "unknown"}
 - Policy: ${input.policyStatus ?? "unknown"}
 - Latest gate: ${input.latestGate ?? "unknown"}
+- Latest run: ${input.latestRun ?? "unknown"}
+- Evaluation: ${input.evaluation ?? "unknown"}
+- Active overrides: ${input.activeOverrideCount ?? 0}
 - Next allowed command: ${input.next.nextAllowedCommand ?? input.next.nextCommand}
 - Implementation allowed: ${input.next.implementationAllowed ? "yes" : "no"}
 - PR allowed: ${input.next.prAllowed ? "yes" : "no"}

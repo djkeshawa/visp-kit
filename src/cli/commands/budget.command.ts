@@ -25,6 +25,12 @@ type BudgetCommandOptions = {
   readonly maxTokens?: string;
   readonly writeReport?: boolean;
   readonly dryRun?: boolean;
+  readonly recordUsage?: boolean;
+  readonly inputTokens?: string;
+  readonly outputTokens?: string;
+  readonly totalTokens?: string;
+  readonly model?: string;
+  readonly usageNote?: string;
   readonly json?: boolean;
 };
 
@@ -48,8 +54,21 @@ function workflowOptions(
     budget: options.budget,
     maxTokens: parseMaxTokens(options.maxTokens),
     writeReport: options.writeReport ?? false,
-    dryRun: options.dryRun ?? false
+    dryRun: options.dryRun ?? false,
+    recordUsage: options.recordUsage ?? false,
+    inputTokens: parseOptionalNonNegativeInteger(options.inputTokens),
+    outputTokens: parseOptionalNonNegativeInteger(options.outputTokens),
+    totalTokens: parseOptionalNonNegativeInteger(options.totalTokens),
+    model: options.model,
+    usageNote: options.usageNote
   };
+}
+
+function parseOptionalNonNegativeInteger(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined;
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : Number.NaN;
 }
 
 export function createBudgetCommand(
@@ -72,13 +91,39 @@ export function createBudgetCommand(
     )
     .option("--max-tokens <number>", "Override the budget mode max input tokens.")
     .option("--write-report", "Write .visp/reports/budget-report.md.")
+    .option("--record-usage", "Record actual agent-reported token usage for --task.")
+    .option("--input-tokens <number>", "Actual input tokens used.")
+    .option("--output-tokens <number>", "Actual output tokens used.")
+    .option("--total-tokens <number>", "Actual total tokens used, if known.")
+    .option("--model <name>", "Model or agent surface that reported token usage.")
+    .option("--usage-note <text>", "Optional note for recorded token usage.")
     .option("--dry-run", "Calculate without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: BudgetCommandOptions) => {
       const maxTokens = parseMaxTokens(options.maxTokens);
+      const numericUsage = [
+        ["--input-tokens", parseOptionalNonNegativeInteger(options.inputTokens)],
+        ["--output-tokens", parseOptionalNonNegativeInteger(options.outputTokens)],
+        ["--total-tokens", parseOptionalNonNegativeInteger(options.totalTokens)]
+      ] as const;
 
       if (Number.isNaN(maxTokens)) {
         const message = "--max-tokens must be a positive integer.";
+
+        if (options.json) {
+          writeOut(`${JSON.stringify({ success: false, error: message }, null, 2)}\n`);
+        } else {
+          writeErr(`${formatError(message)}\n`);
+        }
+
+        process.exitCode = 1;
+        return;
+      }
+
+      const invalidUsage = numericUsage.find(([, value]) => Number.isNaN(value));
+
+      if (invalidUsage !== undefined) {
+        const message = `${invalidUsage[0]} must be a non-negative integer.`;
 
         if (options.json) {
           writeOut(`${JSON.stringify({ success: false, error: message }, null, 2)}\n`);

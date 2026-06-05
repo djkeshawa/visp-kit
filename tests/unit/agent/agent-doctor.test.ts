@@ -32,7 +32,9 @@ describe("agent doctor", () => {
     const summary = expectOk(await runAgentDoctor({ targetPath: tempDir, target: "codex" }));
 
     expect(summary.result).toBe("passed");
-    expect(summary.findings).toEqual([]);
+    expect(summary.warnings).toEqual([]);
+    expect(summary.errors).toEqual([]);
+    expect(summary.findings.map((finding) => finding.severity)).toEqual(["info"]);
   });
 
   it("detects missing generic prompt files", async () => {

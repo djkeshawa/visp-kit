@@ -1,9 +1,17 @@
 import path from "node:path";
 
 import {
+  budgetArtifactPath,
   budgetReportArtifactPath,
   taskGraphArtifactPath
 } from "../artifacts/artifact-paths.js";
+import { readArtifact } from "../artifacts/artifact-reader.js";
+import { writeArtifact } from "../artifacts/artifact-writer.js";
+import {
+  budgetArtifactSchema,
+  type BudgetArtifact,
+  type BudgetUsage
+} from "../artifacts/schemas/budget.schema.js";
 import { type BudgetMode } from "../artifacts/schemas/common.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { VispError } from "../core/errors.js";
@@ -20,9 +28,12 @@ import {
   type BudgetSummary
 } from "../budget/budget-summary.js";
 import { compileContext } from "../context/context-compiler.js";
+import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
 import { selectTaskById } from "../context/task-selector.js";
 import { resolveActiveFeature, type ActiveFeature } from "./shared/active-feature.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
+import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
 
 export type BudgetWorkflowOptions = {
   readonly targetPath?: string;
@@ -33,7 +44,15 @@ export type BudgetWorkflowOptions = {
   readonly maxTokens?: number;
   readonly writeReport?: boolean;
   readonly dryRun?: boolean;
+  readonly recordUsage?: boolean;
+  readonly inputTokens?: number;
+  readonly outputTokens?: number;
+  readonly totalTokens?: number;
+  readonly model?: string;
+  readonly usageNote?: string;
   readonly now?: string;
+  readonly refreshTimeline?: boolean;
+  readonly recordRun?: boolean;
 };
 
 async function ensureTaskGraph(input: {
@@ -60,6 +79,7 @@ async function estimateTask(input: {
   readonly feature: ActiveFeature;
   readonly taskGraph: TaskGraphArtifact;
   readonly task: Task;
+  readonly usage?: BudgetUsage;
   readonly budget?: BudgetMode;
   readonly maxTokens?: number;
   readonly now: string;
@@ -84,10 +104,86 @@ async function estimateTask(input: {
     estimatedInputTokens: compiled.value.pack.estimatedTokens.input,
     expectedOutputTokens: compiled.value.pack.estimatedTokens.expectedOutput,
     estimatedTotalTokens: compiled.value.pack.estimatedTokens.total,
+    actualInputTokens: input.usage?.inputTokens,
+    actualOutputTokens: input.usage?.outputTokens,
+    actualTotalTokens: input.usage?.totalTokens,
+    actualUsageRecordedAt: input.usage?.recordedAt,
+    actualUsageSource: input.usage?.source,
+    actualUsageModel: input.usage?.model,
+    actualUsageNote: input.usage?.note,
     maxInputTokens: compiled.value.pack.estimatedTokens.maxInput,
     overBudget: compiled.value.pack.overBudget,
     recommendation: compiled.value.pack.recommendation
   });
+}
+
+function nextUsageId(usage: readonly BudgetUsage[]): string {
+  const max = usage.reduce((highest, item) => {
+    const match = /^USG(\d+)$/.exec(item.id);
+    if (match === null) return highest;
+    return Math.max(highest, Number.parseInt(match[1]!, 10));
+  }, 0);
+
+  return `USG${String(max + 1).padStart(3, "0")}`;
+}
+
+async function loadBudgetArtifact(
+  targetPath: string
+): Promise<Result<BudgetArtifact, VispError>> {
+  const artifactPath = budgetArtifactPath(targetPath);
+  const exists = await pathExists(artifactPath);
+
+  if (!exists.ok) return exists;
+  if (!exists.value) return ok({ policies: [], reports: [], usage: [] });
+
+  const artifact = await readArtifact(artifactPath, budgetArtifactSchema, {
+    artifactName: "budget"
+  });
+
+  if (!artifact.ok) return artifact;
+
+  return ok({
+    ...artifact.value,
+    usage: artifact.value.usage ?? []
+  });
+}
+
+function latestUsageFor(input: {
+  readonly usage: readonly BudgetUsage[];
+  readonly featureId: string;
+  readonly taskId: string;
+}): BudgetUsage | undefined {
+  return input.usage
+    .filter((usage) =>
+      usage.featureId === input.featureId && usage.taskId === input.taskId
+    )
+    .sort((left, right) => right.recordedAt.localeCompare(left.recordedAt))[0];
+}
+
+function usageEntry(input: {
+  readonly artifact: BudgetArtifact;
+  readonly feature: ActiveFeature;
+  readonly taskId: string;
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly totalTokens: number;
+  readonly model?: string;
+  readonly note?: string;
+  readonly now: string;
+}): BudgetUsage {
+  return {
+    id: nextUsageId(input.artifact.usage),
+    featureId: input.feature.id,
+    featureSlug: input.feature.slug,
+    taskId: input.taskId,
+    inputTokens: input.inputTokens,
+    outputTokens: input.outputTokens,
+    totalTokens: input.totalTokens,
+    model: input.model?.trim() || undefined,
+    source: "agent-reported",
+    note: input.note?.trim() || undefined,
+    recordedAt: input.now
+  };
 }
 
 function reportModel(input: {
@@ -118,6 +214,31 @@ export async function runBudgetWorkflow(
   const dryRun = options.dryRun ?? false;
   const now = options.now ?? new Date().toISOString();
   const warnings: string[] = [];
+  const recordUsage = options.recordUsage ?? false;
+  const refreshTimeline = options.refreshTimeline ?? true;
+  const recordRun = options.recordRun ?? true;
+  const inputTokens = options.inputTokens ?? 0;
+  const outputTokens = options.outputTokens ?? 0;
+  const totalTokens = options.totalTokens ?? inputTokens + outputTokens;
+
+  if (recordUsage && options.taskId === undefined) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Recording actual token usage requires --task <task-id>."
+      )
+    );
+  }
+
+  if (recordUsage && totalTokens <= 0) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Recording actual token usage requires --input-tokens, --output-tokens, or --total-tokens."
+      )
+    );
+  }
+
   const feature = await resolveActiveFeature({
     targetPath,
     feature: options.feature
@@ -151,14 +272,53 @@ export async function runBudgetWorkflow(
     return tasks;
   }
 
+  const budgetArtifact = await loadBudgetArtifact(targetPath);
+
+  if (!budgetArtifact.ok) return budgetArtifact;
+
+  const recordedUsage = recordUsage && options.taskId !== undefined
+    ? usageEntry({
+        artifact: budgetArtifact.value,
+        feature: feature.value,
+        taskId: options.taskId,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        model: options.model,
+        note: options.usageNote,
+        now
+      })
+    : undefined;
+  const nextBudgetArtifact: BudgetArtifact = recordedUsage === undefined
+    ? budgetArtifact.value
+    : {
+        ...budgetArtifact.value,
+        usage: [
+          ...budgetArtifact.value.usage.filter((usage) =>
+            !(
+              usage.featureId === recordedUsage.featureId &&
+              usage.taskId === recordedUsage.taskId
+            )
+          ),
+          recordedUsage
+        ]
+      };
   const estimates: TaskBudgetEstimate[] = [];
 
   for (const task of tasks) {
+    const usage = recordedUsage !== undefined && task.id === recordedUsage.taskId
+      ? recordedUsage
+      : latestUsageFor({
+          usage: nextBudgetArtifact.usage,
+          featureId: feature.value.id,
+          taskId: task.id
+        });
     const estimate = await estimateTask({
       targetPath,
       feature: feature.value,
       taskGraph: taskGraph.value,
       task,
+      usage,
       budget: options.budget,
       maxTokens: options.maxTokens,
       now,
@@ -175,6 +335,33 @@ export async function runBudgetWorkflow(
     feature.value.intent.budgetMode ??
     "lean";
   const writtenFiles: string[] = [];
+
+  if (recordedUsage !== undefined) {
+    const budgetPath = budgetArtifactPath(targetPath);
+
+    if (!dryRun) {
+      const write = await writeArtifact(
+        budgetPath,
+        budgetArtifactSchema,
+        nextBudgetArtifact,
+        { artifactName: "budget" }
+      );
+
+      if (!write.ok) return write;
+    }
+
+    writtenFiles.push(relativePath(targetPath, budgetPath));
+
+    const checklist = await markImplementationChecklistSteps({
+      targetPath,
+      featureKey: feature.value.key,
+      taskId: recordedUsage.taskId,
+      steps: ["record-usage"],
+      dryRun
+    });
+
+    if (!checklist.ok) return checklist;
+  }
 
   if (options.writeReport) {
     const reportPath = budgetReportArtifactPath(targetPath);
@@ -201,6 +388,61 @@ export async function runBudgetWorkflow(
     writtenFiles.push(relativePath(targetPath, reportPath));
   }
 
+  const timeline = refreshTimeline
+    ? await refreshFeatureTimeline({
+        targetPath,
+        feature: feature.value.key,
+        taskId: options.taskId,
+        dryRun,
+        now
+      })
+    : { writtenFiles: [], warnings: [] };
+  const timelineWarnings = timeline.warnings;
+  writtenFiles.push(...timeline.writtenFiles);
+
+  const run = recordRun
+    ? await recordWorkflowRun({
+        targetPath,
+        command: "budget",
+        endedAt: now,
+        feature: {
+          id: feature.value.id,
+          slug: feature.value.slug
+        },
+        taskId: options.taskId,
+        success: true,
+        result: [...warnings, ...timelineWarnings].length > 0 ? "warnings" : "passed",
+        actions: writtenFiles.map((filePath) => ({
+          path: filePath,
+          action: "updated" as const
+        })),
+        estimatedTokens: estimates.reduce((total, estimate) => total + estimate.estimatedTotalTokens, 0),
+        actualTokens: recordedUsage?.totalTokens,
+        warnings: [...warnings, ...timelineWarnings],
+        events: recordedUsage === undefined
+          ? [
+              {
+                type: "budget_estimated",
+                message: `Estimated budget for ${estimates.length} task(s).`
+              }
+            ]
+          : [
+              {
+                type: "usage_recorded",
+                message: `Recorded ${recordedUsage.totalTokens} actual tokens for ${recordedUsage.taskId}.`,
+                data: {
+                  inputTokens: recordedUsage.inputTokens,
+                  outputTokens: recordedUsage.outputTokens,
+                  totalTokens: recordedUsage.totalTokens
+                }
+              }
+            ],
+        dryRun
+      })
+    : { writtenFiles: [], warnings: [] };
+
+  writtenFiles.push(...run.writtenFiles);
+
   return ok(
     createBudgetSummary({
       targetPath,
@@ -213,7 +455,7 @@ export async function runBudgetWorkflow(
       tasks: estimates,
       writtenFiles: dryRun ? [] : writtenFiles,
       dryRun,
-      warnings: [...new Set(warnings)]
+      warnings: [...new Set([...warnings, ...timelineWarnings, ...run.warnings])]
     })
   );
 }

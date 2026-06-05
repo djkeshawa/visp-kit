@@ -16,15 +16,17 @@ Use this workflow when the user asks to continue with the next Visp task or impl
 
 1. Run \`visp status\`.
 2. Run \`visp policy validate\`.
-3. Run \`visp gate next\`.
-4. Run \`visp context --next\` if context is missing.
-5. Run \`visp gate implement --task <task-id>\`.
-6. Read \`.visp/prompts/current-task.prompt.md\`.
-7. Implement only the selected task.
-8. Run \`visp verify --task <task-id>\`.
-9. Run \`visp review --task <task-id>\`.
-10. Run \`visp reconcile --task <task-id> --update-traceability\`.
-11. Run \`visp next\`.
+3. If either command reports that Visp Kit is not initialized, run \`visp agent bootstrap <target> --strictness strict\` and restart this workflow.
+4. Run \`visp gate next\`.
+5. Run the next allowed Visp command if setup artifacts are missing.
+6. Run \`visp context --next\` if context is missing.
+7. Run \`visp gate implement --task <task-id>\`.
+8. Read \`.visp/prompts/current-task.prompt.md\`.
+9. Implement only the selected task.
+10. Run \`visp verify --task <task-id>\`.
+11. Run \`visp review --task <task-id>\`.
+12. Run \`visp reconcile --task <task-id> --update-traceability\`.
+13. Run \`visp next\`.
 
 ${implementationRulesSection()}
 ${blockingRulesSection()}

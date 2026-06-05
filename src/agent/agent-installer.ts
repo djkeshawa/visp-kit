@@ -8,13 +8,14 @@ import {
 } from "../artifacts/schemas/agent.schema.js";
 import {
   policyArtifactSchema,
+  type PolicyArtifact,
   type StrictnessMode
 } from "../artifacts/schemas/policy.schema.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
 import { relativePath, resolvePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import { createDefaultPolicy } from "../policy/policy-defaults.js";
+import { policyRulesForStrictness } from "../policy/policy-defaults.js";
 import { ensureVispProject, loadEffectivePolicy } from "../policy/policy-loader.js";
 import { policyArtifactPath } from "../artifacts/artifact-paths.js";
 import {
@@ -27,6 +28,7 @@ import {
   buildWorkflowMapForTargets,
   renderAgentGuide
 } from "./agent-renderer.js";
+import { agentCapabilitiesPlannedFile } from "./agent-capabilities.js";
 import {
   writeAgentPlannedFile,
   type AgentFileAction,
@@ -100,19 +102,19 @@ async function readInstalledTargets(
 
 async function writePolicyForStrictness(input: {
   readonly targetPath: string;
+  readonly policy: PolicyArtifact;
+  readonly policyExists: boolean;
   readonly strictness: StrictnessMode;
   readonly now: string;
   readonly dryRun: boolean;
 }): Promise<Result<boolean, VispError>> {
   const policyPath = policyArtifactPath(input.targetPath);
-  const exists = await pathExists(policyPath);
-
-  if (!exists.ok) return exists;
-
-  const policy = createDefaultPolicy({
+  const policy: PolicyArtifact = {
+    ...input.policy,
     strictnessMode: input.strictness,
-    now: input.now
-  });
+    rules: policyRulesForStrictness(input.strictness),
+    updatedAt: input.now
+  };
 
   if (!input.dryRun) {
     const write = await writeArtifact(policyPath, policyArtifactSchema, policy, {
@@ -122,7 +124,7 @@ async function writePolicyForStrictness(input: {
     if (!write.ok) return write;
   }
 
-  return ok(!exists.value);
+  return ok(!input.policyExists);
 }
 
 function nextInstructions(target: AgentTargetName): string {
@@ -263,7 +265,13 @@ function metadataFiles(input: {
       artifactName: "agent workflow map",
       schema: agentWorkflowMapSchema,
       value: buildWorkflowMapForTargets(metadata.installedTargets.map((target) => target.target))
-    }
+    },
+    agentCapabilitiesPlannedFile({
+      targetPath: input.targetPath,
+      metadata,
+      generatedAt: input.now,
+      strictness: input.strictness
+    })
   ];
 }
 
@@ -296,6 +304,8 @@ export async function runAgentInstall(
   if (options.strictness !== undefined) {
     const policyWrite = await writePolicyForStrictness({
       targetPath,
+      policy: policy.value.policy,
+      policyExists: policy.value.exists,
       strictness,
       now,
       dryRun

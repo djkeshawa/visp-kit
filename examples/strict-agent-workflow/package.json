@@ -1,0 +1,11 @@
+{
+  "name": "visp-kit-strict-agent-workflow-example",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.3.0",
+  "scripts": {
+    "test": "node tests/notes.test.js",
+    "typecheck": "node -e \"console.log('typecheck placeholder')\""
+  },
+  "devDependencies": {}
+}

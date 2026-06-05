@@ -1,4 +1,5 @@
 import {
+  agentCapabilitiesSchema,
   installedAgentTargetsSchema,
   type AgentTargetName
 } from "../artifacts/schemas/agent.schema.js";
@@ -11,6 +12,7 @@ import { ensureVispProject, loadEffectivePolicy } from "../policy/policy-loader.
 import {
   agentsMarkdownPath,
   agentsVispMarkdownPath,
+  agentCapabilitiesPath,
   claudeCommandPath,
   codexSkillPath,
   copilotInstructionsPath,
@@ -262,6 +264,22 @@ async function checkTarget(input: {
     }
   }
 
+  if (input.target === "codex") {
+    input.findings.push(
+      finding(
+        {
+          category: "guidance",
+          severity: "info",
+          title: "Codex repo-local skill loading depends on the active surface",
+          description: "Visp verified repository Codex skill files. If `$visp-feature` or `$visp-task` is not visible in the active Codex session, reload the session or reference AGENTS.md and .agents/skills directly.",
+          recommendation: "Use `visp agent bootstrap codex` in new projects and run `visp agent doctor --target codex` after installation.",
+          autoFixable: false
+        },
+        input.findings.length + 1
+      )
+    );
+  }
+
   return ok(undefined);
 }
 
@@ -311,6 +329,71 @@ export async function runAgentDoctor(
 
   if (!installed.ok) return installed;
 
+  const capabilitiesPath = agentCapabilitiesPath(targetPath);
+  const capabilitiesExists = await pathExists(capabilitiesPath);
+
+  if (!capabilitiesExists.ok) return capabilitiesExists;
+
+  if (!capabilitiesExists.value && installed.value.length > 0) {
+    findings.push(
+      finding(
+        {
+          category: "metadata",
+          severity: "warning",
+          title: "Agent capability profile missing",
+          description: ".visp/agent/capabilities.json is missing.",
+          file: ".visp/agent/capabilities.json",
+          recommendation: "Run `visp agent refresh --force`.",
+          autoFixable: true
+        },
+        findings.length + 1
+      )
+    );
+  } else if (capabilitiesExists.value) {
+    const rawCapabilities = await readJsonFile<unknown>(capabilitiesPath);
+
+    if (!rawCapabilities.ok) return rawCapabilities;
+
+    const parsedCapabilities = agentCapabilitiesSchema.safeParse(rawCapabilities.value);
+
+    if (!parsedCapabilities.success) {
+      findings.push(
+        finding(
+          {
+            category: "metadata",
+            severity: "error",
+            title: "Agent capability profile is invalid",
+            description: parsedCapabilities.error.issues[0]?.message ?? "Invalid capabilities metadata.",
+            file: ".visp/agent/capabilities.json",
+            recommendation: "Run `visp agent refresh --force`.",
+            autoFixable: true
+          },
+          findings.length + 1
+        )
+      );
+    } else {
+      const capabilityTargets = parsedCapabilities.data.capabilities.map((item) => item.target);
+      const missingCapabilities = installed.value.filter((target) => !capabilityTargets.includes(target));
+
+      if (missingCapabilities.length > 0) {
+        findings.push(
+          finding(
+            {
+              category: "metadata",
+              severity: "warning",
+              title: "Agent capability profile is stale",
+              description: `Capabilities are missing installed target(s): ${missingCapabilities.join(", ")}.`,
+              file: ".visp/agent/capabilities.json",
+              recommendation: "Run `visp agent refresh --force`.",
+              autoFixable: true
+            },
+            findings.length + 1
+          )
+        );
+      }
+    }
+  }
+
   const targets = options.target === undefined
     ? installed.value
     : [options.target];
@@ -323,7 +406,7 @@ export async function runAgentDoctor(
           severity: "warning",
           title: "No installed agent targets",
           description: ".visp/agent/installed-targets.json does not list any targets.",
-          recommendation: "Run `visp agent install codex` or `visp agent install generic`.",
+          recommendation: "Run `visp agent bootstrap codex` or `visp agent install <target>`.",
           autoFixable: false
         },
         findings.length + 1

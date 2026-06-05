@@ -1,7 +1,7 @@
 {
   "name": "visp-kit",
   "version": "0.1.0",
-  "description": "Token-efficient, spec-driven workflow kit for accurate AI-assisted software development.",
+  "description": "Strict, token-efficient agent harness for accurate AI-assisted software development.",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -18,6 +18,9 @@
     "spec-driven",
     "context-engineering",
     "token-efficient",
+    "agent-native",
+    "policy-as-code",
+    "gates",
     "cli",
     "developer-tools"
   ],
@@ -28,6 +31,7 @@
     "dist",
     "docs",
     "examples",
+    "scripts",
     "README.md",
     "AGENTS.md",
     "LICENSE"

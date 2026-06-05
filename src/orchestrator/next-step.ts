@@ -222,7 +222,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: "Use .visp/prompts/current-task.prompt.md with Codex",
+      nextCommand: "Use .visp/prompts/current-task.prompt.md with your agent",
       reason: `Context exists for ${selectedTask.id}, but no source changes were detected yet.`,
       confidence: "medium",
       stateName: "implementation-needed"

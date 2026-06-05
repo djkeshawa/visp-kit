@@ -1,0 +1,120 @@
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const root = process.cwd();
+
+function read(relativePath: string): string {
+  return readFileSync(path.join(root, relativePath), "utf8");
+}
+
+describe("release documentation readiness", () => {
+  it("has the required strict agent-native docs", () => {
+    for (const file of [
+      "README.md",
+      "docs/quickstart.md",
+      "docs/workflow.md",
+      "docs/commands.md",
+      "docs/policy-and-gates.md",
+      "docs/agent-native-workflows.md",
+      "docs/agent-targets.md",
+      "docs/overrides.md",
+      "docs/token-efficiency.md",
+      "docs/company-adoption.md",
+      "docs/troubleshooting.md",
+      "docs/release-checklist.md",
+      "docs/development.md"
+    ]) {
+      expect(existsSync(path.join(root, file)), file).toBe(true);
+    }
+  });
+
+  it("documents all implemented top-level commands", () => {
+    const commands = read("docs/commands.md");
+
+    for (const command of [
+      "init",
+      "scan",
+      "constitution",
+      "feature",
+      "clarify",
+      "spec",
+      "plan",
+      "tasks",
+      "context",
+      "budget",
+      "verify",
+      "review",
+      "reconcile",
+      "status",
+      "next",
+      "doctor",
+      "pr",
+      "policy",
+      "gate",
+      "agent",
+      "override"
+    ]) {
+      expect(commands).toContain(`visp ${command}`);
+    }
+  });
+
+  it("documents strict policy rules and overrides", () => {
+    const policy = read("docs/policy-and-gates.md");
+    const overrides = read("docs/overrides.md");
+
+    for (let index = 1; index <= 20; index += 1) {
+      expect(policy).toContain(`VSP${String(index).padStart(3, "0")}`);
+    }
+
+    expect(overrides).toContain("VSP019");
+    expect(overrides).toContain("VSP020");
+    expect(overrides).toContain("non-overridable");
+  });
+
+  it("documents all agent targets and does not claim direct LLM execution", () => {
+    const targets = read("docs/agent-targets.md");
+    const readme = read("README.md");
+
+    for (const target of ["codex", "generic", "claude", "copilot"]) {
+      expect(targets).toContain(`visp agent install ${target}`);
+    }
+
+    expect(readme).toContain("does not call");
+    expect(readme).toContain("The user prompt is raw intent only");
+  });
+
+  it("keeps package metadata ready for future publishing", () => {
+    const pkg = JSON.parse(read("package.json")) as {
+      description: string;
+      bin?: Record<string, string>;
+      files?: string[];
+    };
+
+    expect(pkg.description).toContain("agent harness");
+    expect(pkg.bin?.visp).toBe("dist/index.js");
+    expect(pkg.files).toEqual(expect.arrayContaining(["dist", "docs", "examples", "README.md", "LICENSE"]));
+  });
+
+  it("has a strict workflow example and dogfood script", () => {
+    expect(existsSync(path.join(root, "examples/strict-agent-workflow/README.md"))).toBe(true);
+    expect(existsSync(path.join(root, "scripts/dogfood-strict-agent-workflow.sh"))).toBe(true);
+    expect(read("docs/release-checklist.md")).toContain("scripts/dogfood-strict-agent-workflow.sh");
+  });
+
+  it("does not document unsupported run orchestration as implemented", () => {
+    const docs = [
+      "README.md",
+      "docs/quickstart.md",
+      "docs/workflow.md",
+      "docs/commands.md",
+      "docs/policy-and-gates.md",
+      "docs/agent-native-workflows.md",
+      "docs/agent-targets.md",
+      "docs/overrides.md"
+    ].map(read).join("\n");
+
+    expect(docs).not.toContain("visp run");
+  });
+});

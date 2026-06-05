@@ -24,5 +24,7 @@ describe("context renderer", () => {
     expect(markdown).toContain("REQ-001");
     expect(markdown).toContain("Snippet");
     expect(markdown).toContain("Estimated input tokens");
+    expect(markdown).toContain("Implementation Checklist");
+    expect(markdown).toContain("visp budget --task T001 --record-usage");
   });
 });

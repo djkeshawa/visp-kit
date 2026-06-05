@@ -1,8 +1,34 @@
 # Quickstart
 
-This guide shows the shortest practical Visp Kit loop for an existing TypeScript project.
+This guide shows the shortest practical Visp Kit loop for a local project.
+
+## Prerequisites
+
+- Node.js 24+
+- pnpm 11+
+- Git if you want review, reconcile, and PR diff evidence
 
 ## Install Locally
+
+Visp Kit is intended for local alpha use and internal pilots. Until it is published to npm, install it by building this repository and linking the `visp` command globally.
+
+Use Node.js 24:
+
+```bash
+nvm install 24
+nvm use 24
+node --version
+```
+
+Enable pnpm:
+
+```bash
+corepack enable
+corepack prepare pnpm@11.3.0 --activate
+pnpm --version
+```
+
+Build and link:
 
 ```bash
 git clone https://github.com/djkeshawa/visp-kit.git
@@ -10,7 +36,27 @@ cd visp-kit
 pnpm install
 pnpm build
 pnpm link --global
+visp --version
 visp --help
+```
+
+If pnpm reports that the global bin directory is not configured:
+
+```bash
+pnpm setup
+```
+
+Restart your shell, return to the `visp-kit` folder, and run:
+
+```bash
+pnpm link --global
+visp --help
+```
+
+You can also run the built CLI without linking:
+
+```bash
+node /path/to/visp-kit/dist/index.js --help
 ```
 
 ## Initialize A Project
@@ -18,40 +64,27 @@ visp --help
 From the target project root:
 
 ```bash
-visp init --agent codex --preset typescript --budget lean
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
 visp scan
-visp constitution --preset typescript --budget lean
+visp constitution
+visp policy validate
 ```
 
-What this creates:
+This creates local Visp artifacts, a strict policy, scan cache, compact project rules, and Codex guidance files.
 
-- `.visp/project.json`
-- `.visp/config.json`
-- `.visp/status.json`
-- `.visp/cache/*`
-- `.visp/memory/*`
-- `.visp/prompts/*`
-- optional Codex guidance files when `--agent codex` is used
-
-## Start A Feature
+## Create A Feature
 
 ```bash
 visp feature "Add note pinning"
 visp clarify
+visp clarify answer CQ001 --answer "<answer any blocking clarification>"
 visp spec
 visp plan
 visp tasks
-```
-
-These commands create deterministic templates and prompt files. Fill or refine the generated artifacts with your AI tool or by hand.
-
-## Compile Task Context
-
-```bash
 visp context --next
 ```
 
-This writes:
+`visp context --next` writes:
 
 ```text
 .visp/features/<feature>/context/T001.context.md
@@ -60,44 +93,59 @@ This writes:
 .visp/prompts/current-task.prompt.md
 ```
 
-Use `.visp/prompts/current-task.prompt.md` with Codex or another coding agent.
+## Use The Agent Workflow
+
+Open Codex and use:
+
+```text
+$visp-task
+Continue with the next Visp task.
+```
+
+The generated Codex guidance tells the agent to run gates, read `.visp/prompts/current-task.prompt.md`, implement one task only, and stop on failed policy.
+
+For a manual session, read:
+
+```text
+.visp/prompts/current-task.prompt.md
+```
 
 ## Verify, Review, Reconcile
 
 After implementation:
 
 ```bash
+visp budget --task T001 --record-usage --input-tokens <actual> --output-tokens <actual> --write-report
 visp verify --task T001
 visp review --task T001
-visp reconcile --task T001
-```
-
-If reconciliation passes or has accepted warnings:
-
-```bash
 visp reconcile --task T001 --update-traceability
-```
-
-## Prepare A PR Summary
-
-```bash
 visp pr
 ```
 
-This writes:
+Only record actual token usage when your AI tool exposes it. Otherwise leave it unrecorded and mention that the usage was unavailable.
 
-```text
-.visp/features/<feature>/pr.md
-.visp/features/<feature>/pr.json
-.visp/prompts/pr.prompt.md
-```
-
-## Use The Guide Commands
+If a command fails, read the generated report and run:
 
 ```bash
-visp status
 visp next --explain
+visp gate next --explain
 visp doctor
 ```
 
-These commands summarize state, recommend the next step, and diagnose project health.
+## Optional Override
+
+Overrides are explicit and auditable. Use them only when a human intentionally accepts a policy exception:
+
+```bash
+visp override create VSP014 \
+  --scope task \
+  --feature 001 \
+  --task T001 \
+  --reason "Prototype branch has no automated verification yet; manual validation is documented."
+```
+
+Then validate:
+
+```bash
+visp override validate
+```

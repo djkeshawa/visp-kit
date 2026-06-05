@@ -16,27 +16,28 @@ Use this workflow when the user asks for a new feature or enhancement through Vi
 
 1. Run \`visp status\`.
 2. Run \`visp policy validate\`.
-3. Run \`visp gate next\`.
-4. Run the next allowed Visp command.
-5. Run \`visp scan\` if gate or next says scan is required.
-6. Run \`visp constitution\` if gate or next says constitution is required.
-7. Run \`visp feature "<raw user request>"\` when no active feature exists or the user explicitly wants a new feature.
-8. Run \`visp clarify\`.
-9. Refine clarification artifacts if needed.
-10. Run \`visp spec\`.
-11. Refine spec artifacts if needed.
-12. Run \`visp plan\`.
-13. Refine plan artifacts if needed.
-14. Run \`visp tasks\`.
-15. Refine task graph if needed.
-16. Run \`visp context --next\`.
-17. Run \`visp gate implement --task <task-id>\`.
-18. Read \`.visp/prompts/current-task.prompt.md\`.
-19. Implement only the selected task.
-20. Run \`visp verify --task <task-id>\`.
-21. Run \`visp review --task <task-id>\`.
-22. Run \`visp reconcile --task <task-id> --update-traceability\`.
-23. Run \`visp next\`.
+3. If either command reports that Visp Kit is not initialized, run \`visp agent bootstrap <target> --strictness strict\` and restart this workflow.
+4. Run \`visp gate next\`.
+5. Run the next allowed Visp command.
+6. Run \`visp scan\` if gate or next says scan is required.
+7. Run \`visp constitution\` if gate or next says constitution is required.
+8. Run \`visp feature "<raw user request>"\` when no active feature exists or the user explicitly wants a new feature.
+9. Run \`visp clarify\`.
+10. Ask the user any blocking clarification questions and record answers with \`visp clarify answer <question-id> --answer "<answer>"\`.
+11. Run \`visp spec\`.
+12. Refine spec artifacts if validation reports schema or traceability issues.
+13. Run \`visp plan\`.
+14. Refine plan artifacts if validation reports missing decisions or risks.
+15. Run \`visp tasks\`.
+16. Refine task graph if validation reports missing requirement or acceptance-criterion mappings.
+17. Run \`visp context --next\`.
+18. Run \`visp gate implement --task <task-id>\`.
+19. Read \`.visp/prompts/current-task.prompt.md\`.
+20. Implement only the selected task.
+21. Run \`visp verify --task <task-id>\`.
+22. Run \`visp review --task <task-id>\`.
+23. Run \`visp reconcile --task <task-id> --update-traceability\`.
+24. Run \`visp next\`.
 
 ${implementationRulesSection()}
 ${blockingRulesSection()}

@@ -22,6 +22,10 @@ import {
   type DoctorCommandDependencies
 } from "./commands/doctor.command.js";
 import {
+  createEvalCommand,
+  type EvalCommandDependencies
+} from "./commands/eval.command.js";
+import {
   createContextCommand,
   type ContextCommandDependencies
 } from "./commands/context.command.js";
@@ -49,6 +53,10 @@ import {
   createPolicyCommand,
   type PolicyCommandDependencies
 } from "./commands/policy.command.js";
+import {
+  createOverrideCommand,
+  type OverrideCommandDependencies
+} from "./commands/override.command.js";
 import {
   createNextCommand,
   type NextCommandDependencies
@@ -81,6 +89,10 @@ import {
   createVerifyCommand,
   type VerifyCommandDependencies
 } from "./commands/verify.command.js";
+import {
+  createWorkflowCommand,
+  type WorkflowCliDependencies
+} from "./commands/workflow.command.js";
 
 export type CliDependencies = AgentCommandDependencies &
   BudgetCommandDependencies &
@@ -88,10 +100,12 @@ export type CliDependencies = AgentCommandDependencies &
   ConstitutionCommandDependencies &
   ContextCommandDependencies &
   DoctorCommandDependencies &
+  EvalCommandDependencies &
   FeatureCommandDependencies &
   GateCommandDependencies &
   InitCommandDependencies &
   NextCommandDependencies &
+  OverrideCommandDependencies &
   PlanCommandDependencies &
   PolicyCommandDependencies &
   PrCommandDependencies &
@@ -101,7 +115,8 @@ export type CliDependencies = AgentCommandDependencies &
   SpecCommandDependencies &
   StatusCommandDependencies &
   TasksCommandDependencies &
-  VerifyCommandDependencies;
+  VerifyCommandDependencies &
+  WorkflowCliDependencies;
 
 const cliMetadataSchema = z.object({
   name: z.literal("visp"),
@@ -129,10 +144,12 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createConstitutionCommand(dependencies));
   program.addCommand(createContextCommand(dependencies));
   program.addCommand(createDoctorCommand(dependencies));
+  program.addCommand(createEvalCommand(dependencies));
   program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createGateCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createNextCommand(dependencies));
+  program.addCommand(createOverrideCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));
   program.addCommand(createPolicyCommand(dependencies));
   program.addCommand(createPrCommand(dependencies));
@@ -143,6 +160,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createStatusCommand(dependencies));
   program.addCommand(createTasksCommand(dependencies));
   program.addCommand(createVerifyCommand(dependencies));
+  program.addCommand(createWorkflowCommand(dependencies));
 
   return program;
 }

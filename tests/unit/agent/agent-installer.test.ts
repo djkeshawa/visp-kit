@@ -53,6 +53,39 @@ describe("agent installer", () => {
     expect(policy.strictnessMode).toBe("strict");
   });
 
+  it("preserves custom policy settings when updating strictness", async () => {
+    const policyPath = policyArtifactPath(tempDir);
+    const policy = JSON.parse(await readFile(policyPath, "utf8")) as {
+      limits: { maxChangedFilesPerTask: number };
+      overrides: { allowedInLockedMode: boolean };
+    };
+
+    policy.limits.maxChangedFilesPerTask = 42;
+    policy.overrides.allowedInLockedMode = true;
+    await writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`, "utf8");
+
+    expectOk(
+      await runAgentInstall({
+        targetPath: tempDir,
+        target: "codex",
+        strictness: "strict",
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+
+    const updated = JSON.parse(await readFile(policyPath, "utf8")) as {
+      strictnessMode: string;
+      limits: { maxChangedFilesPerTask: number };
+      overrides: { allowedInLockedMode: boolean };
+      rules: { requireScanBeforeFeature: boolean };
+    };
+
+    expect(updated.strictnessMode).toBe("strict");
+    expect(updated.rules.requireScanBeforeFeature).toBe(true);
+    expect(updated.limits.maxChangedFilesPerTask).toBe(42);
+    expect(updated.overrides.allowedInLockedMode).toBe(true);
+  });
+
   it("writes AGENTS.visp.md when AGENTS.md already exists without force", async () => {
     await writeFile(path.join(tempDir, "AGENTS.md"), "# Existing\n", "utf8");
 

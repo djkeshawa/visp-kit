@@ -36,6 +36,8 @@ const result: GateResult = {
       ruleId: "VSP007"
     }
   ],
+  overriddenRules: [],
+  appliedOverrides: [],
   nextAllowedCommand: "Run visp context --next.",
   reportPath: ".visp/reports/gate-report.md",
   evaluatedAt: "2026-01-01T00:00:00.000Z"

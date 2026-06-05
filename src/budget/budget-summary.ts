@@ -16,6 +16,9 @@ export type BudgetSummary = {
     readonly estimatedInputTokens: number;
     readonly expectedOutputTokens: number;
     readonly estimatedTotalTokens: number;
+    readonly actualInputTokens: number | null;
+    readonly actualOutputTokens: number | null;
+    readonly actualTotalTokens: number | null;
     readonly overBudgetTaskCount: number;
   };
   readonly estimatedTokens?: {
@@ -54,6 +57,18 @@ export function createBudgetSummary(input: {
       (sum, task) => sum + task.estimatedTotalTokens,
       0
     ),
+    actualInputTokens:
+      input.tasks.some((task) => task.actualInputTokens !== undefined)
+        ? input.tasks.reduce((sum, task) => sum + (task.actualInputTokens ?? 0), 0)
+        : null,
+    actualOutputTokens:
+      input.tasks.some((task) => task.actualOutputTokens !== undefined)
+        ? input.tasks.reduce((sum, task) => sum + (task.actualOutputTokens ?? 0), 0)
+        : null,
+    actualTotalTokens:
+      input.tasks.some((task) => task.actualTotalTokens !== undefined)
+        ? input.tasks.reduce((sum, task) => sum + (task.actualTotalTokens ?? 0), 0)
+        : null,
     overBudgetTaskCount: input.tasks.filter((task) => task.overBudget).length
   };
   const selected = input.taskId === undefined
@@ -95,6 +110,8 @@ export function formatBudgetSummary(summary: BudgetSummary): string {
     formatKeyValue("Tasks", String(summary.tasks.length)),
     formatKeyValue("Estimated input tokens", String(summary.totals.estimatedInputTokens)),
     formatKeyValue("Estimated total tokens", String(summary.totals.estimatedTotalTokens)),
+    formatKeyValue("Actual input tokens", summary.totals.actualInputTokens === null ? "not recorded" : String(summary.totals.actualInputTokens)),
+    formatKeyValue("Actual total tokens", summary.totals.actualTotalTokens === null ? "not recorded" : String(summary.totals.actualTotalTokens)),
     formatKeyValue("Over-budget tasks", String(summary.totals.overBudgetTaskCount))
   ];
 

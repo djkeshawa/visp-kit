@@ -16,6 +16,10 @@ export function workflowMapPath(rootPath: string): string {
   return joinPath(agentMetadataDir(rootPath), "workflow-map.json");
 }
 
+export function agentCapabilitiesPath(rootPath: string): string {
+  return joinPath(agentMetadataDir(rootPath), "capabilities.json");
+}
+
 export function agentsMarkdownPath(rootPath: string): string {
   return joinPath(rootPath, "AGENTS.md");
 }

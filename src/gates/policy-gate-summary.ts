@@ -25,6 +25,8 @@ export function summarizeGateResult(result: GateResult): PolicyGateSummary {
     allowed: result.allowed,
     failedRules: result.failedRules,
     blockedCommands: result.blockedCommands,
+    overriddenRules: result.overriddenRules,
+    appliedOverrides: result.appliedOverrides,
     warnings: result.warnings,
     nextAllowedCommand: result.nextAllowedCommand,
     evaluatedAt: result.evaluatedAt

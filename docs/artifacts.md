@@ -8,11 +8,19 @@ Visp Kit stores deterministic local artifacts in `.visp/`.
 .visp/project.json
 .visp/config.json
 .visp/status.json
+.visp/policy.json
+.visp/overrides.json
+.visp/workflow.json
+.visp/budget.json
 ```
 
 - `project.json`: detected project profile.
 - `config.json`: Visp preset, budget, and agent configuration.
 - `status.json`: active feature, active task, state, and last command.
+- `policy.json`: strictness mode, policy rules, limits, and override settings.
+- `overrides.json`: explicit, auditable policy exceptions.
+- `workflow.json`: stage, gate, artifact, source-edit, and next-command contract.
+- `budget.json`: budget estimates and actual token usage records.
 
 ## Cache
 
@@ -56,6 +64,8 @@ The compact constitution is used in context packs. The full constitution is not 
   tasks.md
   traceability.json
   traceability.md
+  timeline.json
+  timeline.md
 ```
 
 ## Context
@@ -76,7 +86,20 @@ The compact constitution is used in context packs. The full constitution is not 
 .visp/features/<feature>/review/T001.review.json
 .visp/features/<feature>/reconcile/T001.reconcile.md
 .visp/features/<feature>/reconcile/T001.reconcile.json
+.visp/reports/evaluation-report.md
+.visp/reports/evaluation-report.json
 ```
+
+## Run Traces
+
+```text
+.visp/runs/index.json
+.visp/runs/RUN001/run.json
+.visp/runs/RUN001/run.md
+.visp/runs/RUN001/events.jsonl
+```
+
+Run traces record compact command, gate, artifact, budget, and evidence events. They do not store large diffs, full prompts, or source file contents.
 
 ## PR
 
@@ -85,6 +108,17 @@ The compact constitution is used in context packs. The full constitution is not 
 .visp/features/<feature>/pr.json
 .visp/prompts/pr.prompt.md
 ```
+
+## Agent Metadata
+
+```text
+.visp/agent/installed-targets.json
+.visp/agent/agent-guide.md
+.visp/agent/workflow-map.json
+.visp/agent/capabilities.json
+```
+
+Agent metadata records installed guidance targets such as Codex, generic, Claude, and Copilot. Capabilities describe how those tools are expected to consume Visp guidance; Visp still does not run the tools directly.
 
 ## Generated Files
 

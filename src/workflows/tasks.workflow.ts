@@ -24,7 +24,7 @@ import {
 import { VispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
-import { err, type Result } from "../core/result.js";
+import { err, ok, type Result } from "../core/result.js";
 import { renderTasksPrompt } from "../prompts/render-tasks-prompt.js";
 import {
   createTaskGraphArtifact,
@@ -38,6 +38,7 @@ import {
   resolveActiveFeature,
   type ActiveFeature
 } from "./shared/active-feature.js";
+import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import {
   artifactGeneratedFile,
   completeTemplateWorkflow,
@@ -253,7 +254,7 @@ export async function runTasksWorkflow(
     traceability
   });
 
-  return completeTemplateWorkflow({
+  const summary = await completeTemplateWorkflow({
     command: "tasks",
     targetPath,
     feature: feature.value,
@@ -302,5 +303,25 @@ export async function runTasksWorkflow(
     warnings: spec.value.warnings,
     nextCommand: "visp context T001",
     now
+  });
+
+  if (!summary.ok || promptOnly || !summary.value.validation.passed) {
+    return summary;
+  }
+
+  const budgetRefresh = await refreshBudgetReport({
+    targetPath,
+    feature: feature.value.key,
+    dryRun,
+    now
+  });
+
+  return ok({
+    ...summary.value,
+    updatedFiles: [
+      ...summary.value.updatedFiles,
+      ...budgetRefresh.writtenFiles
+    ],
+    warnings: [...new Set([...summary.value.warnings, ...budgetRefresh.warnings])]
   });
 }

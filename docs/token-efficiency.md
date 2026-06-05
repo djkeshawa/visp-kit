@@ -1,84 +1,117 @@
-# Token Efficiency Guide
+# Token Efficiency
 
-Visp Kit treats token efficiency as a product requirement, not an afterthought.
+Visp Kit treats token efficiency as a product requirement.
 
-## Problem
+The goal is not to send the whole repository to an AI tool. The goal is to send the smallest sufficient task context.
 
-AI coding agents often receive too much context:
+## Why It Matters
 
-- entire repositories
-- long chat histories
-- unrelated specs
-- every file summary
-- large source files
+Large prompts can:
 
-This increases cost, slows the workflow, and makes drift more likely.
+- cost more
+- slow down the session
+- hide the actual task
+- encourage unrelated edits
+- increase requirement drift
 
-## Visp Kit Approach
+Small, traceable context helps agents implement one task at a time.
 
-For each implementation task, Visp Kit generates the smallest sufficient context pack.
+## Context Compiler
 
-The context pack includes:
+`visp context` builds a context pack for one task.
+
+It includes:
 
 - selected task
-- relevant requirements
-- relevant acceptance criteria
-- linked plan decisions and risks
+- mapped requirements
+- mapped acceptance criteria
 - compact constitution rules
-- project summary only when useful
-- selected file summaries and snippets
+- relevant plan decisions
+- selected file summaries
+- snippets when useful
+- allowed, expected, and forbidden files
 - validation commands
-- constraints and warnings
-- deterministic token estimate
+- policy and gate status
+- token estimate
 
-The context pack does not include the whole repository.
+It avoids:
+
+- full repository dumps
+- unrelated feature artifacts
+- broad source file inclusion
+- long chat history
+
+## Scan Cache
+
+`visp scan` writes compact cache artifacts:
+
+```text
+.visp/cache/file-index.json
+.visp/cache/file-summaries.json
+.visp/cache/module-map.json
+.visp/cache/test-map.json
+.visp/cache/dependency-map.json
+.visp/cache/scan-meta.json
+```
+
+These let Visp Kit select useful context without rereading every file into the task prompt.
 
 ## Budget Modes
 
-Budget mode is separate from policy strictness. A project can use small `lean` context packs while enforcing `strict` or `locked` workflow gates.
+Budget mode controls context size. Policy strictness controls workflow enforcement.
 
-### Lean
+You can use lean context with strict policy:
 
-Use for normal day-to-day tasks.
+```bash
+visp init --budget lean --strictness strict
+```
 
-- Max input tokens: 8000
-- Small file set
-- Compact output
-- Default mode
+Modes:
 
-### Balanced
-
-Use for medium-risk tasks.
-
-- Max input tokens: 15000
-- More files and snippets
-- Includes project patterns
-
-### Strict
-
-Use for high-risk or cross-cutting work.
-
-- Max input tokens: 30000
-- Larger snippets
-- More dependency task context
-- Still scoped to the task
+- `lean`: small day-to-day task context
+- `balanced`: broader context for medium-risk work
+- `strict`: larger but still task-scoped context for complex work
 
 ## Useful Commands
 
 ```bash
-visp budget
-visp budget --task T001
 visp context T001 --budget lean
 visp context T001 --max-tokens 6000
-visp gate implement --task T001
+visp budget
+visp budget --task T001
+visp budget --write-report
+visp budget --task T001 --record-usage --input-tokens 1200 --output-tokens 300 --write-report
 ```
+
+`visp budget` estimates context before implementation. Visp also refreshes `.visp/reports/budget-report.md` automatically after key feature workflow milestones such as `visp tasks`, `visp context`, `visp verify`, `visp review`, `visp reconcile`, and `visp pr`.
+
+Visp cannot know true agent token usage unless the AI tool exposes it. After implementation, record actual usage with `--record-usage` when available. The value is stored in `.visp/budget.json` and shown in `.visp/reports/budget-report.md`.
+
+When workflow tracing is enabled by normal Visp commands, recorded usage is also reflected in:
+
+- `.visp/runs/<run-id>/run.json`
+- `.visp/runs/<run-id>/run.md`
+- `.visp/features/<feature>/timeline.md`
+
+This lets a team compare estimated context cost with actual agent-reported usage for each feature task.
+
+## Strict Prompts
+
+Generated task prompts tell agents:
+
+- the selected task is the only implementation target
+- user prompts are raw intent only
+- policy and gates override prompt requests
+- unrelated files and dependencies are forbidden unless task scope allows them
+
+This improves token efficiency because the agent should not read broad repository context when a scoped context pack exists.
 
 ## Team Practices
 
-- Keep task `allowedFiles` accurate.
-- Split tasks that exceed budget.
-- Prefer snippets over full files.
-- Run `visp scan` after significant repository changes.
-- Use `lean` by default and move up only when needed.
-- Do not paste full chat history when using generated prompts.
-- Do not treat a user prompt as an override of policy or task scope.
+- Keep tasks small.
+- Keep `allowedFiles` and `expectedFiles` accurate.
+- Split over-budget tasks.
+- Use snippets before full files.
+- Run `visp scan --changed` after major repository changes.
+- Use `visp review --diff-only` for focused diff inspection.
+- Prefer `lean` until the task actually needs broader context.

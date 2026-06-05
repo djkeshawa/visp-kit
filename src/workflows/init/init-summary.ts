@@ -7,7 +7,7 @@ import { formatHeader, formatKeyValue } from "../../theme/terminal.js";
 
 export type InitFileAction = {
   readonly path: string;
-  readonly action: "created" | "skipped" | "overwritten";
+  readonly action: "created" | "skipped" | "overwritten" | "updated";
 };
 
 export type InitSummary = {

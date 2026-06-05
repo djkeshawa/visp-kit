@@ -119,7 +119,7 @@ export function formatTemplateWorkflowSummary(
   lines.push(
     "",
     "Next:",
-    `  Use ${summary.promptPath} with Codex, then run:`,
+    `  Use ${summary.promptPath} with your AI coding tool, then run:`,
     `  visp ${summary.command} --validate`,
     `  ${summary.nextCommand}`
   );

@@ -71,7 +71,9 @@ export function formatPolicySummary(summary: PolicyRenderSummary): string {
     "Overrides:",
     `  allowed: ${summary.policy.overrides.allowed ? "yes" : "no"}`,
     `  requireReason: ${summary.policy.overrides.requireReason ? "yes" : "no"}`,
-    `  recordInReports: ${summary.policy.overrides.recordInReports ? "yes" : "no"}`
+    `  recordInReports: ${summary.policy.overrides.recordInReports ? "yes" : "no"}`,
+    `  allowedInLockedMode: ${summary.policy.overrides.allowedInLockedMode ? "yes" : "no"}`,
+    `  nonOverridableRules: ${summary.policy.overrides.nonOverridableRules.join(", ")}`
   );
 
   if (summary.validation.errors.length > 0) {

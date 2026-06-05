@@ -1,32 +1,65 @@
 # Visp Kit
 
-Visp Kit is a token-efficient, spec-driven workflow kit for accurate AI-assisted software development.
+A strict, token-efficient agent harness for accurate AI-assisted software development.
 
-Small context. Clear specs. Accurate code.
+Visp Kit turns vague feature ideas into a controlled local workflow:
 
-## What Is Visp Kit?
+- intent
+- clarification
+- specification
+- plan
+- task graph
+- context pack
+- implementation prompt
+- verification
+- review
+- reconciliation
+- PR summary
+- run trace
+- feature timeline
+- deterministic evaluation
 
-Visp Kit helps developers use AI coding agents more safely by turning vague feature ideas into local, auditable workflow artifacts:
+It is built for developers and teams who use AI coding tools but still need small context, clear requirements, deterministic gates, and auditable evidence.
 
-- feature intent
-- clarification questions
-- specifications
-- implementation plans
-- task graphs
-- task-specific context packs
-- token budget reports
+## What Visp Kit Is
+
+Visp Kit is a strict, token-efficient, spec-driven agent harness. It creates local artifacts under `.visp/` and generates workflow instructions that AI coding tools can use inside their own sessions.
+
+It gives Codex, Claude Code, Copilot-compatible tools, generic AI chat sessions, and human teammates a disciplined workflow through:
+
+- policy
+- gates
+- artifacts
+- context packs
 - verification reports
 - review reports
 - reconciliation reports
-- PR summaries
+- run traces
+- feature timelines
+- deterministic evaluation reports
+- agent-native instructions
 
-It does not call an LLM provider, route prompts, or run Codex automatically. Visp Kit creates deterministic files and prompts that you can use with Codex, Copilot, Claude Code, or a human teammate.
+## What Visp Kit Is Not
 
-## Why Visp Kit Exists
+Visp Kit is not an LLM provider.
 
-AI coding agents can over-read context, drift from requirements, and edit more than the selected task needs. Company teams also have token limits, security constraints, audit needs, and review gates.
+It does not:
 
-Visp Kit keeps AI-assisted development local, traceable, and token-efficient. It gives the agent only the smallest sufficient context for one task, then verifies, reviews, and reconciles the result against the original requirements.
+- call Codex, Claude, Copilot, or any external AI tool directly
+- run AI agents automatically
+- publish packages
+- create GitHub PRs through an API
+- replace human review
+- make user prompts trusted commands
+- let prompts override policy
+
+The user prompt is raw intent only. It cannot override Visp Kit policy.
+
+## Why It Exists
+
+AI coding tools can drift from requirements, over-read context, edit unrelated files, or treat vague prompts as permission to do too much. Company teams also have token limits, security constraints, audit needs, and review gates.
+
+Visp Kit keeps AI-assisted work task-specific, traceable, and deterministic.
 
 Core principle:
 
@@ -34,49 +67,79 @@ Core principle:
 
 Strict workflow principle:
 
-> The user prompt is raw intent only. It cannot override Visp Kit policy or failed gates.
+> The user prompt is raw intent only. It cannot override Visp Kit policy.
 
-## Compared To Spec Kit
+## Features
 
-Spec Kit popularized a spec-first workflow for AI-assisted development. Visp Kit builds on that idea for brownfield company projects where token use, traceability, and deterministic gates matter.
+Setup and project memory:
 
-Key differences:
+- `visp init`
+- `visp scan`
+- `visp constitution`
 
-- Visp Kit scans an existing repository and caches compact file summaries.
-- Visp Kit compiles task-specific context packs instead of sending broad project context.
-- Visp Kit estimates token budgets before a task prompt is used.
-- Visp Kit verifies, reviews, and reconciles implementation evidence locally.
-- Visp Kit keeps artifacts in `.visp/` so teams can inspect, diff, and audit the workflow.
-- Visp Kit is agent-neutral and has no built-in LLM dependency.
+Feature planning:
 
-## Key Features
+- `visp feature`
+- `visp clarify`
+- `visp spec`
+- `visp plan`
+- `visp tasks`
 
-- Spec-driven workflow from feature idea to PR summary.
-- Deterministic project scan and reusable project index.
-- Project constitution for local engineering rules.
-- Feature workspaces under `.visp/features/`.
-- Clarify, spec, plan, and task templates.
-- Context compiler for one implementation task at a time.
-- Lean, balanced, and strict token budget modes.
-- Policy-as-code strictness modes: relaxed, standard, strict, and locked.
-- Deterministic policy gates with `visp gate`.
-- Agent-native workflow installers for Codex, generic tools, Claude Code, and Copilot-compatible repository instructions.
-- Local verification gates for artifacts, traceability, commands, scope, and dependencies.
-- Deterministic diff review and security/privacy checklist.
-- Reconciliation between spec, task, evidence, traceability, and Git diff.
-- Day-to-day commands: `status`, `next`, `doctor`, and `pr`.
-- Codex-friendly prompt files.
-- Company-friendly local artifacts with no provider calls.
+Task context and token control:
 
-## Requirements
+- `visp context`
+- `visp budget`
 
-- Node.js 24+
-- pnpm 11+
-- Git for review, reconcile, and PR diff workflows
+Evidence and drift control:
+
+- `visp verify`
+- `visp review`
+- `visp reconcile`
+
+Daily orchestration:
+
+- `visp status`
+- `visp next`
+- `visp doctor`
+- `visp pr`
+
+Strict workflow controls:
+
+- `visp policy`
+- `visp gate`
+- `visp agent`
+- `visp override`
+
+Observability and evaluation:
+
+- `visp workflow`
+- `visp eval`
+- `.visp/runs/<run-id>/`
+- `.visp/features/<feature>/timeline.md`
 
 ## Install
 
-Visp Kit is release-ready locally, but may not be published to npm yet. Use local development install first.
+Visp Kit is ready for local alpha use and internal pilots. It is not assumed to be published to npm yet, so the recommended install is a local global link from this repository.
+
+### 1. Use Node.js 24+
+
+With `nvm`:
+
+```bash
+nvm install 24
+nvm use 24
+node --version
+```
+
+Enable pnpm through Corepack:
+
+```bash
+corepack enable
+corepack prepare pnpm@11.3.0 --activate
+pnpm --version
+```
+
+### 2. Build And Link Visp Kit
 
 ```bash
 git clone https://github.com/djkeshawa/visp-kit.git
@@ -84,30 +147,169 @@ cd visp-kit
 pnpm install
 pnpm build
 pnpm link --global
+```
+
+Verify the global command:
+
+```bash
+visp --version
 visp --help
 ```
 
-After npm publishing, the expected install command will be:
+If `pnpm link --global` reports that the global bin directory is not configured, run:
+
+```bash
+pnpm setup
+```
+
+Then restart your shell, return to the `visp-kit` folder, and run:
+
+```bash
+pnpm link --global
+visp --help
+```
+
+### 3. Use It In Another Project
+
+From any target project:
+
+```bash
+cd path/to/your-project
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp status
+```
+
+For other agent targets:
+
+```bash
+visp agent bootstrap generic --strictness strict
+visp agent bootstrap claude --strictness strict
+visp agent bootstrap copilot --strictness strict
+```
+
+### Direct Local Use Without Linking
+
+You can also run the built CLI directly:
+
+```bash
+node /path/to/visp-kit/dist/index.js --help
+node /path/to/visp-kit/dist/index.js agent bootstrap codex --strictness strict
+```
+
+### Future npm Install
+
+After package publishing:
 
 ```bash
 npm install -g visp-kit
 visp --help
 ```
 
-You can also run the built CLI directly:
+Requirements:
 
-```bash
-node dist/index.js --help
-```
+- Node.js 24+
+- pnpm 11+
+- Git for diff-based review, reconcile, and PR summaries
 
-## Quick Start
+## Quickstart
 
 Inside an existing project:
 
 ```bash
-visp init --agent codex --preset typescript --budget lean --strictness strict
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
 visp scan
-visp constitution --preset typescript --budget lean
+visp constitution
+visp policy validate
+visp feature "Add note pinning"
+visp clarify
+visp clarify answer CQ001 --answer "<answer any blocking clarification>"
+visp spec
+visp plan
+visp tasks
+visp context --next
+```
+
+Open the AI coding tool and use the generated agent workflow.
+
+For Codex:
+
+```text
+$visp-feature
+Add note pinning.
+```
+
+or:
+
+```text
+$visp-task
+Continue with the next Visp task.
+```
+
+Before implementation, the agent should run:
+
+```bash
+visp gate implement --task T001
+```
+
+After implementation:
+
+```bash
+visp budget --task T001 --record-usage --input-tokens <actual> --output-tokens <actual> --write-report
+visp verify --task T001
+visp review --task T001
+visp reconcile --task T001 --update-traceability
+visp next
+visp pr
+```
+
+## Usage Examples
+
+### Bootstrap Visp Kit In A Project
+
+Use this when you are inside an existing codebase and want Visp Kit plus agent guidance installed in one step:
+
+```bash
+cd path/to/your-project
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp status
+visp gate next
+```
+
+For other AI coding tools, change the target:
+
+```bash
+visp agent bootstrap generic --strictness strict
+visp agent bootstrap claude --strictness strict
+visp agent bootstrap copilot --strictness strict
+```
+
+Bootstrap creates `.visp/`, policy, workflow metadata, project memory, starter reports, and agent-native guidance files. It does not call the AI tool or edit your implementation code.
+
+### Install Agent Guidance After Init
+
+If `.visp/` already exists, install or refresh the agent target directly:
+
+```bash
+visp agent install codex
+visp agent doctor --target codex
+visp agent refresh --target codex --force
+```
+
+Generated files depend on the target:
+
+- Codex: `AGENTS.md` plus `.agents/skills/visp-*/SKILL.md`
+- Generic: `AGENTS.md` plus `.visp/prompts/agent-*.prompt.md`
+- Claude: `.claude/commands/visp-*.md`
+- Copilot: `.github/copilot-instructions.md` and `.github/instructions/visp-*.instructions.md`
+
+### Start A Feature
+
+Run the planning workflow before asking an agent to edit code:
+
+```bash
+visp scan
+visp constitution
+visp policy validate
 visp feature "Add note pinning"
 visp clarify
 visp spec
@@ -117,249 +319,249 @@ visp context --next
 visp gate implement --task T001
 ```
 
-Then give Codex the generated prompt:
+Then open your AI coding tool and use the installed workflow.
+
+Codex:
 
 ```text
-.visp/prompts/current-task.prompt.md
+$visp-task
+Continue with the next Visp task.
 ```
 
-After the task is implemented:
+Claude Code:
+
+```text
+/visp-task
+Continue with the next Visp task.
+```
+
+Copilot-compatible tools:
+
+```text
+Follow .github/instructions/visp-task.instructions.md.
+Continue with the next Visp task.
+```
+
+Generic AI chat:
+
+```text
+Use .visp/prompts/agent-task.prompt.md.
+Continue with the next Visp task.
+```
+
+The agent should read `.visp/prompts/current-task.prompt.md`, implement only the selected task, and stop if a Visp gate blocks.
+
+### Answer Clarifications
+
+If `visp clarify` creates questions that need user input, record answers before generating the spec:
+
+```bash
+visp clarify answer CQ001 --answer "Pinned notes should appear before unpinned notes."
+visp clarify answer CQ002 --answer "Keep the existing note sort order within each group."
+visp spec
+```
+
+### Verify, Review, And Reconcile Agent Work
+
+After the agent edits code, run the evidence workflow:
 
 ```bash
 visp verify --task T001
 visp review --task T001
-visp reconcile --task T001
 visp reconcile --task T001 --update-traceability
+visp next
+```
+
+If verification or review fails, ask the agent to use the fix workflow:
+
+```text
+$visp-fix
+Fix the active Visp task based on the latest verification, review, and reconciliation reports.
+```
+
+### Record Actual Token Usage
+
+If your AI tool reports token usage, record it against the task:
+
+```bash
+visp budget --task T001 \
+  --record-usage \
+  --input-tokens 18000 \
+  --output-tokens 4200 \
+  --model "codex" \
+  --usage-note "Implementation pass for note pinning" \
+  --write-report
+```
+
+This updates budget evidence and the implementation checklist so the feature timeline can show estimated vs. actual usage.
+
+### Generate Reports
+
+Common report commands:
+
+```bash
+visp status --write-report
+visp budget --write-report
+visp workflow show
+visp eval --write-report
 visp pr
 ```
 
-At any point:
+Useful generated report locations:
+
+- `.visp/reports/status-report.md`
+- `.visp/reports/budget-report.md`
+- `.visp/reports/evaluation-report.md`
+- `.visp/features/<feature>/verification.md`
+- `.visp/features/<feature>/review/<task>.review.md`
+- `.visp/features/<feature>/reconcile/<task>.reconcile.md`
+- `.visp/features/<feature>/timeline.md`
+- `.visp/features/<feature>/pr.md`
+- `.visp/runs/RUN001/run.md`
+
+### Use JSON For Automation
+
+Most commands support `--json` for scripts and CI checks:
 
 ```bash
-visp status
-visp next
-visp doctor
+visp status --json
+visp next --json
+visp gate implement --task T001 --json
+visp eval --json
 ```
 
-Install native agent guidance for your AI coding tool:
+JSON mode prints machine-readable JSON only.
+
+### Prepare A PR Summary
+
+When the task or feature is reconciled:
 
 ```bash
+visp gate pr
+visp pr
+```
+
+Then use `.visp/features/<feature>/pr.md` as the PR description draft. Visp Kit does not call GitHub or open a PR for you.
+
+## Agent-Native Workflows
+
+Supported targets:
+
+- `codex`
+- `generic`
+- `claude`
+- `copilot`
+
+Install guidance:
+
+```bash
+visp agent bootstrap codex
 visp agent install codex
 visp agent install generic
 visp agent install claude
 visp agent install copilot
+visp agent doctor
+visp agent refresh
 ```
 
-Claude and Copilot support varies by surface. Visp Kit generates strict, local repository guidance files that compatible tools can use, and the same files can be copied into an active AI session when needed.
+Visp Kit generates local instructions, skills, commands, or prompt files depending on the target. Compatibility depends on the specific AI tool surface. Visp Kit does not call the AI tool for you.
 
-## Core Workflow
+## Strictness Modes
 
-1. Initialize local Visp artifacts with `visp init`.
-2. Scan the repository with `visp scan`.
-3. Generate compact project rules with `visp constitution`.
-4. Create a feature workspace with `visp feature`.
-5. Generate clarification, spec, plan, and task artifacts.
-6. Compile context for one task with `visp context --next`.
-7. Use the generated task prompt with your AI coding tool.
-8. Run deterministic gates with `visp verify`.
-9. Review the Git diff with `visp review`.
-10. Reconcile evidence and traceability with `visp reconcile`.
-11. Generate a clean PR summary with `visp pr`.
+Strictness is stored in `.visp/policy.json`.
 
-See [docs/workflow.md](docs/workflow.md) for the full workflow.
+- `relaxed`: mostly warnings, useful for experiments
+- `standard`: default guardrails for normal use
+- `strict`: blocks unsafe workflow progression
+- `locked`: most cautious mode, disallows overrides unless policy explicitly permits them
 
-## Commands
-
-Core setup:
+Examples:
 
 ```bash
-visp init
-visp scan
-visp constitution
+visp policy init --strictness strict
+visp policy set-strictness locked
+visp policy validate
 ```
 
-Feature planning:
+## Policy Gates
+
+Use gates to ask whether a workflow step is allowed:
 
 ```bash
-visp feature "Feature idea"
-visp clarify
-visp spec
-visp plan
-visp tasks
+visp gate next
+visp gate implement --task T001
+visp gate review --task T001
+visp gate pr
 ```
 
-Task context and budgets:
+If a gate blocks, follow the next allowed command. A user prompt cannot bypass a failed gate.
+
+## Overrides
+
+Overrides are explicit and auditable. They are written to `.visp/overrides.json` and included in gate and readiness reports.
+
+Example:
 
 ```bash
-visp context T001
-visp context --next
+visp override create VSP014 \
+  --scope task \
+  --feature 001 \
+  --task T001 \
+  --reason "Prototype branch has no automated verification yet; manual validation is documented."
+```
+
+Rules:
+
+- every override requires a meaningful reason
+- revoked or expired overrides do not apply
+- `VSP019` and `VSP020` are non-overridable
+- locked mode disallows overrides unless policy explicitly allows them
+- user prompts cannot create silent overrides
+
+## Token Efficiency
+
+Visp Kit reduces token use through:
+
+- scan cache
+- compact file summaries
+- task-specific context packs
+- snippets instead of full files
+- budget modes
+- diff-only review
+- small task graphs
+- strict prompts that prevent broad repository reading
+
+Useful commands:
+
+```bash
 visp budget
 visp budget --task T001
+visp context T001 --budget lean
+visp eval
 ```
 
-Implementation evidence:
+## Project Status
 
-```bash
-visp verify --task T001
-visp review --task T001
-visp reconcile --task T001
-```
+Visp Kit is suitable for a first public alpha or internal company pilot after local dogfooding. It is still active development software. Teams should start with one repository, commit the `.visp/` artifacts they need for auditability, and require human review for generated evidence.
 
-Daily orchestration:
+## Documentation
 
-```bash
-visp status
-visp next
-visp doctor
-visp pr
-```
+- [Quickstart](docs/quickstart.md)
+- [Workflow](docs/workflow.md)
+- [Commands](docs/commands.md)
+- [Policy and Gates](docs/policy-and-gates.md)
+- [Agent Native Workflows](docs/agent-native-workflows.md)
+- [Agent Targets](docs/agent-targets.md)
+- [Overrides](docs/overrides.md)
+- [Token Efficiency](docs/token-efficiency.md)
+- [Company Adoption](docs/company-adoption.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Development](docs/development.md)
+- [Release Checklist](docs/release-checklist.md)
 
-See [docs/commands.md](docs/commands.md) for flags and behavior.
+## Example
 
-## Token-Efficient Mode
-
-Visp Kit is designed to avoid sending:
-
-- the whole repository
-- full conversation history
-- every feature artifact
-- every file summary
-- every source file
-
-Instead, `visp context` selects:
-
-- the selected task
-- mapped requirements and acceptance criteria
-- relevant compact constitution rules
-- linked plan decisions and risks
-- selected file summaries and snippets
-- validation commands
-- explicit constraints
-- token estimate and budget warning
-
-Budget modes:
-
-- `lean`: default, small context for normal tasks.
-- `balanced`: broader context for medium-risk work.
-- `strict`: larger but still scoped context for high-risk or complex tasks.
-
-See [docs/token-efficiency.md](docs/token-efficiency.md).
-
-## Codex Integration
-
-Visp Kit works well with Codex because it writes path-based prompts:
-
-- `.visp/prompts/current-task.prompt.md`
-- `.visp/prompts/review.prompt.md`
-- `.visp/prompts/reconcile.prompt.md`
-- `.visp/prompts/pr.prompt.md`
-
-Recommended Codex loop:
-
-```bash
-visp status
-visp next
-visp context --next
-```
-
-Then ask Codex to use `.visp/prompts/current-task.prompt.md`.
-
-After Codex changes code:
-
-```bash
-visp verify --task T001
-visp review --task T001
-visp reconcile --task T001
-```
-
-See [docs/codex.md](docs/codex.md).
-
-## Project Structure
-
-Visp Kit stores local workflow state in `.visp/`:
-
-```text
-.visp/
-  project.json
-  config.json
-  status.json
-  cache/
-  memory/
-  features/
-  prompts/
-  reports/
-```
-
-Feature artifacts live under:
-
-```text
-.visp/features/001-add-note-pinning/
-  intent.json
-  clarifications.json
-  spec.json
-  plan.json
-  task-graph.json
-  traceability.json
-  context/
-  review/
-  reconcile/
-  verification.json
-  pr.json
-```
-
-See [docs/artifacts.md](docs/artifacts.md).
-
-## Example Project
-
-A small TypeScript fixture is available in [examples/basic-typescript](examples/basic-typescript).
-
-```bash
-cd examples/basic-typescript
-pnpm install
-pnpm test
-```
-
-Use it as a simple target project for trying the Visp workflow.
-
-## Troubleshooting
-
-Run:
-
-```bash
-visp doctor
-```
-
-Common fixes:
-
-- Missing `.visp/`: run `visp init`.
-- Missing scan cache: run `visp scan`.
-- Missing constitution: run `visp constitution`.
-- No active feature: run `visp feature "Your feature"`.
-- Unsure what to do next: run `visp next --explain`.
-
-See [docs/troubleshooting.md](docs/troubleshooting.md).
-
-## Development
-
-```bash
-pnpm install
-pnpm build
-pnpm test
-pnpm pack
-```
-
-See [docs/development.md](docs/development.md).
-
-## Status
-
-Visp Kit currently provides the full local MVP workflow:
-
-```text
-init -> scan -> constitution -> feature -> clarify -> spec -> plan -> tasks
--> context -> verify -> review -> reconcile -> status/next/doctor/pr
-```
-
-The project does not publish packages, create releases, call LLM providers, or open PRs automatically.
+See [examples/strict-agent-workflow](examples/strict-agent-workflow) for a small strict workflow fixture.
 
 ## License
 

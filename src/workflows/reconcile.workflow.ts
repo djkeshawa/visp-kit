@@ -58,6 +58,7 @@ import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
+import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
 import { selectTaskById } from "../context/task-selector.js";
 import { followUpSuggestions } from "../reconcile/follow-up-tasks.js";
 import { reconcileDiff } from "../reconcile/reconcile-diff.js";
@@ -94,7 +95,10 @@ import {
   gateWarningMessages
 } from "../gates/policy-gate-summary.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
+import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
+import { recordWorkflowRun } from "./shared/run-recorder.js";
+import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
 
 export type ReconcileWorkflowOptions = {
   readonly targetPath?: string;
@@ -753,9 +757,93 @@ export async function runReconcileWorkflow(
     }
   }
 
+  const extraWarnings: string[] = [];
+  const writtenFiles: string[] = [];
+
+  if (!dryRun) {
+    if (!options.promptOnly) {
+      writtenFiles.push(paths.reportRelative, relativePath(targetPath, paths.reportJsonPath));
+    }
+
+    writtenFiles.push(paths.promptRelative, relativePath(targetPath, paths.currentPromptPath));
+
+    if (parsed.data.traceabilityUpdate.performed) {
+      writtenFiles.push(...parsed.data.traceabilityUpdate.updatedFiles);
+    }
+  }
+
+  if (!options.promptOnly) {
+    if (selectedTask !== undefined && parsed.data.result !== "failed") {
+      const checklist = await markImplementationChecklistSteps({
+        targetPath,
+        featureKey: feature.value.key,
+        taskId: selectedTask.id,
+        steps: ["reconcile"],
+        dryRun
+      });
+
+      if (!checklist.ok) return checklist;
+    }
+
+    const budgetRefresh = await refreshBudgetReport({
+      targetPath,
+      feature: feature.value.key,
+      taskId: selectedTask?.id,
+      dryRun,
+      now: endedAt
+    });
+
+    writtenFiles.push(...budgetRefresh.writtenFiles);
+    extraWarnings.push(...budgetRefresh.warnings);
+
+    const timeline = await refreshFeatureTimeline({
+      targetPath,
+      feature: feature.value.key,
+      taskId: selectedTask?.id,
+      dryRun,
+      now: endedAt
+    });
+
+    writtenFiles.push(...timeline.writtenFiles);
+    extraWarnings.push(...timeline.warnings);
+  }
+
+  const run = await recordWorkflowRun({
+    targetPath,
+    command: "reconcile",
+    startedAt,
+    endedAt,
+    feature: {
+      id: feature.value.id,
+      slug: feature.value.slug
+    },
+    taskId: selectedTask?.id,
+    success: parsed.data.success,
+    result: parsed.data.result,
+    actions: writtenFiles.map((filePath) => ({
+      path: filePath,
+      action: "updated" as const
+    })),
+    warnings: [...parsed.data.warnings, ...extraWarnings],
+    errors: parsed.data.errors,
+    events: [
+      {
+        type: "evidence_recorded",
+        message: `Reconciliation completed with result ${parsed.data.result}.`,
+        artifactPath: parsed.data.reportPath ?? undefined
+      }
+    ],
+    dryRun
+  });
+
+  extraWarnings.push(...run.warnings);
+
   return ok(
     reconcileSummaryFromReport({
-      report: parsed.data,
+      report: {
+        ...parsed.data,
+        warnings: [...new Set([...parsed.data.warnings, ...extraWarnings])]
+      },
       targetPath,
       dryRun
     })

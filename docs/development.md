@@ -11,65 +11,132 @@ This guide is for contributors working on Visp Kit itself.
 
 ```bash
 pnpm install
-pnpm build
 pnpm test
+pnpm build
 ```
 
-## Run The CLI
-
-```bash
-node dist/index.js --help
-node dist/index.js status --help
-```
-
-## Test
+Useful scripts from `package.json`:
 
 ```bash
 pnpm test
 pnpm build
-pnpm pack
+pnpm typecheck
+npm pack --dry-run
 ```
 
-## Coding Standards
+## Project Structure
 
-- Keep files small and focused.
-- Keep command handlers thin.
-- Put workflow logic under `src/workflows`.
-- Keep deterministic helper logic separate from CLI parsing.
-- Validate artifact JSON with schemas.
-- Use dependency injection for command runners in tests.
-- Do not add production dependencies without a clear need.
-- Do not implement future phases unless explicitly requested.
+```text
+src/
+  artifacts/      schemas, artifact readers/writers, paths
+  cli/            commander command handlers
+  workflows/      command workflow orchestration
+  gates/          deterministic gate engine
+  policy/         policy defaults, loading, validation, rendering
+  overrides/      recorded override validation and matching
+  agent/          agent target rendering and installation
+  context/        context pack compilation
+  verification/   verification helpers
+  review/         review helpers
+  reconcile/      reconciliation helpers
+  pr/             PR summary helpers
+  doctor/         project health checks
+  orchestrator/   project state and next-step logic
+```
 
-## Manual Dogfood Flow
+## Command Architecture
+
+Command handlers should stay thin:
+
+1. parse CLI arguments
+2. call a workflow function
+3. format result or error
+4. preserve JSON-only output when `--json` is used
+
+Workflow logic belongs under `src/workflows/`.
+
+## Schema Conventions
+
+- JSON artifacts must have Zod schemas under `src/artifacts/schemas/`.
+- Generated JSON should be validated before writing.
+- Use 2-space JSON formatting through existing artifact/file utilities.
+- Do not weaken schemas to make invalid artifacts pass.
+
+## Adding A Command
+
+1. Add `src/cli/commands/<name>.command.ts`.
+2. Add `src/workflows/<name>.workflow.ts`.
+3. Register it in `src/cli/main.ts`.
+4. Add help tests in `tests/unit/cli-main.test.ts`.
+5. Add workflow and integration tests.
+
+## Adding An Agent Target
+
+1. Add a target under `src/agent/targets/`.
+2. Reuse shared agent templates.
+3. Update agent schema target enum.
+4. Update installer, doctor, refresh, and target list behavior.
+5. Add target tests and docs.
+
+Do not call the external AI tool. Agent targets generate local guidance only.
+
+## Adding A Policy Rule Or Gate
+
+1. Add the rule definition in policy defaults.
+2. Add schema fields if needed.
+3. Add stage checks in `src/gates/stage-checks.ts`.
+4. Update policy/gate docs.
+5. Add tests for strictness behavior and gate output.
+
+## Adding Override Behavior
+
+Override behavior must remain explicit and auditable.
+
+Rules:
+
+- reason required
+- non-overridable rules remain protected
+- revoked and expired overrides do not apply
+- locked mode does not allow overrides unless policy explicitly permits it
+- gate reports must show applied overrides
+
+## Testing Strategy
+
+Use focused unit tests for:
+
+- schemas
+- deterministic helpers
+- policy and gate behavior
+- override matching
+- renderers
+
+Use integration tests for:
+
+- CLI command lifecycle
+- JSON-only output
+- dry-run write safety
+- generated artifact paths
+- gate exit behavior
+
+## Dogfooding
+
+Run:
 
 ```bash
-tmpdir=$(mktemp -d)
-node dist/index.js init "$tmpdir" --agent none --preset typescript --budget lean
-node dist/index.js scan "$tmpdir"
-node dist/index.js constitution "$tmpdir" --preset typescript --budget lean
-node dist/index.js feature "Add note pinning" "$tmpdir"
-node dist/index.js clarify "$tmpdir"
-node dist/index.js spec "$tmpdir" --force
-node dist/index.js plan "$tmpdir" --force
-node dist/index.js tasks "$tmpdir" --force
-node dist/index.js context T001 "$tmpdir" --force
-node dist/index.js status "$tmpdir"
-node dist/index.js next "$tmpdir"
-node dist/index.js doctor "$tmpdir"
+scripts/dogfood-strict-agent-workflow.sh
 ```
 
-For Git-backed review/reconcile/pr checks, initialize a Git repository in the temp project and make a source change after context generation.
+The script creates a temporary project and exercises strict policy, agent installation, feature artifacts, context generation, gates, budget, status, doctor, and overrides without calling external AI tools.
 
 ## Release Readiness
 
-Before publishing:
+Before release or pilot:
 
 ```bash
 pnpm test
 pnpm build
-pnpm pack
+npm pack --dry-run
 node dist/index.js --help
 ```
 
-Also review [release-checklist.md](release-checklist.md).
+Then follow [release-checklist.md](release-checklist.md).
