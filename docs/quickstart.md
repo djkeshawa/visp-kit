@@ -8,9 +8,17 @@ This guide shows the shortest practical Visp Kit loop for a local project.
 - pnpm 11+
 - Git if you want review, reconcile, and PR diff evidence
 
-## Install Locally
+## Install
 
-Visp Kit is intended for local alpha use and internal pilots. Until it is published to npm, install it by building this repository and installing or linking the local CLI package.
+Install the CLI globally after npm publishing:
+
+```bash
+npm install -g visp-kit
+visp --version
+visp --help
+```
+
+For local development, build this repository and install or link the local CLI package.
 
 Use Node.js 24:
 
@@ -37,7 +45,7 @@ pnpm install
 pnpm build
 ```
 
-Recommended for testing in other projects:
+Fast local global install:
 
 ```bash
 pnpm run install:global
@@ -137,6 +145,7 @@ For a manual session, read:
 After implementation:
 
 ```bash
+visp checklist status --task T001
 visp budget --task T001 --record-usage --input-tokens <actual> --output-tokens <actual> --write-report
 visp verify --task T001
 visp review --task T001
@@ -144,7 +153,23 @@ visp reconcile --task T001 --update-traceability
 visp pr
 ```
 
-Only record actual token usage when your AI tool exposes it. Otherwise leave it unrecorded and mention that the usage was unavailable.
+If your AI tool does not expose numeric token usage, record that explicitly:
+
+```bash
+visp budget --task T001 \
+  --record-usage-unavailable \
+  --model codex \
+  --usage-note "Agent surface did not expose numeric token usage." \
+  --write-report
+```
+
+`visp context --next` also writes a machine-readable implementation checklist:
+
+```text
+.visp/features/<feature>/context/T001.implementation-checklist.json
+```
+
+Use `visp checklist status --task T001` and `visp checklist update --task T001 --item <id> --status <status>` when the agent cannot update checklist evidence automatically.
 
 If a command fails, read the generated report and run:
 

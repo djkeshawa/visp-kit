@@ -89,6 +89,7 @@ Task context and token control:
 
 - `visp context`
 - `visp budget`
+- `visp checklist`
 
 Evidence and drift control:
 
@@ -119,7 +120,7 @@ Observability and evaluation:
 
 ## Install
 
-Visp Kit is ready for local alpha use and internal pilots. It is not assumed to be published to npm yet, so install it from this repository.
+Visp Kit is ready for local alpha use and internal pilots.
 
 ### 1. Use Node.js 24+
 
@@ -139,7 +140,19 @@ corepack prepare pnpm@11.3.0 --activate
 pnpm --version
 ```
 
-### 2. Build Visp Kit
+### 2. Install The CLI
+
+After npm publishing, install globally:
+
+```bash
+npm install -g visp-kit
+visp --version
+visp --help
+```
+
+### 3. Local Development Install
+
+If you are working from this repository instead of installing from npm:
 
 ```bash
 git clone https://github.com/djkeshawa/visp-kit.git
@@ -147,8 +160,6 @@ cd visp-kit
 pnpm install
 pnpm build
 ```
-
-### 3. Install The CLI
 
 Fast local global install:
 
@@ -158,7 +169,7 @@ visp --version
 visp --help
 ```
 
-For package-style testing in other projects, install a local package tarball. This behaves closer to a future published npm install than a development symlink:
+For package-style testing in other projects, install a local package tarball:
 
 ```bash
 npm pack
@@ -215,15 +226,6 @@ node /path/to/visp-kit/dist/index.js --help
 node /path/to/visp-kit/dist/index.js agent bootstrap codex --strictness strict
 ```
 
-### Future npm Install
-
-After package publishing:
-
-```bash
-npm install -g visp-kit
-visp --help
-```
-
 Requirements:
 
 - Node.js 24+
@@ -273,12 +275,23 @@ visp gate implement --task T001
 After implementation:
 
 ```bash
+visp checklist status --task T001
 visp budget --task T001 --record-usage --input-tokens <actual> --output-tokens <actual> --write-report
 visp verify --task T001
 visp review --task T001
 visp reconcile --task T001 --update-traceability
 visp next
 visp pr
+```
+
+If the agent surface does not expose numeric token usage, record that explicitly instead of inventing counts:
+
+```bash
+visp budget --task T001 \
+  --record-usage-unavailable \
+  --model codex \
+  --usage-note "Agent surface did not expose numeric token usage." \
+  --write-report
 ```
 
 ## Usage Examples
@@ -370,6 +383,55 @@ Continue with the next Visp task.
 
 The agent should read `.visp/prompts/current-task.prompt.md`, implement only the selected task, and stop if a Visp gate blocks.
 
+### Track Implementation Checklist Status
+
+`visp context` generates both a human-readable checklist and a machine-readable checklist:
+
+```text
+.visp/features/<feature>/context/T001.implementation-checklist.md
+.visp/features/<feature>/context/T001.implementation-checklist.json
+```
+
+The JSON checklist is the source of truth. It records whether required implementation steps are `pending`, `done`, `not_applicable`, `unavailable`, or `blocked`.
+
+Check status:
+
+```bash
+visp checklist status --task T001
+```
+
+Update one item:
+
+```bash
+visp checklist update --task T001 \
+  --item read-context \
+  --status done \
+  --evidence "Read .visp/prompts/current-task.prompt.md"
+```
+
+Useful item IDs include:
+
+- `read-context`
+- `gate-implement`
+- `implement-selected-task`
+- `scope-check`
+- `tests-updated`
+- `verify`
+- `record-usage`
+- `review`
+- `reconcile`
+
+Visp Kit also updates checklist items automatically when it has reliable evidence:
+
+- `visp gate implement --task T001` marks `gate-implement` done when allowed.
+- `visp verify --task T001` marks `verify` done when verification passes.
+- `visp review --task T001` marks `review` done when review completes.
+- `visp reconcile --task T001 --update-traceability` marks `reconcile` done when reconciliation completes.
+- `visp budget --task T001 --record-usage ...` marks `record-usage` done.
+- `visp budget --task T001 --record-usage-unavailable ...` marks `record-usage` unavailable.
+
+Before PR readiness, `visp next` and `visp gate pr` warn or block when required checklist items are still `pending` or `blocked`.
+
 ### Answer Clarifications
 
 If `visp clarify` creates questions that need user input, record answers before generating the spec:
@@ -414,6 +476,23 @@ visp budget --task T001 \
 
 This updates budget evidence and the implementation checklist so the feature timeline can show estimated vs. actual usage.
 
+If the AI tool does not expose numeric token usage, record that state explicitly:
+
+```bash
+visp budget --task T001 \
+  --record-usage-unavailable \
+  --model "codex" \
+  --usage-note "Agent surface did not expose numeric token usage." \
+  --write-report
+```
+
+Budget reports distinguish:
+
+- `recorded`: numeric input/output/total usage was recorded
+- `unavailable`: the agent/user attempted to record usage, but the surface did not expose numeric counts
+- `not_recorded`: no actual usage evidence has been recorded yet
+- `estimated_only`: only estimated context budget is available
+
 ### Generate Reports
 
 Common report commands:
@@ -430,6 +509,8 @@ Useful generated report locations:
 
 - `.visp/reports/status-report.md`
 - `.visp/reports/budget-report.md`
+- `.visp/features/<feature>/context/<task>.implementation-checklist.md`
+- `.visp/features/<feature>/context/<task>.implementation-checklist.json`
 - `.visp/reports/evaluation-report.md`
 - `.visp/features/<feature>/verification.md`
 - `.visp/features/<feature>/review/<task>.review.md`
@@ -461,6 +542,8 @@ visp pr
 ```
 
 Then use `.visp/features/<feature>/pr.md` as the PR description draft. Visp Kit does not call GitHub or open a PR for you.
+
+PR readiness includes implementation checklist and actual usage status. If required checklist items are incomplete, Visp Kit will not silently report the feature as ready.
 
 ## Agent-Native Workflows
 
@@ -582,6 +665,7 @@ Useful commands:
 ```bash
 visp budget
 visp budget --task T001
+visp budget --task T001 --record-usage-unavailable --model codex --usage-note "Agent surface did not expose numeric token usage." --write-report
 visp context T001 --budget lean
 visp eval
 ```

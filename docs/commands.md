@@ -171,6 +171,7 @@ Common flags:
 - `--max-tokens <number>`
 - `--write-report`
 - `--record-usage`
+- `--record-usage-unavailable`
 - `--input-tokens <number>`
 - `--output-tokens <number>`
 - `--total-tokens <number>`
@@ -191,6 +192,41 @@ visp budget --task T001 \
 ```
 
 Recorded usage is also reflected in run traces and feature timelines when workflow evidence is refreshed.
+
+Unavailable usage example:
+
+```bash
+visp budget --task T001 \
+  --record-usage-unavailable \
+  --model codex \
+  --usage-note "Agent surface did not expose numeric token usage." \
+  --write-report
+```
+
+## `visp checklist`
+
+Purpose: inspect and update the machine-readable implementation checklist generated for each task context.
+
+Subcommands:
+
+- `visp checklist status [path] --task T001`
+- `visp checklist update [path] --task T001 --item <id> --status <status>`
+
+Common flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>`
+- `--item <id>`
+- `--status pending|done|not_applicable|unavailable|blocked`
+- `--reason <text>`
+- `--evidence <text>`
+- `--dry-run`
+- `--json`
+
+Generated/read artifacts:
+
+- `.visp/features/<feature>/context/<task>.implementation-checklist.json`
+- `.visp/features/<feature>/context/<task>.implementation-checklist.md`
 
 ## `visp workflow`
 
