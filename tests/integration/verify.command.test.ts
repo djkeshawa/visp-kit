@@ -115,7 +115,7 @@ describe("visp verify command", () => {
         path.join(featureDir, "context", "T001.implementation-checklist.md"),
         "utf8"
       )
-    ).toContain("- [x] Run `visp verify --task T001`.");
+    ).toContain("- [x] Run validation commands or report why they could not run.");
   });
 
   it("returns JSON only", async () => {

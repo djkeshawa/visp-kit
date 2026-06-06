@@ -55,6 +55,72 @@ export function unpinNote(note: Note): Note {
   );
 }
 
+async function prepareChecklist(rootPath: string): Promise<void> {
+  const program = createCli({ writeOut: () => undefined });
+  const doneItems = [
+    "read-context",
+    "gate-implement",
+    "implement-selected-task",
+    "scope-check",
+    "verify",
+    "review",
+    "reconcile"
+  ];
+
+  await program.parseAsync(["node", "visp", "context", "T001", rootPath, "--force"]);
+
+  for (const item of doneItems) {
+    process.exitCode = undefined;
+    await program.parseAsync([
+      "node",
+      "visp",
+      "checklist",
+      "update",
+      rootPath,
+      "--task",
+      "T001",
+      "--item",
+      item,
+      "--status",
+      "done",
+      "--evidence",
+      "Fixture evidence."
+    ]);
+  }
+
+  process.exitCode = undefined;
+  await program.parseAsync([
+    "node",
+    "visp",
+    "checklist",
+    "update",
+    rootPath,
+    "--task",
+    "T001",
+    "--item",
+    "tests-updated",
+    "--status",
+    "not_applicable",
+    "--reason",
+    "Fixture PR test does not exercise implementation changes."
+  ]);
+  process.exitCode = undefined;
+  await program.parseAsync([
+    "node",
+    "visp",
+    "budget",
+    rootPath,
+    "--task",
+    "T001",
+    "--record-usage-unavailable",
+    "--model",
+    "test-agent",
+    "--usage-note",
+    "Fixture does not expose numeric token usage."
+  ]);
+  process.exitCode = undefined;
+}
+
 describe("visp pr command", () => {
   let tempDir: string;
 
@@ -70,6 +136,7 @@ describe("visp pr command", () => {
 
   it("generates PR markdown, JSON, and prompt files", async () => {
     await createPhase8Fixture(tempDir);
+    await prepareChecklist(tempDir);
     await initGitBaseline(tempDir);
     await modifySource(tempDir);
     const output: string[] = [];
@@ -93,6 +160,7 @@ describe("visp pr command", () => {
 
   it("returns JSON only", async () => {
     await createPhase8Fixture(tempDir);
+    await prepareChecklist(tempDir);
     const output: string[] = [];
     const errors: string[] = [];
     const program = createCli({

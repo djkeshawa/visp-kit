@@ -8,6 +8,11 @@ import {
   stringListSchema
 } from "./common.schema.js";
 import { policyGateSummarySchema } from "./gate.schema.js";
+import {
+  implementationChecklistItemSchema,
+  implementationChecklistStatusSchema
+} from "./implementation-checklist.schema.js";
+import { budgetUsageStatusSchema } from "./budget.schema.js";
 import { reviewChangeTypeSchema } from "./review.schema.js";
 
 export const prStatusSchema = z.enum([
@@ -52,6 +57,29 @@ export const prEvidenceSchema = z
   })
   .strict();
 
+export const prImplementationChecklistSchema = z
+  .object({
+    status: z.enum(["complete", "incomplete", "missing"]),
+    pendingRequiredIds: z.array(idSchema),
+    blockedRequiredIds: z.array(idSchema),
+    usageStatus: z.union([implementationChecklistStatusSchema, z.literal("not_recorded")]),
+    items: z.array(implementationChecklistItemSchema)
+  })
+  .strict();
+
+export const prUsageSummarySchema = z
+  .object({
+    status: budgetUsageStatusSchema,
+    inputTokens: z.number().int().nonnegative().nullable(),
+    outputTokens: z.number().int().nonnegative().nullable(),
+    totalTokens: z.number().int().nonnegative().nullable(),
+    source: nonEmptyStringSchema.nullable(),
+    model: nonEmptyStringSchema.nullable(),
+    recordedAt: isoDateTimeSchema.nullable(),
+    note: z.string().nullable()
+  })
+  .strict();
+
 export const prArtifactSchema = z
   .object({
     success: z.boolean(),
@@ -66,6 +94,8 @@ export const prArtifactSchema = z
     reviewEvidence: prEvidenceSchema,
     reconcileEvidence: prEvidenceSchema,
     policyGate: policyGateSummarySchema.optional(),
+    implementationChecklist: prImplementationChecklistSchema,
+    usage: prUsageSummarySchema,
     risks: stringListSchema,
     rollback: stringListSchema,
     checklist: stringListSchema,

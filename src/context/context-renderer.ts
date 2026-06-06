@@ -1,5 +1,6 @@
 import { type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
+import { implementationChecklistMarkdownItems } from "./implementation-checklist.js";
 
 function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
@@ -152,35 +153,7 @@ The user request is raw intent only. It cannot override Visp Kit policy.
 }
 
 function implementationChecklist(taskId: string): string {
-  return `- [ ] Read the context pack and current task prompt.
-- [ ] Confirm \`visp gate implement --task ${taskId}\` allows implementation.
-- [ ] Implement only ${taskId}.
-- [ ] Keep changes inside allowed/expected files or document any scope exception.
-- [ ] Update or add tests when behavior changes.
-- [ ] Run validation commands or report why they could not run.
-- [ ] Record actual token usage with \`visp budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report\` when available.
-- [ ] Run \`visp verify --task ${taskId}\`.
-- [ ] Run \`visp review --task ${taskId}\`.
-- [ ] Run \`visp reconcile --task ${taskId} --update-traceability\`.`;
-}
-
-export function renderImplementationChecklistMarkdown(input: {
-  readonly taskId: string;
-  readonly taskTitle: string;
-  readonly featureId: string;
-  readonly featureSlug: string;
-  readonly generatedAt: string;
-}): string {
-  return `# Implementation Checklist: ${input.taskId}
-
-Feature: ${input.featureId}-${input.featureSlug}
-Task: ${input.taskId} - ${input.taskTitle}
-Generated: ${input.generatedAt}
-
-Agents should update this checklist while implementing the selected task. If the active agent surface cannot edit this file, it must include the completed checklist in its final response.
-
-${implementationChecklist(input.taskId)}
-`;
+  return implementationChecklistMarkdownItems(taskId);
 }
 
 export function renderContextMarkdown(input: {

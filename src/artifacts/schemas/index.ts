@@ -7,6 +7,7 @@ export * from "./context-pack.schema.js";
 export * from "./evaluation.schema.js";
 export * from "./feature.schema.js";
 export * from "./gate.schema.js";
+export * from "./implementation-checklist.schema.js";
 export * from "./override.schema.js";
 export * from "./plan.schema.js";
 export * from "./policy.schema.js";

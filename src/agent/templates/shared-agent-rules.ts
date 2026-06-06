@@ -53,7 +53,7 @@ export function implementationRulesSection(): string {
 - If \`.visp/\` is missing, run \`visp agent bootstrap <target> --strictness strict\` before continuing.
 - Read \`.visp/prompts/current-task.prompt.md\` before editing code.
 - Update \`.visp/features/<feature>/context/<task-id>.implementation-checklist.md\` as work progresses when that file exists.
-- If your agent surface exposes token usage, record it after implementation with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\`.
+- Record token usage after implementation with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\`, or record unavailable usage with \`visp budget --task <task-id> --record-usage-unavailable --model <agent> --usage-note "<reason>" --write-report\`.
 - Implement only one selected task at a time.
 - Do not modify forbidden files.
 - Do not add dependencies unless the task or plan explicitly allows them.
@@ -68,7 +68,7 @@ export function completionCriteriaSection(): string {
 A task is complete only when:
 - selected task implementation is done
 - implementation checklist is updated or included in the final response
-- actual token usage is recorded when the agent surface exposes it
+- actual token usage is recorded, or explicitly marked unavailable when the agent surface does not expose it
 - validation commands ran or failure is reported
 - \`visp verify --task <task-id>\` passes
 - \`visp review --task <task-id>\` has no blocking findings

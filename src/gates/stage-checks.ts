@@ -207,6 +207,43 @@ function validationCommandCheck(context: GateContext): GateCheck {
       });
 }
 
+function implementationChecklistCheck(context: GateContext): GateCheck {
+  const taskId = context.state.selectedTask?.id ?? "<task-id>";
+  const checklist = context.state.implementationChecklist;
+
+  if (checklist === undefined) {
+    return check({
+      ruleId: "VSP020",
+      passed: false,
+      severity: "error",
+      message: "Implementation checklist evidence is missing.",
+      recommendation: `Run visp context ${taskId}.`,
+      evidence: `.visp/features/<feature>/context/${taskId}.implementation-checklist.json was not found.`
+    });
+  }
+
+  const incomplete = checklist.items.filter((item) =>
+    item.required && (item.status === "pending" || item.status === "blocked")
+  );
+
+  return incomplete.length === 0
+    ? check({
+        ruleId: "VSP020",
+        passed: true,
+        message: "Implementation checklist is complete.",
+        recommendation: "Continue.",
+        evidence: "All required checklist items are done, unavailable, or not applicable."
+      })
+    : check({
+        ruleId: "VSP020",
+        passed: false,
+        severity: "error",
+        message: "Required implementation checklist items are incomplete.",
+        recommendation: `Run visp checklist status --task ${taskId}.`,
+        evidence: incomplete.map((item) => `${item.id}:${item.status}`).join(", ")
+      });
+}
+
 function taskGraphCheck(context: GateContext): GateCheck {
   return context.state.artifactSummary.taskGraph
     ? check({
@@ -741,6 +778,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
           recommendation: `Run visp reconcile --task ${taskId} --update-traceability.`,
           evidence: "reconcile report does not show traceabilityUpdate.performed."
         }),
+    implementationChecklistCheck(context),
     ...taskScopeChecks(context.state)
   ];
 

@@ -155,6 +155,79 @@ describe("visp budget command", () => {
     expect(checklist).toContain("- [x] Record actual token usage");
   });
 
+  it("records unavailable actual usage without fake token counts", async () => {
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const contextProgram = createCli({ writeOut: () => undefined });
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await contextProgram.parseAsync([
+      "node",
+      "visp",
+      "context",
+      "T001",
+      tempDir,
+      "--force"
+    ]);
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "budget",
+      tempDir,
+      "--task",
+      "T001",
+      "--record-usage-unavailable",
+      "--model",
+      "codex",
+      "--usage-note",
+      "Agent surface did not expose numeric token usage.",
+      "--write-report",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      totals: { actualUsageStatus: string; actualTotalTokens: number | null };
+      tasks: Array<{ actualUsageStatus: string; actualTotalTokens: number | null }>;
+    };
+    const artifact = JSON.parse(await readFile(budgetArtifactPath(tempDir), "utf8")) as {
+      usage: Array<{ taskId: string; status: string; totalTokens: number | null; model: string }>;
+    };
+    const report = await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8");
+    const checklistJson = JSON.parse(
+      await readFile(
+        path.join(
+          tempDir,
+          ".visp",
+          "features",
+          "001-add-note-pinning",
+          "context",
+          "T001.implementation-checklist.json"
+        ),
+        "utf8"
+      )
+    ) as {
+      items: Array<{ id: string; status: string; reason: string | null }>;
+    };
+
+    expect(summary.totals.actualUsageStatus).toBe("unavailable");
+    expect(summary.totals.actualTotalTokens).toBeNull();
+    expect(summary.tasks[0]?.actualUsageStatus).toBe("unavailable");
+    expect(summary.tasks[0]?.actualTotalTokens).toBeNull();
+    expect(artifact.usage[0]).toMatchObject({
+      taskId: "T001",
+      status: "unavailable",
+      totalTokens: null,
+      model: "codex"
+    });
+    expect(report).toContain("Actual Total");
+    expect(report).toContain("unavailable");
+    expect(checklistJson.items.find((item) => item.id === "record-usage")).toMatchObject({
+      status: "unavailable",
+      reason: "Agent surface did not expose numeric token usage."
+    });
+  });
+
   it("marks over-budget tasks with max-token override", async () => {
     await createPhase8Fixture(tempDir);
     const output: string[] = [];

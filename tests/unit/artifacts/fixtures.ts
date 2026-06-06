@@ -642,6 +642,33 @@ export const validPrArtifact: PrArtifact = {
     reportPath: ".visp/features/001-note-pinning/reconcile/T001.reconcile.md",
     summary: ["Reconciliation result: passed"]
   },
+  implementationChecklist: {
+    status: "complete",
+    pendingRequiredIds: [],
+    blockedRequiredIds: [],
+    usageStatus: "unavailable",
+    items: [
+      {
+        id: "record-usage",
+        label: "Record actual token usage, or mark it unavailable with a reason.",
+        status: "unavailable",
+        required: true,
+        evidence: "visp budget --record-usage-unavailable",
+        reason: "Agent surface did not expose numeric token usage.",
+        updatedAt: timestamp
+      }
+    ]
+  },
+  usage: {
+    status: "unavailable",
+    inputTokens: null,
+    outputTokens: null,
+    totalTokens: null,
+    source: "agent",
+    model: "codex",
+    recordedAt: timestamp,
+    note: "Agent surface did not expose numeric token usage."
+  },
   risks: ["Feature risk: low"],
   rollback: ["Revert this PR."],
   checklist: ["Requirements are covered."],

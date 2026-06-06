@@ -19,6 +19,7 @@ describe("budget report", () => {
           estimatedInputTokens: 9000,
           expectedOutputTokens: 1500,
           estimatedTotalTokens: 10500,
+          actualUsageStatus: "recorded",
           actualInputTokens: 8200,
           actualOutputTokens: 1200,
           actualTotalTokens: 9400,

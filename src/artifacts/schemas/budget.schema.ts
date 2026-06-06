@@ -15,6 +15,12 @@ export const securityReviewPolicySchema = z.enum([
   "risk-based",
   "always"
 ]);
+export const budgetUsageStatusSchema = z.enum([
+  "recorded",
+  "unavailable",
+  "not_recorded",
+  "estimated_only"
+]);
 
 export const budgetPolicySchema = z
   .object({
@@ -47,15 +53,33 @@ export const budgetUsageSchema = z
     featureId: idSchema,
     featureSlug: nonEmptyStringSchema,
     taskId: idSchema,
-    inputTokens: z.number().int().nonnegative(),
-    outputTokens: z.number().int().nonnegative(),
-    totalTokens: z.number().int().nonnegative(),
+    status: budgetUsageStatusSchema.default("recorded"),
+    inputTokens: z.number().int().nonnegative().nullable().optional(),
+    outputTokens: z.number().int().nonnegative().nullable().optional(),
+    totalTokens: z.number().int().nonnegative().nullable().optional(),
     model: nonEmptyStringSchema.optional(),
-    source: z.enum(["agent-reported", "manual"]),
+    source: z.enum(["agent", "agent-reported", "manual"]),
     note: z.string().optional(),
     recordedAt: isoDateTimeSchema
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.status !== "recorded") return;
+
+    if (
+      value.inputTokens === undefined ||
+      value.inputTokens === null ||
+      value.outputTokens === undefined ||
+      value.outputTokens === null ||
+      value.totalTokens === undefined ||
+      value.totalTokens === null
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Recorded usage requires inputTokens, outputTokens, and totalTokens."
+      });
+    }
+  });
 
 export const budgetArtifactSchema = z
   .object({
@@ -68,6 +92,7 @@ export const budgetArtifactSchema = z
 export type ClarificationLevel = z.infer<typeof clarificationLevelSchema>;
 export type ReviewLevel = z.infer<typeof reviewLevelSchema>;
 export type SecurityReviewPolicy = z.infer<typeof securityReviewPolicySchema>;
+export type BudgetUsageStatus = z.infer<typeof budgetUsageStatusSchema>;
 export type BudgetPolicy = z.infer<typeof budgetPolicySchema>;
 export type BudgetReport = z.infer<typeof budgetReportSchema>;
 export type BudgetUsage = z.infer<typeof budgetUsageSchema>;

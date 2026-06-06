@@ -40,7 +40,7 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     /^\.visp\/features\/[^/]+\/timeline\.(json|md)$/.test(normalized) ||
     normalized === ".visp/prompts/review.prompt.md" ||
     normalized === ".visp/prompts/reconcile.prompt.md" ||
-    /^\.visp\/features\/[^/]+\/context\/[^/]+\.implementation-checklist\.md$/.test(normalized) ||
+    /^\.visp\/features\/[^/]+\/context\/[^/]+\.implementation-checklist\.(json|md)$/.test(normalized) ||
     /^\.visp\/features\/[^/]+\/review\//.test(normalized) ||
     /^\.visp\/features\/[^/]+\/review\.(json|md)$/.test(normalized) ||
     /^\.visp\/features\/[^/]+\/review-(prompt|checklist)\.md$/.test(normalized) ||

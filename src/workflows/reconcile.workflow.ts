@@ -58,7 +58,11 @@ import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
+import {
+  getImplementationChecklistSummary,
+  implementationChecklistStatusLine,
+  markImplementationChecklistSteps
+} from "../context/implementation-checklist.js";
 import { selectTaskById } from "../context/task-selector.js";
 import { followUpSuggestions } from "../reconcile/follow-up-tasks.js";
 import { reconcileDiff } from "../reconcile/reconcile-diff.js";
@@ -447,6 +451,19 @@ export async function runReconcileWorkflow(
 
   if (!policyGateResult.ok) {
     optionalWarnings.push(`Reconcile gate could not be evaluated: ${policyGateResult.error.message}`);
+  }
+  if (selectedTask !== undefined) {
+    const checklistSummary = await getImplementationChecklistSummary({
+      targetPath,
+      featureKey: feature.value.key,
+      taskId: selectedTask.id
+    });
+
+    if (checklistSummary.ok) {
+      optionalWarnings.push(implementationChecklistStatusLine(checklistSummary.value));
+    } else {
+      optionalWarnings.push(`Implementation checklist status unavailable: ${checklistSummary.error.message}`);
+    }
   }
 
   const paths = outputPaths({

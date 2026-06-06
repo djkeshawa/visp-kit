@@ -45,6 +45,7 @@ export type BudgetWorkflowOptions = {
   readonly writeReport?: boolean;
   readonly dryRun?: boolean;
   readonly recordUsage?: boolean;
+  readonly recordUsageUnavailable?: boolean;
   readonly inputTokens?: number;
   readonly outputTokens?: number;
   readonly totalTokens?: number;
@@ -107,6 +108,7 @@ async function estimateTask(input: {
     actualInputTokens: input.usage?.inputTokens,
     actualOutputTokens: input.usage?.outputTokens,
     actualTotalTokens: input.usage?.totalTokens,
+    actualUsageStatus: input.usage?.status ?? "not_recorded",
     actualUsageRecordedAt: input.usage?.recordedAt,
     actualUsageSource: input.usage?.source,
     actualUsageModel: input.usage?.model,
@@ -164,9 +166,10 @@ function usageEntry(input: {
   readonly artifact: BudgetArtifact;
   readonly feature: ActiveFeature;
   readonly taskId: string;
-  readonly inputTokens: number;
-  readonly outputTokens: number;
-  readonly totalTokens: number;
+  readonly inputTokens?: number;
+  readonly outputTokens?: number;
+  readonly totalTokens?: number;
+  readonly status: BudgetUsage["status"];
   readonly model?: string;
   readonly note?: string;
   readonly now: string;
@@ -176,11 +179,12 @@ function usageEntry(input: {
     featureId: input.feature.id,
     featureSlug: input.feature.slug,
     taskId: input.taskId,
-    inputTokens: input.inputTokens,
-    outputTokens: input.outputTokens,
-    totalTokens: input.totalTokens,
+    status: input.status,
+    inputTokens: input.inputTokens ?? null,
+    outputTokens: input.outputTokens ?? null,
+    totalTokens: input.totalTokens ?? null,
     model: input.model?.trim() || undefined,
-    source: "agent-reported",
+    source: "agent",
     note: input.note?.trim() || undefined,
     recordedAt: input.now
   };
@@ -215,13 +219,23 @@ export async function runBudgetWorkflow(
   const now = options.now ?? new Date().toISOString();
   const warnings: string[] = [];
   const recordUsage = options.recordUsage ?? false;
+  const recordUsageUnavailable = options.recordUsageUnavailable ?? false;
   const refreshTimeline = options.refreshTimeline ?? true;
   const recordRun = options.recordRun ?? true;
   const inputTokens = options.inputTokens ?? 0;
   const outputTokens = options.outputTokens ?? 0;
   const totalTokens = options.totalTokens ?? inputTokens + outputTokens;
 
-  if (recordUsage && options.taskId === undefined) {
+  if (recordUsage && recordUsageUnavailable) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Use either --record-usage or --record-usage-unavailable, not both."
+      )
+    );
+  }
+
+  if ((recordUsage || recordUsageUnavailable) && options.taskId === undefined) {
     return err(
       new VispError(
         "VALIDATION_FAILED",
@@ -235,6 +249,15 @@ export async function runBudgetWorkflow(
       new VispError(
         "VALIDATION_FAILED",
         "Recording actual token usage requires --input-tokens, --output-tokens, or --total-tokens."
+      )
+    );
+  }
+
+  if (recordUsageUnavailable && (options.usageNote?.trim() ?? "").length === 0) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Recording unavailable token usage requires --usage-note <reason>."
       )
     );
   }
@@ -276,14 +299,15 @@ export async function runBudgetWorkflow(
 
   if (!budgetArtifact.ok) return budgetArtifact;
 
-  const recordedUsage = recordUsage && options.taskId !== undefined
+  const recordedUsage = (recordUsage || recordUsageUnavailable) && options.taskId !== undefined
     ? usageEntry({
         artifact: budgetArtifact.value,
         feature: feature.value,
         taskId: options.taskId,
-        inputTokens,
-        outputTokens,
-        totalTokens,
+        inputTokens: recordUsage ? inputTokens : undefined,
+        outputTokens: recordUsage ? outputTokens : undefined,
+        totalTokens: recordUsage ? totalTokens : undefined,
+        status: recordUsageUnavailable ? "unavailable" : "recorded",
         model: options.model,
         note: options.usageNote,
         now
@@ -357,6 +381,11 @@ export async function runBudgetWorkflow(
       featureKey: feature.value.key,
       taskId: recordedUsage.taskId,
       steps: ["record-usage"],
+      status: recordedUsage.status === "unavailable" ? "unavailable" : "done",
+      reason: recordedUsage.status === "unavailable" ? recordedUsage.note : undefined,
+      evidence: recordedUsage.status === "unavailable"
+        ? "visp budget --record-usage-unavailable"
+        : "visp budget --record-usage",
       dryRun
     });
 
@@ -417,7 +446,7 @@ export async function runBudgetWorkflow(
           action: "updated" as const
         })),
         estimatedTokens: estimates.reduce((total, estimate) => total + estimate.estimatedTotalTokens, 0),
-        actualTokens: recordedUsage?.totalTokens,
+        actualTokens: recordedUsage?.totalTokens ?? undefined,
         warnings: [...warnings, ...timelineWarnings],
         events: recordedUsage === undefined
           ? [
@@ -427,15 +456,25 @@ export async function runBudgetWorkflow(
               }
             ]
           : [
-              {
-                type: "usage_recorded",
-                message: `Recorded ${recordedUsage.totalTokens} actual tokens for ${recordedUsage.taskId}.`,
-                data: {
-                  inputTokens: recordedUsage.inputTokens,
-                  outputTokens: recordedUsage.outputTokens,
-                  totalTokens: recordedUsage.totalTokens
-                }
-              }
+              recordedUsage.status === "unavailable"
+                ? {
+                    type: "usage_recorded",
+                    message: `Recorded unavailable actual token usage for ${recordedUsage.taskId}.`,
+                    data: {
+                      status: recordedUsage.status,
+                      note: recordedUsage.note
+                    }
+                  }
+                : {
+                    type: "usage_recorded",
+                    message: `Recorded ${recordedUsage.totalTokens ?? 0} actual tokens for ${recordedUsage.taskId}.`,
+                    data: {
+                      status: recordedUsage.status,
+                      inputTokens: recordedUsage.inputTokens,
+                      outputTokens: recordedUsage.outputTokens,
+                      totalTokens: recordedUsage.totalTokens
+                    }
+                  }
             ],
         dryRun
       })

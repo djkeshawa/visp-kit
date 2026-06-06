@@ -42,6 +42,17 @@ export function nextAllowedCommand(context: GateContext): string {
   if (state.reconcile?.traceabilityUpdate.performed === false) {
     return `visp reconcile${taskFlag(taskId)} --update-traceability`;
   }
+  if (state.implementationChecklist === undefined) {
+    return `visp context ${taskId}`;
+  }
+
+  const incompleteChecklist = state.implementationChecklist.items.some((item) =>
+    item.required && (item.status === "pending" || item.status === "blocked")
+  );
+
+  if (incompleteChecklist) {
+    return `visp checklist status --task ${taskId}`;
+  }
 
   const nextTask = state.taskGraph?.tasks.find((task) =>
     task.status !== "done" && task.status !== "verified" && task.id !== taskId

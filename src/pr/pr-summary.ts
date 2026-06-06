@@ -32,10 +32,19 @@ export function buildPrArtifact(input: {
     .map((command) => command.command) ?? [];
   const reviewWarnings = input.state.review?.warnings ?? [];
   const reconcileFollowUps = input.state.reconcile?.followUpSuggestions ?? [];
+  const checklistItems = input.state.implementationChecklist?.items ?? [];
+  const pendingRequired = checklistItems.filter((item) => item.required && item.status === "pending");
+  const blockedRequired = checklistItems.filter((item) => item.required && item.status === "blocked");
+  const usageItem = checklistItems.find((item) => item.id === "record-usage");
+  const usage = input.state.actualUsage;
   const errors = [
     ...(input.state.verification?.success === false ? ["Verification failed."] : []),
     ...(input.state.review?.result === "failed" ? ["Review failed."] : []),
-    ...(input.state.reconcile?.result === "failed" ? ["Reconciliation failed."] : [])
+    ...(input.state.reconcile?.result === "failed" ? ["Reconciliation failed."] : []),
+    ...(input.state.implementationChecklist === undefined ? ["Implementation checklist is missing."] : []),
+    ...(pendingRequired.length > 0 || blockedRequired.length > 0
+      ? ["Required implementation checklist items are incomplete."]
+      : [])
   ];
 
   return {
@@ -103,6 +112,25 @@ export function buildPrArtifact(input: {
         ? ["Reconciliation missing."]
         : [`Reconciliation result: ${input.state.reconcile.result}`]
     },
+    implementationChecklist: {
+      status: input.state.implementationChecklist === undefined
+        ? "missing"
+        : pendingRequired.length > 0 || blockedRequired.length > 0 ? "incomplete" : "complete",
+      pendingRequiredIds: pendingRequired.map((item) => item.id),
+      blockedRequiredIds: blockedRequired.map((item) => item.id),
+      usageStatus: usageItem?.status ?? "not_recorded",
+      items: checklistItems
+    },
+    usage: {
+      status: usage?.status ?? "not_recorded",
+      inputTokens: usage?.inputTokens ?? null,
+      outputTokens: usage?.outputTokens ?? null,
+      totalTokens: usage?.totalTokens ?? null,
+      source: usage?.source ?? null,
+      model: usage?.model ?? null,
+      recordedAt: usage?.recordedAt ?? null,
+      note: usage?.note ?? null
+    },
     risks: [
       `Feature risk: ${input.state.selectedFeature?.intent?.riskLevel ?? "unknown"}`,
       ...((input.state.plan?.risks ?? []).map((risk) => `${risk.id}: ${risk.description}`))
@@ -123,7 +151,13 @@ export function buildPrArtifact(input: {
       "Security/privacy checklist reviewed where applicable."
     ],
     followUps: reconcileFollowUps.length === 0 ? ["None."] : reconcileFollowUps,
-    warnings: [...input.warnings, ...reviewWarnings],
+    warnings: [
+      ...input.warnings,
+      ...reviewWarnings,
+      ...(usage?.status === "unavailable"
+        ? ["Actual token usage was recorded as unavailable and needs human awareness."]
+        : usage === undefined ? ["Actual token usage has not been recorded."] : [])
+    ],
     errors,
     generatedAt: input.generatedAt
   };

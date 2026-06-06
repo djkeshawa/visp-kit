@@ -26,6 +26,7 @@ type BudgetCommandOptions = {
   readonly writeReport?: boolean;
   readonly dryRun?: boolean;
   readonly recordUsage?: boolean;
+  readonly recordUsageUnavailable?: boolean;
   readonly inputTokens?: string;
   readonly outputTokens?: string;
   readonly totalTokens?: string;
@@ -56,6 +57,7 @@ function workflowOptions(
     writeReport: options.writeReport ?? false,
     dryRun: options.dryRun ?? false,
     recordUsage: options.recordUsage ?? false,
+    recordUsageUnavailable: options.recordUsageUnavailable ?? false,
     inputTokens: parseOptionalNonNegativeInteger(options.inputTokens),
     outputTokens: parseOptionalNonNegativeInteger(options.outputTokens),
     totalTokens: parseOptionalNonNegativeInteger(options.totalTokens),
@@ -92,6 +94,7 @@ export function createBudgetCommand(
     .option("--max-tokens <number>", "Override the budget mode max input tokens.")
     .option("--write-report", "Write .visp/reports/budget-report.md.")
     .option("--record-usage", "Record actual agent-reported token usage for --task.")
+    .option("--record-usage-unavailable", "Record that actual token usage is unavailable for --task.")
     .option("--input-tokens <number>", "Actual input tokens used.")
     .option("--output-tokens <number>", "Actual output tokens used.")
     .option("--total-tokens <number>", "Actual total tokens used, if known.")

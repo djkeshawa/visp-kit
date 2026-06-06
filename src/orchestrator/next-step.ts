@@ -47,6 +47,17 @@ function nextUnfinishedTask(state: ProjectState): Task | undefined {
   );
 }
 
+function incompleteChecklist(state: ProjectState): boolean {
+  return state.implementationChecklist === undefined ||
+    state.implementationChecklist.items.some((item) =>
+      item.required && (item.status === "pending" || item.status === "blocked")
+    );
+}
+
+function usageStatus(state: ProjectState): string {
+  return state.actualUsage?.status ?? state.implementationChecklist?.items.find((item) => item.id === "record-usage")?.status ?? "not_recorded";
+}
+
 function output(input: {
   readonly state: ProjectState;
   readonly nextCommand: string;
@@ -299,6 +310,19 @@ export function recommendNextStep(input: {
       nextCommand: `visp reconcile --task ${selectedTask.id} --update-traceability`,
       reason: "Reconciliation completed, but traceability has not been updated.",
       stateName: "traceability-update-needed"
+    });
+  }
+
+  if (incompleteChecklist(state)) {
+    return output({
+      state,
+      task: selectedTask,
+      nextCommand: state.implementationChecklist === undefined
+        ? `visp context ${selectedTask.id}`
+        : `visp checklist status --task ${selectedTask.id}`,
+      reason: `Required implementation checklist items are incomplete. Usage status: ${usageStatus(state)}.`,
+      blockers: ["Required implementation checklist items must be done, unavailable, or not applicable before PR."],
+      stateName: "checklist-needed"
     });
   }
 

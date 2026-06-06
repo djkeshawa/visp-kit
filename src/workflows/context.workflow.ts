@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import {
+  contextChecklistJsonPath,
   contextChecklistPath,
   contextPackArtifactPath,
   contextPackMarkdownPath,
@@ -28,8 +29,12 @@ import { err, ok, type Result } from "../core/result.js";
 import { compileContext } from "../context/context-compiler.js";
 import {
   renderContextMarkdown,
-  renderImplementationChecklistMarkdown
 } from "../context/context-renderer.js";
+import {
+  createImplementationChecklistArtifact,
+  renderImplementationChecklistMarkdown
+} from "../context/implementation-checklist.js";
+import { implementationChecklistArtifactSchema } from "../artifacts/schemas/implementation-checklist.schema.js";
 import {
   createContextSummary,
   type ContextSummary
@@ -265,10 +270,17 @@ export async function runContextWorkflow(
   );
   const taskPrompt = contextPromptPath(targetPath, feature.value.key, selected.value.id);
   const checklist = contextChecklistPath(targetPath, feature.value.key, selected.value.id);
+  const checklistJson = contextChecklistJsonPath(targetPath, feature.value.key, selected.value.id);
   const currentPrompt = promptArtifactPath(targetPath, "current-task");
   const contextMarkdownDisplayPath = relativePath(targetPath, contextMarkdown);
   const taskPromptDisplayPath = relativePath(targetPath, taskPrompt);
   const checklistDisplayPath = relativePath(targetPath, checklist);
+  const checklistArtifact = createImplementationChecklistArtifact({
+    featureId: feature.value.id,
+    featureSlug: feature.value.slug,
+    taskId: selected.value.id,
+    generatedAt: now
+  });
   const contextFiles = promptOnly
     ? []
     : [
@@ -284,16 +296,17 @@ export async function runContextWorkflow(
           schema: contextPackSchema,
           value: compiled.value.pack
         }),
+        artifactGeneratedFile({
+          targetPath,
+          path: checklistJson,
+          artifactName: "implementation checklist",
+          schema: implementationChecklistArtifactSchema,
+          value: checklistArtifact
+        }),
         textGeneratedFile({
           targetPath,
           path: checklist,
-          contents: renderImplementationChecklistMarkdown({
-            taskId: selected.value.id,
-            taskTitle: selected.value.title,
-            featureId: feature.value.id,
-            featureSlug: feature.value.slug,
-            generatedAt: now
-          })
+          contents: renderImplementationChecklistMarkdown(checklistArtifact)
         })
       ];
   const written = await writeGeneratedFiles(contextFiles, { force, dryRun });

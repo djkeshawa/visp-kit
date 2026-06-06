@@ -267,6 +267,14 @@ export function contextChecklistPath(
   return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.implementation-checklist.md`);
 }
 
+export function contextChecklistJsonPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.implementation-checklist.json`);
+}
+
 export function verificationArtifactPath(
   rootPath: string,
   featureKey: string

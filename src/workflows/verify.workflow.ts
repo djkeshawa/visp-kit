@@ -47,7 +47,11 @@ import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
+import {
+  getImplementationChecklistSummary,
+  implementationChecklistStatusLine,
+  markImplementationChecklistSteps
+} from "../context/implementation-checklist.js";
 import { selectTaskById } from "../context/task-selector.js";
 import { validateArtifacts } from "../verification/artifact-validator.js";
 import { validateDependencies } from "../verification/dependency-validator.js";
@@ -415,6 +419,19 @@ export async function runVerifyWorkflow(
 
   if (!policyGateResult.ok) {
     warnings.push(`Verification gate could not be evaluated: ${policyGateResult.error.message}`);
+  }
+  if (selectedTask !== undefined) {
+    const checklistSummary = await getImplementationChecklistSummary({
+      targetPath,
+      featureKey: feature.value.key,
+      taskId: selectedTask.id
+    });
+
+    if (checklistSummary.ok) {
+      warnings.push(implementationChecklistStatusLine(checklistSummary.value));
+    } else {
+      warnings.push(`Implementation checklist status unavailable: ${checklistSummary.error.message}`);
+    }
   }
 
   const checks = checksFromOptions(options);

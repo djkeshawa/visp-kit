@@ -5,7 +5,9 @@ import { type ZodType } from "zod";
 import {
   clarificationsArtifactPath,
   compactConstitutionArtifactPath,
+  budgetArtifactPath,
   contextPackArtifactPath,
+  contextChecklistJsonPath,
   dependencyMapArtifactPath,
   featureIntentArtifactPath,
   featurePrArtifactPath,
@@ -31,7 +33,12 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
+import { budgetArtifactSchema, type BudgetArtifact, type BudgetUsage } from "../artifacts/schemas/budget.schema.js";
 import { featureIntentSchema, type FeatureIntent } from "../artifacts/schemas/feature.schema.js";
+import {
+  implementationChecklistArtifactSchema,
+  type ImplementationChecklistArtifact
+} from "../artifacts/schemas/implementation-checklist.schema.js";
 import { planDraftArtifactSchema, type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
 import {
   projectConfigSchema,
@@ -106,6 +113,9 @@ export type ProjectState = {
   readonly plan?: PlanDraftArtifact;
   readonly traceability?: TraceabilityMatrix;
   readonly contextPack?: ContextPack;
+  readonly implementationChecklist?: ImplementationChecklistArtifact;
+  readonly budget?: BudgetArtifact;
+  readonly actualUsage?: BudgetUsage;
   readonly verification?: VerificationReport;
   readonly review?: ReviewReport;
   readonly reconcile?: ReconcileReport;
@@ -382,6 +392,26 @@ export async function loadProjectState(
     artifactName: "context pack",
     warnings
   });
+  const implementationChecklist = key === undefined || selectedTask === undefined ? undefined : await readOptional({
+    filePath: contextChecklistJsonPath(targetPath, key, selectedTask.id),
+    schema: implementationChecklistArtifactSchema,
+    artifactName: "implementation checklist",
+    warnings
+  });
+  const budget = await readOptional({
+    filePath: budgetArtifactPath(targetPath),
+    schema: budgetArtifactSchema,
+    artifactName: "budget",
+    warnings
+  });
+  const actualUsage = budget?.usage
+    .filter((usage) =>
+      selectedFeature !== undefined &&
+      selectedTask !== undefined &&
+      usage.featureId === selectedFeature.id &&
+      usage.taskId === selectedTask.id
+    )
+    .sort((left, right) => right.recordedAt.localeCompare(left.recordedAt))[0];
   const verification = key === undefined ? undefined : await readOptional({
     filePath: verificationArtifactPath(targetPath, key),
     schema: verificationReportSchema,
@@ -447,6 +477,9 @@ export async function loadProjectState(
     plan,
     traceability,
     contextPack,
+    implementationChecklist,
+    budget,
+    actualUsage,
     verification,
     review,
     reconcile,

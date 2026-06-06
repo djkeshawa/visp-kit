@@ -16,7 +16,7 @@ Update this checklist as work progresses. If you cannot update the checklist fil
 - [ ] Keep changes inside allowed/expected files or document any scope exception.
 - [ ] Update or add tests when behavior changes.
 - [ ] Run the listed validation commands or report why they could not run.
-- [ ] Record actual token usage with \`visp budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report\` when the agent surface exposes usage.
+- [ ] Record actual token usage with \`visp budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report\`, or record unavailable usage with \`visp budget --task ${taskId} --record-usage-unavailable --model <agent> --usage-note "<reason>" --write-report\`.
 - [ ] Run \`visp verify --task ${taskId}\`.
 - [ ] Run \`visp review --task ${taskId}\`.
 - [ ] Run \`visp reconcile --task ${taskId} --update-traceability\`.
@@ -66,7 +66,7 @@ After implementation:
 - Update the implementation checklist status.
 - Summarize changed files.
 - List validation results.
-- Report actual token usage if available, or state that the agent surface did not expose it.
+- Record actual token usage if available. If the agent surface does not expose numeric usage, run \`visp budget --task ${task.id} --record-usage-unavailable --model <agent> --usage-note "<reason>" --write-report\`.
 - Mention any follow-up tasks or blockers.
 `;
 }

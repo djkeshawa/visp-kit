@@ -10,6 +10,10 @@ import {
   type BudgetCommandDependencies
 } from "./commands/budget.command.js";
 import {
+  createChecklistCommand,
+  type ChecklistCommandDependencies
+} from "./commands/checklist.command.js";
+import {
   createClarifyCommand,
   type ClarifyCommandDependencies
 } from "./commands/clarify.command.js";
@@ -96,6 +100,7 @@ import {
 
 export type CliDependencies = AgentCommandDependencies &
   BudgetCommandDependencies &
+  ChecklistCommandDependencies &
   ClarifyCommandDependencies &
   ConstitutionCommandDependencies &
   ContextCommandDependencies &
@@ -140,6 +145,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
 
   program.addCommand(createBudgetCommand(dependencies));
   program.addCommand(createAgentCommand(dependencies));
+  program.addCommand(createChecklistCommand(dependencies));
   program.addCommand(createClarifyCommand(dependencies));
   program.addCommand(createConstitutionCommand(dependencies));
   program.addCommand(createContextCommand(dependencies));

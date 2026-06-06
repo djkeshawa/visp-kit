@@ -114,7 +114,7 @@ ${blockingRulesSection()}
 
 Run:
 - update \`.visp/features/<feature>/context/<task-id>.implementation-checklist.md\` if it exists
-- record actual token usage with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\` when the agent surface exposes usage
+- record actual token usage with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\`, or \`visp budget --task <task-id> --record-usage-unavailable --model <agent> --usage-note "<reason>" --write-report\` when token counts are unavailable
 - \`visp verify --task <task-id>\`
 - \`visp review --task <task-id>\`
 - \`visp reconcile --task <task-id> --update-traceability\`

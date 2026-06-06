@@ -17,6 +17,7 @@ import {
   formatGateResult,
   renderGateReport
 } from "../gates/gate-report.js";
+import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
 
 export type GateWorkflowOptions = {
   readonly targetPath?: string;
@@ -79,6 +80,21 @@ export async function runGateWorkflow(
     );
 
     if (!write.ok) return write;
+  }
+
+  if (parsed.data.stage === "implement" && parsed.data.allowed && parsed.data.feature !== null && parsed.data.taskId !== null) {
+    const featureKey = `${parsed.data.feature.id}-${parsed.data.feature.slug}`;
+    const checklist = await markImplementationChecklistSteps({
+      targetPath,
+      featureKey,
+      taskId: parsed.data.taskId,
+      steps: ["gate-implement"],
+      evidence: `visp gate implement --task ${parsed.data.taskId}`,
+      dryRun,
+      now
+    });
+
+    if (!checklist.ok) return checklist;
   }
 
   return ok(parsed.data);

@@ -19,6 +19,9 @@ export function renderPrMarkdown(pr: PrArtifact): string {
   const files = pr.changedFiles
     .map((file) => `| ${file.path} | ${file.changeType} | ${file.notes} |`)
     .join("\n");
+  const checklistItems = pr.implementationChecklist.items
+    .map((item) => `| ${item.id} | ${item.status} | ${item.required ? "yes" : "no"} | ${item.evidence ?? ""} | ${item.reason ?? ""} |`)
+    .join("\n");
 
   return `# Pull Request: ${pr.title}
 
@@ -58,9 +61,22 @@ ${files || "| none | unknown | no Git diff available |"}
 - Verification: ${pr.validationEvidence.status}
 - Review: ${pr.reviewEvidence.status}
 - Reconcile: ${pr.reconcileEvidence.status}
+- Implementation checklist: ${pr.implementationChecklist.status}
+- Actual usage: ${pr.usage.status}
 
 Commands run:
 ${list(pr.validationEvidence.summary.filter((item) => item.startsWith("Command run:")).map((item) => item.replace("Command run: ", "")))}
+
+## Actual Token Usage
+
+- Status: ${pr.usage.status}
+- Input: ${pr.usage.status === "unavailable" ? "unavailable" : pr.usage.inputTokens ?? "not recorded"}
+- Output: ${pr.usage.status === "unavailable" ? "unavailable" : pr.usage.outputTokens ?? "not recorded"}
+- Total: ${pr.usage.status === "unavailable" ? "unavailable" : pr.usage.totalTokens ?? "not recorded"}
+- Source: ${pr.usage.source ?? "none"}
+- Model: ${pr.usage.model ?? "none"}
+- Recorded: ${pr.usage.recordedAt ?? "none"}
+- Note: ${pr.usage.note ?? "none"}
 
 ## Risk and Rollback
 
@@ -73,6 +89,18 @@ ${list(pr.rollback)}
 ## Checklist
 
 ${pr.checklist.map((item) => `- [ ] ${item}`).join("\n")}
+
+## Implementation Checklist Evidence
+
+Status: ${pr.implementationChecklist.status}
+
+Pending required: ${pr.implementationChecklist.pendingRequiredIds.join(", ") || "none"}
+Blocked required: ${pr.implementationChecklist.blockedRequiredIds.join(", ") || "none"}
+Usage status: ${pr.implementationChecklist.usageStatus}
+
+| Item | Status | Required | Evidence | Reason |
+|------|--------|----------|----------|--------|
+${checklistItems || "| none | missing | no |  |  |"}
 
 ## Follow-up Work
 
