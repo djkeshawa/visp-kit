@@ -40,6 +40,30 @@ export function vispRulesFilePath(rootPath: string): string {
   return joinPath(vispDir(rootPath), "prompts", "visp-rules.md");
 }
 
+export function vispHooksDir(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "hooks");
+}
+
+export function claudePreToolUseHookPath(rootPath: string): string {
+  return joinPath(vispHooksDir(rootPath), "claude-pretooluse.mjs");
+}
+
+export function preCommitCheckPath(rootPath: string): string {
+  return joinPath(vispHooksDir(rootPath), "visp-pre-commit.mjs");
+}
+
+export function hooksReadmePath(rootPath: string): string {
+  return joinPath(vispHooksDir(rootPath), "README.md");
+}
+
+export function gitPreCommitHookPath(rootPath: string): string {
+  return joinPath(rootPath, ".git", "hooks", "pre-commit");
+}
+
+export function githubEvidenceWorkflowPath(rootPath: string): string {
+  return joinPath(rootPath, ".github", "workflows", "visp-evidence.yml");
+}
+
 export function claudeCommandPath(rootPath: string, name: string): string {
   return joinPath(rootPath, ".claude", "commands", `visp-${name}.md`);
 }

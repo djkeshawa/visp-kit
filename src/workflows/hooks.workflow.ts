@@ -1,0 +1,276 @@
+import { chmod } from "node:fs/promises";
+import path from "node:path";
+
+import {
+  claudePreToolUseHookPath,
+  githubEvidenceWorkflowPath,
+  gitPreCommitHookPath,
+  hooksReadmePath,
+  preCommitCheckPath
+} from "../agent/agent-paths.js";
+import {
+  renderClaudePreToolUseHook,
+  renderClaudeSettingsSnippet,
+  renderGithubEvidenceWorkflow,
+  renderHooksReadme,
+  renderPreCommitCheck,
+  renderPreCommitWrapper
+} from "../agent/hooks/hook-templates.js";
+import { VispError, toVispError } from "../core/errors.js";
+import { pathExists, readTextFile, writeTextFile } from "../core/file-system.js";
+import { relativePath, vispDir } from "../core/paths.js";
+import { err, ok, type Result } from "../core/result.js";
+import { formatHeader, formatKeyValue } from "../theme/terminal.js";
+
+export type HooksKind = "claude" | "git" | "ci";
+
+export type HooksWorkflowOptions = {
+  readonly targetPath?: string;
+  readonly cwd?: string;
+  readonly kind: HooksKind;
+  readonly force?: boolean;
+  readonly dryRun?: boolean;
+};
+
+export type HooksWorkflowSummary = {
+  readonly success: boolean;
+  readonly kind: HooksKind;
+  readonly targetPath: string;
+  readonly createdFiles: readonly string[];
+  readonly updatedFiles: readonly string[];
+  readonly skippedFiles: readonly string[];
+  readonly warnings: readonly string[];
+  readonly settingsSnippet: string | null;
+  readonly nextCommand: string;
+  readonly dryRun: boolean;
+};
+
+type FileBucket = {
+  readonly createdFiles: string[];
+  readonly updatedFiles: string[];
+  readonly skippedFiles: string[];
+};
+
+async function writeHookFile(input: {
+  readonly targetPath: string;
+  readonly filePath: string;
+  readonly contents: string;
+  readonly force: boolean;
+  readonly dryRun: boolean;
+  readonly executable?: boolean;
+  readonly bucket: FileBucket;
+}): Promise<Result<void, VispError>> {
+  const display = relativePath(input.targetPath, input.filePath);
+  const exists = await pathExists(input.filePath);
+
+  if (!exists.ok) return exists;
+
+  if (exists.value && !input.force) {
+    input.bucket.skippedFiles.push(display);
+    return ok(undefined);
+  }
+
+  if (!input.dryRun) {
+    const write = await writeTextFile(input.filePath, input.contents);
+
+    if (!write.ok) return write;
+
+    if (input.executable === true) {
+      try {
+        await chmod(input.filePath, 0o755);
+      } catch (error) {
+        return err(toVispError(error, "FILE_SYSTEM_ERROR"));
+      }
+    }
+  }
+
+  (exists.value ? input.bucket.updatedFiles : input.bucket.createdFiles).push(display);
+  return ok(undefined);
+}
+
+export async function runHooksWorkflow(
+  options: HooksWorkflowOptions
+): Promise<Result<HooksWorkflowSummary, VispError>> {
+  const targetPath = path.resolve(options.cwd ?? process.cwd(), options.targetPath ?? ".");
+  const force = options.force ?? false;
+  const dryRun = options.dryRun ?? false;
+  const warnings: string[] = [];
+  const bucket: FileBucket = { createdFiles: [], updatedFiles: [], skippedFiles: [] };
+
+  const initialized = await pathExists(vispDir(targetPath));
+
+  if (!initialized.ok) return initialized;
+  if (!initialized.value) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Visp Kit is not initialized. Run `visp init` first.",
+        { recovery: "visp init" }
+      )
+    );
+  }
+
+  const readme = await writeHookFile({
+    targetPath,
+    filePath: hooksReadmePath(targetPath),
+    contents: renderHooksReadme(),
+    force: true,
+    dryRun,
+    bucket
+  });
+
+  if (!readme.ok) return readme;
+
+  let settingsSnippet: string | null = null;
+  let nextCommand = "visp status";
+
+  if (options.kind === "claude") {
+    const hook = await writeHookFile({
+      targetPath,
+      filePath: claudePreToolUseHookPath(targetPath),
+      contents: renderClaudePreToolUseHook(),
+      force: true,
+      dryRun,
+      bucket
+    });
+
+    if (!hook.ok) return hook;
+
+    settingsSnippet = renderClaudeSettingsSnippet();
+    nextCommand = "Merge the printed hooks snippet into .claude/settings.json";
+  }
+
+  if (options.kind === "git") {
+    const check = await writeHookFile({
+      targetPath,
+      filePath: preCommitCheckPath(targetPath),
+      contents: renderPreCommitCheck(),
+      force: true,
+      dryRun,
+      bucket
+    });
+
+    if (!check.ok) return check;
+
+    const gitDir = await pathExists(path.join(targetPath, ".git"));
+
+    if (!gitDir.ok) return gitDir;
+
+    if (!gitDir.value) {
+      warnings.push(
+        ".git directory not found; wrote the check script only. Run `git init` and rerun `visp hooks git`."
+      );
+    } else {
+      const hookPath = gitPreCommitHookPath(targetPath);
+      const existing = await pathExists(hookPath);
+
+      if (!existing.ok) return existing;
+
+      if (existing.value && !force) {
+        const contents = await readTextFile(hookPath);
+        const ours = contents.ok && contents.value.includes("Generated by Visp Kit");
+
+        if (ours) {
+          const update = await writeHookFile({
+            targetPath,
+            filePath: hookPath,
+            contents: renderPreCommitWrapper(),
+            force: true,
+            dryRun,
+            executable: true,
+            bucket
+          });
+
+          if (!update.ok) return update;
+        } else {
+          warnings.push(
+            `${relativePath(targetPath, hookPath)} already exists and was not generated by Visp Kit. ` +
+              "Add `node .visp/hooks/visp-pre-commit.mjs` to it manually, or rerun with --force to overwrite."
+          );
+          bucket.skippedFiles.push(relativePath(targetPath, hookPath));
+        }
+      } else {
+        const wrapper = await writeHookFile({
+          targetPath,
+          filePath: hookPath,
+          contents: renderPreCommitWrapper(),
+          force: true,
+          dryRun,
+          executable: true,
+          bucket
+        });
+
+        if (!wrapper.ok) return wrapper;
+      }
+    }
+
+    nextCommand = "git commit will now run the Visp evidence check";
+  }
+
+  if (options.kind === "ci") {
+    const workflow = await writeHookFile({
+      targetPath,
+      filePath: githubEvidenceWorkflowPath(targetPath),
+      contents: renderGithubEvidenceWorkflow(),
+      force,
+      dryRun,
+      bucket
+    });
+
+    if (!workflow.ok) return workflow;
+
+    nextCommand = "Commit .github/workflows/visp-evidence.yml";
+  }
+
+  return ok({
+    success: true,
+    kind: options.kind,
+    targetPath,
+    createdFiles: bucket.createdFiles,
+    updatedFiles: bucket.updatedFiles,
+    skippedFiles: bucket.skippedFiles,
+    warnings,
+    settingsSnippet,
+    nextCommand,
+    dryRun
+  });
+}
+
+export function formatHooksSummary(summary: HooksWorkflowSummary): string {
+  const lines: string[] = [
+    formatHeader(
+      summary.dryRun ? `Visp hooks ${summary.kind} dry run.` : `Visp hooks ${summary.kind} installed.`
+    ),
+    "",
+    formatKeyValue("Target", summary.targetPath)
+  ];
+
+  if (summary.createdFiles.length > 0) {
+    lines.push("", "Created:", ...summary.createdFiles.map((file) => `  ${file}`));
+  }
+
+  if (summary.updatedFiles.length > 0) {
+    lines.push("", "Updated:", ...summary.updatedFiles.map((file) => `  ${file}`));
+  }
+
+  if (summary.skippedFiles.length > 0) {
+    lines.push("", "Skipped:", ...summary.skippedFiles.map((file) => `  ${file}`));
+  }
+
+  if (summary.warnings.length > 0) {
+    lines.push("", "Warnings:", ...summary.warnings.map((warning) => `  ${warning}`));
+  }
+
+  if (summary.settingsSnippet !== null) {
+    lines.push(
+      "",
+      "Merge this into .claude/settings.json (or .claude/settings.local.json):",
+      "",
+      summary.settingsSnippet
+    );
+  }
+
+  lines.push("", "Next:", `  ${summary.nextCommand}`);
+
+  return `${lines.join("\n")}\n`;
+}

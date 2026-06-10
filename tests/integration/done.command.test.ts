@@ -132,6 +132,9 @@ describe("visp done command", () => {
     expect(summary.steps.every((step) => step.success)).toBe(true);
     expect(summary.nextCommand).not.toBeNull();
     expect(process.exitCode).toBeUndefined();
+
+    const markerPath = path.join(tempDir, ".visp", "state", "implement-allowed.json");
+    await expect(readFile(markerPath, "utf8")).rejects.toThrow();
   });
 
   it("stops at the first failing step and reports a recovery command", async () => {

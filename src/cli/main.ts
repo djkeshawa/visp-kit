@@ -50,6 +50,10 @@ import {
   type GateCommandDependencies
 } from "./commands/gate.command.js";
 import {
+  createHooksCommand,
+  type HooksCommandDependencies
+} from "./commands/hooks.command.js";
+import {
   createScanCommand,
   type ScanCommandDependencies
 } from "./commands/scan.command.js";
@@ -113,6 +117,7 @@ export type CliDependencies = AgentCommandDependencies &
   EvalCommandDependencies &
   FeatureCommandDependencies &
   GateCommandDependencies &
+  HooksCommandDependencies &
   InitCommandDependencies &
   NextCommandDependencies &
   OverrideCommandDependencies &
@@ -159,6 +164,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createEvalCommand(dependencies));
   program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createGateCommand(dependencies));
+  program.addCommand(createHooksCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createNextCommand(dependencies));
   program.addCommand(createOverrideCommand(dependencies));

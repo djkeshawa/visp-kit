@@ -2,6 +2,7 @@ import path from "node:path";
 
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
+import { clearImplementMarker } from "../gates/implement-marker.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { runBudgetWorkflow } from "./budget.workflow.js";
 import { runChecklistStatusWorkflow } from "./checklist.workflow.js";
@@ -282,7 +283,15 @@ export async function runDoneWorkflow(
     detail: next.value.nextCommand
   }));
 
-  return ok(summarize(next.value.nextCommand));
+  const summary = summarize(next.value.nextCommand);
+
+  if (summary.success && !dryRun) {
+    const cleared = await clearImplementMarker(targetPath);
+
+    if (!cleared.ok) return cleared;
+  }
+
+  return ok(summary);
 }
 
 export function formatDoneSummary(summary: DoneWorkflowSummary): string {

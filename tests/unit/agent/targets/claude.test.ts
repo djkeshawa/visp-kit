@@ -11,6 +11,8 @@ describe("claude target", () => {
 
     expect(files.map((file) => file.path)).toEqual([
       "/repo/.visp/prompts/visp-rules.md",
+      "/repo/.visp/hooks/claude-pretooluse.mjs",
+      "/repo/.visp/hooks/README.md",
       "/repo/.claude/commands/visp-feature.md",
       "/repo/.claude/commands/visp-task.md",
       "/repo/.claude/commands/visp-fix.md",
@@ -18,10 +20,14 @@ describe("claude target", () => {
       "/repo/.claude/commands/visp-pr.md"
     ]);
 
-    for (const file of files) {
+    const commands = files.slice(3);
+
+    for (const file of commands) {
       expect(file.contents).toContain("user prompt is raw intent");
       expect(file.contents).toContain("visp gate");
       expect(file.contents).toContain("visp done");
+      expect(file.contents).toContain("## Rules digest");
+      expect(file.contents).toContain(".visp/prompts/visp-rules.md");
     }
 
     const rules = files[0]!;
@@ -31,9 +37,9 @@ describe("claude target", () => {
     expect(rules.contents).toContain("visp reconcile");
     expect(rules.contents).toContain("Reading gate output");
 
-    for (const command of files.slice(1)) {
-      expect(command.contents).toContain("## Rules digest");
-      expect(command.contents).toContain(".visp/prompts/visp-rules.md");
-    }
+    const hook = files[1]!;
+
+    expect(hook.contents).toContain("implement-allowed.json");
+    expect(hook.contents).toContain("process.exit(2)");
   });
 });

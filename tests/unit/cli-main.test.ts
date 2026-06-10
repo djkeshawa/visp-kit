@@ -175,6 +175,27 @@ describe("createCli", () => {
     expect(help).toContain("--json");
   });
 
+  it("prints hooks command help", () => {
+    const hooks = createCli().commands.find((command) => command.name() === "hooks");
+
+    expect(hooks).toBeDefined();
+    expect(hooks?.commands.map((command) => command.name())).toEqual([
+      "claude",
+      "git",
+      "ci"
+    ]);
+
+    for (const name of ["claude", "git", "ci"]) {
+      const help = hooks?.commands
+        .find((command) => command.name() === name)
+        ?.helpInformation();
+
+      expect(help).toContain("--force");
+      expect(help).toContain("--dry-run");
+      expect(help).toContain("--json");
+    }
+  });
+
   it("prints done command help", () => {
     const help = createCli().commands
       .find((command) => command.name() === "done")

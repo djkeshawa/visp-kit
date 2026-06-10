@@ -367,6 +367,20 @@ Example:
 visp done --task T001 --input-tokens 18000 --output-tokens 4200 --model codex
 ```
 
+## `visp hooks <claude|git|ci> [path]`
+
+Purpose: install enforcement hooks that make gates mechanical instead of
+advisory. See [enforcement.md](enforcement.md).
+
+- `visp hooks claude` — Claude Code PreToolUse hook that blocks edits before
+  `visp gate implement` allows them; prints the settings snippet to merge.
+- `visp hooks git` — pre-commit check of staged source files against the
+  active implement authorization.
+- `visp hooks ci` — GitHub Actions workflow running `visp policy validate`
+  and `visp gate pr` on pull requests.
+
+Common flags: `--force`, `--dry-run`, `--json`.
+
 ## `visp status [path]`
 
 Purpose: show project, policy, feature, task, evidence, override, and next-step state.

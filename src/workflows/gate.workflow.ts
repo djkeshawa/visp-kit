@@ -18,6 +18,11 @@ import {
   renderGateReport
 } from "../gates/gate-report.js";
 import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
+import {
+  clearImplementMarker,
+  writeImplementMarker
+} from "../gates/implement-marker.js";
+import { loadProjectState } from "../orchestrator/project-state.js";
 
 export type GateWorkflowOptions = {
   readonly targetPath?: string;
@@ -95,6 +100,32 @@ export async function runGateWorkflow(
     });
 
     if (!checklist.ok) return checklist;
+
+    if (!dryRun) {
+      const state = await loadProjectState({
+        targetPath,
+        feature: options.feature,
+        taskId: parsed.data.taskId
+      });
+
+      if (state.ok && state.value.selectedTask !== undefined) {
+        const marker = await writeImplementMarker({
+          targetPath,
+          task: state.value.selectedTask,
+          featureId: parsed.data.feature.id,
+          strictnessMode: parsed.data.strictnessMode,
+          now
+        });
+
+        if (!marker.ok) return marker;
+      }
+    }
+  }
+
+  if (parsed.data.stage === "implement" && !parsed.data.allowed && !dryRun) {
+    const cleared = await clearImplementMarker(targetPath);
+
+    if (!cleared.ok) return cleared;
   }
 
   return ok(parsed.data);

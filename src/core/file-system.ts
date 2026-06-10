@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { VispError } from "./errors.js";
@@ -74,6 +74,17 @@ export async function writeTextFile(
     return ok(filePath);
   } catch (error) {
     return err(fileSystemError(error, `Unable to write ${filePath}.`, filePath));
+  }
+}
+
+export async function removeFile(
+  filePath: string
+): Promise<Result<void, VispError>> {
+  try {
+    await rm(filePath, { force: true });
+    return ok(undefined);
+  } catch (error) {
+    return err(fileSystemError(error, `Unable to remove ${filePath}.`, filePath));
   }
 }
 
