@@ -272,7 +272,27 @@ Before implementation, the agent should run:
 visp gate implement --task T001
 ```
 
-After implementation:
+After implementation, run the whole evidence pipeline in one command:
+
+```bash
+visp done --task T001 --input-tokens <actual> --output-tokens <actual>
+```
+
+`visp done` runs verify, usage recording, review, reconcile, the checklist
+status check, and `visp next` in order. It stops at the first failure and
+prints the exact recovery command.
+
+If the agent surface does not expose numeric token usage, record that
+explicitly instead of inventing counts:
+
+```bash
+visp done --task T001 \
+  --usage-unavailable \
+  --model codex \
+  --usage-note "Agent surface did not expose numeric token usage."
+```
+
+The granular commands remain available when you need one step at a time:
 
 ```bash
 visp checklist status --task T001
@@ -282,16 +302,6 @@ visp review --task T001
 visp reconcile --task T001 --update-traceability
 visp next
 visp pr
-```
-
-If the agent surface does not expose numeric token usage, record that explicitly instead of inventing counts:
-
-```bash
-visp budget --task T001 \
-  --record-usage-unavailable \
-  --model codex \
-  --usage-note "Agent surface did not expose numeric token usage." \
-  --write-report
 ```
 
 ## Usage Examples
@@ -444,7 +454,13 @@ visp spec
 
 ### Verify, Review, And Reconcile Agent Work
 
-After the agent edits code, run the evidence workflow:
+After the agent edits code, run the evidence workflow in one step:
+
+```bash
+visp done --task T001 --usage-unavailable --model codex --usage-note "No numeric usage exposed."
+```
+
+Or run the steps individually:
 
 ```bash
 visp verify --task T001

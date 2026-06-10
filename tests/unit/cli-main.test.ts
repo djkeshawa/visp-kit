@@ -175,6 +175,23 @@ describe("createCli", () => {
     expect(help).toContain("--json");
   });
 
+  it("prints done command help", () => {
+    const help = createCli().commands
+      .find((command) => command.name() === "done")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp done [options] [path]");
+    expect(help).toContain("--feature");
+    expect(help).toContain("--task");
+    expect(help).toContain("--input-tokens");
+    expect(help).toContain("--output-tokens");
+    expect(help).toContain("--model");
+    expect(help).toContain("--usage-note");
+    expect(help).toContain("--usage-unavailable");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+  });
+
   it("prints verify command help", () => {
     const help = createCli().commands
       .find((command) => command.name() === "verify")

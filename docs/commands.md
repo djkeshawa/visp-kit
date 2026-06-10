@@ -343,6 +343,30 @@ Generated artifacts:
 - `.visp/features/<feature>/reconcile/T001.reconcile.json`
 - `.visp/features/<feature>/reconcile/T001.reconcile-prompt.md`
 
+## `visp done [path]`
+
+Purpose: run the full post-implementation pipeline for one task in order —
+verify, usage recording, review, reconcile (with traceability update),
+checklist status check, and next-step recommendation. The pipeline stops at
+the first failing step and prints the exact recovery command.
+
+Common flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>` (required)
+- `--input-tokens <n>` and `--output-tokens <n>` to record actual usage
+- `--usage-unavailable` when the agent surface does not expose numeric usage
+- `--model <model>`
+- `--usage-note <note>`
+- `--dry-run`
+- `--json`
+
+Example:
+
+```bash
+visp done --task T001 --input-tokens 18000 --output-tokens 4200 --model codex
+```
+
 ## `visp status [path]`
 
 Purpose: show project, policy, feature, task, evidence, override, and next-step state.

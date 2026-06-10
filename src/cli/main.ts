@@ -26,6 +26,10 @@ import {
   type DoctorCommandDependencies
 } from "./commands/doctor.command.js";
 import {
+  createDoneCommand,
+  type DoneCommandDependencies
+} from "./commands/done.command.js";
+import {
   createEvalCommand,
   type EvalCommandDependencies
 } from "./commands/eval.command.js";
@@ -105,6 +109,7 @@ export type CliDependencies = AgentCommandDependencies &
   ConstitutionCommandDependencies &
   ContextCommandDependencies &
   DoctorCommandDependencies &
+  DoneCommandDependencies &
   EvalCommandDependencies &
   FeatureCommandDependencies &
   GateCommandDependencies &
@@ -150,6 +155,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createConstitutionCommand(dependencies));
   program.addCommand(createContextCommand(dependencies));
   program.addCommand(createDoctorCommand(dependencies));
+  program.addCommand(createDoneCommand(dependencies));
   program.addCommand(createEvalCommand(dependencies));
   program.addCommand(createFeatureCommand(dependencies));
   program.addCommand(createGateCommand(dependencies));
