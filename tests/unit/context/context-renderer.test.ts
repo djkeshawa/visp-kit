@@ -25,6 +25,6 @@ describe("context renderer", () => {
     expect(markdown).toContain("Snippet");
     expect(markdown).toContain("Estimated input tokens");
     expect(markdown).toContain("Implementation Checklist");
-    expect(markdown).toContain("Record actual token usage, or mark it unavailable");
+    expect(markdown).toContain("visp checklist status --task T001");
   });
 });

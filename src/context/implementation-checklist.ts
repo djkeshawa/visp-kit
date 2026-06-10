@@ -48,11 +48,11 @@ type ChecklistIdentity = {
 };
 
 const itemLabels: Record<ImplementationChecklistStep, string> = {
-  "read-context": "Read the context pack and current task prompt.",
+  "read-context": "Read the context pack and current task prompt. Mark done: `visp checklist update --task <task-id> --item read-context --status done`",
   "gate-implement": "Confirm `visp gate implement --task <task-id>` allows implementation.",
-  "implement-selected-task": "Implement only <task-id>.",
-  "scope-check": "Keep changes inside allowed/expected files or document any scope exception.",
-  "tests-updated": "Update or add tests when behavior changes.",
+  "implement-selected-task": "Implement only <task-id>. Mark done: `visp checklist update --task <task-id> --item implement-selected-task --status done`",
+  "scope-check": "Keep changes inside allowed/expected files. Mark done: `visp checklist update --task <task-id> --item scope-check --status done`",
+  "tests-updated": "Update or add tests when behavior changes. Mark done: `visp checklist update --task <task-id> --item tests-updated --status done`",
   "record-usage": "Record actual token usage, or mark it unavailable with a reason.",
   verify: "Run validation commands or report why they could not run.",
   review: "Run `visp review --task <task-id>`.",
@@ -69,6 +69,13 @@ export const implementationChecklistSteps: readonly ImplementationChecklistStep[
   "record-usage",
   "review",
   "reconcile"
+];
+
+export const agentMarkedChecklistSteps: readonly ImplementationChecklistStep[] = [
+  "read-context",
+  "implement-selected-task",
+  "scope-check",
+  "tests-updated"
 ];
 
 function identityFromFeatureKey(featureKey: string, taskId: string): ChecklistIdentity {
@@ -151,13 +158,6 @@ Agents should update this checklist while implementing the selected task. If tok
 
 ${items}
 `;
-}
-
-export function implementationChecklistMarkdownItems(taskId: string): string {
-  return createImplementationChecklistArtifact({
-    ...identityFromFeatureKey("000-feature", taskId),
-    generatedAt: "2026-01-01T00:00:00.000Z"
-  }).items.map((item) => `- [ ] ${item.label}`).join("\n");
 }
 
 async function loadChecklist(input: {

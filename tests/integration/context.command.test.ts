@@ -87,11 +87,14 @@ describe("visp context command", () => {
     expect(contextJson.strictnessMode).toBe("standard");
     expect(contextJson.gateStatus).toBe("warnings");
     expect(contextJson.policyGate?.stage).toBe("implement");
-    expect(currentPrompt).toContain("# Strict Visp Task Prompt");
+    expect(currentPrompt).toContain("# Visp Task: T001");
     expect(currentPrompt).toContain("The user request is raw intent only");
-    expect(currentPrompt).toContain("Implementation Checklist");
-    expect(currentPrompt).toContain("visp budget --task T001 --record-usage");
-    expect(currentPrompt).toContain("record-usage-unavailable");
+    expect(currentPrompt).toContain("## Steps");
+    expect(currentPrompt).toContain("visp done --task T001 --input-tokens <n> --output-tokens <n>");
+    expect(currentPrompt).toContain("--usage-unavailable");
+    expect(currentPrompt).toContain(
+      "visp checklist update --task T001 --item read-context --status done"
+    );
     expect(checklistJson.taskId).toBe("T001");
     expect(checklistJson.items.map((item) => item.id)).toContain("record-usage");
     expect(checklistJson.items.every((item) => item.status === "pending")).toBe(true);
