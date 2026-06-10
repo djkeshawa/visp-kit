@@ -1,4 +1,4 @@
-import { type ZodType } from "zod";
+import { type ZodType, type ZodTypeDef } from "zod";
 
 import { VispError } from "../core/errors.js";
 import { readTextFile } from "../core/file-system.js";
@@ -9,11 +9,11 @@ export type ReadArtifactOptions = {
   readonly artifactName?: string;
 };
 
-export async function readArtifact<T>(
+export async function readArtifact<Output, Input = Output>(
   artifactPath: string,
-  schema: ZodType<T>,
+  schema: ZodType<Output, ZodTypeDef, Input>,
   options: ReadArtifactOptions = {}
-): Promise<Result<T, VispError>> {
+): Promise<Result<Output, VispError>> {
   const text = await readTextFile(artifactPath);
 
   if (!text.ok) {

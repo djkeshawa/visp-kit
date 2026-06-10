@@ -35,8 +35,7 @@ function featureMatches(override: OverrideRecord, state: ProjectState): boolean 
   ) && (
     override.featureSlug === undefined ||
     override.featureSlug === null ||
-    override.featureSlug === feature.slug ||
-    override.featureSlug === feature.key
+    override.featureSlug === feature.slug
   );
 }
 

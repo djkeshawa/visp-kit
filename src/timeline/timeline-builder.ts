@@ -82,7 +82,7 @@ async function budgetTotals(input: {
 
   const actualTokens = (budget.value.usage ?? [])
     .filter((usage) => usage.featureId === input.featureId)
-    .reduce((total, usage) => total + usage.totalTokens, 0);
+    .reduce((total, usage) => total + (usage.totalTokens ?? 0), 0);
 
   return actualTokens > 0 ? { actualTokens } : {};
 }

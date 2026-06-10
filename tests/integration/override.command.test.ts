@@ -170,6 +170,78 @@ describe("visp override command", () => {
     expect(errors.join("")).toContain("at least 12 characters");
   });
 
+  it("keeps project-scoped overrides unbound from feature and task", async () => {
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "override",
+      "create",
+      "VSP014",
+      tempDir,
+      "--scope",
+      "project",
+      "--feature",
+      "001",
+      "--task",
+      "T001",
+      "--reason",
+      "Project-wide exception while verification tooling is rebuilt.",
+      "--json"
+    ]);
+
+    const created = JSON.parse(output.join("")) as {
+      success: boolean;
+      override: { scope: string; featureId: string | null; featureSlug: string | null; taskId: string | null };
+      warnings: string[];
+    };
+
+    expect(created.success).toBe(true);
+    expect(created.override.scope).toBe("project");
+    expect(created.override.featureId).toBeNull();
+    expect(created.override.featureSlug).toBeNull();
+    expect(created.override.taskId).toBeNull();
+    expect(created.warnings.join(" ")).toContain("ignored for project-scoped overrides");
+  });
+
+  it("blocks override creation when policy disallows overrides", async () => {
+    await createPhase8Fixture(tempDir);
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "policy",
+      "set-strictness",
+      "locked",
+      tempDir
+    ]);
+
+    process.exitCode = undefined;
+    const errors: string[] = [];
+    const lockedProgram = createCli({ writeErr: (value) => errors.push(value) });
+
+    await lockedProgram.parseAsync([
+      "node",
+      "visp",
+      "override",
+      "create",
+      "VSP014",
+      tempDir,
+      "--scope",
+      "project",
+      "--reason",
+      "This override should be rejected while policy is locked."
+    ]);
+
+    expect(process.exitCode).toBe(1);
+    expect(errors.join("")).toContain("not allowed by the current policy");
+    expect(await exists(overridesArtifactPath(tempDir))).toBe(false);
+  });
+
   it("dry-run writes nothing", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     const program = createCli({ writeOut: () => undefined });

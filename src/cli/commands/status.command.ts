@@ -72,5 +72,9 @@ export function createStatusCommand(
           ? `${JSON.stringify(result.value, null, 2)}\n`
           : formatStatusSummary(result.value, { verbose: options.verbose })
       );
+
+      if (!result.value.success) {
+        process.exitCode = 1;
+      }
     });
 }

@@ -83,6 +83,27 @@ describe("visp status command", () => {
     expect(await readFile(reportPath, "utf8")).toContain("## Policy");
   });
 
+  it("exits with code 1 when the summary reports failure", async () => {
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "status",
+      tempDir,
+      "--feature",
+      "does-not-exist",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as { success: boolean };
+
+    expect(summary.success).toBe(false);
+    expect(process.exitCode).toBe(1);
+  });
+
   it("fails clearly when .visp is missing", async () => {
     const errors: string[] = [];
     const program = createCli({ writeErr: (value) => errors.push(value) });

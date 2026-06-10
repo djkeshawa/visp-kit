@@ -138,7 +138,7 @@ async function resolveScope(input: {
     return fail("Task-scoped overrides require --feature and --task.");
   }
 
-  if (input.scope === "project" && input.feature === undefined && input.taskId === undefined) {
+  if (input.scope === "project") {
     return ok({
       featureId: null,
       featureSlug: null,
@@ -184,6 +184,17 @@ export async function runOverrideCreateWorkflow(
 
     if (!isKnownPolicyRule(options.ruleId)) {
       return fail(`Unknown policy rule ID: ${options.ruleId}.`);
+    }
+
+    const overridesPolicy = policy.value.policy.overrides;
+    const lockedWithoutPermission =
+      policy.value.policy.strictnessMode === "locked" && !overridesPolicy.allowedInLockedMode;
+
+    if (!overridesPolicy.allowed || lockedWithoutPermission) {
+      return fail(
+        `Overrides are not allowed by the current policy (strictness: ${policy.value.policy.strictnessMode}). ` +
+          "An override created now would never apply, so creation is blocked."
+      );
     }
 
     if (isNonOverridableRule({ ruleId: options.ruleId, policy: policy.value.policy })) {
@@ -257,7 +268,12 @@ export async function runOverrideCreateWorkflow(
       overrides: [override],
       createdFiles: store.value.exists || dryRun ? [] : [relativePath(targetPath, store.value.path)],
       updatedFiles: store.value.exists && !dryRun ? [relativePath(targetPath, store.value.path)] : [],
-      warnings: validation.warnings,
+      warnings: [
+        ...(scope === "project" && (options.feature !== undefined || options.taskId !== undefined)
+          ? ["--feature and --task are ignored for project-scoped overrides."]
+          : []),
+        ...validation.warnings
+      ],
       errors: [],
       validation,
       nextCommand: defaultNextCommand({ scope, stage: options.stage, taskId: options.taskId })

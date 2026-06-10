@@ -1,6 +1,6 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { type ZodType } from "zod";
+import { type ZodType, type ZodTypeDef } from "zod";
 
 import {
   clarificationsArtifactPath,
@@ -143,12 +143,12 @@ async function exists(filePath: string): Promise<boolean> {
   return result.ok && result.value;
 }
 
-async function readOptional<T>(input: {
+async function readOptional<Output, Input = Output>(input: {
   readonly filePath: string;
-  readonly schema: ZodType<T>;
+  readonly schema: ZodType<Output, ZodTypeDef, Input>;
   readonly artifactName: string;
   readonly warnings: string[];
-}): Promise<T | undefined> {
+}): Promise<Output | undefined> {
   if (!(await exists(input.filePath))) return undefined;
 
   const artifact = await readArtifact(input.filePath, input.schema, {

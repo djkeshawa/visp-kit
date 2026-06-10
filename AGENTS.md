@@ -128,9 +128,10 @@ Implemented command families include:
 
 - `init`, `scan`, `constitution`
 - `feature`, `clarify`, `spec`, `plan`, `tasks`
-- `context`, `budget`
+- `context`, `budget`, `checklist`
 - `verify`, `review`, `reconcile`
 - `status`, `next`, `doctor`, `pr`
 - `policy`, `gate`, `agent`, `override`
+- `workflow`, `eval`
 
 The current product direction is agent-native bootstrap and workflow reliability: Codex, Claude Code, and Copilot should be able to initialize/install Visp Kit in a target project, ask for clarifications at the correct workflow stages, run gates, implement one task at a time, and produce verification/review/reconciliation evidence.
