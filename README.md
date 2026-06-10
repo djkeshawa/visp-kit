@@ -1,6 +1,10 @@
 # Visp Kit
 
-A strict, token-efficient agent harness for accurate AI-assisted software development.
+The enforcement and evidence layer for AI-assisted software development. Plan
+with anything — including GitHub Spec Kit — and Visp Kit gates the execution:
+deterministic policy gates, mechanical enforcement hooks, small task-scoped
+context, and auditable evidence for every change. Built so that even
+mid-tier models follow the workflow accurately.
 
 Visp Kit turns vague feature ideas into a controlled local workflow:
 
@@ -93,9 +97,16 @@ Task context and token control:
 
 Evidence and drift control:
 
+- `visp done` (verify + usage + review + reconcile + checklist in one command)
 - `visp verify`
 - `visp review`
 - `visp reconcile`
+
+Mechanical enforcement:
+
+- `visp hooks claude` (Claude Code PreToolUse gate hook)
+- `visp hooks git` (pre-commit evidence check)
+- `visp hooks ci` (GitHub Actions evidence workflow)
 
 Daily orchestration:
 
@@ -641,6 +652,23 @@ visp gate pr
 
 If a gate blocks, follow the next allowed command. A user prompt cannot bypass a failed gate.
 
+## Enforcement
+
+Gates are advisory for agents that choose to run them. Enforcement hooks make
+them mechanical:
+
+```bash
+visp hooks claude   # Claude Code PreToolUse hook: blocks edits before the implement gate allows them
+visp hooks git      # pre-commit check of staged files against the task's allowed scope
+visp hooks ci       # GitHub Actions workflow: policy + PR gate must pass before merge
+```
+
+`visp gate implement --task T001` writes a local implement authorization with
+the task's allowed files; the hooks check edits and commits against it, and
+`visp done` clears it when the evidence pipeline passes. Enforcement applies
+in `strict`/`locked` modes, warns in `standard`, and stays silent in
+`relaxed`. See [docs/enforcement.md](docs/enforcement.md).
+
 ## Overrides
 
 Overrides are explicit and auditable. They are written to `.visp/overrides.json` and included in gate and readiness reports.
@@ -696,6 +724,7 @@ Visp Kit is suitable for a first public alpha or internal company pilot after lo
 - [Workflow](docs/workflow.md)
 - [Commands](docs/commands.md)
 - [Policy and Gates](docs/policy-and-gates.md)
+- [Enforcement](docs/enforcement.md)
 - [Agent Native Workflows](docs/agent-native-workflows.md)
 - [Agent Targets](docs/agent-targets.md)
 - [Overrides](docs/overrides.md)

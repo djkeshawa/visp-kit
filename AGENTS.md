@@ -103,11 +103,10 @@ visp gate implement --task <task-id>
 After implementation:
 
 ```bash
-visp verify --task <task-id>
-visp review --task <task-id>
-visp reconcile --task <task-id> --update-traceability
-visp next
+visp done --task <task-id> --input-tokens <n> --output-tokens <n>
 ```
+
+Or, when token usage is unavailable, `visp done --task <task-id> --usage-unavailable --model <agent> --usage-note "<reason>"`. The granular commands (`visp verify`, `visp review`, `visp reconcile --update-traceability`, `visp next`) remain available individually.
 
 Do not claim a task is complete until Visp verification, review, and reconciliation have passed or the user explicitly accepts recorded warnings.
 
@@ -133,5 +132,6 @@ Implemented command families include:
 - `status`, `next`, `doctor`, `pr`
 - `policy`, `gate`, `agent`, `override`
 - `workflow`, `eval`
+- `done`, `hooks`
 
 The current product direction is agent-native bootstrap and workflow reliability: Codex, Claude Code, and Copilot should be able to initialize/install Visp Kit in a target project, ask for clarifications at the correct workflow stages, run gates, implement one task at a time, and produce verification/review/reconciliation evidence.
