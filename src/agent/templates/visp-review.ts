@@ -1,23 +1,19 @@
 import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
-import {
-  blockingRulesSection,
-  strictPolicySection
-} from "./shared-agent-rules.js";
+import { criticalRulesDigest } from "./shared-agent-rules.js";
 
 export function renderVispReviewTemplate(strictness: StrictnessMode): string {
-  return `${strictPolicySection(strictness)}
+  return `${criticalRulesDigest(strictness)}
 ## Purpose
 
 Use this workflow when the user asks for a review-only pass.
 
-## Required commands
+## Steps
 
 1. Run \`visp status\`.
-2. Run \`visp policy validate\`.
-3. Run \`visp gate review --task <task-id>\` where applicable.
-4. Run \`visp review --task <task-id>\` if review is needed and the gate allows it.
-5. Read the review report.
-6. Summarize blocking issues and non-blocking suggestions.
+2. Run \`visp gate review --task <task-id>\`.
+   - Result blocked -> stop. Report the command shown after \`Next:\` and wait for the user.
+3. Run \`visp review --task <task-id>\`.
+4. Read the review report and summarize blocking issues and non-blocking suggestions.
 
 ## Review rules
 
@@ -26,7 +22,6 @@ Use this workflow when the user asks for a review-only pass.
 - Do not review unrelated files outside the selected task scope.
 - Do not claim verification passed unless Visp evidence says it passed.
 
-${blockingRulesSection()}
 ## What not to do
 
 - Do not bypass \`visp gate review\`.

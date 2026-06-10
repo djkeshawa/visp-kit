@@ -18,7 +18,8 @@ import {
   copilotInstructionsPath,
   copilotWorkflowInstructionPath,
   genericAgentPromptPath,
-  installedTargetsPath
+  installedTargetsPath,
+  vispRulesFilePath
 } from "./agent-paths.js";
 import { agentWorkflowNames } from "./agent-renderer.js";
 import { runAgentInstall } from "./agent-installer.js";
@@ -101,13 +102,16 @@ async function guidanceText(targetPath: string): Promise<Result<{ readonly path:
 
 function containsRequiredGuidance(text: string): boolean {
   const lower = text.toLowerCase();
+  const evidencePipeline =
+    lower.includes("visp done") ||
+    (lower.includes("visp verify") &&
+      lower.includes("visp review") &&
+      lower.includes("visp reconcile"));
 
   return (
     lower.includes("user prompt is raw intent") &&
     lower.includes("visp gate") &&
-    lower.includes("visp verify") &&
-    lower.includes("visp review") &&
-    lower.includes("visp reconcile")
+    evidencePipeline
   );
 }
 
@@ -230,7 +234,7 @@ async function checkTarget(input: {
           )
         ];
     }
-  })();
+  })().concat(vispRulesFilePath(input.targetPath));
 
   for (const filePath of targetFiles) {
     const check = await checkFile({

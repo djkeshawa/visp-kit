@@ -10,7 +10,9 @@ import { renderVispReviewTemplate } from "./templates/visp-review.js";
 import { renderVispTaskTemplate } from "./templates/visp-task.js";
 import {
   blockingRulesSection,
-  strictPolicySection
+  gateReadingSection,
+  strictPolicySection,
+  vispRulesDisplayPath
 } from "./templates/shared-agent-rules.js";
 
 export type AgentWorkflowName = "feature" | "task" | "fix" | "review" | "pr";
@@ -100,27 +102,24 @@ ${strictPolicySection(input.strictness)}
 
 Before editing code:
 1. Run \`visp status\`.
-2. Run \`visp policy validate\`.
-3. If either command reports that Visp Kit is not initialized, run \`visp agent bootstrap ${input.target} --strictness strict\`.
-4. Run \`visp gate next\`.
-5. Run the next allowed Visp command.
-6. Do not implement code until \`visp gate implement --task <task-id>\` allows it.
-7. Do not implement code until \`.visp/prompts/current-task.prompt.md\` exists.
-8. Read \`.visp/prompts/current-task.prompt.md\`.
-9. Implement only the selected task.
+   - It reports that Visp Kit is not initialized -> run \`visp agent bootstrap ${input.target} --strictness strict\`.
+2. Loop: run \`visp next\` and execute the command it prints after \`Next:\` until it points at implementation.
+3. Run \`visp gate implement --task <task-id>\`.
+   - Result blocked -> do NOT edit code. Run the command shown after \`Next:\`, then repeat this step.
+4. Read \`.visp/prompts/current-task.prompt.md\` and follow its Steps section exactly.
+5. Implement only the selected task.
 
 ${blockingRulesSection()}
+${gateReadingSection()}
 ## After implementation
 
-Run:
-- update \`.visp/features/<feature>/context/<task-id>.implementation-checklist.md\` if it exists
-- record actual token usage with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\`, or \`visp budget --task <task-id> --record-usage-unavailable --model <agent> --usage-note "<reason>" --write-report\` when token counts are unavailable
-- \`visp verify --task <task-id>\`
-- \`visp review --task <task-id>\`
-- \`visp reconcile --task <task-id> --update-traceability\`
-- \`visp next\`
+Run \`visp done --task <task-id> --input-tokens <n> --output-tokens <n>\` (or \`--usage-unavailable --model <agent> --usage-note "<reason>"\` when token counts are unavailable). It runs verify, review, reconcile, the checklist check, and \`visp next\` in order, stopping at the first failure with a recovery command.
 
-Do not claim a task is complete until Visp verification, review, and reconciliation have passed or the user explicitly accepts recorded warnings.
+The granular commands remain available: \`visp verify\`, \`visp review\`, \`visp reconcile --update-traceability\`, \`visp budget\`, \`visp checklist\`, \`visp next\`.
+
+Do not claim a task is complete until \`visp done\` reports every step passed or the user explicitly accepts recorded warnings.
+
+Full shared rules: ${vispRulesDisplayPath}
 `;
 }
 

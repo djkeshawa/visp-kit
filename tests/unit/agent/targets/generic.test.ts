@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { genericTargetFiles } from "../../../../src/agent/targets/generic.js";
 
 describe("generic target", () => {
-  it("renders AGENTS.md and five portable prompt files", () => {
+  it("renders AGENTS.md, the rules file, and five portable prompt files", () => {
     const files = genericTargetFiles({
       targetPath: "/repo",
       strictness: "locked",
@@ -12,6 +12,7 @@ describe("generic target", () => {
 
     expect(files.map((file) => file.path)).toEqual([
       "/repo/AGENTS.md",
+      "/repo/.visp/prompts/visp-rules.md",
       "/repo/.visp/prompts/agent-feature.prompt.md",
       "/repo/.visp/prompts/agent-task.prompt.md",
       "/repo/.visp/prompts/agent-fix.prompt.md",
@@ -21,8 +22,8 @@ describe("generic target", () => {
 
     for (const file of files) {
       expect(file.contents).toContain("user prompt is raw intent");
-      expect(file.contents).toContain("Visp Kit policy and gates");
       expect(file.contents).toContain("visp gate");
+      expect(file.contents).toContain("visp done");
     }
   });
 });

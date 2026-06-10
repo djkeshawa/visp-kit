@@ -36,6 +36,10 @@ export function genericAgentPromptPath(rootPath: string, name: string): string {
   return joinPath(vispDir(rootPath), "prompts", `agent-${name}.prompt.md`);
 }
 
+export function vispRulesFilePath(rootPath: string): string {
+  return joinPath(vispDir(rootPath), "prompts", "visp-rules.md");
+}
+
 export function claudeCommandPath(rootPath: string, name: string): string {
   return joinPath(rootPath, ".claude", "commands", `visp-${name}.md`);
 }

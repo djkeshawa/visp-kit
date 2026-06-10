@@ -1,24 +1,19 @@
 import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
-import {
-  blockingRulesSection,
-  strictPolicySection
-} from "./shared-agent-rules.js";
+import { criticalRulesDigest } from "./shared-agent-rules.js";
 
 export function renderVispPrTemplate(strictness: StrictnessMode): string {
-  return `${strictPolicySection(strictness)}
+  return `${criticalRulesDigest(strictness)}
 ## Purpose
 
 Use this workflow when the user asks to prepare a PR.
 
-## Required commands
+## Steps
 
 1. Run \`visp status\`.
-2. Run \`visp policy validate\`.
-3. Run \`visp gate pr\`.
-4. If the PR gate blocks, stop and explain the exact missing steps.
-5. If the PR gate passes, run \`visp pr\`.
-6. Read \`.visp/features/<feature>/pr.md\`.
-7. Summarize PR readiness honestly.
+2. Run \`visp gate pr\`.
+   - Result blocked -> stop. Report the exact missing steps from the gate output and the command shown after \`Next:\`.
+3. Run \`visp pr\`.
+4. Read \`.visp/features/<feature>/pr.md\` and summarize PR readiness honestly.
 
 ## PR rules
 
@@ -27,7 +22,6 @@ Use this workflow when the user asks to prepare a PR.
 - Do not commit, push, tag, publish, or open a browser.
 - Do not hide warnings or follow-up work.
 
-${blockingRulesSection()}
 ## What not to do
 
 - Do not create a normal PR summary when \`visp gate pr\` blocks.

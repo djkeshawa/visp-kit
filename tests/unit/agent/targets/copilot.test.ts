@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { copilotTargetFiles } from "../../../../src/agent/targets/copilot.js";
 
 describe("copilot target", () => {
-  it("renders Copilot repository and workflow instructions", () => {
+  it("renders Copilot repository and workflow instructions plus the rules file", () => {
     const files = copilotTargetFiles({
       targetPath: "/repo",
       strictness: "locked",
@@ -12,6 +12,7 @@ describe("copilot target", () => {
 
     expect(files.map((file) => file.path)).toEqual([
       "/repo/AGENTS.md",
+      "/repo/.visp/prompts/visp-rules.md",
       "/repo/.github/copilot-instructions.md",
       "/repo/.github/instructions/visp-feature.instructions.md",
       "/repo/.github/instructions/visp-task.instructions.md",
@@ -23,10 +24,14 @@ describe("copilot target", () => {
     for (const file of files) {
       expect(file.contents).toContain("user prompt is raw intent");
       expect(file.contents).toContain("visp gate");
-      expect(file.contents).toContain("visp verify");
-      expect(file.contents).toContain("visp review");
-      expect(file.contents).toContain("visp reconcile");
     }
+
+    const rules = files[1]!;
+
+    expect(rules.contents).toContain("visp verify");
+    expect(rules.contents).toContain("visp review");
+    expect(rules.contents).toContain("visp reconcile");
+    expect(rules.contents).toContain("visp done");
   });
 
   it("uses AGENTS.visp.md when fallback guidance is requested", () => {

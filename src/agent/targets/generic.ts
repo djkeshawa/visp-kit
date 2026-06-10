@@ -1,7 +1,8 @@
 import {
   agentsMarkdownPath,
   agentsVispMarkdownPath,
-  genericAgentPromptPath
+  genericAgentPromptPath,
+  vispRulesFilePath
 } from "../agent-paths.js";
 import {
   agentWorkflowNames,
@@ -9,6 +10,7 @@ import {
   renderGenericPrompt
 } from "../agent-renderer.js";
 import { type AgentTextFile } from "../agent-file-plan.js";
+import { renderVispRulesFile } from "../templates/visp-rules.js";
 import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
 
 export function genericTargetFiles(input: {
@@ -28,6 +30,11 @@ export function genericTargetFiles(input: {
         target: "generic",
         strictness: input.strictness
       })
+    },
+    {
+      kind: "text",
+      path: vispRulesFilePath(input.targetPath),
+      contents: renderVispRulesFile(input.strictness)
     },
     ...agentWorkflowNames.map((workflow) => ({
       kind: "text" as const,

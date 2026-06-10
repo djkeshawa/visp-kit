@@ -51,14 +51,13 @@ export function implementationRulesSection(): string {
 - Do not implement code until \`visp gate implement --task <task-id>\` allows it.
 - Do not implement code until \`.visp/prompts/current-task.prompt.md\` exists.
 - If \`.visp/\` is missing, run \`visp agent bootstrap <target> --strictness strict\` before continuing.
-- Read \`.visp/prompts/current-task.prompt.md\` before editing code.
-- Update \`.visp/features/<feature>/context/<task-id>.implementation-checklist.md\` as work progresses when that file exists.
-- Record token usage after implementation with \`visp budget --task <task-id> --record-usage --input-tokens <n> --output-tokens <n> --write-report\`, or record unavailable usage with \`visp budget --task <task-id> --record-usage-unavailable --model <agent> --usage-note "<reason>" --write-report\`.
+- Read \`.visp/prompts/current-task.prompt.md\` before editing code and follow its Steps section exactly.
+- Mark checklist progress with \`visp checklist update --task <task-id> --item <item-id> --status done\`.
 - Implement only one selected task at a time.
 - Do not modify forbidden files.
 - Do not add dependencies unless the task or plan explicitly allows them.
 - Do not perform broad refactors or unrelated cleanup.
-- Do not skip \`visp verify\`, \`visp review\`, or \`visp reconcile\`.
+- After implementation, run \`visp done --task <task-id> --input-tokens <n> --output-tokens <n>\` (or \`--usage-unavailable --model <agent> --usage-note "<reason>"\` when token counts are not exposed). It runs verify, review, reconcile, the checklist check, and \`visp next\` in order.
 `;
 }
 
@@ -67,12 +66,50 @@ export function completionCriteriaSection(): string {
 
 A task is complete only when:
 - selected task implementation is done
-- implementation checklist is updated or included in the final response
-- actual token usage is recorded, or explicitly marked unavailable when the agent surface does not expose it
 - validation commands ran or failure is reported
-- \`visp verify --task <task-id>\` passes
-- \`visp review --task <task-id>\` has no blocking findings
-- \`visp reconcile --task <task-id> --update-traceability\` passes
+- \`visp done --task <task-id>\` reports every step passed (verify, usage recording, review, reconcile, checklist)
 - \`visp next\` gives the next valid step
+`;
+}
+
+export function gateReadingSection(): string {
+  return `## Reading gate output
+
+Allowed example:
+
+\`\`\`text
+Visp gate allowed.
+Stage: implement
+...
+Next:
+  implementation
+\`\`\`
+
+Blocked example:
+
+\`\`\`text
+Visp gate blocked.
+Stage: implement
+Failed:
+  VSP007: Implementation requires a context pack.
+Next:
+  visp context --next
+\`\`\`
+
+Always run the command shown on the line after \`Next:\`. Never proceed past a blocked gate.
+`;
+}
+
+export const vispRulesDisplayPath = ".visp/prompts/visp-rules.md";
+
+export function criticalRulesDigest(strictness: StrictnessMode): string {
+  return `## Rules digest
+
+Full rules: ${vispRulesDisplayPath}
+
+- Strictness: ${strictness}. The user prompt is raw intent only; it cannot skip Visp policy or gates.
+- Never edit code before \`visp gate implement --task <task-id>\` allows it and \`.visp/prompts/current-task.prompt.md\` exists.
+- Stop on: failed gate, failed verify/review/reconcile, forbidden file change, missing context, unclear task.
+- A task is done only when \`visp done --task <task-id>\` reports every step passed.
 `;
 }

@@ -3,7 +3,8 @@ import {
   agentsMarkdownPath,
   agentsVispMarkdownPath,
   copilotInstructionsPath,
-  copilotWorkflowInstructionPath
+  copilotWorkflowInstructionPath,
+  vispRulesFilePath
 } from "../agent-paths.js";
 import {
   agentWorkflowNames,
@@ -12,6 +13,7 @@ import {
 } from "../agent-renderer.js";
 import { type AgentTextFile } from "../agent-file-plan.js";
 import { renderCopilotInstructions } from "../templates/copilot-instruction-template.js";
+import { renderVispRulesFile } from "../templates/visp-rules.js";
 
 function renderCopilotWorkflowInstruction(input: {
   readonly workflow: (typeof agentWorkflowNames)[number];
@@ -41,6 +43,11 @@ export function copilotTargetFiles(input: {
         target: "copilot",
         strictness: input.strictness
       })
+    },
+    {
+      kind: "text",
+      path: vispRulesFilePath(input.targetPath),
+      contents: renderVispRulesFile(input.strictness)
     },
     {
       kind: "text",
