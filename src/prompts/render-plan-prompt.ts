@@ -1,4 +1,5 @@
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
+import { editSeededJsonInstruction, planFieldValuesSection } from "./artifact-examples.js";
 import { budgetInstruction, promptHeader } from "./prompt-common.js";
 
 export function renderPlanPrompt(feature: ActiveFeature): string {
@@ -27,7 +28,10 @@ Rules:
 - Do not invent codebase facts without evidence.
 - Mark missing codebase evidence as unknown.
 - Avoid broad refactors and unapproved dependencies.
+- ${editSeededJsonInstruction}
 - ${budgetInstruction(feature.intent.budgetMode)}
+
+${planFieldValuesSection()}
 
 After editing, run:
 visp plan --validate

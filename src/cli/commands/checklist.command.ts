@@ -6,7 +6,7 @@ import {
 } from "../../artifacts/schemas/implementation-checklist.schema.js";
 import { type VispError } from "../../core/errors.js";
 import { type Result } from "../../core/result.js";
-import { formatError } from "../../theme/terminal.js";
+import { writeWorkflowError } from "./shared/error-output.js";
 import {
   formatChecklistSummary,
   runChecklistStatusWorkflow,
@@ -52,12 +52,12 @@ async function handleResult(
   const resolved = await result;
 
   if (!resolved.ok) {
-    if (options.json) {
-      writers.writeOut(`${JSON.stringify({ success: false, error: resolved.error.message }, null, 2)}\n`);
-    } else {
-      writers.writeErr(`${formatError(resolved.error.message)}\n`);
-    }
-
+    writeWorkflowError({
+      error: resolved.error,
+      json: options.json ?? false,
+      writeOut: writers.writeOut,
+      writeErr: writers.writeErr
+    });
     process.exitCode = 1;
     return;
   }

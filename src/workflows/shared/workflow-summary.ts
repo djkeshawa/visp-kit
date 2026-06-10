@@ -116,13 +116,21 @@ export function formatTemplateWorkflowSummary(
     lines.push("", "Warnings:", ...summary.warnings.map((warning) => `  ${warning}`));
   }
 
-  lines.push(
-    "",
-    "Next:",
-    `  Use ${summary.promptPath} with your AI coding tool, then run:`,
-    `  visp ${summary.command} --validate`,
-    `  ${summary.nextCommand}`
-  );
+  if (summary.validation.passed) {
+    lines.push(
+      "",
+      "Next:",
+      `  Use ${summary.promptPath} with your AI coding tool, then run:`,
+      `  visp ${summary.command} --validate`,
+      `  ${summary.nextCommand}`
+    );
+  } else {
+    lines.push(
+      "",
+      `Validation failed. Fix the errors above in ${summary.feature.path}, then run:`,
+      `  visp ${summary.command} --validate`
+    );
+  }
 
   return `${lines.join("\n")}\n`;
 }

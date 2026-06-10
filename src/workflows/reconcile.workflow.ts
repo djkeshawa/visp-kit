@@ -159,7 +159,7 @@ async function ensureTaskGraph(input: {
 
   if (!exists.ok) return exists;
   if (!exists.value) {
-    return err(new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first."));
+    return err(new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", { recovery: "visp tasks" }));
   }
 
   return ok(undefined);

@@ -110,10 +110,10 @@ export async function runPrWorkflow(
 
   if (!state.ok) return state;
   if (!state.value.initialized) {
-    return err(new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first."));
+    return err(new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", { recovery: "visp init" }));
   }
   if (state.value.selectedFeature === undefined) {
-    return err(new VispError("VALIDATION_FAILED", 'No active feature found. Run `visp feature "<idea>"` first or pass --feature.'));
+    return err(new VispError("VALIDATION_FAILED", 'No active feature found. Run `visp feature "<idea>"` first or pass --feature.', { recovery: 'visp feature "<describe your feature>"' }));
   }
   if (state.value.errors.length > 0) {
     return err(new VispError("VALIDATION_FAILED", state.value.errors.join(" ")));

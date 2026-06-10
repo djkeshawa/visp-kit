@@ -156,7 +156,8 @@ export async function evaluateGate(
       return err(
         new VispError(
           "VALIDATION_FAILED",
-          "Visp Kit is not initialized. Run `visp init` first."
+          "Visp Kit is not initialized. Run `visp init` first.",
+          { recovery: "visp init" }
         )
       );
     }

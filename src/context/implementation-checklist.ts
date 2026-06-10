@@ -245,7 +245,8 @@ export async function updateImplementationChecklistItem(input: {
     if (!markdownExists.value) {
       return err(new VispError(
         "VALIDATION_FAILED",
-        `Implementation checklist is missing for ${input.taskId}. Run \`visp context ${input.taskId}\` first.`
+        `Implementation checklist is missing for ${input.taskId}. Run \`visp context ${input.taskId}\` first.`,
+        { recovery: `visp context ${input.taskId}` }
       ));
     }
   }

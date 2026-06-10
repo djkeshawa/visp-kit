@@ -44,8 +44,31 @@ describe("phase 7 prompt renderers", () => {
   it("renders spec prompt schema guardrails for common enum mistakes", () => {
     const prompt = renderSpecPrompt(feature);
 
-    expect(prompt).toContain("validationMethod must be one of");
-    expect(prompt).toContain("requirement source must be one of");
-    expect(prompt).toContain("assumptions must be objects");
+    expect(prompt).toContain("- validationMethod: unit | integration | e2e | manual | static");
+    expect(prompt).toContain("- source: user | clarification | derived");
+    expect(prompt).toContain("- priority: must | should | could");
+    expect(prompt).toContain("Example requirement entry in spec.json:");
+    expect(prompt).toContain('"requirementId": "REQ001"');
+  });
+
+  it("every prompt embeds a JSON example and the edit-in-place instruction", () => {
+    const prompts = [
+      renderClarifyPrompt(feature),
+      renderSpecPrompt(feature),
+      renderPlanPrompt(feature),
+      renderTasksPrompt(feature)
+    ];
+
+    for (const prompt of prompts) {
+      expect(prompt).toContain("```json");
+      expect(prompt).toContain("Edit the seeded JSON files in place");
+      expect(prompt).toContain("Field values (exact, no other values are valid):");
+    }
+
+    expect(renderTasksPrompt(feature)).toContain(
+      "- status: pending | ready | in_progress | blocked | done | verified"
+    );
+    expect(renderPlanPrompt(feature)).toContain("Example decision entry in plan.json:");
+    expect(renderClarifyPrompt(feature)).toContain("Example question entry in clarifications.json:");
   });
 });

@@ -1,4 +1,5 @@
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
+import { clarifyFieldValuesSection, editSeededJsonInstruction } from "./artifact-examples.js";
 import { budgetInstruction, promptHeader } from "./prompt-common.js";
 
 export function renderClarifyPrompt(feature: ActiveFeature): string {
@@ -18,10 +19,13 @@ Rules:
 - Ask only blocking implementation-relevant questions.
 - Provide recommended defaults.
 - Mark safe assumptions.
+- ${editSeededJsonInstruction}
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.
 - Do not create spec, plan, or tasks.
 - Keep output compact.
+
+${clarifyFieldValuesSection()}
 
 After editing, run:
 visp clarify --validate

@@ -152,6 +152,23 @@ describe("phase 7 template commands", () => {
 
     expect(process.exitCode).toBe(1);
     expect(errors.join("")).toContain("visp clarify");
+    expect(errors.join("")).toContain("Recover: run `visp clarify`");
+
+    process.exitCode = undefined;
+    const jsonOutput: string[] = [];
+    const jsonProgram = createCli({
+      writeOut: (value) => jsonOutput.push(value),
+      writeErr: () => undefined
+    });
+    await jsonProgram.parseAsync(["node", "visp", "spec", tempDir, "--json"]);
+
+    const envelope = JSON.parse(jsonOutput.join("")) as {
+      success: boolean;
+      recovery?: string;
+    };
+
+    expect(envelope.success).toBe(false);
+    expect(envelope.recovery).toBe("visp clarify");
 
     process.exitCode = undefined;
     await program.parseAsync(["node", "visp", "spec", tempDir, "--force"]);

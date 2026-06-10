@@ -215,7 +215,8 @@ export async function runTasksWorkflow(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Plan artifacts are missing. Run `visp plan` first."
+        "Plan artifacts are missing. Run `visp plan` first.",
+        { recovery: "visp plan" }
       )
     );
   }

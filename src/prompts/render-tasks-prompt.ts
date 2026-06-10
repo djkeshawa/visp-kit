@@ -1,4 +1,5 @@
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
+import { editSeededJsonInstruction, tasksFieldValuesSection } from "./artifact-examples.js";
 import { budgetInstruction, promptHeader } from "./prompt-common.js";
 
 export function renderTasksPrompt(feature: ActiveFeature): string {
@@ -29,9 +30,12 @@ Rules:
 - Prefer test-first tasks when behavior changes.
 - Avoid broad refactors and unapproved dependencies.
 - Keep each task implementation-sized.
+- ${editSeededJsonInstruction}
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement any task.
 - Do not create context packs.
+
+${tasksFieldValuesSection()}
 
 After editing, run:
 visp tasks --validate

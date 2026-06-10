@@ -9,6 +9,7 @@ import {
   type StrictnessMode
 } from "../../artifacts/schemas/policy.schema.js";
 import { formatError } from "../../theme/terminal.js";
+import { writeWorkflowError } from "./shared/error-output.js";
 import {
   formatGateResult,
   runGateWorkflow,
@@ -98,14 +99,12 @@ export function createGateCommand(
         );
 
         if (!result.ok) {
-          if (options.json) {
-            writeOut(
-              `${JSON.stringify({ success: false, error: result.error.message }, null, 2)}\n`
-            );
-          } else {
-            writeErr(`${formatError(result.error.message)}\n`);
-          }
-
+          writeWorkflowError({
+            error: result.error,
+            json: options.json ?? false,
+            writeOut,
+            writeErr
+          });
           process.exitCode = 1;
           return;
         }

@@ -1,6 +1,6 @@
 import { Command } from "commander";
 
-import { formatError } from "../../theme/terminal.js";
+import { writeWorkflowError } from "./shared/error-output.js";
 import {
   type TemplateWorkflowOptions
 } from "../../workflows/shared/template-workflow.js";
@@ -77,18 +77,12 @@ export function createTemplateWorkflowCommand(input: {
       );
 
       if (!result.ok) {
-        if (options.json) {
-          writeOut(
-            `${JSON.stringify(
-              { success: false, error: result.error.message },
-              null,
-              2
-            )}\n`
-          );
-        } else {
-          writeErr(`${formatError(result.error.message)}\n`);
-        }
-
+        writeWorkflowError({
+          error: result.error,
+          json: options.json ?? false,
+          writeOut,
+          writeErr
+        });
         process.exitCode = 1;
         return;
       }

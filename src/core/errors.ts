@@ -10,6 +10,7 @@ export type VispErrorDetails = Record<string, unknown>;
 export type VispErrorOptions = {
   readonly cause?: unknown;
   readonly details?: VispErrorDetails;
+  readonly recovery?: string;
 };
 
 export class VispError extends Error {
@@ -17,6 +18,7 @@ export class VispError extends Error {
 
   readonly code: VispErrorCode;
   readonly details?: VispErrorDetails;
+  readonly recovery?: string;
 
   constructor(
     code: VispErrorCode,
@@ -26,6 +28,7 @@ export class VispError extends Error {
     super(message, { cause: options.cause });
     this.code = code;
     this.details = options.details;
+    this.recovery = options.recovery;
   }
 }
 
@@ -45,5 +48,8 @@ export function toVispError(
 }
 
 export function formatVispError(error: VispError): string {
-  return `[${error.code}] ${error.message}`;
+  const base = `[${error.code}] ${error.message}`;
+
+  if (error.recovery === undefined) return base;
+  return `${base}\nRecover: run \`${error.recovery}\``;
 }

@@ -244,7 +244,7 @@ export async function runStatusWorkflow(
 
   if (!state.ok) return state;
   if (!state.value.initialized) {
-    return err(new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first."));
+    return err(new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", { recovery: "visp init" }));
   }
   if (state.value.errors.length > 0) {
     return err(new VispError("VALIDATION_FAILED", state.value.errors.join(" ")));

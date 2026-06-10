@@ -67,7 +67,8 @@ async function ensureTaskGraph(input: {
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Task graph is missing. Run `visp tasks` first."
+        "Task graph is missing. Run `visp tasks` first.",
+        { recovery: "visp tasks" }
       )
     );
   }

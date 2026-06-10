@@ -117,7 +117,8 @@ export async function runPlanWorkflow(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Specification artifacts are missing. Run `visp spec` first."
+        "Specification artifacts are missing. Run `visp spec` first.",
+        { recovery: "visp spec" }
       )
     );
   }

@@ -149,7 +149,8 @@ export async function runSpecWorkflow(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Clarification artifacts are missing. Run `visp clarify` first or use --force."
+        "Clarification artifacts are missing. Run `visp clarify` first or use --force.",
+        { recovery: "visp clarify" }
       )
     );
   }
