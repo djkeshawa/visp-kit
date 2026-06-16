@@ -57,7 +57,7 @@ Package-style install for a closer npm publishing smoke test:
 
 ```bash
 npm pack
-npm install -g ./visp-kit-0.1.0.tgz
+npm install -g ./visp-kit-0.1.1.tgz
 visp --version
 visp --help
 ```
@@ -88,6 +88,24 @@ You can also run the built CLI without linking:
 ```bash
 node /path/to/visp-kit/dist/index.js --help
 ```
+
+## Optional: Install GitHub Spec Kit First
+
+If you want Spec Kit to handle spec-driven planning, install it before adding
+Visp Kit to the target project. Visp Kit does not install or invoke Spec Kit.
+
+Spec Kit's maintained package comes from the GitHub repository. Replace
+`vX.Y.Z` with the release tag you intend to use:
+
+```bash
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z
+specify version
+specify init my-project --integration copilot
+cd my-project
+```
+
+Use the Spec Kit integration that matches your coding tool. Then continue with
+Visp Kit bootstrap in the same project.
 
 ## Initialize A Project
 

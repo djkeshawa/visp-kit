@@ -184,7 +184,7 @@ For package-style testing in other projects, install a local package tarball:
 
 ```bash
 npm pack
-npm install -g ./visp-kit-0.1.0.tgz
+npm install -g ./visp-kit-0.1.1.tgz
 visp --version
 visp --help
 ```
@@ -227,6 +227,37 @@ visp agent bootstrap generic --strictness strict
 visp agent bootstrap claude --strictness strict
 visp agent bootstrap copilot --strictness strict
 ```
+
+### Optional: Pair With GitHub Spec Kit
+
+If your team uses GitHub Spec Kit for planning, install Spec Kit separately
+first. Visp Kit does not install, wrap, or call Spec Kit.
+
+Spec Kit's maintained install path is GitHub based. Replace `vX.Y.Z` with the
+release tag you intend to use:
+
+```bash
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z
+specify version
+specify init my-project --integration copilot
+cd my-project
+```
+
+Choose the Spec Kit integration that matches your coding surface. The Copilot
+integration above is only the upstream example. After Spec Kit has initialized
+the project, add Visp Kit's execution gates and evidence workflow:
+
+```bash
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp scan
+visp constitution
+visp policy validate
+visp gate next
+```
+
+Use Spec Kit to create the product spec, plan, and tasks. Use Visp Kit to
+enforce one task at a time, compile scoped context, run verification, review,
+reconcile traceability, and produce evidence.
 
 ### Direct Local Use Without Linking
 

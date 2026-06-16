@@ -85,6 +85,18 @@ describe("release documentation readiness", () => {
     expect(readme).toContain("The user prompt is raw intent only");
   });
 
+  it("documents GitHub Spec Kit as a separate install", () => {
+    const docs = [read("README.md"), read("docs/quickstart.md"), read("docs/spec-vs-visp-kit.md")].join(
+      "\n"
+    );
+
+    expect(docs).toContain(
+      "uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z"
+    );
+    expect(docs).toContain("specify init my-project --integration copilot");
+    expect(docs).toContain("Visp Kit does not install");
+  });
+
   it("keeps package metadata ready for future publishing", () => {
     const pkg = JSON.parse(read("package.json")) as {
       description: string;

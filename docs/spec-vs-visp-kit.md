@@ -19,6 +19,32 @@ If your team already plans with Spec Kit (or any other method), you can keep
 doing that and use Visp Kit for the part Spec Kit does not cover: what happens
 after the plan, while the agent edits code.
 
+## Install Order
+
+Install and initialize Spec Kit first when you want it to own the planning
+artifacts. Its maintained install path is GitHub based:
+
+```bash
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z
+specify version
+specify init my-project --integration copilot
+cd my-project
+```
+
+Replace `vX.Y.Z` with the Spec Kit release tag you intend to use, and choose
+the Spec Kit integration for your coding surface. After that, bootstrap Visp Kit
+inside the same project:
+
+```bash
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp policy validate
+visp gate next
+```
+
+Visp Kit does not vendor, install, wrap, or call Spec Kit. The two tools remain
+separate local workflows: Spec Kit can produce the planning artifacts, and Visp
+Kit gates implementation and evidence.
+
 ## What Happens After The Plan
 
 Spec-driven planning tools end at the task list. Nothing checks that the agent
