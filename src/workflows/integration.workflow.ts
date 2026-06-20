@@ -1,9 +1,11 @@
 import {
+  contextChecklistJsonPath,
   contextPackArtifactPath,
   contextPromptPath,
   featureArtifactDir,
   featuresArtifactDir,
   policyArtifactPath,
+  promptArtifactPath,
   projectProfileArtifactPath,
   projectStatusArtifactPath,
   taskGraphArtifactPath
@@ -21,7 +23,7 @@ export type IntegrationContractOptions = {
 
 export type IntegrationContractSummary = {
   readonly success: true;
-  readonly contractVersion: "1.2";
+  readonly contractVersion: "1.3";
   readonly kit: {
     readonly packageName: "visp-kit";
     readonly cliName: "visp";
@@ -60,6 +62,7 @@ export type IntegrationContractSummary = {
       readonly artifactProvenance: true;
       readonly currentTaskPrompt: true;
       readonly implementationChecklist: true;
+      readonly orchestratorReadContract: true;
     };
     readonly evidence: {
       readonly verification: true;
@@ -97,7 +100,25 @@ export type IntegrationContractSummary = {
     readonly contextPack: string;
     readonly contextPrompt: string;
   };
+  readonly orchestrator: {
+    readonly readContractVersion: "0.1";
+    readonly requiredArtifacts: readonly OrchestratorReadArtifact[];
+    readonly freshnessPolicy: {
+      readonly contextPackHashPinned: true;
+      readonly provenanceArtifactsHashPinned: true;
+      readonly staleContextBlocks: readonly string[];
+    };
+  };
   readonly warnings: readonly string[];
+};
+
+export type OrchestratorReadArtifact = {
+  readonly id: string;
+  readonly path: string;
+  readonly role: "state" | "policy" | "profile" | "task-graph" | "context-pack" | "prompt" | "checklist";
+  readonly mimeType: "application/json" | "text/markdown";
+  readonly requiredFor: readonly string[];
+  readonly freshness: "read-latest" | "hash-pinned" | "gate-validated";
 };
 
 const COMMANDS: Record<string, readonly string[]> = {
@@ -134,7 +155,8 @@ const CAPABILITIES: IntegrationContractSummary["capabilities"] = {
     taskScopedContextPacks: true,
     artifactProvenance: true,
     currentTaskPrompt: true,
-    implementationChecklist: true
+    implementationChecklist: true,
+    orchestratorReadContract: true
   },
   evidence: {
     verification: true,
@@ -189,10 +211,35 @@ export async function runIntegrationContractWorkflow(
   const targetPath = state.value.targetPath;
   const featureKey = state.value.selectedFeature?.key ?? "<feature>";
   const taskId = state.value.selectedTask?.id ?? state.value.status?.activeTaskId ?? "<task-id>";
+  const artifacts = {
+    kitSignals: [
+      relativePath(targetPath, policyArtifactPath(targetPath)),
+      relativePath(targetPath, projectProfileArtifactPath(targetPath))
+    ],
+    projectStatus: relativePath(targetPath, projectStatusArtifactPath(targetPath)),
+    projectProfile: relativePath(targetPath, projectProfileArtifactPath(targetPath)),
+    featureRoot: relativePath(targetPath, featuresArtifactDir(targetPath)),
+    featureDir: state.value.selectedFeature === undefined
+      ? ".visp/features/<feature>"
+      : relativePath(targetPath, featureArtifactDir(targetPath, featureKey)),
+    taskGraph: state.value.selectedFeature === undefined
+      ? ".visp/features/<feature>/task-graph.json"
+      : relativePath(targetPath, taskGraphArtifactPath(targetPath, featureKey)),
+    contextPack: state.value.selectedFeature === undefined
+      ? ".visp/features/<feature>/context/<task-id>.context.json"
+      : relativePath(targetPath, contextPackArtifactPath(targetPath, featureKey, taskId)),
+    contextPrompt: state.value.selectedFeature === undefined
+      ? ".visp/features/<feature>/context/<task-id>.prompt.md"
+      : relativePath(targetPath, contextPromptPath(targetPath, featureKey, taskId)),
+    currentTaskPrompt: relativePath(targetPath, promptArtifactPath(targetPath, "current-task")),
+    implementationChecklist: state.value.selectedFeature === undefined
+      ? ".visp/features/<feature>/context/<task-id>.implementation-checklist.json"
+      : relativePath(targetPath, contextChecklistJsonPath(targetPath, featureKey, taskId))
+  };
 
   return ok({
     success: true,
-    contractVersion: "1.2",
+    contractVersion: "1.3",
     kit: {
       packageName: "visp-kit",
       cliName: "visp",
@@ -219,28 +266,106 @@ export async function runIntegrationContractWorkflow(
     capabilities: CAPABILITIES,
     workflow: WORKFLOW_CONTRACT,
     artifacts: {
-      kitSignals: [
-        relativePath(targetPath, policyArtifactPath(targetPath)),
-        relativePath(targetPath, projectProfileArtifactPath(targetPath))
-      ],
-      projectStatus: relativePath(targetPath, projectStatusArtifactPath(targetPath)),
-      projectProfile: relativePath(targetPath, projectProfileArtifactPath(targetPath)),
-      featureRoot: relativePath(targetPath, featuresArtifactDir(targetPath)),
-      featureDir: state.value.selectedFeature === undefined
-        ? ".visp/features/<feature>"
-        : relativePath(targetPath, featureArtifactDir(targetPath, featureKey)),
-      taskGraph: state.value.selectedFeature === undefined
-        ? ".visp/features/<feature>/task-graph.json"
-        : relativePath(targetPath, taskGraphArtifactPath(targetPath, featureKey)),
-      contextPack: state.value.selectedFeature === undefined
-        ? ".visp/features/<feature>/context/<task-id>.context.json"
-        : relativePath(targetPath, contextPackArtifactPath(targetPath, featureKey, taskId)),
-      contextPrompt: state.value.selectedFeature === undefined
-        ? ".visp/features/<feature>/context/<task-id>.prompt.md"
-        : relativePath(targetPath, contextPromptPath(targetPath, featureKey, taskId))
+      kitSignals: artifacts.kitSignals,
+      projectStatus: artifacts.projectStatus,
+      projectProfile: artifacts.projectProfile,
+      featureRoot: artifacts.featureRoot,
+      featureDir: artifacts.featureDir,
+      taskGraph: artifacts.taskGraph,
+      contextPack: artifacts.contextPack,
+      contextPrompt: artifacts.contextPrompt
     },
+    orchestrator: buildOrchestratorContract(artifacts),
     warnings: state.value.warnings
   });
+}
+
+function buildOrchestratorContract(
+  artifacts: {
+    readonly kitSignals: readonly string[];
+    readonly projectStatus: string;
+    readonly projectProfile: string;
+    readonly taskGraph: string;
+    readonly contextPack: string;
+    readonly contextPrompt: string;
+    readonly currentTaskPrompt: string;
+    readonly implementationChecklist: string;
+  }
+): IntegrationContractSummary["orchestrator"] {
+  return {
+    readContractVersion: "0.1",
+    requiredArtifacts: [
+      {
+        id: "project-status",
+        path: artifacts.projectStatus,
+        role: "state",
+        mimeType: "application/json",
+        requiredFor: ["handoff", "gate-evaluation"],
+        freshness: "read-latest"
+      },
+      {
+        id: "project-policy",
+        path: artifacts.kitSignals[0] ?? ".visp/policy.json",
+        role: "policy",
+        mimeType: "application/json",
+        requiredFor: ["handoff", "implementation", "verification"],
+        freshness: "gate-validated"
+      },
+      {
+        id: "project-profile",
+        path: artifacts.projectProfile,
+        role: "profile",
+        mimeType: "application/json",
+        requiredFor: ["handoff", "implementation"],
+        freshness: "read-latest"
+      },
+      {
+        id: "task-graph",
+        path: artifacts.taskGraph,
+        role: "task-graph",
+        mimeType: "application/json",
+        requiredFor: ["handoff", "implementation", "checkpoint"],
+        freshness: "hash-pinned"
+      },
+      {
+        id: "context-pack",
+        path: artifacts.contextPack,
+        role: "context-pack",
+        mimeType: "application/json",
+        requiredFor: ["handoff", "implementation", "checkpoint"],
+        freshness: "hash-pinned"
+      },
+      {
+        id: "context-prompt",
+        path: artifacts.contextPrompt,
+        role: "prompt",
+        mimeType: "text/markdown",
+        requiredFor: ["implementation"],
+        freshness: "read-latest"
+      },
+      {
+        id: "current-task-prompt",
+        path: artifacts.currentTaskPrompt,
+        role: "prompt",
+        mimeType: "text/markdown",
+        requiredFor: ["implementation"],
+        freshness: "read-latest"
+      },
+      {
+        id: "implementation-checklist",
+        path: artifacts.implementationChecklist,
+        role: "checklist",
+        mimeType: "application/json",
+        requiredFor: ["implementation", "pr"],
+        freshness: "gate-validated"
+      }
+    ],
+    freshnessPolicy: {
+      contextPackHashPinned: true,
+      provenanceArtifactsHashPinned: true,
+      staleContextBlocks: ["implementation", "checkpoint", "pr"]
+    }
+  };
 }
 
 export function formatIntegrationContractSummary(summary: IntegrationContractSummary): string {
@@ -256,7 +381,8 @@ export function formatIntegrationContractSummary(summary: IntegrationContractSum
     "",
     "Artifacts:",
     `  Task graph: ${summary.artifacts.taskGraph}`,
-    `  Context pack: ${summary.artifacts.contextPack}`
+    `  Context pack: ${summary.artifacts.contextPack}`,
+    `  Orchestrator read contract: ${summary.orchestrator.requiredArtifacts.length} artifacts`
   ];
 
   if (summary.warnings.length > 0) {

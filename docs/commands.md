@@ -426,7 +426,7 @@ Subcommands:
 
 - `visp integration contract [path]`
 
-The contract includes the Kit package/version, active feature and task, canonical command arguments, backend capabilities, strict workflow expectations, artifact paths for status, policy, task graph, context packs, and prompts, plus the provenance/freshness checks an orchestrator should pin after handoff. Orchestrators should treat failed policy, gate, verify, review, reconcile, context-pack freshness, and provenance freshness steps as fail-closed.
+The contract includes the Kit package/version, active feature and task, canonical command arguments, backend capabilities, strict workflow expectations, artifact paths for status, policy, task graph, context packs, and prompts, plus the provenance/freshness checks an orchestrator should pin after handoff. Contract `1.3` also includes an `orchestrator.readContractVersion` block that labels required artifacts by role, MIME type, stage, and freshness policy so weaker agents and MCP hosts do not need to infer meaning from paths. Orchestrators should treat failed policy, gate, verify, review, reconcile, context-pack freshness, and provenance freshness steps as fail-closed.
 
 Common flags:
 

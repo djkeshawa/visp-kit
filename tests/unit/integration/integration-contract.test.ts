@@ -59,7 +59,7 @@ describe("integration contract workflow", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.initialized).toBe(false);
-      expect(result.value.contractVersion).toBe("1.2");
+      expect(result.value.contractVersion).toBe("1.3");
       expect(result.value.commands.gateImplement).toEqual([
         "gate",
         "implement",
@@ -80,7 +80,8 @@ describe("integration contract workflow", () => {
           phaseLevelArtifacts: true,
           taskScopedContextPacks: true,
           artifactProvenance: true,
-          currentTaskPrompt: true
+          currentTaskPrompt: true,
+          orchestratorReadContract: true
         },
         evidence: {
           verification: true,
@@ -116,6 +117,30 @@ describe("integration contract workflow", () => {
       expect(result.value.artifacts.contextPack).toBe(
         ".visp/features/<feature>/context/<task-id>.context.json"
       );
+      expect(result.value.orchestrator).toMatchObject({
+        readContractVersion: "0.1",
+        freshnessPolicy: {
+          contextPackHashPinned: true,
+          provenanceArtifactsHashPinned: true,
+          staleContextBlocks: ["implementation", "checkpoint", "pr"]
+        }
+      });
+      expect(result.value.orchestrator.requiredArtifacts).toContainEqual(
+        expect.objectContaining({
+          id: "context-pack",
+          path: ".visp/features/<feature>/context/<task-id>.context.json",
+          role: "context-pack",
+          freshness: "hash-pinned"
+        })
+      );
+      expect(result.value.orchestrator.requiredArtifacts).toContainEqual(
+        expect.objectContaining({
+          id: "implementation-checklist",
+          path: ".visp/features/<feature>/context/<task-id>.implementation-checklist.json",
+          role: "checklist",
+          freshness: "gate-validated"
+        })
+      );
     }
   });
 
@@ -133,6 +158,18 @@ describe("integration contract workflow", () => {
       expect(result.value.artifacts.taskGraph).toBe(".visp/features/001-note-pinning/task-graph.json");
       expect(result.value.artifacts.contextPack).toBe(
         ".visp/features/001-note-pinning/context/T001.context.json"
+      );
+      expect(result.value.orchestrator.requiredArtifacts).toContainEqual(
+        expect.objectContaining({
+          id: "current-task-prompt",
+          path: ".visp/prompts/current-task.prompt.md"
+        })
+      );
+      expect(result.value.orchestrator.requiredArtifacts).toContainEqual(
+        expect.objectContaining({
+          id: "implementation-checklist",
+          path: ".visp/features/001-note-pinning/context/T001.implementation-checklist.json"
+        })
       );
     }
   });
@@ -157,11 +194,17 @@ describe("integration contract workflow", () => {
     const parsed = JSON.parse(output.join("")) as {
       success: boolean;
       contractVersion: string;
-      capabilities: { governance: { failClosedGates: boolean } };
+      capabilities: {
+        governance: { failClosedGates: boolean };
+        contextGrounding: { orchestratorReadContract: boolean };
+      };
+      orchestrator: { requiredArtifacts: Array<{ id: string }> };
     };
     expect(parsed.success).toBe(true);
-    expect(parsed.contractVersion).toBe("1.2");
+    expect(parsed.contractVersion).toBe("1.3");
     expect(parsed.capabilities.governance.failClosedGates).toBe(true);
+    expect(parsed.capabilities.contextGrounding.orchestratorReadContract).toBe(true);
+    expect(parsed.orchestrator.requiredArtifacts.map((artifact) => artifact.id)).toContain("context-pack");
   });
 
   it("prints the package version through --version from package.json", async () => {
