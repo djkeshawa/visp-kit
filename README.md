@@ -113,6 +113,7 @@ Daily orchestration:
 - `visp status`
 - `visp next`
 - `visp doctor`
+- `visp integration contract`
 - `visp pr`
 
 Strict workflow controls:

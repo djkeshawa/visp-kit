@@ -21,6 +21,7 @@ describe("createCli", () => {
     expect(help).toContain("feature");
     expect(help).toContain("gate");
     expect(help).toContain("init");
+    expect(help).toContain("integration");
     expect(help).toContain("next");
     expect(help).toContain("override");
     expect(help).toContain("plan");
@@ -292,6 +293,19 @@ describe("createCli", () => {
         expect(help).toContain(flag);
       }
     }
+  });
+
+  it("prints integration command help", () => {
+    const integration = createCli().commands.find((command) => command.name() === "integration");
+
+    expect(integration?.helpInformation()).toContain("Usage: visp integration [options] [command]");
+
+    const help = integration?.commands
+      .find((command) => command.name() === "contract")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp integration contract [options] [path]");
+    expect(help).toContain("--json");
   });
 
   it("prints policy command help", () => {

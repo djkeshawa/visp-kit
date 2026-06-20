@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { z } from "zod";
+import { packageVersion } from "../core/package-version.js";
 
 import {
   createAgentCommand,
@@ -41,6 +42,10 @@ import {
   createInitCommand,
   type InitCommandDependencies
 } from "./commands/init.command.js";
+import {
+  createIntegrationCommand,
+  type IntegrationCommandDependencies
+} from "./commands/integration.command.js";
 import {
   createFeatureCommand,
   type FeatureCommandDependencies
@@ -119,6 +124,7 @@ export type CliDependencies = AgentCommandDependencies &
   GateCommandDependencies &
   HooksCommandDependencies &
   InitCommandDependencies &
+  IntegrationCommandDependencies &
   NextCommandDependencies &
   OverrideCommandDependencies &
   PlanCommandDependencies &
@@ -141,7 +147,7 @@ const cliMetadataSchema = z.object({
 
 const cliMetadata = cliMetadataSchema.parse({
   name: "visp",
-  version: "0.1.1",
+  version: packageVersion(),
   description: "Small context. Clear specs. Accurate code."
 });
 
@@ -166,6 +172,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createGateCommand(dependencies));
   program.addCommand(createHooksCommand(dependencies));
   program.addCommand(createInitCommand(dependencies));
+  program.addCommand(createIntegrationCommand(dependencies));
   program.addCommand(createNextCommand(dependencies));
   program.addCommand(createOverrideCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));

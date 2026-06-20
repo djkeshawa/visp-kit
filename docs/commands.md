@@ -418,6 +418,20 @@ Common flags:
 - `--verbose`
 - `--json`
 
+## `visp integration`
+
+Purpose: expose a stable, read-only integration contract for orchestrators such as Visp Hyper Agent.
+
+Subcommands:
+
+- `visp integration contract [path]`
+
+The contract includes the Kit package/version, active feature and task, canonical command arguments, and artifact paths for status, policy, task graph, context packs, and prompts.
+
+Common flags:
+
+- `--json`
+
 ## `visp pr [path]`
 
 Purpose: generate local PR Markdown, JSON, and prompt files. This does not call GitHub.
