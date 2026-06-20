@@ -59,7 +59,7 @@ describe("integration contract workflow", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.initialized).toBe(false);
-      expect(result.value.contractVersion).toBe("1.1");
+      expect(result.value.contractVersion).toBe("1.2");
       expect(result.value.commands.gateImplement).toEqual([
         "gate",
         "implement",
@@ -79,6 +79,7 @@ describe("integration contract workflow", () => {
         contextGrounding: {
           phaseLevelArtifacts: true,
           taskScopedContextPacks: true,
+          artifactProvenance: true,
           currentTaskPrompt: true
         },
         evidence: {
@@ -104,6 +105,10 @@ describe("integration contract workflow", () => {
         "reconcile"
       ]);
       expect(result.value.workflow.failClosedOn).toContain("gateImplement");
+      expect(result.value.workflow.freshnessChecks).toEqual([
+        ".visp/features/<feature>/context/<task-id>.context.json",
+        "contextPack.artifactProvenance[]"
+      ]);
       expect(result.value.workflow.humanOverride).toMatchObject({
         requiresReason: true,
         artifact: ".visp/overrides.json"
@@ -155,7 +160,7 @@ describe("integration contract workflow", () => {
       capabilities: { governance: { failClosedGates: boolean } };
     };
     expect(parsed.success).toBe(true);
-    expect(parsed.contractVersion).toBe("1.1");
+    expect(parsed.contractVersion).toBe("1.2");
     expect(parsed.capabilities.governance.failClosedGates).toBe(true);
   });
 

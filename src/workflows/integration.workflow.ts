@@ -21,7 +21,7 @@ export type IntegrationContractOptions = {
 
 export type IntegrationContractSummary = {
   readonly success: true;
-  readonly contractVersion: "1.1";
+  readonly contractVersion: "1.2";
   readonly kit: {
     readonly packageName: "visp-kit";
     readonly cliName: "visp";
@@ -57,6 +57,7 @@ export type IntegrationContractSummary = {
     readonly contextGrounding: {
       readonly phaseLevelArtifacts: true;
       readonly taskScopedContextPacks: true;
+      readonly artifactProvenance: true;
       readonly currentTaskPrompt: true;
       readonly implementationChecklist: true;
     };
@@ -79,6 +80,7 @@ export type IntegrationContractSummary = {
     readonly implementationReadSet: readonly string[];
     readonly checkpointSequence: readonly string[];
     readonly failClosedOn: readonly string[];
+    readonly freshnessChecks: readonly string[];
     readonly humanOverride: {
       readonly requiresReason: true;
       readonly command: readonly string[];
@@ -130,6 +132,7 @@ const CAPABILITIES: IntegrationContractSummary["capabilities"] = {
   contextGrounding: {
     phaseLevelArtifacts: true,
     taskScopedContextPacks: true,
+    artifactProvenance: true,
     currentTaskPrompt: true,
     implementationChecklist: true
   },
@@ -166,6 +169,10 @@ const WORKFLOW_CONTRACT: IntegrationContractSummary["workflow"] = {
   ],
   checkpointSequence: ["verify", "review", "reconcile"],
   failClosedOn: ["policyValidate", "gateNext", "gateImplement", "verify", "review", "reconcile"],
+  freshnessChecks: [
+    ".visp/features/<feature>/context/<task-id>.context.json",
+    "contextPack.artifactProvenance[]"
+  ],
   humanOverride: {
     requiresReason: true,
     command: ["override", "create", "<rule-id>", "--reason", "<reason>", "--json"],
@@ -185,7 +192,7 @@ export async function runIntegrationContractWorkflow(
 
   return ok({
     success: true,
-    contractVersion: "1.1",
+    contractVersion: "1.2",
     kit: {
       packageName: "visp-kit",
       cliName: "visp",
