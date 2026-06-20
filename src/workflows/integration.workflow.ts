@@ -21,7 +21,7 @@ export type IntegrationContractOptions = {
 
 export type IntegrationContractSummary = {
   readonly success: true;
-  readonly contractVersion: "1.0";
+  readonly contractVersion: "1.1";
   readonly kit: {
     readonly packageName: "visp-kit";
     readonly cliName: "visp";
@@ -41,6 +41,50 @@ export type IntegrationContractSummary = {
     readonly status: string;
   } | null;
   readonly commands: Record<string, readonly string[]>;
+  readonly capabilities: {
+    readonly deterministic: {
+      readonly noLlmCalls: true;
+      readonly localArtifacts: true;
+      readonly jsonOutput: true;
+    };
+    readonly governance: {
+      readonly policyAsCode: true;
+      readonly failClosedGates: true;
+      readonly overrideAuditTrail: true;
+      readonly sourceEditsRequireImplementGate: true;
+      readonly contextPackRequiredForImplementation: true;
+    };
+    readonly contextGrounding: {
+      readonly phaseLevelArtifacts: true;
+      readonly taskScopedContextPacks: true;
+      readonly currentTaskPrompt: true;
+      readonly implementationChecklist: true;
+    };
+    readonly evidence: {
+      readonly verification: true;
+      readonly review: true;
+      readonly reconciliation: true;
+      readonly traceability: true;
+      readonly budgetTelemetry: true;
+      readonly prReadiness: true;
+    };
+    readonly enforcementSurfaces: {
+      readonly claudePreToolUseHook: true;
+      readonly gitPreCommitHook: true;
+      readonly ciPolicyGate: true;
+    };
+  };
+  readonly workflow: {
+    readonly strictSequence: readonly string[];
+    readonly implementationReadSet: readonly string[];
+    readonly checkpointSequence: readonly string[];
+    readonly failClosedOn: readonly string[];
+    readonly humanOverride: {
+      readonly requiresReason: true;
+      readonly command: readonly string[];
+      readonly artifact: string;
+    };
+  };
   readonly artifacts: {
     readonly kitSignals: readonly string[];
     readonly projectStatus: string;
@@ -64,7 +108,69 @@ const COMMANDS: Record<string, readonly string[]> = {
   review: ["review", "--task", "<task-id>", "--json"],
   reconcile: ["reconcile", "--task", "<task-id>", "--json"],
   budgetRecordUsage: ["budget", "--task", "<task-id>", "--record-usage", "--json"],
-  hooksClaude: ["hooks", "claude", "--json"]
+  done: ["done", "--task", "<task-id>", "--json"],
+  hooksClaude: ["hooks", "claude", "--json"],
+  hooksGit: ["hooks", "git", "--json"],
+  hooksCi: ["hooks", "ci", "--json"]
+};
+
+const CAPABILITIES: IntegrationContractSummary["capabilities"] = {
+  deterministic: {
+    noLlmCalls: true,
+    localArtifacts: true,
+    jsonOutput: true
+  },
+  governance: {
+    policyAsCode: true,
+    failClosedGates: true,
+    overrideAuditTrail: true,
+    sourceEditsRequireImplementGate: true,
+    contextPackRequiredForImplementation: true
+  },
+  contextGrounding: {
+    phaseLevelArtifacts: true,
+    taskScopedContextPacks: true,
+    currentTaskPrompt: true,
+    implementationChecklist: true
+  },
+  evidence: {
+    verification: true,
+    review: true,
+    reconciliation: true,
+    traceability: true,
+    budgetTelemetry: true,
+    prReadiness: true
+  },
+  enforcementSurfaces: {
+    claudePreToolUseHook: true,
+    gitPreCommitHook: true,
+    ciPolicyGate: true
+  }
+};
+
+const WORKFLOW_CONTRACT: IntegrationContractSummary["workflow"] = {
+  strictSequence: [
+    "status",
+    "policyValidate",
+    "gateNext",
+    "context",
+    "gateImplement",
+    "verify",
+    "review",
+    "reconcile"
+  ],
+  implementationReadSet: [
+    ".visp/features/<feature>/context/<task-id>.context.json",
+    ".visp/prompts/current-task.prompt.md",
+    ".visp/policy.json"
+  ],
+  checkpointSequence: ["verify", "review", "reconcile"],
+  failClosedOn: ["policyValidate", "gateNext", "gateImplement", "verify", "review", "reconcile"],
+  humanOverride: {
+    requiresReason: true,
+    command: ["override", "create", "<rule-id>", "--reason", "<reason>", "--json"],
+    artifact: ".visp/overrides.json"
+  }
 };
 
 export async function runIntegrationContractWorkflow(
@@ -79,7 +185,7 @@ export async function runIntegrationContractWorkflow(
 
   return ok({
     success: true,
-    contractVersion: "1.0",
+    contractVersion: "1.1",
     kit: {
       packageName: "visp-kit",
       cliName: "visp",
@@ -103,6 +209,8 @@ export async function runIntegrationContractWorkflow(
           status: state.value.selectedTask.status
         },
     commands: COMMANDS,
+    capabilities: CAPABILITIES,
+    workflow: WORKFLOW_CONTRACT,
     artifacts: {
       kitSignals: [
         relativePath(targetPath, policyArtifactPath(targetPath)),
@@ -137,6 +245,7 @@ export function formatIntegrationContractSummary(summary: IntegrationContractSum
     `Initialized: ${summary.initialized ? "yes" : "no"}`,
     `Active feature: ${summary.activeFeature?.key ?? "none"}`,
     `Active task: ${summary.activeTask?.id ?? "none"}`,
+    `Fail-closed gates: ${summary.capabilities.governance.failClosedGates ? "yes" : "no"}`,
     "",
     "Artifacts:",
     `  Task graph: ${summary.artifacts.taskGraph}`,

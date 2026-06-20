@@ -59,7 +59,7 @@ describe("integration contract workflow", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.initialized).toBe(false);
-      expect(result.value.contractVersion).toBe("1.0");
+      expect(result.value.contractVersion).toBe("1.1");
       expect(result.value.commands.gateImplement).toEqual([
         "gate",
         "implement",
@@ -67,6 +67,47 @@ describe("integration contract workflow", () => {
         "<task-id>",
         "--json"
       ]);
+      expect(result.value.commands.hooksGit).toEqual(["hooks", "git", "--json"]);
+      expect(result.value.capabilities).toMatchObject({
+        deterministic: { noLlmCalls: true, localArtifacts: true, jsonOutput: true },
+        governance: {
+          policyAsCode: true,
+          failClosedGates: true,
+          sourceEditsRequireImplementGate: true,
+          contextPackRequiredForImplementation: true
+        },
+        contextGrounding: {
+          phaseLevelArtifacts: true,
+          taskScopedContextPacks: true,
+          currentTaskPrompt: true
+        },
+        evidence: {
+          verification: true,
+          review: true,
+          reconciliation: true,
+          traceability: true
+        },
+        enforcementSurfaces: {
+          claudePreToolUseHook: true,
+          gitPreCommitHook: true,
+          ciPolicyGate: true
+        }
+      });
+      expect(result.value.workflow.strictSequence).toEqual([
+        "status",
+        "policyValidate",
+        "gateNext",
+        "context",
+        "gateImplement",
+        "verify",
+        "review",
+        "reconcile"
+      ]);
+      expect(result.value.workflow.failClosedOn).toContain("gateImplement");
+      expect(result.value.workflow.humanOverride).toMatchObject({
+        requiresReason: true,
+        artifact: ".visp/overrides.json"
+      });
       expect(result.value.artifacts.contextPack).toBe(
         ".visp/features/<feature>/context/<task-id>.context.json"
       );
@@ -108,9 +149,14 @@ describe("integration contract workflow", () => {
       }
     }
 
-    const parsed = JSON.parse(output.join("")) as { success: boolean; contractVersion: string };
+    const parsed = JSON.parse(output.join("")) as {
+      success: boolean;
+      contractVersion: string;
+      capabilities: { governance: { failClosedGates: boolean } };
+    };
     expect(parsed.success).toBe(true);
-    expect(parsed.contractVersion).toBe("1.0");
+    expect(parsed.contractVersion).toBe("1.1");
+    expect(parsed.capabilities.governance.failClosedGates).toBe(true);
   });
 
   it("prints the package version through --version from package.json", async () => {
