@@ -23,6 +23,21 @@ Agent-native workflow files tell the AI tool to:
 
 Visp Kit does not guarantee that every AI tool surface will automatically load every generated file. Compatibility depends on the specific tool and environment. Generated files can also be copied into an active session.
 
+## With Visp Hyper Agent
+
+Use Visp Hyper Agent when you want an orchestration layer over this Kit workflow rather than asking the coding tool to remember every command itself. Hyper keeps Visp Kit as the strict backend: it calls `visp ... --json`, adopts the active task context pack, prints bounded action blocks for the coding agent, records checkpoints, and advances only after Kit verification and review evidence pass.
+
+Recommended setup from the target project:
+
+```bash
+visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-hyper init --tool codex
+visp-hyper doctor
+visp-hyper run "Add note pinning"
+```
+
+`visp-hyper doctor` is read-only and should pass before treating Hyper as the orchestrator for strict Kit work. Warnings are acceptable for optional enforcement surfaces, but a failed Kit binary, policy, gate, or context-pack check means the coding tool should run the reported next command first.
+
 ## Feature Workflow
 
 Use when the user asks for a new feature or enhancement.
