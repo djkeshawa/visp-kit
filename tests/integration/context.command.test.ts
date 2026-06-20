@@ -66,6 +66,7 @@ describe("visp context command", () => {
       policyGate?: { stage: string; allowed: boolean };
       includedRequirements: Array<{ id: string }>;
       includedFiles: Array<{ path: string; includeMode: string }>;
+      artifactProvenance: Array<{ label: string; path: string; hash: string; hashAlgorithm: string }>;
       estimatedTokens: { maxInput: number };
     };
     const currentPrompt = await readFile(
@@ -105,6 +106,13 @@ describe("visp context command", () => {
     expect(contextJson.includedFiles.map((item) => item.path)).toContain(
       "src/notes.ts"
     );
+    expect(contextJson.artifactProvenance.map((item) => item.label)).toContain("spec");
+    expect(contextJson.artifactProvenance.map((item) => item.label)).toContain("task graph");
+    expect(contextJson.artifactProvenance.find((item) => item.label === "spec")).toMatchObject({
+      path: ".visp/features/001-add-note-pinning/spec.json",
+      hashAlgorithm: "sha256"
+    });
+    expect(contextJson.artifactProvenance.find((item) => item.label === "spec")?.hash).toMatch(/^[a-f0-9]{64}$/u);
     expect(contextJson.estimatedTokens.maxInput).toBe(8000);
     expect(budgetReport).toContain("# Visp Budget Report");
     expect(budgetReport).toContain("| T001 |");

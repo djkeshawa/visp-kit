@@ -196,6 +196,14 @@ export const validContextPack: ContextPack = {
     patterns: "",
     warnings: []
   },
+  artifactProvenance: [
+    {
+      label: "spec",
+      path: ".visp/features/001-note-pinning/spec.json",
+      hash: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      hashAlgorithm: "sha256"
+    }
+  ],
   includedFiles: [
     {
       path: "src/notes/sort.ts",

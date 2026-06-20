@@ -84,6 +84,15 @@ export const contextDependencyTaskSchema = z
   })
   .strict();
 
+export const contextArtifactProvenanceSchema = z
+  .object({
+    label: nonEmptyStringSchema,
+    path: pathStringSchema,
+    hash: nonEmptyStringSchema,
+    hashAlgorithm: z.literal("sha256")
+  })
+  .strict();
+
 export const contextFileSchema = z
   .object({
     path: pathStringSchema,
@@ -134,6 +143,7 @@ export const contextPackSchema = z
     includedDependencyTasks: z.array(contextDependencyTaskSchema),
     includedConstitutionRules: z.array(contextConstitutionRuleSchema),
     includedProjectContext: contextProjectContextSchema,
+    artifactProvenance: z.array(contextArtifactProvenanceSchema).default([]),
     includedFiles: z.array(contextFileSchema),
     includedSnippets: z.array(contextSnippetSchema),
     validationCommands: z.array(commandStringSchema),
@@ -157,6 +167,7 @@ export type ContextPlanRisk = z.infer<typeof contextPlanRiskSchema>;
 export type ContextConstitutionRule = z.infer<typeof contextConstitutionRuleSchema>;
 export type ContextProjectContext = z.infer<typeof contextProjectContextSchema>;
 export type ContextDependencyTask = z.infer<typeof contextDependencyTaskSchema>;
+export type ContextArtifactProvenance = z.infer<typeof contextArtifactProvenanceSchema>;
 export type ContextFile = z.infer<typeof contextFileSchema>;
 export type ContextSnippet = z.infer<typeof contextSnippetSchema>;
 export type ContextPack = z.infer<typeof contextPackSchema>;

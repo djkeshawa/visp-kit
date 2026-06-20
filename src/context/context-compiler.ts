@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z, type ZodType } from "zod";
 
 import {
@@ -7,6 +8,7 @@ import {
   fileSummariesArtifactPath,
   moduleMapArtifactPath,
   patternsArtifactPath,
+  policyArtifactPath,
   projectConfigArtifactPath,
   projectProfileArtifactPath,
   projectSummaryArtifactPath,
@@ -17,7 +19,11 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { type BudgetMode } from "../artifacts/schemas/common.schema.js";
-import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
+import {
+  contextPackSchema,
+  type ContextArtifactProvenance,
+  type ContextPack
+} from "../artifacts/schemas/context-pack.schema.js";
 import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
 import {
   projectConfigSchema,
@@ -321,6 +327,51 @@ function trimOptionalContext(input: {
   };
 }
 
+async function collectArtifactProvenance(input: {
+  readonly targetPath: string;
+  readonly featureKey: string;
+  readonly warnings: string[];
+}): Promise<ContextArtifactProvenance[]> {
+  const candidates = [
+    { label: "spec", path: specArtifactPath(input.targetPath, input.featureKey) },
+    { label: "plan", path: planArtifactPath(input.targetPath, input.featureKey) },
+    { label: "task graph", path: taskGraphArtifactPath(input.targetPath, input.featureKey) },
+    { label: "policy", path: policyArtifactPath(input.targetPath) },
+    { label: "project config", path: projectConfigArtifactPath(input.targetPath) },
+    { label: "project profile", path: projectProfileArtifactPath(input.targetPath) },
+    { label: "compact constitution", path: compactConstitutionArtifactPath(input.targetPath) },
+    { label: "project summary", path: projectSummaryArtifactPath(input.targetPath) },
+    { label: "project patterns", path: patternsArtifactPath(input.targetPath) }
+  ];
+  const provenance: ContextArtifactProvenance[] = [];
+
+  for (const candidate of candidates) {
+    const exists = await pathExists(candidate.path);
+    if (!exists.ok) {
+      input.warnings.push(`Unable to access provenance artifact ${candidate.label}: ${exists.error.message}`);
+      continue;
+    }
+    if (!exists.value) {
+      continue;
+    }
+
+    const text = await readTextFile(candidate.path);
+    if (!text.ok) {
+      input.warnings.push(`Unable to hash provenance artifact ${candidate.label}: ${text.error.message}`);
+      continue;
+    }
+
+    provenance.push({
+      label: candidate.label,
+      path: relativePath(input.targetPath, candidate.path),
+      hash: createHash("sha256").update(text.value).digest("hex"),
+      hashAlgorithm: "sha256"
+    });
+  }
+
+  return provenance;
+}
+
 export async function compileContext(
   input: ContextCompilationInput
 ): Promise<Result<ContextCompilation, VispError>> {
@@ -402,6 +453,11 @@ export async function compileContext(
     label: "file summaries",
     warnings
   });
+  const artifactProvenance = await collectArtifactProvenance({
+    targetPath: input.targetPath,
+    featureKey: input.feature.key,
+    warnings
+  });
   const selected = await selectContextPack({
     targetPath: input.targetPath,
     feature: input.feature,
@@ -420,8 +476,12 @@ export async function compileContext(
     projectProfile,
     warnings
   });
+  const grounded = {
+    ...selected,
+    artifactProvenance
+  };
   const trimmed = trimOptionalContext({
-    pack: selected,
+    pack: grounded,
     feature: input.feature,
     policy,
     includeFullFiles: input.includeFullFiles ?? policy.includeFullFilesByDefault

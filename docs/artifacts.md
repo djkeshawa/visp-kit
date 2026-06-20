@@ -77,6 +77,11 @@ The compact constitution is used in context packs. The full constitution is not 
   T001.prompt.md
 ```
 
+`T001.context.json` includes `artifactProvenance`: SHA-256 fingerprints for the
+spec/task graph/plan/policy/project guidance artifacts present when the context
+pack was compiled. Orchestrators can use this to explain and later audit exactly
+which local artifacts grounded the handoff.
+
 ## Evidence
 
 ```text

@@ -533,6 +533,7 @@ export async function selectContextPack(
     includedDependencyTasks: selectDependencyTasks(input.taskGraph, input.task),
     includedConstitutionRules: parseCompactRules(input.compactConstitution),
     includedProjectContext: projectContext,
+    artifactProvenance: [],
     includedFiles: fileContexts.map((context) => context.file),
     includedSnippets: fileContexts
       .map((context) => context.snippet)

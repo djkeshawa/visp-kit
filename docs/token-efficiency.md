@@ -32,6 +32,7 @@ It includes:
 - allowed, expected, and forbidden files
 - validation commands
 - policy and gate status
+- artifact provenance hashes for the spec, task graph, plan, policy, and project guidance that grounded the pack
 - token estimate
 
 It avoids:
