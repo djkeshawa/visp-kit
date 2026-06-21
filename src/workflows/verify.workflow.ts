@@ -1,5 +1,5 @@
 import path from "node:path";
-import { type ZodType } from "zod";
+import { type ZodType, type ZodTypeDef } from "zod";
 
 import {
   contextPackArtifactPath,
@@ -114,7 +114,7 @@ type CheckPlan = {
 
 async function optionalArtifact<T>(input: {
   readonly path: string;
-  readonly schema: ZodType<T>;
+  readonly schema: ZodType<T, ZodTypeDef, unknown>;
   readonly artifactName: string;
   readonly warnings: string[];
 }): Promise<T | undefined> {
@@ -463,7 +463,7 @@ export async function runVerifyWorkflow(
   const contextPack =
     selectedTask === undefined
       ? undefined
-      : await optionalArtifact({
+      : await optionalArtifact<ContextPack>({
           path: contextPackArtifactPath(targetPath, feature.value.key, selectedTask.id),
           schema: contextPackSchema,
           artifactName: "context pack",

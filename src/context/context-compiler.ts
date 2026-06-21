@@ -14,6 +14,7 @@ import {
   projectSummaryArtifactPath,
   specArtifactPath,
   planArtifactPath,
+  taskGraphArtifactPath,
   testMapArtifactPath,
   traceabilityArtifactPath
 } from "../artifacts/artifact-paths.js";
@@ -34,6 +35,7 @@ import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.sch
 import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, readJsonFile, readTextFile } from "../core/file-system.js";
+import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { type FileIndexEntry, type FileSummary } from "../scanner/types.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
