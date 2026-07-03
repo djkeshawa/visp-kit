@@ -41,36 +41,14 @@ describe("visp feature command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "feature",
-      "Add note pinning",
-      tempDir
-    ]);
+    await program.parseAsync(["node", "visp", "feature", "Add note pinning", tempDir]);
 
     expect(output.join("")).toContain("Visp feature created");
     expect(
-      await exists(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "intent.md"
-        )
-      )
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "intent.md"))
     ).toBe(true);
     expect(
-      await exists(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "intent.json"
-        )
-      )
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "intent.json"))
     ).toBe(true);
     expect(await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")).toContain(
       "feature_intent_ready"
@@ -113,9 +91,7 @@ describe("visp feature command", () => {
       budgetMode: "strict",
       riskLevel: "high"
     });
-    expect(summary.createdFiles).toContain(
-      ".visp/features/001-add-note-pinning/intent.json"
-    );
+    expect(summary.createdFiles).toContain(".visp/features/001-add-note-pinning/intent.json");
   });
 
   it("uses current working directory when no path is provided", async () => {
@@ -134,15 +110,7 @@ describe("visp feature command", () => {
 
     expect(output.join("")).toContain("001-add-note-pinning");
     expect(
-      await exists(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "intent.md"
-        )
-      )
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "intent.md"))
     ).toBe(true);
   });
 
@@ -150,42 +118,22 @@ describe("visp feature command", () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "feature",
-      "Add note pinning",
-      tempDir
-    ]);
-    await program.parseAsync([
-      "node",
-      "visp",
-      "feature",
-      "Export notes as PDF",
-      tempDir
-    ]);
+    await program.parseAsync(["node", "visp", "feature", "Add note pinning", tempDir]);
+    await program.parseAsync(["node", "visp", "feature", "Export notes as PDF", tempDir]);
 
-    expect(
-      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning"))
-    ).toBe(true);
-    expect(
-      await exists(
-        path.join(tempDir, ".visp", "features", "002-export-notes-as-pdf")
-      )
-    ).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning"))).toBe(
+      true
+    );
+    expect(await exists(path.join(tempDir, ".visp", "features", "002-export-notes-as-pdf"))).toBe(
+      true
+    );
   });
 
   it("fails clearly when .visp is missing", async () => {
     const errors: string[] = [];
     const program = createCli({ writeErr: (value) => errors.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "feature",
-      "Add note pinning",
-      tempDir
-    ]);
+    await program.parseAsync(["node", "visp", "feature", "Add note pinning", tempDir]);
 
     expect(process.exitCode).toBe(1);
     expect(errors.join("")).toContain("visp init");
@@ -196,19 +144,12 @@ describe("visp feature command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "feature",
-      "Dry run feature",
-      tempDir,
-      "--dry-run"
-    ]);
+    await program.parseAsync(["node", "visp", "feature", "Dry run feature", tempDir, "--dry-run"]);
 
     expect(output.join("")).toContain("dry run");
-    expect(
-      await exists(path.join(tempDir, ".visp", "features", "001-dry-run-feature"))
-    ).toBe(false);
+    expect(await exists(path.join(tempDir, ".visp", "features", "001-dry-run-feature"))).toBe(
+      false
+    );
   });
 
   it("does not create a branch when --no-branch is provided", async () => {
@@ -234,14 +175,7 @@ describe("visp feature command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "feature",
-      "Add note pinning",
-      tempDir,
-      "--branch"
-    ]);
+    await program.parseAsync(["node", "visp", "feature", "Add note pinning", tempDir, "--branch"]);
 
     const branch = expectOk(
       await runCommand("git", ["branch", "--show-current"], { cwd: tempDir })

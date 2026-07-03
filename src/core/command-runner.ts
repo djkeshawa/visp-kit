@@ -58,18 +58,15 @@ export async function runCommand(
     const executionMode = options.executionMode ?? "argv";
     const stdioMode = options.stdioMode ?? "capture";
     const outputCaptureMode =
-      stdioMode === "inherit"
-        ? "inherited"
-        : stdioMode === "file" ? "file" : "captured";
-    const shellOption =
-      executionMode === "shell"
-        ? options.shell ?? true
-        : false;
+      stdioMode === "inherit" ? "inherited" : stdioMode === "file" ? "file" : "captured";
+    const shellOption = executionMode === "shell" ? (options.shell ?? true) : false;
     const shell =
       typeof shellOption === "string"
         ? shellOption
         : shellOption
-          ? process.platform === "win32" ? "cmd.exe" : "/bin/sh"
+          ? process.platform === "win32"
+            ? "cmd.exe"
+            : "/bin/sh"
           : null;
     const fileCapture =
       stdioMode === "file"
@@ -101,7 +98,10 @@ export async function runCommand(
       stdio
     });
 
-    const baseResult = (): Omit<CommandResult, "exitCode" | "signal" | "stdout" | "stderr" | "timedOut"> => ({
+    const baseResult = (): Omit<
+      CommandResult,
+      "exitCode" | "signal" | "stdout" | "stderr" | "timedOut"
+    > => ({
       command,
       args,
       cwd: options.cwd,

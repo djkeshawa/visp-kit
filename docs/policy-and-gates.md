@@ -85,8 +85,16 @@ Supported stages:
 | VSP018 | require_policy_validation | setup, all workflow stages | yes, except locked policy may disallow |
 | VSP019 | user_prompt_cannot_override_policy | all stages | no |
 | VSP020 | stop_on_failed_gate | all stages | no |
+| VSP021 | block_on_unresolved_drift | pr | yes |
 
 Non-overridable rules cannot be bypassed by `.visp/overrides.json`.
+
+VSP021 is optional in `.visp/policy.json` for backward compatibility: policies
+written before it existed keep validating, and gates fall back to the
+strictness default (enforced in `strict` and `locked`). It fails the PR gate
+when the active context pack was grounded on artifacts (spec, plan, task
+graph, policy) that changed after the pack was compiled. Run `visp drift` for
+the full deterministic drift report.
 
 ## Gates In Reports
 

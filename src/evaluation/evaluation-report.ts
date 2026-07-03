@@ -1,6 +1,11 @@
-import { type EvaluationCheck, type EvaluationReport } from "../artifacts/schemas/evaluation.schema.js";
+import {
+  type EvaluationCheck,
+  type EvaluationReport
+} from "../artifacts/schemas/evaluation.schema.js";
 
-export function evaluationResult(checks: readonly EvaluationCheck[]): "passed" | "warnings" | "failed" {
+export function evaluationResult(
+  checks: readonly EvaluationCheck[]
+): "passed" | "warnings" | "failed" {
   if (checks.some((check) => check.severity === "error")) return "failed";
   if (checks.some((check) => check.severity === "warning")) return "warnings";
   return "passed";
@@ -27,8 +32,9 @@ export function renderEvaluationMarkdown(report: EvaluationReport): string {
     lines.push("- No checks were produced.");
   } else {
     lines.push(
-      ...report.checks.map((check) =>
-        `### ${check.severity.toUpperCase()} ${check.id}: ${check.title}
+      ...report.checks.map(
+        (check) =>
+          `### ${check.severity.toUpperCase()} ${check.id}: ${check.title}
 
 Category: ${check.category}
 File: ${check.file ?? "none"}

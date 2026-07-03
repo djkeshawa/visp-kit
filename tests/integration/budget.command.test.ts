@@ -43,15 +43,7 @@ describe("visp budget command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "budget",
-      tempDir,
-      "--task",
-      "T001",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "budget", tempDir, "--task", "T001", "--json"]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -70,13 +62,7 @@ describe("visp budget command", () => {
     await createPhase8Fixture(tempDir);
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "budget",
-      tempDir,
-      "--write-report"
-    ]);
+    await program.parseAsync(["node", "visp", "budget", tempDir, "--write-report"]);
 
     const reportPath = path.join(tempDir, ".visp", "reports", "budget-report.md");
 
@@ -90,14 +76,7 @@ describe("visp budget command", () => {
     const contextProgram = createCli({ writeOut: () => undefined });
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await contextProgram.parseAsync([
-      "node",
-      "visp",
-      "context",
-      "T001",
-      tempDir,
-      "--force"
-    ]);
+    await contextProgram.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
 
     await program.parseAsync([
       "node",
@@ -125,9 +104,17 @@ describe("visp budget command", () => {
       writtenFiles: string[];
     };
     const artifact = JSON.parse(await readFile(budgetArtifactPath(tempDir), "utf8")) as {
-      usage: Array<{ taskId: string; inputTokens: number; outputTokens: number; totalTokens: number }>;
+      usage: Array<{
+        taskId: string;
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+      }>;
     };
-    const report = await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8");
+    const report = await readFile(
+      path.join(tempDir, ".visp", "reports", "budget-report.md"),
+      "utf8"
+    );
     const checklist = await readFile(
       path.join(
         tempDir,
@@ -161,14 +148,7 @@ describe("visp budget command", () => {
     const contextProgram = createCli({ writeOut: () => undefined });
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await contextProgram.parseAsync([
-      "node",
-      "visp",
-      "context",
-      "T001",
-      tempDir,
-      "--force"
-    ]);
+    await contextProgram.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
 
     await program.parseAsync([
       "node",
@@ -193,7 +173,10 @@ describe("visp budget command", () => {
     const artifact = JSON.parse(await readFile(budgetArtifactPath(tempDir), "utf8")) as {
       usage: Array<{ taskId: string; status: string; totalTokens: number | null; model: string }>;
     };
-    const report = await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8");
+    const report = await readFile(
+      path.join(tempDir, ".visp", "reports", "budget-report.md"),
+      "utf8"
+    );
     const checklistJson = JSON.parse(
       await readFile(
         path.join(
@@ -260,14 +243,7 @@ describe("visp budget command", () => {
     const before = await readFile(reportPath, "utf8");
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "budget",
-      tempDir,
-      "--write-report",
-      "--dry-run"
-    ]);
+    await program.parseAsync(["node", "visp", "budget", tempDir, "--write-report", "--dry-run"]);
 
     expect(await exists(reportPath)).toBe(true);
     expect(await readFile(reportPath, "utf8")).toBe(before);

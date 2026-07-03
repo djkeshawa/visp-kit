@@ -4,8 +4,14 @@ import { type WorkflowValidation } from "../workflows/shared/workflow-summary.js
 
 export function validatePlan(plan: PlanDraftArtifact): WorkflowValidation {
   const errors: string[] = [
-    ...duplicateIds(plan.decisions.map((decision) => decision.id), "decision"),
-    ...duplicateIds(plan.risks.map((risk) => risk.id), "risk")
+    ...duplicateIds(
+      plan.decisions.map((decision) => decision.id),
+      "decision"
+    ),
+    ...duplicateIds(
+      plan.risks.map((risk) => risk.id),
+      "risk"
+    )
   ];
 
   if (plan.implementationApproach.trim().length === 0) {

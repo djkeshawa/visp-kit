@@ -51,14 +51,10 @@ function workflowOptions(
   };
 }
 
-export function createReviewCommand(
-  dependencies: ReviewCommandDependencies = {}
-): Command {
+export function createReviewCommand(dependencies: ReviewCommandDependencies = {}): Command {
   const runReview = dependencies.runReview ?? runReviewWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("review")
     .description("Run deterministic Visp diff review.")
@@ -76,9 +72,7 @@ export function createReviewCommand(
     .option("--dry-run", "Show what would be reviewed without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: ReviewCommandOptions) => {
-      const result = await runReview(
-        workflowOptions(targetPath, options, dependencies.cwd)
-      );
+      const result = await runReview(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {
         writeWorkflowError({

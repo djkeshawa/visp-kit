@@ -90,9 +90,7 @@ describe("spec normalizer", () => {
       "unit"
     ]);
     expect(
-      parsed.data.requirements[0]?.acceptanceCriteria.map(
-        (criterion) => criterion.validationMethod
-      )
+      parsed.data.requirements[0]?.acceptanceCriteria.map((criterion) => criterion.validationMethod)
     ).toEqual(["manual", "unit"]);
     expect(parsed.data.assumptions).toEqual([
       {

@@ -1,15 +1,7 @@
-import {
-  type OverrideRecord,
-  type OverrideScope
-} from "../artifacts/schemas/override.schema.js";
+import { type OverrideRecord, type OverrideScope } from "../artifacts/schemas/override.schema.js";
 import { type OverrideValidation } from "./override-validator.js";
 
-export type OverrideWorkflowMode =
-  | "create"
-  | "list"
-  | "show"
-  | "revoke"
-  | "validate";
+export type OverrideWorkflowMode = "create" | "list" | "show" | "revoke" | "validate";
 
 export type OverrideWorkflowSummary = {
   readonly success: boolean;

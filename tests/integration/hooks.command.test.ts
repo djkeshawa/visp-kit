@@ -232,4 +232,246 @@ describe("claude pretooluse hook script", () => {
 
     expect(result.exitCode).toBe(0);
   });
+
+  it("blocks when policy.json exists but cannot be parsed", async () => {
+    await installStrictFixtureWithHook();
+    await writeFile(path.join(tempDir, ".visp", "policy.json"), "{ not json", "utf8");
+
+    const result = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("visp policy validate");
+  });
+
+  it("blocks when policy.json declares an unknown strictness mode", async () => {
+    await installStrictFixtureWithHook();
+    await writeFile(
+      path.join(tempDir, ".visp", "policy.json"),
+      JSON.stringify({ strictnessMode: "totally-invalid" }),
+      "utf8"
+    );
+
+    const result = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("unknown strictnessMode");
+  });
+
+  it("allows when policy.json is missing entirely", async () => {
+    await installStrictFixtureWithHook();
+    await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
+
+    const result = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("allows when stdin is not valid JSON", async () => {
+    await installStrictFixtureWithHook();
+    const hookPath = path.join(tempDir, ".visp", "hooks", "claude-pretooluse.mjs");
+
+    const result = await new Promise<{ exitCode: number }>((resolve) => {
+      const child = spawn("node", [hookPath], { cwd: tempDir });
+      child.on("close", (code: number | null) => resolve({ exitCode: code ?? 0 }));
+      child.stdin.write("this is not json");
+      child.stdin.end();
+    });
+
+    expect(result.exitCode).toBe(0);
+  });
+
+  async function writeTaskMarker(input: {
+    readonly taskId: string;
+    readonly allowedFiles: readonly string[];
+    readonly forbiddenFiles?: readonly string[];
+  }): Promise<void> {
+    const markerDir = path.join(tempDir, ".visp", "state", "implement-allowed");
+
+    await mkdir(markerDir, { recursive: true });
+    await writeFile(
+      path.join(markerDir, `${input.taskId}.json`),
+      JSON.stringify({
+        version: "1.0",
+        taskId: input.taskId,
+        featureId: "001",
+        strictnessMode: "strict",
+        allowedFiles: [...input.allowedFiles],
+        expectedFiles: [],
+        forbiddenFiles: [...(input.forbiddenFiles ?? [])],
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }),
+      "utf8"
+    );
+  }
+
+  it("allows edits covered by any of multiple active task markers", async () => {
+    await installStrictFixtureWithHook();
+    await writeTaskMarker({ taskId: "T001", allowedFiles: ["src/a.ts"] });
+    await writeTaskMarker({ taskId: "T002", allowedFiles: ["src/b.ts"] });
+
+    const editA = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/a.ts" }
+    });
+    const editB = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/b.ts" }
+    });
+    const editOutside = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/c.ts" }
+    });
+
+    expect(editA.exitCode).toBe(0);
+    expect(editB.exitCode).toBe(0);
+    expect(editOutside.exitCode).toBe(2);
+    expect(editOutside.stderr).toContain("T001");
+    expect(editOutside.stderr).toContain("T002");
+  });
+
+  it("forbidden wins across concurrent task markers", async () => {
+    await installStrictFixtureWithHook();
+    await writeTaskMarker({ taskId: "T001", allowedFiles: ["src/a.ts"] });
+    await writeTaskMarker({
+      taskId: "T002",
+      allowedFiles: ["src/b.ts"],
+      forbiddenFiles: ["src/a.ts"]
+    });
+
+    const result = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/a.ts" }
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("forbidden for task T002");
+  });
+
+  it("still honors a legacy-only single marker", async () => {
+    await installStrictFixtureWithHook();
+    const legacyPath = path.join(tempDir, ".visp", "state", "implement-allowed.json");
+
+    await mkdir(path.dirname(legacyPath), { recursive: true });
+    await writeFile(
+      legacyPath,
+      JSON.stringify({
+        version: "1.0",
+        taskId: "T001",
+        featureId: "001",
+        strictnessMode: "strict",
+        allowedFiles: ["src/legacy.ts"],
+        expectedFiles: [],
+        forbiddenFiles: [],
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }),
+      "utf8"
+    );
+
+    const allowed = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/legacy.ts" }
+    });
+    const blocked = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/other.ts" }
+    });
+
+    expect(allowed.exitCode).toBe(0);
+    expect(blocked.exitCode).toBe(2);
+  });
+});
+
+describe("pre-commit hook script", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "visp-precommit-hook-"));
+    process.exitCode = undefined;
+  });
+
+  afterEach(async () => {
+    process.exitCode = undefined;
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function runPreCommitHook(): Promise<{ exitCode: number; stderr: string }> {
+    const hookPath = path.join(tempDir, ".visp", "hooks", "visp-pre-commit.mjs");
+
+    return new Promise((resolve) => {
+      const child = spawn("node", [hookPath], { cwd: tempDir });
+      let stderr = "";
+
+      child.stderr.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+      child.on("close", (code: number | null) => {
+        resolve({ exitCode: code ?? 0, stderr });
+      });
+      child.stdin.end();
+    });
+  }
+
+  async function installStrictGitFixtureWithHook(): Promise<void> {
+    await createPhase8Fixture(tempDir);
+    await execFileAsync("git", ["init"], { cwd: tempDir });
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync(["node", "visp", "policy", "set-strictness", "strict", tempDir]);
+    await program.parseAsync(["node", "visp", "hooks", "git", tempDir]);
+    await writeFile(
+      path.join(tempDir, "src", "notes.ts"),
+      "export const changed = true;\n",
+      "utf8"
+    );
+    await execFileAsync("git", ["add", "src/notes.ts"], { cwd: tempDir });
+  }
+
+  it("blocks staged source changes without an implement marker in strict mode", async () => {
+    await installStrictGitFixtureWithHook();
+
+    const result = await runPreCommitHook();
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("visp gate implement");
+  });
+
+  it("blocks when policy.json exists but cannot be parsed", async () => {
+    await installStrictGitFixtureWithHook();
+    await writeFile(path.join(tempDir, ".visp", "policy.json"), "{ not json", "utf8");
+
+    const result = await runPreCommitHook();
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("visp policy validate");
+  });
+
+  it("blocks when the implement marker is unreadable in strict mode", async () => {
+    await installStrictGitFixtureWithHook();
+    const markerPath = path.join(tempDir, ".visp", "state", "implement-allowed.json");
+    await mkdir(path.dirname(markerPath), { recursive: true });
+    await writeFile(markerPath, "{ corrupt marker", "utf8");
+
+    const result = await runPreCommitHook();
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("unreadable");
+  });
+
+  it("allows when policy.json is missing entirely", async () => {
+    await installStrictGitFixtureWithHook();
+    await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
+
+    const result = await runPreCommitHook();
+
+    expect(result.exitCode).toBe(0);
+  });
 });

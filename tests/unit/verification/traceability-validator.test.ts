@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { validateTraceability } from "../../../src/verification/traceability-validator.js";
-import {
-  validTaskGraph,
-  validTraceabilityMatrix
-} from "../artifacts/fixtures.js";
+import { validTaskGraph, validTraceabilityMatrix } from "../artifacts/fixtures.js";
 
 describe("traceability validator", () => {
   it("catches missing requirement references", () => {

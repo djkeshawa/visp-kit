@@ -5,9 +5,7 @@ import { validConstitution } from "../fixtures.js";
 
 describe("constitution schema", () => {
   it("accepts valid constitution rule artifacts", () => {
-    expect(constitutionArtifactSchema.safeParse(validConstitution).success).toBe(
-      true
-    );
+    expect(constitutionArtifactSchema.safeParse(validConstitution).success).toBe(true);
   });
 
   it("rejects invalid rule categories", () => {

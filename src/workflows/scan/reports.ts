@@ -13,17 +13,13 @@ function names(values: readonly string[]): string {
 function languageText(languages: readonly LanguageStat[]): string {
   return languages.length === 0
     ? "None detected"
-    : languages
-        .map((language) => `${language.name} (${language.fileCount})`)
-        .join(", ");
+    : languages.map((language) => `${language.name} (${language.fileCount})`).join(", ");
 }
 
 function frameworkText(frameworks: readonly FrameworkDetection[]): string {
   return frameworks.length === 0
     ? "None detected"
-    : frameworks
-        .map((framework) => `${framework.name} via ${framework.dependencyName}`)
-        .join(", ");
+    : frameworks.map((framework) => `${framework.name} via ${framework.dependencyName}`).join(", ");
 }
 
 export function projectSummaryMarkdown(input: {

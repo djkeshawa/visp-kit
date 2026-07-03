@@ -5,10 +5,7 @@ export type CapturedOutput = {
 
 export const defaultOutputLimit = 8000;
 
-export function captureOutput(
-  value: string,
-  limit = defaultOutputLimit
-): CapturedOutput {
+export function captureOutput(value: string, limit = defaultOutputLimit): CapturedOutput {
   if (value.length <= limit) {
     return { value, truncated: false };
   }

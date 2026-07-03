@@ -22,11 +22,7 @@ function hexToRgb(hex: string): readonly [number, number, number] {
   ];
 }
 
-function colorText(
-  value: string,
-  hex: string,
-  options: TerminalFormatOptions = {}
-): string {
+function colorText(value: string, hex: string, options: TerminalFormatOptions = {}): string {
   if (!shouldUseColor(options)) {
     return value;
   }
@@ -40,10 +36,7 @@ function statusLabel(label: string): string {
   return normalized.length > 0 ? normalized : "status";
 }
 
-export function formatHeader(
-  title = "Visp Kit",
-  options: TerminalFormatOptions = {}
-): string {
+export function formatHeader(title = "Visp Kit", options: TerminalFormatOptions = {}): string {
   return colorText(`∞ ${title}`, palette.lavender, options);
 }
 
@@ -55,37 +48,22 @@ export function formatKeyValue(
   return `${colorText(label, palette.muted, options)}: ${value}`;
 }
 
-export function formatStatus(
-  label: string,
-  options: TerminalFormatOptions = {}
-): string {
+export function formatStatus(label: string, options: TerminalFormatOptions = {}): string {
   return colorText(`[${statusLabel(label)}]`, palette.sky, options);
 }
 
-export function formatSuccess(
-  message: string,
-  options: TerminalFormatOptions = {}
-): string {
+export function formatSuccess(message: string, options: TerminalFormatOptions = {}): string {
   return `${colorText("[ready]", palette.success, options)} ${message}`;
 }
 
-export function formatWarning(
-  message: string,
-  options: TerminalFormatOptions = {}
-): string {
+export function formatWarning(message: string, options: TerminalFormatOptions = {}): string {
   return `${colorText("[needs-clarification]", palette.warning, options)} ${message}`;
 }
 
-export function formatError(
-  message: string,
-  options: TerminalFormatOptions = {}
-): string {
+export function formatError(message: string, options: TerminalFormatOptions = {}): string {
   return `${colorText("[error]", palette.danger, options)} ${message}`;
 }
 
-export function formatMuted(
-  message: string,
-  options: TerminalFormatOptions = {}
-): string {
+export function formatMuted(message: string, options: TerminalFormatOptions = {}): string {
   return colorText(message, palette.muted, options);
 }

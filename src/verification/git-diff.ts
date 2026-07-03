@@ -1,7 +1,4 @@
-import {
-  defaultCommandRunner,
-  type CommandRunner
-} from "../core/command-runner.js";
+import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 
 export type GitDiffResult = {
   readonly changedFiles: readonly string[];

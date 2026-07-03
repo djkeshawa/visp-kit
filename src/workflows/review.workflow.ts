@@ -25,18 +25,31 @@ import {
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
-import { planDraftArtifactSchema, type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
+import {
+  planDraftArtifactSchema,
+  type PlanDraftArtifact
+} from "../artifacts/schemas/plan.schema.js";
 import {
   projectProfileSchema,
   projectStatusSchema,
   type ProjectProfile,
   type ProjectStatus
 } from "../artifacts/schemas/project.schema.js";
-import { reviewReportSchema, type ReviewMode, type ReviewReport } from "../artifacts/schemas/review.schema.js";
+import {
+  reviewReportSchema,
+  type ReviewMode,
+  type ReviewReport
+} from "../artifacts/schemas/review.schema.js";
 import { specArtifactSchema, type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
-import { traceabilityMatrixSchema, type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
-import { verificationReportSchema, type VerificationReport } from "../artifacts/schemas/verification.schema.js";
+import {
+  traceabilityMatrixSchema,
+  type TraceabilityMatrix
+} from "../artifacts/schemas/traceability.schema.js";
+import {
+  verificationReportSchema,
+  type VerificationReport
+} from "../artifacts/schemas/verification.schema.js";
 import { type CommandRunner } from "../core/command-runner.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
@@ -52,11 +65,7 @@ import { reviewDependencies } from "../review/dependency-review.js";
 import { loadGitDiff } from "../review/diff-loader.js";
 import { summarizeDiff } from "../review/diff-summary.js";
 import { reviewDocumentation } from "../review/documentation-review.js";
-import {
-  finding,
-  numberFindings,
-  type ReviewFindingDraft
-} from "../review/review-findings.js";
+import { finding, numberFindings, type ReviewFindingDraft } from "../review/review-findings.js";
 import { renderReviewChecklist } from "../review/review-checklist.js";
 import { renderReviewMarkdown } from "../review/review-report.js";
 import { renderReviewPrompt } from "../review/review-prompt.js";
@@ -109,10 +118,7 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Task graph is missing. Run `visp tasks` first."
-      )
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.")
     );
   }
 
@@ -157,7 +163,9 @@ async function optionalArtifact<T>(input: {
   });
 
   if (!artifact.ok) {
-    input.warnings.push(`Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`);
+    input.warnings.push(
+      `Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`
+    );
     return undefined;
   }
 
@@ -171,7 +179,9 @@ function reviewMode(options: ReviewWorkflowOptions, task?: Task): ReviewMode {
   return task === undefined ? "feature" : "task";
 }
 
-function resultFromFindings(findings: readonly { severity: string }[]): "passed" | "warnings" | "failed" {
+function resultFromFindings(
+  findings: readonly { severity: string }[]
+): "passed" | "warnings" | "failed" {
   if (findings.some((finding) => finding.severity === "error")) return "failed";
   if (findings.some((finding) => finding.severity === "warning")) return "warnings";
   return "passed";
@@ -200,14 +210,10 @@ function collectMessages(input: {
 
 function nextCommand(report: Pick<ReviewReport, "result" | "taskId">): string {
   if (report.result === "failed") {
-    return report.taskId === null
-      ? "visp verify"
-      : `visp verify --task ${report.taskId}`;
+    return report.taskId === null ? "visp verify" : `visp verify --task ${report.taskId}`;
   }
 
-  return report.taskId === null
-    ? "visp reconcile"
-    : `visp reconcile --task ${report.taskId}`;
+  return report.taskId === null ? "visp reconcile" : `visp reconcile --task ${report.taskId}`;
 }
 
 function outputPaths(input: {
@@ -255,8 +261,14 @@ function outputPaths(input: {
     contextPathRelative:
       input.task === undefined
         ? null
-        : relativePath(input.targetPath, contextPackMarkdownPath(input.targetPath, input.featureKey, input.task.id)),
-    verificationPathRelative: relativePath(input.targetPath, verificationMarkdownPath(input.targetPath, input.featureKey))
+        : relativePath(
+            input.targetPath,
+            contextPackMarkdownPath(input.targetPath, input.featureKey, input.task.id)
+          ),
+    verificationPathRelative: relativePath(
+      input.targetPath,
+      verificationMarkdownPath(input.targetPath, input.featureKey)
+    )
   };
 }
 
@@ -365,7 +377,9 @@ export async function runReviewWorkflow(
     if (checklistSummary.ok) {
       optionalWarnings.push(implementationChecklistStatusLine(checklistSummary.value));
     } else {
-      optionalWarnings.push(`Implementation checklist status unavailable: ${checklistSummary.error.message}`);
+      optionalWarnings.push(
+        `Implementation checklist status unavailable: ${checklistSummary.error.message}`
+      );
     }
   }
 
@@ -402,16 +416,15 @@ export async function runReviewWorkflow(
           artifactName: "context pack",
           warnings: optionalWarnings
         });
-  const verification =
-    options.skipVerification
-      ? undefined
-      : await optionalArtifact({
-          path: verificationArtifactPath(targetPath, feature.value.key),
-          schema: verificationReportSchema,
-          artifactName: "verification report",
-          warnings: optionalWarnings,
-          warnOnMissing: false
-        });
+  const verification = options.skipVerification
+    ? undefined
+    : await optionalArtifact({
+        path: verificationArtifactPath(targetPath, feature.value.key),
+        schema: verificationReportSchema,
+        artifactName: "verification report",
+        warnings: optionalWarnings,
+        warnOnMissing: false
+      });
   const diff = await loadGitDiff({
     targetPath,
     staged: options.staged,
@@ -464,23 +477,25 @@ export async function runReviewWorkflow(
   const documentationFindings = reviewDocumentation({
     changedFiles: scope.changedFiles
   });
-  const gateBlocks = policyGate === undefined
-    ? false
-    : gateBlocksWorkflow({ gate: policyGate, force: options.force });
+  const gateBlocks =
+    policyGate === undefined
+      ? false
+      : gateBlocksWorkflow({ gate: policyGate, force: options.force });
   const gateFindingSeverity = gateBlocks ? "error" : "warning";
-  const gateFindings: ReviewFindingDraft[] = policyGate === undefined
-    ? []
-    : policyGate.failedRules.map((rule) =>
-        finding({
-          category: "verification",
-          severity: gateFindingSeverity,
-          title: `Policy gate ${rule.ruleId} did not pass`,
-          description: rule.message,
-          evidence: rule.evidence,
-          recommendation: rule.recommendation,
-          relatedTaskId: selectedTask?.id ?? null
-        })
-      );
+  const gateFindings: ReviewFindingDraft[] =
+    policyGate === undefined
+      ? []
+      : policyGate.failedRules.map((rule) =>
+          finding({
+            category: "verification",
+            severity: gateFindingSeverity,
+            title: `Policy gate ${rule.ruleId} did not pass`,
+            description: rule.message,
+            evidence: rule.evidence,
+            recommendation: rule.recommendation,
+            relatedTaskId: selectedTask?.id ?? null
+          })
+        );
   const findingDrafts: ReviewFindingDraft[] = [
     ...gateFindings,
     ...scope.findings,
@@ -541,8 +556,7 @@ export async function runReviewWorkflow(
         : selectedTask === undefined && !options.promptOnly
           ? relativePath(targetPath, paths.currentPromptPath)
           : paths.promptPathRelative,
-    reportPath:
-      options.promptOnly || options.checklistOnly ? null : paths.reportPathRelative,
+    reportPath: options.promptOnly || options.checklistOnly ? null : paths.reportPathRelative,
     checklistPath:
       options.promptOnly && !options.checklistOnly
         ? null
@@ -577,12 +591,9 @@ export async function runReviewWorkflow(
     const checklist = renderReviewChecklist(parsed.data);
 
     if (!options.promptOnly && !options.checklistOnly) {
-      const writeJson = await writeArtifact(
-        paths.reportJsonPath,
-        reviewReportSchema,
-        parsed.data,
-        { artifactName: "review report" }
-      );
+      const writeJson = await writeArtifact(paths.reportJsonPath, reviewReportSchema, parsed.data, {
+        artifactName: "review report"
+      });
 
       if (!writeJson.ok) return writeJson;
 
@@ -606,7 +617,10 @@ export async function runReviewWorkflow(
       if (!writeCurrentPrompt.ok) return writeCurrentPrompt;
     }
 
-    if ((!options.promptOnly || options.checklistOnly) && (selectedTask !== undefined || options.checklistOnly)) {
+    if (
+      (!options.promptOnly || options.checklistOnly) &&
+      (selectedTask !== undefined || options.checklistOnly)
+    ) {
       const writeChecklist = await writeTextFile(paths.checklistPath, checklist);
 
       if (!writeChecklist.ok) return writeChecklist;
@@ -631,7 +645,11 @@ export async function runReviewWorkflow(
     writtenFiles.push(paths.reportPathRelative, relativePath(targetPath, paths.reportJsonPath));
   }
 
-  if (!dryRun && (!options.checklistOnly || options.promptOnly) && (selectedTask !== undefined || options.promptOnly)) {
+  if (
+    !dryRun &&
+    (!options.checklistOnly || options.promptOnly) &&
+    (selectedTask !== undefined || options.promptOnly)
+  ) {
     writtenFiles.push(paths.promptPathRelative);
   }
 
@@ -639,7 +657,11 @@ export async function runReviewWorkflow(
     writtenFiles.push(relativePath(targetPath, paths.currentPromptPath));
   }
 
-  if (!dryRun && (!options.promptOnly || options.checklistOnly) && (selectedTask !== undefined || options.checklistOnly)) {
+  if (
+    !dryRun &&
+    (!options.promptOnly || options.checklistOnly) &&
+    (selectedTask !== undefined || options.checklistOnly)
+  ) {
     writtenFiles.push(paths.checklistPathRelative);
   }
 

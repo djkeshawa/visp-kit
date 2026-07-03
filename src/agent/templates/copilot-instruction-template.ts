@@ -1,8 +1,5 @@
 import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
-import {
-  blockingRulesSection,
-  strictPolicySection
-} from "./shared-agent-rules.js";
+import { blockingRulesSection, strictPolicySection } from "./shared-agent-rules.js";
 
 export function renderCopilotInstructions(strictness: StrictnessMode): string {
   return `# Visp Kit Copilot Instructions

@@ -47,11 +47,11 @@ const stages: readonly Omit<WorkflowStage, "purpose">[] = [
     requiredArtifacts: [".visp/policy.json"],
     generatedArtifacts: [".visp/agent/installed-targets.json", ".visp/agent/capabilities.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp feature \"<idea>\""
+    nextCommand: 'visp feature "<idea>"'
   },
   {
     name: "feature",
-    command: "visp feature \"<idea>\"",
+    command: 'visp feature "<idea>"',
     gateStage: "feature",
     requiredArtifacts: [".visp/project.json"],
     generatedArtifacts: [".visp/features/<feature>/intent.json"],
@@ -99,7 +99,10 @@ const stages: readonly Omit<WorkflowStage, "purpose">[] = [
     command: "visp context --next",
     gateStage: "context",
     requiredArtifacts: [".visp/features/<feature>/task-graph.json"],
-    generatedArtifacts: [".visp/features/<feature>/context/<task>.context.json", ".visp/prompts/current-task.prompt.md"],
+    generatedArtifacts: [
+      ".visp/features/<feature>/context/<task>.context.json",
+      ".visp/prompts/current-task.prompt.md"
+    ],
     sourceEditsAllowed: false,
     nextCommand: "visp gate implement --task <task-id>"
   },
@@ -136,7 +139,10 @@ const stages: readonly Omit<WorkflowStage, "purpose">[] = [
     command: "visp reconcile --task <task-id> --update-traceability",
     gateStage: "reconcile",
     requiredArtifacts: [".visp/features/<feature>/review/<task>.review.json"],
-    generatedArtifacts: [".visp/features/<feature>/reconcile/<task>.reconcile.json", ".visp/features/<feature>/traceability.json"],
+    generatedArtifacts: [
+      ".visp/features/<feature>/reconcile/<task>.reconcile.json",
+      ".visp/features/<feature>/traceability.json"
+    ],
     sourceEditsAllowed: false,
     nextCommand: "visp next"
   },

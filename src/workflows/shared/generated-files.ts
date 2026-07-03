@@ -1,7 +1,7 @@
 import { type ZodType } from "zod";
 
 import { writeArtifact } from "../../artifacts/artifact-writer.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { pathExists, writeTextFile } from "../../core/file-system.js";
 import { err, ok, type Result } from "../../core/result.js";
 import { createArtifactValidationError } from "../../artifacts/validation-error.js";
@@ -34,9 +34,7 @@ function validateFile(file: GeneratedFile): Result<void, VispError> {
 
   if (result.success) return ok(undefined);
 
-  return err(
-    createArtifactValidationError(result.error, file.artifactName, file.displayPath)
-  );
+  return err(createArtifactValidationError(result.error, file.artifactName, file.displayPath));
 }
 
 export async function writeGeneratedFiles(

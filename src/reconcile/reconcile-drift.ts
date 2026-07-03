@@ -9,16 +9,21 @@ function behaviorChanging(input: {
   readonly task?: Task;
   readonly changedFiles: readonly ReconcileChangedFile[];
 }): boolean {
-  const text = input.task === undefined ? "" : `${input.task.title} ${input.task.description}`.toLowerCase();
+  const text =
+    input.task === undefined ? "" : `${input.task.title} ${input.task.description}`.toLowerCase();
 
-  return Boolean(input.task?.acceptanceCriterionIds.length) ||
-    /add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow/.test(text) ||
-    input.changedFiles.some((file) => /^(src|app|lib|server|client)\//.test(file.path));
+  return (
+    Boolean(input.task?.acceptanceCriterionIds.length) ||
+    /add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow/.test(
+      text
+    ) ||
+    input.changedFiles.some((file) => /^(src|app|lib|server|client)\//.test(file.path))
+  );
 }
 
 function meaningfulAllowedFiles(task: Task | undefined): readonly string[] {
-  return (task?.allowedFiles ?? []).filter((filePath) =>
-    filePath.trim().length > 0 && filePath.trim().toUpperCase() !== "TBD"
+  return (task?.allowedFiles ?? []).filter(
+    (filePath) => filePath.trim().length > 0 && filePath.trim().toUpperCase() !== "TBD"
   );
 }
 
@@ -48,8 +53,9 @@ export function reconcileTaskAlignment(input: {
   const forbidden = input.changedFiles
     .filter((file) => file.mappingStatus === "forbidden")
     .map((file) => file.path);
-  const outOfScope = input.changedFiles.filter((file) =>
-    !file.isVispGeneratedFile &&
+  const outOfScope = input.changedFiles.filter(
+    (file) =>
+      !file.isVispGeneratedFile &&
       file.mappingStatus === "unmapped" &&
       input.task !== undefined &&
       meaningfulAllowedFiles(input.task).length > 0
@@ -71,7 +77,11 @@ export function reconcileTaskAlignment(input: {
     );
   }
 
-  if (input.task !== undefined && input.task.acceptanceCriterionIds.length === 0 && behaviorChanging(input)) {
+  if (
+    input.task !== undefined &&
+    input.task.acceptanceCriterionIds.length === 0 &&
+    behaviorChanging(input)
+  ) {
     const severity = input.task.riskLevel === "high" ? "error" : "warning";
     const message = `${input.task.id} has no acceptance criterion IDs.`;
 
@@ -103,7 +113,10 @@ export function reconcileTaskAlignment(input: {
         title: "Context pack missing",
         description: "No task context pack was found.",
         evidence: "context/T001.context.json is missing or unreadable.",
-        recommendation: input.task === undefined ? "Run visp context for the task." : `Run visp context ${input.task.id}.`,
+        recommendation:
+          input.task === undefined
+            ? "Run visp context for the task."
+            : `Run visp context ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -159,8 +172,12 @@ export function reconcileRequirementCoverage(input: {
   const errors: string[] = [];
   const findings: ReconcileFindingDraft[] = [];
   const tasks = input.task === undefined ? input.taskGraph.tasks : [input.task];
-  const specRequirements = new Set(input.spec?.requirements.map((requirement) => requirement.id) ?? []);
-  const specCriteria = new Set(input.spec?.acceptanceCriteria.map((criterion) => criterion.id) ?? []);
+  const specRequirements = new Set(
+    input.spec?.requirements.map((requirement) => requirement.id) ?? []
+  );
+  const specCriteria = new Set(
+    input.spec?.acceptanceCriteria.map((criterion) => criterion.id) ?? []
+  );
 
   if (input.spec === undefined) {
     warnings.push("Spec artifact is missing; requirement coverage is partial.");
@@ -208,8 +225,9 @@ export function reconcileRequirementCoverage(input: {
     }
   }
 
-  const changedSourceWithoutRequirement = input.changedFiles.some((file) =>
-    !file.isVispGeneratedFile &&
+  const changedSourceWithoutRequirement = input.changedFiles.some(
+    (file) =>
+      !file.isVispGeneratedFile &&
       !file.isTestFile &&
       !file.isDependencyFile &&
       file.relatedRequirementIds.length === 0 &&
@@ -239,7 +257,11 @@ export function reconcileRequirementCoverage(input: {
       acceptanceCriterionIds: task.acceptanceCriterionIds,
       taskIds: [task.id],
       filePaths: input.changedFiles
-        .filter((file) => file.relatedTaskIds.includes(task.id) || file.relatedRequirementIds.includes(requirementId))
+        .filter(
+          (file) =>
+            file.relatedTaskIds.includes(task.id) ||
+            file.relatedRequirementIds.includes(requirementId)
+        )
         .map((file) => file.path),
       status: "passed" as const
     }))
@@ -275,22 +297,32 @@ export function reconcileDependencies(input: {
     .filter((file) => file.isDependencyFile)
     .map((file) => file.path)
     .sort();
-  const approvedByTaskScope = Boolean(input.task &&
-    [...input.task.allowedFiles, ...(input.task.expectedFiles ?? [])].some((file) =>
-      changedDependencyFiles.includes(file)
-    ));
-  const approvedByPlan = Boolean(input.plan?.dependencies.newDependenciesRequired && input.plan.dependencies.requiresApproval);
+  const approvedByTaskScope = Boolean(
+    input.task &&
+      [...input.task.allowedFiles, ...(input.task.expectedFiles ?? [])].some((file) =>
+        changedDependencyFiles.includes(file)
+      )
+  );
+  const approvedByPlan = Boolean(
+    input.plan?.dependencies.newDependenciesRequired && input.plan.dependencies.requiresApproval
+  );
   const warnings: string[] = [];
   const errors: string[] = [];
   const findings: ReconcileFindingDraft[] = [];
 
   if (changedDependencyFiles.length > 0) {
     if (input.plan !== undefined && !input.plan.dependencies.newDependenciesRequired) {
-      errors.push(`Plan says no new dependencies, but dependency files changed: ${changedDependencyFiles.join(", ")}.`);
+      errors.push(
+        `Plan says no new dependencies, but dependency files changed: ${changedDependencyFiles.join(", ")}.`
+      );
     } else if (!approvedByTaskScope && !approvedByPlan) {
-      errors.push(`Dependency files changed without approval: ${changedDependencyFiles.join(", ")}.`);
+      errors.push(
+        `Dependency files changed without approval: ${changedDependencyFiles.join(", ")}.`
+      );
     } else {
-      warnings.push(`Dependency files changed and require human approval: ${changedDependencyFiles.join(", ")}.`);
+      warnings.push(
+        `Dependency files changed and require human approval: ${changedDependencyFiles.join(", ")}.`
+      );
     }
   }
 

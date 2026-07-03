@@ -97,9 +97,12 @@ export function renderGateReport(result: GateResult): string {
   return `${lines.join("\n")}\n`;
 }
 
-export function formatGateResult(result: GateResult, options: {
-  readonly explain?: boolean;
-} = {}): string {
+export function formatGateResult(
+  result: GateResult,
+  options: {
+    readonly explain?: boolean;
+  } = {}
+): string {
   const lines = [
     formatHeader(
       result.dryRun
@@ -123,19 +126,15 @@ export function formatGateResult(result: GateResult, options: {
   }
 
   if (failed.length > 0) {
-    lines.push(
-      "",
-      "Failed:",
-      ...failed.map((rule) => `  ${rule.ruleId}: ${rule.message}`)
-    );
+    lines.push("", "Failed:", ...failed.map((rule) => `  ${rule.ruleId}: ${rule.message}`));
   }
 
   if (result.appliedOverrides.length > 0) {
     lines.push(
       "",
       "Overridden:",
-      ...result.appliedOverrides.map((override) =>
-        `  ${override.ruleId} by ${override.overrideId}: ${override.reason}`
+      ...result.appliedOverrides.map(
+        (override) => `  ${override.ruleId} by ${override.overrideId}: ${override.reason}`
       )
     );
   }

@@ -3,7 +3,7 @@ import { type ZodType } from "zod";
 
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { createArtifactValidationError } from "../artifacts/validation-error.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
@@ -39,9 +39,7 @@ function validateFile(file: AgentPlannedFile, displayPath: string): Result<void,
   const validation = file.schema.safeParse(file.value);
 
   if (!validation.success) {
-    return err(
-      createArtifactValidationError(validation.error, file.artifactName, displayPath)
-    );
+    return err(createArtifactValidationError(validation.error, file.artifactName, displayPath));
   }
 
   return ok(undefined);
@@ -76,11 +74,12 @@ export async function writeAgentPlannedFile(
     : "created";
 
   if (!options.dryRun) {
-    const write = file.kind === "artifact"
-      ? await writeArtifact(file.path, file.schema, file.value, {
-          artifactName: file.artifactName
-        })
-      : await writeTextFile(file.path, file.contents);
+    const write =
+      file.kind === "artifact"
+        ? await writeArtifact(file.path, file.schema, file.value, {
+            artifactName: file.artifactName
+          })
+        : await writeTextFile(file.path, file.contents);
 
     if (!write.ok) return write;
   }

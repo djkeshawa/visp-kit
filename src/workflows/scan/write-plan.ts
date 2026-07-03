@@ -14,7 +14,7 @@ import {
 } from "../../artifacts/artifact-paths.js";
 import { writeArtifact } from "../../artifacts/artifact-writer.js";
 import { projectProfileSchema } from "../../artifacts/schemas/project.schema.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { ensureDir, writeJsonFile, writeTextFile } from "../../core/file-system.js";
 import { toPosixPath } from "../../core/paths.js";
 import { ok, type Result } from "../../core/result.js";
@@ -53,9 +53,7 @@ export function plannedScanWrites(
   }));
 }
 
-export async function ensureScanDirectories(
-  targetPath: string
-): Promise<Result<void, VispError>> {
+export async function ensureScanDirectories(targetPath: string): Promise<Result<void, VispError>> {
   for (const directory of [
     path.join(targetPath, ".visp", "cache"),
     path.join(targetPath, ".visp", "memory"),

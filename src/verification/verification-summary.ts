@@ -58,11 +58,7 @@ export function formatVerifySummary(summary: VerifySummary): string {
   }
 
   if (summary.dryRun && summary.commands.length > 0) {
-    lines.push(
-      "",
-      "Would run:",
-      ...summary.commands.map((command) => `  ${command.command}`)
-    );
+    lines.push("", "Would run:", ...summary.commands.map((command) => `  ${command.command}`));
   }
 
   if (summary.errors.length > 0) {

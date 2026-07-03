@@ -68,6 +68,26 @@ export function claudeCommandPath(rootPath: string, name: string): string {
   return joinPath(rootPath, ".claude", "commands", `visp-${name}.md`);
 }
 
+export function cursorRulesDir(rootPath: string): string {
+  return joinPath(rootPath, ".cursor", "rules");
+}
+
+export function cursorRulePath(rootPath: string, name: string): string {
+  return joinPath(cursorRulesDir(rootPath), `${name}.mdc`);
+}
+
+export function geminiMarkdownPath(rootPath: string): string {
+  return joinPath(rootPath, "GEMINI.md");
+}
+
+export function geminiVispMarkdownPath(rootPath: string): string {
+  return joinPath(rootPath, "GEMINI.visp.md");
+}
+
+export function geminiCommandPath(rootPath: string, name: string): string {
+  return joinPath(rootPath, ".gemini", "commands", `${name}.toml`);
+}
+
 export function copilotInstructionsPath(rootPath: string): string {
   return joinPath(rootPath, ".github", "copilot-instructions.md");
 }

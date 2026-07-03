@@ -8,18 +8,16 @@ import {
 } from "../artifacts/schemas/gate.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { createArtifactValidationError } from "../artifacts/validation-error.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { vispDir } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { evaluateGate } from "../gates/gate-engine.js";
-import {
-  formatGateResult,
-  renderGateReport
-} from "../gates/gate-report.js";
+import { formatGateResult, renderGateReport } from "../gates/gate-report.js";
 import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
 import {
   clearImplementMarker,
+  clearTaskImplementMarker,
   writeImplementMarker
 } from "../gates/implement-marker.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
@@ -87,7 +85,12 @@ export async function runGateWorkflow(
     if (!write.ok) return write;
   }
 
-  if (parsed.data.stage === "implement" && parsed.data.allowed && parsed.data.feature !== null && parsed.data.taskId !== null) {
+  if (
+    parsed.data.stage === "implement" &&
+    parsed.data.allowed &&
+    parsed.data.feature !== null &&
+    parsed.data.taskId !== null
+  ) {
     const featureKey = `${parsed.data.feature.id}-${parsed.data.feature.slug}`;
     const checklist = await markImplementationChecklistSteps({
       targetPath,
@@ -123,7 +126,12 @@ export async function runGateWorkflow(
   }
 
   if (parsed.data.stage === "implement" && !parsed.data.allowed && !dryRun) {
-    const cleared = await clearImplementMarker(targetPath);
+    // A blocked gate revokes only the blocked task's authorization; other
+    // tasks' concurrent authorizations stay valid.
+    const cleared =
+      parsed.data.taskId === null
+        ? await clearImplementMarker(targetPath)
+        : await clearTaskImplementMarker(targetPath, parsed.data.taskId);
 
     if (!cleared.ok) return cleared;
   }

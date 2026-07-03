@@ -146,8 +146,12 @@ describe("visp pr command", () => {
 
     expect(process.exitCode).toBeUndefined();
     expect(output.join("")).toContain("Visp PR summary ready");
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"))).toBe(true);
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))).toBe(true);
+    expect(
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"))
+    ).toBe(true);
+    expect(
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))
+    ).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "prompts", "pr.prompt.md"))).toBe(true);
     const prMarkdown = await readFile(
       path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"),
@@ -189,14 +193,7 @@ describe("visp pr command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "policy",
-      "set-strictness",
-      "strict",
-      tempDir
-    ]);
+    await program.parseAsync(["node", "visp", "policy", "set-strictness", "strict", tempDir]);
     await program.parseAsync(["node", "visp", "pr", tempDir]);
 
     const prMarkdown = await readFile(
@@ -217,7 +214,9 @@ describe("visp pr command", () => {
     await program.parseAsync(["node", "visp", "pr", tempDir, "--prompt-only"]);
 
     expect(await exists(path.join(tempDir, ".visp", "prompts", "pr.prompt.md"))).toBe(true);
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))).toBe(false);
+    expect(
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))
+    ).toBe(false);
   });
 
   it("dry-run writes nothing", async () => {
@@ -227,6 +226,8 @@ describe("visp pr command", () => {
     await program.parseAsync(["node", "visp", "pr", tempDir, "--dry-run"]);
 
     expect(await exists(path.join(tempDir, ".visp", "prompts", "pr.prompt.md"))).toBe(false);
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))).toBe(false);
+    expect(
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))
+    ).toBe(false);
   });
 });

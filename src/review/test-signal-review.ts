@@ -16,10 +16,14 @@ export function isBehaviorChangingTask(input: {
 
   const text = `${input.task.title} ${input.task.description}`.toLowerCase();
 
-  return input.task.acceptanceCriterionIds.length > 0 ||
+  return (
+    input.task.acceptanceCriterionIds.length > 0 ||
     input.task.riskLevel !== "low" ||
-    /add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow/.test(text) ||
-    input.changedFiles.some((file) => /^(src|app|lib|server|client)\//.test(file.path));
+    /add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow/.test(
+      text
+    ) ||
+    input.changedFiles.some((file) => /^(src|app|lib|server|client)\//.test(file.path))
+  );
 }
 
 function manualOrStaticOnly(input: {
@@ -33,10 +37,13 @@ function manualOrStaticOnly(input: {
     input.task?.acceptanceCriterionIds.includes(criterion.id)
   );
 
-  return criteria.length > 0 &&
-    criteria.every((criterion) =>
-      criterion.validationMethod === "manual" || criterion.validationMethod === "static"
-    );
+  return (
+    criteria.length > 0 &&
+    criteria.every(
+      (criterion) =>
+        criterion.validationMethod === "manual" || criterion.validationMethod === "static"
+    )
+  );
 }
 
 export function reviewTestSignals(input: {
@@ -84,9 +91,11 @@ export function reviewTestSignals(input: {
         category: "tests",
         severity: "warning",
         title: "No test files changed",
-        description: "The task appears behavior-changing, but the diff does not include test files.",
+        description:
+          "The task appears behavior-changing, but the diff does not include test files.",
         evidence: message,
-        recommendation: "Add/update tests or document why existing/manual validation is sufficient.",
+        recommendation:
+          "Add/update tests or document why existing/manual validation is sufficient.",
         relatedTaskId: input.task?.id ?? null,
         relatedRequirementIds: input.task?.requirementIds ?? [],
         relatedAcceptanceCriterionIds: input.task?.acceptanceCriterionIds ?? []

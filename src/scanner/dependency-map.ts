@@ -1,8 +1,4 @@
-import {
-  type FrameworkDetection,
-  type PackageJsonInfo,
-  type ProjectDetection
-} from "./types.js";
+import { type FrameworkDetection, type PackageJsonInfo, type ProjectDetection } from "./types.js";
 
 export type DependencyMap = {
   readonly generatedAt: string;

@@ -80,11 +80,7 @@ export function formatFeatureSummary(summary: FeatureSummary): string {
   }
 
   if (summary.overwrittenFiles.length > 0) {
-    lines.push(
-      "Overwritten:",
-      ...summary.overwrittenFiles.map((file) => `  ${file}`),
-      ""
-    );
+    lines.push("Overwritten:", ...summary.overwrittenFiles.map((file) => `  ${file}`), "");
   }
 
   if (summary.updatedFiles.length > 0) {

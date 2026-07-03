@@ -1,24 +1,11 @@
 import { z } from "zod";
 
-import {
-  idSchema,
-  isoDateTimeSchema,
-  nonEmptyStringSchema
-} from "./common.schema.js";
+import { idSchema, isoDateTimeSchema, nonEmptyStringSchema } from "./common.schema.js";
 import { gateStageSchema } from "./gate.schema.js";
 
-export const overrideScopeSchema = z.enum([
-  "project",
-  "feature",
-  "task",
-  "stage"
-]);
+export const overrideScopeSchema = z.enum(["project", "feature", "task", "stage"]);
 
-export const overrideStatusSchema = z.enum([
-  "active",
-  "revoked",
-  "expired"
-]);
+export const overrideStatusSchema = z.enum(["active", "revoked", "expired"]);
 
 export const overrideRecordSchema = z
   .object({

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { genericTargetFiles } from "../../../../src/agent/targets/generic.js";
+import { toPosixPath } from "../../../../src/core/paths.js";
 
 describe("generic target", () => {
   it("renders AGENTS.md, the rules file, and five portable prompt files", () => {
@@ -10,7 +11,7 @@ describe("generic target", () => {
       useFallbackAgentsFile: false
     });
 
-    expect(files.map((file) => file.path)).toEqual([
+    expect(files.map((file) => toPosixPath(file.path))).toEqual([
       "/repo/AGENTS.md",
       "/repo/.visp/prompts/visp-rules.md",
       "/repo/.visp/prompts/agent-feature.prompt.md",

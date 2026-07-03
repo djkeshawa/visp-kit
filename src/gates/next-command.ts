@@ -46,16 +46,16 @@ export function nextAllowedCommand(context: GateContext): string {
     return `visp context ${taskId}`;
   }
 
-  const incompleteChecklist = state.implementationChecklist.items.some((item) =>
-    item.required && (item.status === "pending" || item.status === "blocked")
+  const incompleteChecklist = state.implementationChecklist.items.some(
+    (item) => item.required && (item.status === "pending" || item.status === "blocked")
   );
 
   if (incompleteChecklist) {
     return `visp checklist status --task ${taskId}`;
   }
 
-  const nextTask = state.taskGraph?.tasks.find((task) =>
-    task.status !== "done" && task.status !== "verified" && task.id !== taskId
+  const nextTask = state.taskGraph?.tasks.find(
+    (task) => task.status !== "done" && task.status !== "verified" && task.id !== taskId
   );
 
   if (nextTask !== undefined) return `visp context ${nextTask.id}`;

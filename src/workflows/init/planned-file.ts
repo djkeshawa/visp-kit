@@ -3,7 +3,7 @@ import { type ZodType } from "zod";
 
 import { writeArtifact } from "../../artifacts/artifact-writer.js";
 import { createArtifactValidationError } from "../../artifacts/validation-error.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { pathExists, writeTextFile } from "../../core/file-system.js";
 import { err, ok, type Result } from "../../core/result.js";
 import { type InitFileAction } from "./init-summary.js";
@@ -30,11 +30,7 @@ function displayPath(targetPath: string, filePath: string): string {
   return path.relative(targetPath, filePath).split(path.sep).join("/");
 }
 
-export function textFile(
-  targetPath: string,
-  filePath: string,
-  contents: string
-): TextFile {
+export function textFile(targetPath: string, filePath: string, contents: string): TextFile {
   return {
     kind: "text",
     path: filePath,
@@ -69,11 +65,7 @@ function validatePlannedFile(file: PlannedFile): Result<void, VispError> {
 
   if (!validation.success) {
     return err(
-      createArtifactValidationError(
-        validation.error,
-        file.artifactName,
-        file.displayPath
-      )
+      createArtifactValidationError(validation.error, file.artifactName, file.displayPath)
     );
   }
 

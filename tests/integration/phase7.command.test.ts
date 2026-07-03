@@ -76,12 +76,7 @@ describe("phase 7 template commands", () => {
     await program.parseAsync(["node", "visp", "tasks", tempDir]);
     await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
 
-    const featureDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning"
-    );
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
 
     for (const file of [
       "clarifications.md",
@@ -104,20 +99,16 @@ describe("phase 7 template commands", () => {
       "plan.prompt.md",
       "tasks.prompt.md"
     ]) {
-      expect(await exists(path.join(tempDir, ".visp", "prompts", file))).toBe(
-        true
-      );
+      expect(await exists(path.join(tempDir, ".visp", "prompts", file))).toBe(true);
     }
 
     expect(await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")).toContain(
       "tasks_ready"
     );
-    expect(await readFile(path.join(featureDir, "traceability.json"), "utf8")).toContain(
-      "T001"
-    );
-    expect(await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8")).toContain(
-      "# Visp Budget Report"
-    );
+    expect(await readFile(path.join(featureDir, "traceability.json"), "utf8")).toContain("T001");
+    expect(
+      await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8")
+    ).toContain("# Visp Budget Report");
   });
 
   it("fails clearly when .visp or active feature is missing", async () => {
@@ -174,15 +165,7 @@ describe("phase 7 template commands", () => {
     await program.parseAsync(["node", "visp", "spec", tempDir, "--force"]);
 
     expect(
-      await exists(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "spec.json"
-        )
-      )
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "spec.json"))
     ).toBe(true);
   });
 
@@ -211,12 +194,7 @@ describe("phase 7 template commands", () => {
       questionId: string;
       updatedFiles: string[];
     };
-    const featureDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning"
-    );
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
     const artifact = JSON.parse(
       await readFile(path.join(featureDir, "clarifications.json"), "utf8")
     ) as {
@@ -227,7 +205,9 @@ describe("phase 7 template commands", () => {
     expect(summary.success).toBe(true);
     expect(summary.artifactStatus).toBe("ready");
     expect(summary.questionId).toBe("CQ001");
-    expect(summary.updatedFiles).toContain(".visp/features/001-add-note-pinning/clarifications.json");
+    expect(summary.updatedFiles).toContain(
+      ".visp/features/001-add-note-pinning/clarifications.json"
+    );
     expect(artifact.status).toBe("ready");
     expect(artifact.questions[0]?.status).toBe("answered");
     expect(artifact.questions[0]?.answer).toContain("existing note model");
@@ -240,12 +220,7 @@ describe("phase 7 template commands", () => {
     await initializedFeature(tempDir);
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
-    const featureDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning"
-    );
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
     const specPath = path.join(featureDir, "spec.json");
 
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
@@ -269,9 +244,7 @@ describe("phase 7 template commands", () => {
     };
 
     expect(normalized.requirements[0]?.source).toBe("derived");
-    expect(normalized.requirements[0]?.acceptanceCriteria[0]?.validationMethod).toBe(
-      "manual"
-    );
+    expect(normalized.requirements[0]?.acceptanceCriteria[0]?.validationMethod).toBe("manual");
     expect(normalized.acceptanceCriteria[0]?.validationMethod).toBe("unit");
     expect(normalized.assumptions[0]).toEqual({
       id: "ASM001",
@@ -287,9 +260,7 @@ describe("phase 7 template commands", () => {
     await program.parseAsync(["node", "visp", "tasks", tempDir]);
 
     expect(process.exitCode).toBeUndefined();
-    expect(await readFile(path.join(featureDir, "tasks.md"), "utf8")).toContain(
-      "# Tasks"
-    );
+    expect(await readFile(path.join(featureDir, "tasks.md"), "utf8")).toContain("# Tasks");
   });
 
   it("skips existing generated files without force and overwrites with force", async () => {
@@ -318,19 +289,9 @@ describe("phase 7 template commands", () => {
 
     await program.parseAsync(["node", "visp", "plan", tempDir, "--prompt-only"]);
 
-    expect(await exists(path.join(tempDir, ".visp", "prompts", "plan.prompt.md"))).toBe(
-      true
-    );
+    expect(await exists(path.join(tempDir, ".visp", "prompts", "plan.prompt.md"))).toBe(true);
     expect(
-      await exists(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "plan.md"
-        )
-      )
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "plan.md"))
     ).toBe(false);
 
     output.length = 0;
@@ -338,38 +299,19 @@ describe("phase 7 template commands", () => {
     expect(output.join("")).toContain("dry run");
     expect(
       await exists(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "clarifications.md"
-        )
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "clarifications.md")
       )
     ).toBe(false);
 
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
     await writeFile(
-      path.join(
-        tempDir,
-        ".visp",
-        "features",
-        "001-add-note-pinning",
-        "clarifications.json"
-      ),
+      path.join(tempDir, ".visp", "features", "001-add-note-pinning", "clarifications.json"),
       "{",
       "utf8"
     );
 
     output.length = 0;
-    await program.parseAsync([
-      "node",
-      "visp",
-      "clarify",
-      tempDir,
-      "--validate",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate", "--json"]);
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
       validation: { passed: boolean; errors: string[] };

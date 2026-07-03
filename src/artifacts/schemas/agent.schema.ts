@@ -7,7 +7,9 @@ export const agentTargetNameSchema = z.enum([
   "codex",
   "generic",
   "claude",
-  "copilot"
+  "copilot",
+  "cursor",
+  "gemini"
 ]);
 
 export const installedAgentTargetSchema = z

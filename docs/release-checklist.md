@@ -44,7 +44,12 @@ Run:
 
 ```bash
 scripts/dogfood-strict-agent-workflow.sh
+scripts/benchmark-strict-workflow.sh
 ```
+
+The benchmark script additionally proves the pre-commit hook blocks
+out-of-scope commits, `visp drift` fails closed on stale context, and the
+deterministic benchmark metrics render (see docs/benchmarks.md).
 
 Or manually verify:
 

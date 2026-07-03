@@ -25,10 +25,7 @@ const testCandidates = [
   "integration"
 ] as const;
 
-async function existingChildren(
-  rootPath: string,
-  names: readonly string[]
-): Promise<string[]> {
+async function existingChildren(rootPath: string, names: readonly string[]): Promise<string[]> {
   const existing: string[] = [];
 
   for (const name of names) {

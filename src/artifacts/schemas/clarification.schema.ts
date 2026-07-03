@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-import {
-  idSchema,
-  isoDateTimeSchema,
-  nonEmptyStringSchema
-} from "./common.schema.js";
+import { idSchema, isoDateTimeSchema, nonEmptyStringSchema } from "./common.schema.js";
 
 export const clarificationQuestionCategorySchema = z.enum([
   "behavior",

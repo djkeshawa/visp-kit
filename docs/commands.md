@@ -256,6 +256,7 @@ Flags:
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
 - `--strict`
+- `--benchmark` (include deterministic benchmark metrics; see docs/benchmarks.md)
 - `--write-report`
 - `--dry-run`
 - `--json`
@@ -266,6 +267,35 @@ Generated artifacts:
 - `.visp/reports/evaluation-report.json`
 
 Evaluation checks workflow completeness, policy/gate health, traceability, context budget, implementation checklist progress, evidence reports, overrides, and PR readiness. It does not call an LLM.
+
+## `visp drift [path]`
+
+Purpose: detect spec, task, context, and code drift deterministically — no LLM.
+
+Flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>` (limit drift checks to one task's context pack)
+- `--strict` (exit non-zero on drift errors regardless of policy strictness)
+- `--dry-run`
+- `--json`
+
+Generated artifacts:
+
+- `.visp/reports/drift-report.md`
+- `.visp/reports/drift-report.json`
+
+Checks:
+
+- `stale_context_provenance`: spec/plan/task-graph/policy changed after a context pack pinned their hashes
+- `code_changed_after_context`: files included in a context pack changed after compilation
+- `scope_path_missing`: task allowedFiles/forbiddenFiles paths that no longer exist (expectedFiles only once the task is done)
+- `mapped_test_missing`: test-map or traceability test paths that no longer exist
+- `spec_edited_after_tasks`: spec updated after the task graph was generated
+- `marker_task_mismatch`: implement authorization granted for a scope that has since changed
+- `evidence_predates_change`: verification evidence older than the current task definitions
+
+Exit code is 1 when error-severity drift exists and strictness is `strict`/`locked` (or `--strict` was passed). The PR gate enforces stale context provenance mechanically through rule VSP021.
 
 ## `visp verify [path]`
 
@@ -522,14 +552,14 @@ If bootstrap omits `--preset`, Visp Kit auto-detects before creating `.visp/conf
 
 Doctor flags:
 
-- `--target codex|generic|claude|copilot`
+- `--target codex|generic|claude|copilot|cursor|gemini`
 - `--fix`
 - `--dry-run`
 - `--json`
 
 Refresh flags:
 
-- `--target codex|generic|claude|copilot|all`
+- `--target codex|generic|claude|copilot|cursor|gemini|all`
 - `--force`
 - `--dry-run`
 - `--json`

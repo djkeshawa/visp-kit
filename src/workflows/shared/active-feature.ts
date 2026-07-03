@@ -7,14 +7,8 @@ import {
   projectStatusArtifactPath
 } from "../../artifacts/artifact-paths.js";
 import { readArtifact } from "../../artifacts/artifact-reader.js";
-import {
-  featureIntentSchema,
-  type FeatureIntent
-} from "../../artifacts/schemas/feature.schema.js";
-import {
-  projectStatusSchema,
-  type ProjectStatus
-} from "../../artifacts/schemas/project.schema.js";
+import { featureIntentSchema, type FeatureIntent } from "../../artifacts/schemas/feature.schema.js";
+import { projectStatusSchema, type ProjectStatus } from "../../artifacts/schemas/project.schema.js";
 import { VispError, toVispError } from "../../core/errors.js";
 import { pathExists } from "../../core/file-system.js";
 import { relativePath, vispDir } from "../../core/paths.js";
@@ -36,24 +30,17 @@ async function ensureVisp(targetPath: string): Promise<Result<void, VispError>> 
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Visp Kit is not initialized. Run `visp init` first."
-      )
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
     );
   }
 
   return ok(undefined);
 }
 
-async function activeSelector(
-  targetPath: string
-): Promise<Result<string, VispError>> {
-  const status = await readArtifact(
-    projectStatusArtifactPath(targetPath),
-    projectStatusSchema,
-    { artifactName: "project status" }
-  );
+async function activeSelector(targetPath: string): Promise<Result<string, VispError>> {
+  const status = await readArtifact(projectStatusArtifactPath(targetPath), projectStatusSchema, {
+    artifactName: "project status"
+  });
 
   if (!status.ok) return status;
 
@@ -115,12 +102,7 @@ function findMatchingFeature(
   const matches = [...new Set([...exact, ...byId, ...bySlug])].sort();
 
   if (matches.length === 0) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        `Feature not found: ${selector}.`
-      )
-    );
+    return err(new VispError("VALIDATION_FAILED", `Feature not found: ${selector}.`));
   }
 
   if (matches.length > 1) {
@@ -144,9 +126,7 @@ export async function resolveActiveFeature(input: {
   if (!initialized.ok) return initialized;
 
   const selector =
-    input.feature === undefined
-      ? await activeSelector(input.targetPath)
-      : ok(input.feature);
+    input.feature === undefined ? await activeSelector(input.targetPath) : ok(input.feature);
 
   if (!selector.ok) return selector;
 
@@ -161,9 +141,7 @@ export async function resolveActiveFeature(input: {
   const id = parseFeatureNumber(key.value);
 
   if (id === undefined) {
-    return err(
-      new VispError("VALIDATION_FAILED", `Invalid feature folder: ${key.value}.`)
-    );
+    return err(new VispError("VALIDATION_FAILED", `Invalid feature folder: ${key.value}.`));
   }
 
   const intent = await readArtifact(

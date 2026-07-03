@@ -50,14 +50,10 @@ function workflowOptions(
   };
 }
 
-export function createReconcileCommand(
-  dependencies: ReconcileCommandDependencies = {}
-): Command {
+export function createReconcileCommand(dependencies: ReconcileCommandDependencies = {}): Command {
   const runReconcile = dependencies.runReconcile ?? runReconcileWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("reconcile")
     .description("Reconcile Visp artifacts, evidence, and Git diff.")
@@ -67,16 +63,17 @@ export function createReconcileCommand(
     .option("--staged", "Reconcile staged changes only.")
     .option("--unstaged", "Reconcile unstaged changes only.")
     .option("--base <git-ref>", "Reconcile changes against a base Git ref.")
-    .option("--update-traceability", "Update traceability artifacts when reconciliation has no blocking errors.")
+    .option(
+      "--update-traceability",
+      "Update traceability artifacts when reconciliation has no blocking errors."
+    )
     .option("--update-task-status", "Update selected task status when reconciliation passes.")
     .option("--prompt-only", "Generate only reconcile prompt files.")
     .option("--force", "Allow safe status updates when reconciliation has warnings.")
     .option("--dry-run", "Show reconciliation results without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: ReconcileCommandOptions) => {
-      const result = await runReconcile(
-        workflowOptions(targetPath, options, dependencies.cwd)
-      );
+      const result = await runReconcile(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {
         writeWorkflowError({

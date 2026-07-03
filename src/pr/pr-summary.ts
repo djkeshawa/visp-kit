@@ -24,24 +24,34 @@ export function buildPrArtifact(input: {
   const feature = input.state.selectedFeature;
   const specRequirements = input.state.spec?.requirements ?? [];
   const traceability = input.state.traceability?.entries ?? [];
-  const tasks = input.taskId === undefined
-    ? input.state.taskGraph?.tasks ?? []
-    : (input.state.selectedTask === undefined ? [] : [input.state.selectedTask]);
-  const verificationCommands = input.state.verification?.commandValidation.commands
-    .filter((command) => !command.skipped)
-    .map((command) => command.command) ?? [];
+  const tasks =
+    input.taskId === undefined
+      ? (input.state.taskGraph?.tasks ?? [])
+      : input.state.selectedTask === undefined
+        ? []
+        : [input.state.selectedTask];
+  const verificationCommands =
+    input.state.verification?.commandValidation.commands
+      .filter((command) => !command.skipped)
+      .map((command) => command.command) ?? [];
   const reviewWarnings = input.state.review?.warnings ?? [];
   const reconcileFollowUps = input.state.reconcile?.followUpSuggestions ?? [];
   const checklistItems = input.state.implementationChecklist?.items ?? [];
-  const pendingRequired = checklistItems.filter((item) => item.required && item.status === "pending");
-  const blockedRequired = checklistItems.filter((item) => item.required && item.status === "blocked");
+  const pendingRequired = checklistItems.filter(
+    (item) => item.required && item.status === "pending"
+  );
+  const blockedRequired = checklistItems.filter(
+    (item) => item.required && item.status === "blocked"
+  );
   const usageItem = checklistItems.find((item) => item.id === "record-usage");
   const usage = input.state.actualUsage;
   const errors = [
     ...(input.state.verification?.success === false ? ["Verification failed."] : []),
     ...(input.state.review?.result === "failed" ? ["Review failed."] : []),
     ...(input.state.reconcile?.result === "failed" ? ["Reconciliation failed."] : []),
-    ...(input.state.implementationChecklist === undefined ? ["Implementation checklist is missing."] : []),
+    ...(input.state.implementationChecklist === undefined
+      ? ["Implementation checklist is missing."]
+      : []),
     ...(pendingRequired.length > 0 || blockedRequired.length > 0
       ? ["Required implementation checklist items are incomplete."]
       : [])
@@ -58,7 +68,9 @@ export function buildPrArtifact(input: {
 
       return {
         requirementId: requirement.id,
-        acceptanceCriterionIds: linked?.acceptanceCriterionIds ?? requirement.acceptanceCriteria.map((criterion) => criterion.id),
+        acceptanceCriterionIds:
+          linked?.acceptanceCriterionIds ??
+          requirement.acceptanceCriteria.map((criterion) => criterion.id),
         status: linked?.status === "missing" ? "missing" : "ready"
       };
     }),
@@ -77,16 +89,21 @@ export function buildPrArtifact(input: {
       changeType: file.changeType,
       additions: file.additions,
       deletions: file.deletions,
-      notes: file.isGeneratedVispFile ? "generated Visp artifact" : file.isTestFile ? "test change" : "implementation change"
+      notes: file.isGeneratedVispFile
+        ? "generated Visp artifact"
+        : file.isTestFile
+          ? "test change"
+          : "implementation change"
     })),
     validationEvidence: {
       status: evidenceStatus({
         present: input.state.verification !== undefined,
         passed: input.state.verification?.success
       }),
-      reportPath: input.state.selectedFeature === undefined
-        ? null
-        : `.visp/features/${input.state.selectedFeature.key}/verification.json`,
+      reportPath:
+        input.state.selectedFeature === undefined
+          ? null
+          : `.visp/features/${input.state.selectedFeature.key}/verification.json`,
       summary: [
         ...(input.state.verification === undefined ? ["Verification missing."] : []),
         ...verificationCommands.map((command) => `Command run: ${command}`)
@@ -98,9 +115,10 @@ export function buildPrArtifact(input: {
         result: input.state.review?.result
       }),
       reportPath: input.state.review?.reportPath ?? null,
-      summary: input.state.review === undefined
-        ? ["Review missing."]
-        : [`Review result: ${input.state.review.result}`, ...reviewWarnings]
+      summary:
+        input.state.review === undefined
+          ? ["Review missing."]
+          : [`Review result: ${input.state.review.result}`, ...reviewWarnings]
     },
     reconcileEvidence: {
       status: evidenceStatus({
@@ -108,14 +126,18 @@ export function buildPrArtifact(input: {
         result: input.state.reconcile?.result
       }),
       reportPath: input.state.reconcile?.reportPath ?? null,
-      summary: input.state.reconcile === undefined
-        ? ["Reconciliation missing."]
-        : [`Reconciliation result: ${input.state.reconcile.result}`]
+      summary:
+        input.state.reconcile === undefined
+          ? ["Reconciliation missing."]
+          : [`Reconciliation result: ${input.state.reconcile.result}`]
     },
     implementationChecklist: {
-      status: input.state.implementationChecklist === undefined
-        ? "missing"
-        : pendingRequired.length > 0 || blockedRequired.length > 0 ? "incomplete" : "complete",
+      status:
+        input.state.implementationChecklist === undefined
+          ? "missing"
+          : pendingRequired.length > 0 || blockedRequired.length > 0
+            ? "incomplete"
+            : "complete",
       pendingRequiredIds: pendingRequired.map((item) => item.id),
       blockedRequiredIds: blockedRequired.map((item) => item.id),
       usageStatus: usageItem?.status ?? "not_recorded",
@@ -133,12 +155,9 @@ export function buildPrArtifact(input: {
     },
     risks: [
       `Feature risk: ${input.state.selectedFeature?.intent?.riskLevel ?? "unknown"}`,
-      ...((input.state.plan?.risks ?? []).map((risk) => `${risk.id}: ${risk.description}`))
+      ...(input.state.plan?.risks ?? []).map((risk) => `${risk.id}: ${risk.description}`)
     ],
-    rollback: [
-      "Revert this PR.",
-      "Restore previous changed files if needed."
-    ],
+    rollback: ["Revert this PR.", "Restore previous changed files if needed."],
     checklist: [
       "Requirements are covered.",
       "Acceptance criteria are covered.",
@@ -156,7 +175,9 @@ export function buildPrArtifact(input: {
       ...reviewWarnings,
       ...(usage?.status === "unavailable"
         ? ["Actual token usage was recorded as unavailable and needs human awareness."]
-        : usage === undefined ? ["Actual token usage has not been recorded."] : [])
+        : usage === undefined
+          ? ["Actual token usage has not been recorded."]
+          : [])
     ],
     errors,
     generatedAt: input.generatedAt

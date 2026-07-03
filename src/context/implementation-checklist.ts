@@ -1,7 +1,4 @@
-import {
-  contextChecklistJsonPath,
-  contextChecklistPath
-} from "../artifacts/artifact-paths.js";
+import { contextChecklistJsonPath, contextChecklistPath } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import {
@@ -48,11 +45,15 @@ type ChecklistIdentity = {
 };
 
 const itemLabels: Record<ImplementationChecklistStep, string> = {
-  "read-context": "Read the context pack and current task prompt. Mark done: `visp checklist update --task <task-id> --item read-context --status done`",
+  "read-context":
+    "Read the context pack and current task prompt. Mark done: `visp checklist update --task <task-id> --item read-context --status done`",
   "gate-implement": "Confirm `visp gate implement --task <task-id>` allows implementation.",
-  "implement-selected-task": "Implement only <task-id>. Mark done: `visp checklist update --task <task-id> --item implement-selected-task --status done`",
-  "scope-check": "Keep changes inside allowed/expected files. Mark done: `visp checklist update --task <task-id> --item scope-check --status done`",
-  "tests-updated": "Update or add tests when behavior changes. Mark done: `visp checklist update --task <task-id> --item tests-updated --status done`",
+  "implement-selected-task":
+    "Implement only <task-id>. Mark done: `visp checklist update --task <task-id> --item implement-selected-task --status done`",
+  "scope-check":
+    "Keep changes inside allowed/expected files. Mark done: `visp checklist update --task <task-id> --item scope-check --status done`",
+  "tests-updated":
+    "Update or add tests when behavior changes. Mark done: `visp checklist update --task <task-id> --item tests-updated --status done`",
   "record-usage": "Record actual token usage, or mark it unavailable with a reason.",
   verify: "Run validation commands or report why they could not run.",
   review: "Run `visp review --task <task-id>`.",
@@ -89,14 +90,14 @@ function identityFromFeatureKey(featureKey: string, taskId: string): ChecklistId
 }
 
 function labelFor(step: ImplementationChecklistStep, taskId: string): string {
-  return itemLabels[step]
-    .replaceAll("<task-id>", taskId)
-    .replace("selected task", taskId);
+  return itemLabels[step].replaceAll("<task-id>", taskId).replace("selected task", taskId);
 }
 
-export function createImplementationChecklistArtifact(input: ChecklistIdentity & {
-  readonly generatedAt: string;
-}): ImplementationChecklistArtifact {
+export function createImplementationChecklistArtifact(
+  input: ChecklistIdentity & {
+    readonly generatedAt: string;
+  }
+): ImplementationChecklistArtifact {
   return {
     version: "1.0",
     featureId: input.featureId,
@@ -203,7 +204,10 @@ async function writeChecklist(input: {
 
   if (!json.ok) return json;
 
-  const markdown = await writeTextFile(markdownPath, renderImplementationChecklistMarkdown(input.artifact));
+  const markdown = await writeTextFile(
+    markdownPath,
+    renderImplementationChecklistMarkdown(input.artifact)
+  );
 
   if (!markdown.ok) return markdown;
   return ok(undefined);
@@ -216,10 +220,13 @@ function nextArtifact(input: {
   readonly taskId: string;
   readonly now: string;
 }): ImplementationChecklistArtifact {
-  return input.current ?? createImplementationChecklistArtifact({
-    ...identityFromFeatureKey(input.featureKey, input.taskId),
-    generatedAt: input.now
-  });
+  return (
+    input.current ??
+    createImplementationChecklistArtifact({
+      ...identityFromFeatureKey(input.featureKey, input.taskId),
+      generatedAt: input.now
+    })
+  );
 }
 
 export async function updateImplementationChecklistItem(input: {
@@ -239,15 +246,19 @@ export async function updateImplementationChecklistItem(input: {
   if (!current.ok) return current;
 
   if (current.value === undefined) {
-    const markdownExists = await pathExists(contextChecklistPath(input.targetPath, input.featureKey, input.taskId));
+    const markdownExists = await pathExists(
+      contextChecklistPath(input.targetPath, input.featureKey, input.taskId)
+    );
 
     if (!markdownExists.ok) return markdownExists;
     if (!markdownExists.value) {
-      return err(new VispError(
-        "VALIDATION_FAILED",
-        `Implementation checklist is missing for ${input.taskId}. Run \`visp context ${input.taskId}\` first.`,
-        { recovery: `visp context ${input.taskId}` }
-      ));
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Implementation checklist is missing for ${input.taskId}. Run \`visp context ${input.taskId}\` first.`,
+          { recovery: `visp context ${input.taskId}` }
+        )
+      );
     }
   }
 
@@ -369,9 +380,7 @@ export function summarizeImplementationChecklist(
   };
 }
 
-export function implementationChecklistStatusLine(
-  summary: ImplementationChecklistSummary
-): string {
+export function implementationChecklistStatusLine(summary: ImplementationChecklistSummary): string {
   if (!summary.exists) return "Implementation checklist: missing.";
 
   return `Implementation checklist: ${summary.pendingRequired.length} pending required, ${summary.blockedRequired.length} blocked required, usage ${summary.usageStatus}.`;
@@ -394,9 +403,17 @@ export async function getImplementationChecklistSummary(input: {
 
   if (!artifact.ok) return artifact;
 
-  return ok(summarizeImplementationChecklist(
-    artifact.value,
-    relativePath(input.targetPath, contextChecklistPath(input.targetPath, input.featureKey, input.taskId)),
-    relativePath(input.targetPath, contextChecklistJsonPath(input.targetPath, input.featureKey, input.taskId))
-  ));
+  return ok(
+    summarizeImplementationChecklist(
+      artifact.value,
+      relativePath(
+        input.targetPath,
+        contextChecklistPath(input.targetPath, input.featureKey, input.taskId)
+      ),
+      relativePath(
+        input.targetPath,
+        contextChecklistJsonPath(input.targetPath, input.featureKey, input.taskId)
+      )
+    )
+  );
 }

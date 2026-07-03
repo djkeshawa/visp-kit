@@ -2,10 +2,7 @@ import {
   type OverrideArtifact,
   type OverrideRecord
 } from "../artifacts/schemas/override.schema.js";
-import {
-  type GateRuleFinding,
-  type GateStage
-} from "../artifacts/schemas/gate.schema.js";
+import { type GateRuleFinding, type GateStage } from "../artifacts/schemas/gate.schema.js";
 import { type PolicyArtifact } from "../artifacts/schemas/policy.schema.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
 import { overrideExpired } from "./override-expiry.js";
@@ -29,13 +26,12 @@ function featureMatches(override: OverrideRecord, state: ProjectState): boolean 
   if (feature === undefined) return false;
 
   return (
-    override.featureId === undefined ||
-    override.featureId === null ||
-    override.featureId === feature.id
-  ) && (
-    override.featureSlug === undefined ||
-    override.featureSlug === null ||
-    override.featureSlug === feature.slug
+    (override.featureId === undefined ||
+      override.featureId === null ||
+      override.featureId === feature.id) &&
+    (override.featureSlug === undefined ||
+      override.featureSlug === null ||
+      override.featureSlug === feature.slug)
   );
 }
 
@@ -53,11 +49,12 @@ function scopeMatches(input: {
 
   if (override.scope === "project") return true;
   if (override.scope === "feature") return featureMatches(override, state);
-  if (override.scope === "task") return featureMatches(override, state) && taskMatches(override, state);
+  if (override.scope === "task")
+    return featureMatches(override, state) && taskMatches(override, state);
   if (override.scope === "stage") {
-    return override.stage === stage &&
-      featureMatches(override, state) &&
-      taskMatches(override, state);
+    return (
+      override.stage === stage && featureMatches(override, state) && taskMatches(override, state)
+    );
   }
 
   return false;
@@ -89,13 +86,14 @@ export function findApplicableOverride(input: {
   readonly overrides: OverrideArtifact;
   readonly now: string;
 }): AppliedOverride | undefined {
-  const override = input.overrides.overrides.find((item) =>
-    canApply({
-      override: item,
-      rule: input.rule,
-      policy: input.policy,
-      now: input.now
-    }) &&
+  const override = input.overrides.overrides.find(
+    (item) =>
+      canApply({
+        override: item,
+        rule: input.rule,
+        policy: input.policy,
+        now: input.now
+      }) &&
       scopeMatches({
         override: item,
         stage: input.stage,

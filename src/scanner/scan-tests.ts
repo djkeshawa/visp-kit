@@ -22,10 +22,7 @@ function sourceNameForTest(testPath: string): string {
     .replace(/\.(tsx|jsx)$/, ".ts");
 }
 
-function inferTarget(
-  testPath: string,
-  sourceFiles: readonly FileIndexEntry[]
-): string | null {
+function inferTarget(testPath: string, sourceFiles: readonly FileIndexEntry[]): string | null {
   const sourceName = sourceNameForTest(testPath);
   const sameDirectory = testPath.replace(/\.(?:test|spec)\./, ".");
   const direct = sourceFiles.find((file) => file.path === sameDirectory);
@@ -34,9 +31,7 @@ function inferTarget(
     return direct.path;
   }
 
-  return (
-    sourceFiles.find((file) => path.basename(file.path) === sourceName)?.path ?? null
-  );
+  return sourceFiles.find((file) => path.basename(file.path) === sourceName)?.path ?? null;
 }
 
 export function buildTestMap(input: {

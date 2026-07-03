@@ -20,11 +20,7 @@ export class VispError extends Error {
   readonly details?: VispErrorDetails;
   readonly recovery?: string;
 
-  constructor(
-    code: VispErrorCode,
-    message: string,
-    options: VispErrorOptions = {}
-  ) {
+  constructor(code: VispErrorCode, message: string, options: VispErrorOptions = {}) {
     super(message, { cause: options.cause });
     this.code = code;
     this.details = options.details;
@@ -32,10 +28,7 @@ export class VispError extends Error {
   }
 }
 
-export function toVispError(
-  error: unknown,
-  fallbackCode: VispErrorCode = "UNKNOWN"
-): VispError {
+export function toVispError(error: unknown, fallbackCode: VispErrorCode = "UNKNOWN"): VispError {
   if (error instanceof VispError) {
     return error;
   }

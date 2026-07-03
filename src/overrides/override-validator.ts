@@ -35,30 +35,29 @@ export function isNonOverridableRule(input: {
 }
 
 function scopeErrors(override: OverrideRecord): readonly string[] {
-  if (override.scope === "feature" && (
-    override.featureId === undefined ||
-    override.featureId === null ||
-    override.featureSlug === undefined ||
-    override.featureSlug === null
-  )) {
+  if (
+    override.scope === "feature" &&
+    (override.featureId === undefined ||
+      override.featureId === null ||
+      override.featureSlug === undefined ||
+      override.featureSlug === null)
+  ) {
     return [`${override.id}: feature scope requires featureId and featureSlug.`];
   }
 
-  if (override.scope === "task" && (
-    override.featureId === undefined ||
-    override.featureId === null ||
-    override.featureSlug === undefined ||
-    override.featureSlug === null ||
-    override.taskId === undefined ||
-    override.taskId === null
-  )) {
+  if (
+    override.scope === "task" &&
+    (override.featureId === undefined ||
+      override.featureId === null ||
+      override.featureSlug === undefined ||
+      override.featureSlug === null ||
+      override.taskId === undefined ||
+      override.taskId === null)
+  ) {
     return [`${override.id}: task scope requires feature and taskId.`];
   }
 
-  if (override.scope === "stage" && (
-    override.stage === undefined ||
-    override.stage === null
-  )) {
+  if (override.scope === "stage" && (override.stage === undefined || override.stage === null)) {
     return [`${override.id}: stage scope requires stage.`];
   }
 
@@ -96,7 +95,10 @@ export function validateOverrideArtifact(input: {
       errors.push(`${override.id}: ${reasonErrors.join(" ")}`);
     }
 
-    if (override.status === "active" && overrideExpired({ expiresAt: override.expiresAt, now: input.now })) {
+    if (
+      override.status === "active" &&
+      overrideExpired({ expiresAt: override.expiresAt, now: input.now })
+    ) {
       warnings.push(`${override.id}: override has expired and will not apply.`);
     }
 

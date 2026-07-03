@@ -26,9 +26,7 @@ describe("plan schema", () => {
           assumed: ["assumed"],
           unknown: ["unknown"]
         },
-        affectedModules: [
-          { moduleOrFileArea: "src", reason: "TBD", evidence: "TBD" }
-        ],
+        affectedModules: [{ moduleOrFileArea: "src", reason: "TBD", evidence: "TBD" }],
         implementationApproach: "TBD",
         impacts: {
           dataModel: "None",
@@ -37,9 +35,7 @@ describe("plan schema", () => {
           securityPrivacy: "None",
           performance: "None"
         },
-        testingStrategy: [
-          { level: "unit", whatToTest: "TBD", validationCommand: "pnpm test" }
-        ],
+        testingStrategy: [{ level: "unit", whatToTest: "TBD", validationCommand: "pnpm test" }],
         rollbackStrategy: "TBD",
         alternatives: [{ option: "A", decision: "rejected", reason: "TBD" }],
         dependencies: {

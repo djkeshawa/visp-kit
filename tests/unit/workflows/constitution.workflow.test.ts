@@ -74,10 +74,7 @@ describe("runConstitutionWorkflow", () => {
     ]);
     expect(summary.validation.passed).toBe(true);
     expect(
-      await readFile(
-        path.join(tempDir, ".visp", "memory", "constitution.md"),
-        "utf8"
-      )
+      await readFile(path.join(tempDir, ".visp", "memory", "constitution.md"), "utf8")
     ).toContain("explicit types");
   });
 
@@ -117,10 +114,7 @@ describe("runConstitutionWorkflow", () => {
         force: true
       })
     );
-    const full = await readFile(
-      path.join(tempDir, ".visp", "memory", "constitution.md"),
-      "utf8"
-    );
+    const full = await readFile(path.join(tempDir, ".visp", "memory", "constitution.md"), "utf8");
 
     expect(summary.overwrittenFiles).toContain(".visp/memory/constitution.md");
     expect(full).toContain("unsafe IPC");
@@ -130,9 +124,7 @@ describe("runConstitutionWorkflow", () => {
   it("dry-run writes nothing", async () => {
     await mkdir(path.join(tempDir, ".visp"), { recursive: true });
 
-    const summary = expectOk(
-      await runConstitutionWorkflow({ targetPath: tempDir, dryRun: true })
-    );
+    const summary = expectOk(await runConstitutionWorkflow({ targetPath: tempDir, dryRun: true }));
 
     expect(summary.dryRun).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "memory"))).toBe(false);

@@ -56,14 +56,10 @@ function workflowOptions(
   };
 }
 
-export function createVerifyCommand(
-  dependencies: VerifyCommandDependencies = {}
-): Command {
+export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}): Command {
   const runVerify = dependencies.runVerify ?? runVerifyWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("verify")
     .description("Run deterministic Visp verification gates.")
@@ -83,9 +79,7 @@ export function createVerifyCommand(
     .option("--dry-run", "Show verification plan without running commands or writing reports.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: VerifyCommandOptions) => {
-      const result = await runVerify(
-        workflowOptions(targetPath, options, dependencies.cwd)
-      );
+      const result = await runVerify(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {
         writeWorkflowError({

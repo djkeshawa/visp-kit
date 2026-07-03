@@ -8,13 +8,9 @@ import {
 
 describe("constitution rendering", () => {
   it("renders compact rules as C### lines", () => {
-    const compact = renderCompactConstitution(
-      buildConstitutionRules("generic", "lean")
-    );
+    const compact = renderCompactConstitution(buildConstitutionRules("generic", "lean"));
 
-    expect(compact.split("\n")[0]).toBe(
-      "C001: Keep functions small, specific, and readable."
-    );
+    expect(compact.split("\n")[0]).toBe("C001: Keep functions small, specific, and readable.");
     expect(compact).not.toContain("#");
   });
 

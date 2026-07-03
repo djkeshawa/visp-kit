@@ -1,11 +1,8 @@
 import { type CommandRunner } from "../core/command-runner.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { ok, type Result } from "../core/result.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
-import {
-  recommendNextStep,
-  type NextStep
-} from "../orchestrator/next-step.js";
+import { recommendNextStep, type NextStep } from "../orchestrator/next-step.js";
 import { evaluatePolicyGate } from "../gates/policy-gate-summary.js";
 import { formatHeader } from "../theme/terminal.js";
 
@@ -39,22 +36,24 @@ export async function runNextWorkflow(
     feature: options.feature,
     taskId: options.taskId ?? state.value.selectedTask?.id
   });
-  const implementationGate = state.value.selectedTask === undefined
-    ? undefined
-    : await evaluatePolicyGate({
-        targetPath: state.value.targetPath,
-        stage: "implement",
-        feature: options.feature,
-        taskId: options.taskId ?? state.value.selectedTask.id
-      });
-  const prGate = state.value.selectedFeature === undefined
-    ? undefined
-    : await evaluatePolicyGate({
-        targetPath: state.value.targetPath,
-        stage: "pr",
-        feature: options.feature,
-        taskId: options.taskId ?? state.value.selectedTask?.id
-      });
+  const implementationGate =
+    state.value.selectedTask === undefined
+      ? undefined
+      : await evaluatePolicyGate({
+          targetPath: state.value.targetPath,
+          stage: "implement",
+          feature: options.feature,
+          taskId: options.taskId ?? state.value.selectedTask.id
+        });
+  const prGate =
+    state.value.selectedFeature === undefined
+      ? undefined
+      : await evaluatePolicyGate({
+          targetPath: state.value.targetPath,
+          stage: "pr",
+          feature: options.feature,
+          taskId: options.taskId ?? state.value.selectedTask?.id
+        });
 
   if (!nextGate.ok) {
     return ok(fallback);
@@ -62,7 +61,9 @@ export async function runNextWorkflow(
 
   const gateWarnings = [
     ...nextGate.value.warnings,
-    ...(implementationGate?.ok === false ? [`Implementation gate unavailable: ${implementationGate.error.message}`] : []),
+    ...(implementationGate?.ok === false
+      ? [`Implementation gate unavailable: ${implementationGate.error.message}`]
+      : []),
     ...(prGate?.ok === false ? [`PR gate unavailable: ${prGate.error.message}`] : [])
   ];
   const blockedCommands = [
@@ -79,13 +80,10 @@ export async function runNextWorkflow(
       : []),
     ...(prGate?.ok && !prGate.value.allowed ? prGate.value.failedRules : [])
   ];
-  const existingPreparationCommands = new Set([
-    "visp scan",
-    "visp constitution"
-  ]);
+  const existingPreparationCommands = new Set(["visp scan", "visp constitution"]);
   const nextCommand =
     existingPreparationCommands.has(fallback.nextCommand) &&
-      nextGate.value.nextAllowedCommand !== "visp policy init --strictness strict"
+    nextGate.value.nextAllowedCommand !== "visp policy init --strictness strict"
       ? fallback.nextCommand
       : nextGate.value.nextAllowedCommand;
   const implementationAllowed = implementationGate?.ok ? implementationGate.value.allowed : false;
@@ -95,9 +93,10 @@ export async function runNextWorkflow(
     ...fallback,
     success: nextGate.value.allowed && fallback.success,
     nextCommand,
-    reason: nextCommand === fallback.nextCommand
-      ? fallback.reason
-      : "Policy gate selected the next allowed command.",
+    reason:
+      nextCommand === fallback.nextCommand
+        ? fallback.reason
+        : "Policy gate selected the next allowed command.",
     warnings: [...new Set([...fallback.warnings, ...gateWarnings])],
     blockers: [
       ...fallback.blockers,
@@ -118,10 +117,13 @@ export async function runNextWorkflow(
   });
 }
 
-export function formatNextSummary(summary: NextStep, options: {
-  readonly commandOnly?: boolean;
-  readonly explain?: boolean;
-} = {}): string {
+export function formatNextSummary(
+  summary: NextStep,
+  options: {
+    readonly commandOnly?: boolean;
+    readonly explain?: boolean;
+  } = {}
+): string {
   if (options.commandOnly) {
     return `${summary.nextCommand}\n`;
   }
@@ -129,20 +131,13 @@ export function formatNextSummary(summary: NextStep, options: {
   const lines = [
     formatHeader("Visp next"),
     "",
-    ...(summary.strictnessMode === undefined ? [] : [
-      `Strictness: ${summary.strictnessMode}`,
-      ""
-    ]),
+    ...(summary.strictnessMode === undefined ? [] : [`Strictness: ${summary.strictnessMode}`, ""]),
     "Next:",
     `  ${summary.nextCommand}`
   ];
 
   if (options.explain) {
-    lines.push(
-      "",
-      "Reason:",
-      `  ${summary.reason}`
-    );
+    lines.push("", "Reason:", `  ${summary.reason}`);
   }
 
   if (summary.blockers.length > 0) {
@@ -153,8 +148,8 @@ export function formatNextSummary(summary: NextStep, options: {
     lines.push(
       "",
       "Blocked:",
-      ...(summary.blockedCommands ?? []).map((blocked) =>
-        `  ${blocked.command}\n    ${blocked.ruleId}: ${blocked.reason}`
+      ...(summary.blockedCommands ?? []).map(
+        (blocked) => `  ${blocked.command}\n    ${blocked.ruleId}: ${blocked.reason}`
       )
     );
   }

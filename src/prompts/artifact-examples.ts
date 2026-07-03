@@ -88,10 +88,7 @@ export const clarificationAssumptionExample = {
   accepted: true
 } satisfies ClarificationAssumption;
 
-export function enumLine(
-  label: string,
-  schema: { readonly options: readonly string[] }
-): string {
+export function enumLine(label: string, schema: { readonly options: readonly string[] }): string {
   return `- ${label}: ${schema.options.join(" | ")}`;
 }
 
@@ -131,7 +128,7 @@ export function tasksFieldValuesSection(): string {
     "Field values (exact, no other values are valid):",
     enumLine("status", taskStatusSchema),
     enumLine("riskLevel", riskLevelSchema),
-    "- IDs: T001, T002 - zero-padded and sequential. New tasks start as status \"pending\".",
+    '- IDs: T001, T002 - zero-padded and sequential. New tasks start as status "pending".',
     "",
     "Example task entry in task-graph.json:",
     jsonBlock(taskExample)
@@ -142,7 +139,7 @@ export function clarifyFieldValuesSection(): string {
   return [
     "Field values (exact, no other values are valid):",
     enumLine("category", clarificationQuestionCategorySchema),
-    "- status: new questions start as \"unanswered\" with answer set to \"\".",
+    '- status: new questions start as "unanswered" with answer set to "".',
     "- IDs: CQ001 for questions, ASM001 for assumptions - zero-padded and sequential.",
     "",
     "Example question entry in clarifications.json:",

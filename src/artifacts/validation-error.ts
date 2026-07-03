@@ -6,10 +6,7 @@ function formatIssuePath(path: readonly (string | number)[]): string {
   return path.length > 0 ? path.map(String).join(".") : "(root)";
 }
 
-export function formatValidationError(
-  error: ZodError,
-  artifactName = "artifact"
-): string {
+export function formatValidationError(error: ZodError, artifactName = "artifact"): string {
   const lines = [`Invalid ${artifactName}:`];
 
   for (const issue of error.issues) {

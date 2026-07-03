@@ -2,7 +2,7 @@ import { type ZodType } from "zod";
 
 import { readArtifact } from "../../artifacts/artifact-reader.js";
 import { projectStatusArtifactPath } from "../../artifacts/artifact-paths.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { pathExists, readTextFile } from "../../core/file-system.js";
 import { relativePath } from "../../core/paths.js";
 import { ok, type Result } from "../../core/result.js";
@@ -140,10 +140,7 @@ export async function completeTemplateWorkflow(input: {
     );
   }
 
-  const files =
-    input.promptOnly
-      ? [input.promptFile]
-      : [...input.files, input.promptFile];
+  const files = input.promptOnly ? [input.promptFile] : [...input.files, input.promptFile];
   const actions = await writeGeneratedFiles(files, {
     force: input.force,
     dryRun: input.dryRun
@@ -205,7 +202,9 @@ export async function completeTemplateWorkflow(input: {
     },
     success: input.validation.passed,
     result: input.validation.passed
-      ? input.warnings.length > 0 ? "warnings" : "passed"
+      ? input.warnings.length > 0
+        ? "warnings"
+        : "passed"
       : "failed",
     actions: finalActions,
     warnings: input.warnings,

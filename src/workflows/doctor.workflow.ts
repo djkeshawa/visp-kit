@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { doctorReportArtifactPath } from "../artifacts/artifact-paths.js";
 import { type CommandRunner } from "../core/command-runner.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
@@ -12,10 +12,7 @@ import {
   type DoctorFinding,
   runDoctorChecks
 } from "../doctor/doctor-checks.js";
-import {
-  applySafeDoctorFixes,
-  type DoctorFixResult
-} from "../doctor/doctor-fixes.js";
+import { applySafeDoctorFixes, type DoctorFixResult } from "../doctor/doctor-fixes.js";
 import { renderDoctorMarkdown } from "../doctor/doctor-report.js";
 import { recommendNextStep } from "../orchestrator/next-step.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
@@ -86,12 +83,13 @@ export async function runDoctorWorkflow(
   });
   const findings = checks.flatMap((check) => check.findings);
   const result = resultFromFindings(findings);
-  const fixes = options.fix && state.value.initialized
-    ? await applySafeDoctorFixes({
-        targetPath: state.value.targetPath,
-        dryRun: options.dryRun
-      })
-    : [];
+  const fixes =
+    options.fix && state.value.initialized
+      ? await applySafeDoctorFixes({
+          targetPath: state.value.targetPath,
+          dryRun: options.dryRun
+        })
+      : [];
   const next = recommendNextStep({ state: state.value });
   let reportPath: string | null = null;
 
@@ -154,7 +152,11 @@ export function formatDoctorSummary(summary: DoctorSummary): string {
   ];
 
   if (summary.findings.length > 0) {
-    lines.push("", "Issues:", ...summary.findings.map((finding) => `  ${finding.id}: ${finding.title}`));
+    lines.push(
+      "",
+      "Issues:",
+      ...summary.findings.map((finding) => `  ${finding.id}: ${finding.title}`)
+    );
   }
 
   if (summary.reportPath !== null) {

@@ -14,10 +14,12 @@ export function hasValidationFallback(state: ProjectState): boolean {
 
   if (profile === undefined) return false;
 
-  return [
-    ...profile.testCommands,
-    ...profile.typecheckCommands,
-    ...profile.lintCommands,
-    ...profile.buildCommands
-  ].length > 0;
+  return (
+    [
+      ...profile.testCommands,
+      ...profile.typecheckCommands,
+      ...profile.lintCommands,
+      ...profile.buildCommands
+    ].length > 0
+  );
 }

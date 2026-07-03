@@ -33,13 +33,20 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
-import { budgetArtifactSchema, type BudgetArtifact, type BudgetUsage } from "../artifacts/schemas/budget.schema.js";
+import {
+  budgetArtifactSchema,
+  type BudgetArtifact,
+  type BudgetUsage
+} from "../artifacts/schemas/budget.schema.js";
 import { featureIntentSchema, type FeatureIntent } from "../artifacts/schemas/feature.schema.js";
 import {
   implementationChecklistArtifactSchema,
   type ImplementationChecklistArtifact
 } from "../artifacts/schemas/implementation-checklist.schema.js";
-import { planDraftArtifactSchema, type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
+import {
+  planDraftArtifactSchema,
+  type PlanDraftArtifact
+} from "../artifacts/schemas/plan.schema.js";
 import {
   projectConfigSchema,
   projectProfileSchema,
@@ -49,12 +56,25 @@ import {
   type ProjectStatus
 } from "../artifacts/schemas/project.schema.js";
 import { prArtifactSchema, type PrArtifact } from "../artifacts/schemas/pr.schema.js";
-import { reconcileReportSchema, type ReconcileReport } from "../artifacts/schemas/reconcile.schema.js";
+import {
+  reconcileReportSchema,
+  type ReconcileReport
+} from "../artifacts/schemas/reconcile.schema.js";
 import { reviewReportSchema, type ReviewReport } from "../artifacts/schemas/review.schema.js";
 import { specArtifactSchema, type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
-import { type Task, taskGraphArtifactSchema, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
-import { traceabilityMatrixSchema, type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
-import { verificationReportSchema, type VerificationReport } from "../artifacts/schemas/verification.schema.js";
+import {
+  type Task,
+  taskGraphArtifactSchema,
+  type TaskGraphArtifact
+} from "../artifacts/schemas/task.schema.js";
+import {
+  traceabilityMatrixSchema,
+  type TraceabilityMatrix
+} from "../artifacts/schemas/traceability.schema.js";
+import {
+  verificationReportSchema,
+  type VerificationReport
+} from "../artifacts/schemas/verification.schema.js";
 import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 import { VispError, toVispError } from "../core/errors.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
@@ -170,27 +190,34 @@ async function featureNames(targetPath: string): Promise<readonly string[]> {
       withFileTypes: true
     });
 
-    return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
   } catch {
     return [];
   }
 }
 
-function featureSelector(status: ProjectStatus | undefined, feature: string | undefined): string | undefined {
+function featureSelector(
+  status: ProjectStatus | undefined,
+  feature: string | undefined
+): string | undefined {
   if (feature !== undefined) return feature;
-  return status?.activeFeaturePath?.split("/").at(-1) ??
+  return (
+    status?.activeFeaturePath?.split("/").at(-1) ??
     status?.activeFeatureId ??
     status?.activeFeatureSlug ??
-    undefined;
+    undefined
+  );
 }
 
 function matchFeature(names: readonly string[], selector: string | undefined): string | undefined {
   if (selector === undefined || selector.trim().length === 0) return undefined;
   const normalized = selector.trim();
-  const matches = names.filter((name) =>
-    name === normalized ||
-      name.startsWith(`${normalized}-`) ||
-      slugFromKey(name) === normalized
+  const matches = names.filter(
+    (name) =>
+      name === normalized || name.startsWith(`${normalized}-`) || slugFromKey(name) === normalized
   );
 
   return matches.length === 1 ? matches[0] : undefined;
@@ -221,10 +248,12 @@ export function selectWorkflowTask(input: {
 
   if (exact !== undefined) return exact;
 
-  return tasks.find((task) => task.status === "ready") ??
+  return (
+    tasks.find((task) => task.status === "ready") ??
     tasks.find((task) => task.status === "pending") ??
     tasks.find((task) => task.status !== "done" && task.status !== "verified") ??
-    tasks[0];
+    tasks[0]
+  );
 }
 
 async function gitState(targetPath: string, runner: CommandRunner): Promise<GitState> {
@@ -263,7 +292,10 @@ async function gitState(targetPath: string, runner: CommandRunner): Promise<GitS
   };
 }
 
-async function scanIsPopulated(targetPath: string, scanCacheFiles: Record<string, boolean>): Promise<boolean> {
+async function scanIsPopulated(
+  targetPath: string,
+  scanCacheFiles: Record<string, boolean>
+): Promise<boolean> {
   if (!Object.values(scanCacheFiles).every(Boolean)) return false;
 
   const meta = await readJsonFile<Record<string, unknown>>(scanMetaArtifactPath(targetPath));
@@ -332,72 +364,96 @@ export async function loadProjectState(
   });
   const names = await featureNames(targetPath);
   const key = matchFeature(names, featureSelector(status, options.feature));
-  const featureId = key === undefined ? undefined : String(parseFeatureNumber(key) ?? "").padStart(3, "0");
-  const selectedFeature = key === undefined
-    ? undefined
-    : {
-        id: featureId ?? key.slice(0, 3),
-        slug: slugFromKey(key),
-        key,
-        relativePath: `.visp/features/${key}`,
-        intent: await readOptional({
-          filePath: featureIntentArtifactPath(targetPath, key),
-          schema: featureIntentSchema,
-          artifactName: "feature intent",
-          warnings
-        })
-      };
+  const featureId =
+    key === undefined ? undefined : String(parseFeatureNumber(key) ?? "").padStart(3, "0");
+  const selectedFeature =
+    key === undefined
+      ? undefined
+      : {
+          id: featureId ?? key.slice(0, 3),
+          slug: slugFromKey(key),
+          key,
+          relativePath: `.visp/features/${key}`,
+          intent: await readOptional({
+            filePath: featureIntentArtifactPath(targetPath, key),
+            schema: featureIntentSchema,
+            artifactName: "feature intent",
+            warnings
+          })
+        };
 
   if (options.feature !== undefined && selectedFeature === undefined) {
     errors.push(`Feature not found: ${options.feature}.`);
   }
 
-  const taskGraph = key === undefined ? undefined : await readOptional({
-    filePath: taskGraphArtifactPath(targetPath, key),
-    schema: taskGraphArtifactSchema,
-    artifactName: "task graph",
-    warnings
-  });
+  const taskGraph =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath: taskGraphArtifactPath(targetPath, key),
+          schema: taskGraphArtifactSchema,
+          artifactName: "task graph",
+          warnings
+        });
   const selectedTask = selectWorkflowTask({
     taskGraph,
     taskId: options.taskId,
     activeTaskId: status?.activeTaskId
   });
 
-  if (options.taskId !== undefined && taskGraph !== undefined && selectedTask?.id !== options.taskId) {
+  if (
+    options.taskId !== undefined &&
+    taskGraph !== undefined &&
+    selectedTask?.id !== options.taskId
+  ) {
     errors.push(`Task not found: ${options.taskId}.`);
   }
 
-  const spec = key === undefined ? undefined : await readOptional({
-    filePath: specArtifactPath(targetPath, key),
-    schema: specArtifactSchema,
-    artifactName: "spec",
-    warnings
-  });
-  const plan = key === undefined ? undefined : await readOptional({
-    filePath: planArtifactPath(targetPath, key),
-    schema: planDraftArtifactSchema,
-    artifactName: "plan",
-    warnings
-  });
-  const traceability = key === undefined ? undefined : await readOptional({
-    filePath: traceabilityArtifactPath(targetPath, key),
-    schema: traceabilityMatrixSchema,
-    artifactName: "traceability",
-    warnings
-  });
-  const contextPack = key === undefined || selectedTask === undefined ? undefined : await readOptional({
-    filePath: contextPackArtifactPath(targetPath, key, selectedTask.id),
-    schema: contextPackSchema,
-    artifactName: "context pack",
-    warnings
-  });
-  const implementationChecklist = key === undefined || selectedTask === undefined ? undefined : await readOptional({
-    filePath: contextChecklistJsonPath(targetPath, key, selectedTask.id),
-    schema: implementationChecklistArtifactSchema,
-    artifactName: "implementation checklist",
-    warnings
-  });
+  const spec =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath: specArtifactPath(targetPath, key),
+          schema: specArtifactSchema,
+          artifactName: "spec",
+          warnings
+        });
+  const plan =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath: planArtifactPath(targetPath, key),
+          schema: planDraftArtifactSchema,
+          artifactName: "plan",
+          warnings
+        });
+  const traceability =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath: traceabilityArtifactPath(targetPath, key),
+          schema: traceabilityMatrixSchema,
+          artifactName: "traceability",
+          warnings
+        });
+  const contextPack =
+    key === undefined || selectedTask === undefined
+      ? undefined
+      : await readOptional({
+          filePath: contextPackArtifactPath(targetPath, key, selectedTask.id),
+          schema: contextPackSchema,
+          artifactName: "context pack",
+          warnings
+        });
+  const implementationChecklist =
+    key === undefined || selectedTask === undefined
+      ? undefined
+      : await readOptional({
+          filePath: contextChecklistJsonPath(targetPath, key, selectedTask.id),
+          schema: implementationChecklistArtifactSchema,
+          artifactName: "implementation checklist",
+          warnings
+        });
   const budget = await readOptional({
     filePath: budgetArtifactPath(targetPath),
     schema: budgetArtifactSchema,
@@ -405,41 +461,56 @@ export async function loadProjectState(
     warnings
   });
   const actualUsage = budget?.usage
-    .filter((usage) =>
-      selectedFeature !== undefined &&
-      selectedTask !== undefined &&
-      usage.featureId === selectedFeature.id &&
-      usage.taskId === selectedTask.id
+    .filter(
+      (usage) =>
+        selectedFeature !== undefined &&
+        selectedTask !== undefined &&
+        usage.featureId === selectedFeature.id &&
+        usage.taskId === selectedTask.id
     )
     .sort((left, right) => right.recordedAt.localeCompare(left.recordedAt))[0];
-  const verification = key === undefined ? undefined : await readOptional({
-    filePath: verificationArtifactPath(targetPath, key),
-    schema: verificationReportSchema,
-    artifactName: "verification report",
-    warnings
-  });
-  const review = key === undefined ? undefined : await readOptional({
-    filePath: selectedTask === undefined
-      ? featureReviewArtifactPath(targetPath, key)
-      : taskReviewArtifactPath(targetPath, key, selectedTask.id),
-    schema: reviewReportSchema,
-    artifactName: "review report",
-    warnings
-  });
-  const reconcile = key === undefined ? undefined : await readOptional({
-    filePath: selectedTask === undefined
-      ? featureReconcileArtifactPath(targetPath, key)
-      : taskReconcileArtifactPath(targetPath, key, selectedTask.id),
-    schema: reconcileReportSchema,
-    artifactName: "reconcile report",
-    warnings
-  });
-  const pr = key === undefined ? undefined : await readOptional({
-    filePath: featurePrArtifactPath(targetPath, key),
-    schema: prArtifactSchema,
-    artifactName: "PR summary",
-    warnings
-  });
+  const verification =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath: verificationArtifactPath(targetPath, key),
+          schema: verificationReportSchema,
+          artifactName: "verification report",
+          warnings
+        });
+  const review =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath:
+            selectedTask === undefined
+              ? featureReviewArtifactPath(targetPath, key)
+              : taskReviewArtifactPath(targetPath, key, selectedTask.id),
+          schema: reviewReportSchema,
+          artifactName: "review report",
+          warnings
+        });
+  const reconcile =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath:
+            selectedTask === undefined
+              ? featureReconcileArtifactPath(targetPath, key)
+              : taskReconcileArtifactPath(targetPath, key, selectedTask.id),
+          schema: reconcileReportSchema,
+          artifactName: "reconcile report",
+          warnings
+        });
+  const pr =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath: featurePrArtifactPath(targetPath, key),
+          schema: prArtifactSchema,
+          artifactName: "PR summary",
+          warnings
+        });
   const scanCacheFiles = {
     "file-index.json": await exists(fileIndexArtifactPath(targetPath)),
     "file-summaries.json": await exists(fileSummariesArtifactPath(targetPath)),
@@ -449,7 +520,8 @@ export async function loadProjectState(
     "scan-meta.json": await exists(scanMetaArtifactPath(targetPath))
   };
   const artifactSummary: ArtifactSummary = {
-    clarifications: key === undefined ? false : await exists(clarificationsArtifactPath(targetPath, key)),
+    clarifications:
+      key === undefined ? false : await exists(clarificationsArtifactPath(targetPath, key)),
     spec: spec !== undefined,
     plan: plan !== undefined,
     taskGraph: taskGraph !== undefined,
@@ -506,11 +578,17 @@ export function stateError(error: unknown): VispError {
 export function featureReviewPath(state: ProjectState): string | null {
   return state.selectedFeature === undefined
     ? null
-    : relativePath(state.targetPath, featureReviewArtifactPath(state.targetPath, state.selectedFeature.key));
+    : relativePath(
+        state.targetPath,
+        featureReviewArtifactPath(state.targetPath, state.selectedFeature.key)
+      );
 }
 
 export function reconcileReportDirectory(state: ProjectState): string | null {
   return state.selectedFeature === undefined
     ? null
-    : relativePath(state.targetPath, reconcileArtifactDir(state.targetPath, state.selectedFeature.key));
+    : relativePath(
+        state.targetPath,
+        reconcileArtifactDir(state.targetPath, state.selectedFeature.key)
+      );
 }

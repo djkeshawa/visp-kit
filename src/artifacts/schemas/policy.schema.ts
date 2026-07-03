@@ -2,12 +2,7 @@ import { z } from "zod";
 
 import { isoDateTimeSchema, nonEmptyStringSchema } from "./common.schema.js";
 
-export const strictnessModeSchema = z.enum([
-  "relaxed",
-  "standard",
-  "strict",
-  "locked"
-]);
+export const strictnessModeSchema = z.enum(["relaxed", "standard", "strict", "locked"]);
 
 export const policyRulesSchema = z
   .object({
@@ -30,7 +25,10 @@ export const policyRulesSchema = z
     requireTraceabilityUpdateBeforePr: z.boolean(),
     requirePolicyValidation: z.boolean(),
     userPromptCannotOverridePolicy: z.boolean(),
-    stopOnFailedGate: z.boolean()
+    stopOnFailedGate: z.boolean(),
+    // Optional so policy files written before this rule existed keep
+    // validating; gates fall back to the strictness default when absent.
+    blockOnUnresolvedDrift: z.boolean().optional()
   })
   .strict();
 

@@ -69,6 +69,8 @@ describe("phase 7 prompt renderers", () => {
       "- status: pending | ready | in_progress | blocked | done | verified"
     );
     expect(renderPlanPrompt(feature)).toContain("Example decision entry in plan.json:");
-    expect(renderClarifyPrompt(feature)).toContain("Example question entry in clarifications.json:");
+    expect(renderClarifyPrompt(feature)).toContain(
+      "Example question entry in clarifications.json:"
+    );
   });
 });

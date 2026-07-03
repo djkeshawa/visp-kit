@@ -38,9 +38,7 @@ function workflowOptions(
   };
 }
 
-export function createStatusCommand(
-  dependencies: StatusCommandDependencies = {}
-): Command {
+export function createStatusCommand(dependencies: StatusCommandDependencies = {}): Command {
   const runStatus = dependencies.runStatus ?? runStatusWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));

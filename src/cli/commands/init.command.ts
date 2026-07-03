@@ -13,10 +13,7 @@ import {
   type StrictnessMode
 } from "../../artifacts/schemas/policy.schema.js";
 import { formatError } from "../../theme/terminal.js";
-import {
-  runInitWorkflow,
-  type InitWorkflowOptions
-} from "../../workflows/init.workflow.js";
+import { runInitWorkflow, type InitWorkflowOptions } from "../../workflows/init.workflow.js";
 import { formatInitSummary } from "../../workflows/init/init-summary.js";
 
 export type InitCommandDependencies = {
@@ -53,9 +50,7 @@ function workflowOptions(
   };
 }
 
-export function createInitCommand(
-  dependencies: InitCommandDependencies = {}
-): Command {
+export function createInitCommand(dependencies: InitCommandDependencies = {}): Command {
   const runWorkflow = dependencies.runWorkflow ?? runInitWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
@@ -74,8 +69,9 @@ export function createInitCommand(
         .default("lean")
     )
     .addOption(
-      new Option("--preset <preset>", "Project preset to save. Omit to auto-detect.")
-        .choices(presetSchema.options)
+      new Option("--preset <preset>", "Project preset to save. Omit to auto-detect.").choices(
+        presetSchema.options
+      )
     )
     .addOption(
       new Option("--strictness <mode>", "Policy strictness mode to save.")
@@ -86,19 +82,11 @@ export function createInitCommand(
     .option("--dry-run", "Show what would be created without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: InitCommandOptions) => {
-      const result = await runWorkflow(
-        workflowOptions(targetPath, options, dependencies.cwd)
-      );
+      const result = await runWorkflow(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {
         if (options.json) {
-          writeOut(
-            `${JSON.stringify(
-              { success: false, error: result.error.message },
-              null,
-              2
-            )}\n`
-          );
+          writeOut(`${JSON.stringify({ success: false, error: result.error.message }, null, 2)}\n`);
         } else {
           writeErr(`${formatError(result.error.message)}\n`);
         }

@@ -31,10 +31,7 @@ export type BudgetReportModel = {
   readonly warnings: readonly string[];
 };
 
-function actualValue(
-  value: number | null | undefined,
-  status: BudgetUsageStatus
-): string | number {
+function actualValue(value: number | null | undefined, status: BudgetUsageStatus): string | number {
   if (status === "unavailable") return "unavailable";
   if (status === "estimated_only") return "estimated only";
   return value ?? "not recorded";
@@ -51,31 +48,19 @@ export function renderBudgetReport(report: BudgetReportModel): string {
         `| ${task.taskId} | ${task.estimatedInputTokens} | ${actualValue(task.actualInputTokens, usageStatus(task))} | ${actualValue(task.actualOutputTokens, usageStatus(task))} | ${actualValue(task.actualTotalTokens, usageStatus(task))} | ${task.maxInputTokens} | ${task.overBudget ? "yes" : "no"} | ${task.recommendation} |`
     )
     .join("\n");
-  const totalInput = report.tasks.reduce(
-    (sum, task) => sum + task.estimatedInputTokens,
-    0
-  );
-  const totalOutput = report.tasks.reduce(
-    (sum, task) => sum + task.expectedOutputTokens,
-    0
-  );
+  const totalInput = report.tasks.reduce((sum, task) => sum + task.estimatedInputTokens, 0);
+  const totalOutput = report.tasks.reduce((sum, task) => sum + task.expectedOutputTokens, 0);
   const overBudget = report.tasks.filter((task) => task.overBudget);
   const actualUsage = report.tasks.filter((task) => task.actualUsageStatus !== "not_recorded");
-  const numericUsage = actualUsage.filter((task) =>
-    task.actualUsageStatus === "recorded" && task.actualTotalTokens !== undefined && task.actualTotalTokens !== null
+  const numericUsage = actualUsage.filter(
+    (task) =>
+      task.actualUsageStatus === "recorded" &&
+      task.actualTotalTokens !== undefined &&
+      task.actualTotalTokens !== null
   );
-  const actualInput = actualUsage.reduce(
-    (sum, task) => sum + (task.actualInputTokens ?? 0),
-    0
-  );
-  const actualOutput = actualUsage.reduce(
-    (sum, task) => sum + (task.actualOutputTokens ?? 0),
-    0
-  );
-  const actualTotal = actualUsage.reduce(
-    (sum, task) => sum + (task.actualTotalTokens ?? 0),
-    0
-  );
+  const actualInput = actualUsage.reduce((sum, task) => sum + (task.actualInputTokens ?? 0), 0);
+  const actualOutput = actualUsage.reduce((sum, task) => sum + (task.actualOutputTokens ?? 0), 0);
+  const actualTotal = actualUsage.reduce((sum, task) => sum + (task.actualTotalTokens ?? 0), 0);
   const usageRows = actualUsage
     .map(
       (task) =>

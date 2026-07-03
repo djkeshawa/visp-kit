@@ -7,10 +7,7 @@ import {
   type VerificationCommandResult,
   type VerificationCommandRunner
 } from "../artifacts/schemas/verification.schema.js";
-import {
-  profileVerificationCommand,
-  type VerificationCommandProfile
-} from "./command-profile.js";
+import { profileVerificationCommand, type VerificationCommandProfile } from "./command-profile.js";
 import { captureOutput } from "./output-capture.js";
 
 export type VerificationRunnerOptions = {
@@ -66,9 +63,7 @@ function runnerMetadata(input: {
     outputCaptureMode:
       result?.outputCaptureMode ?? (stdioMode === "inherit" ? "inherited" : "captured"),
     platform: result?.platform ?? process.platform,
-    shell:
-      result?.shell ??
-      (input.profile.executionMode === "shell" ? defaultShell() : null),
+    shell: result?.shell ?? (input.profile.executionMode === "shell" ? defaultShell() : null),
     executable: result?.command ?? input.executable,
     args: [...(result?.args ?? input.args)],
     pid: result?.pid ?? null,
@@ -129,7 +124,7 @@ export async function runVerificationCommands(
     const durationMs = Math.max(0, Date.now() - startMs);
     const commandResult = result.ok
       ? result.value
-      : result.error.details as
+      : (result.error.details as
           | Partial<CommandResult>
           | {
               readonly exitCode?: number | null;
@@ -137,13 +132,10 @@ export async function runVerificationCommands(
               readonly stderr?: string;
               readonly timedOut?: boolean;
             }
-          | undefined;
+          | undefined);
     const stdout = captureOutput(commandResult?.stdout ?? "");
     const stderr = captureOutput(commandResult?.stderr ?? "");
-    const exitCode =
-      result.ok
-        ? result.value.exitCode
-        : commandResult?.exitCode ?? null;
+    const exitCode = result.ok ? result.value.exitCode : (commandResult?.exitCode ?? null);
 
     results.push({
       command,
@@ -159,7 +151,7 @@ export async function runVerificationCommands(
       stderrTruncated: stderr.truncated,
       skipped: false,
       skipReason: null,
-      timedOut: result.ok ? result.value.timedOut : commandResult?.timedOut ?? false,
+      timedOut: result.ok ? result.value.timedOut : (commandResult?.timedOut ?? false),
       runner: runnerMetadata({
         command,
         executable,

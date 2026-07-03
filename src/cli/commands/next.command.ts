@@ -40,9 +40,7 @@ function workflowOptions(
   };
 }
 
-export function createNextCommand(
-  dependencies: NextCommandDependencies = {}
-): Command {
+export function createNextCommand(dependencies: NextCommandDependencies = {}): Command {
   const runNext = dependencies.runNext ?? runNextWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));

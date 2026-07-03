@@ -5,7 +5,7 @@ import {
   workflowManifestSchema,
   type WorkflowManifest
 } from "../artifacts/schemas/workflow.schema.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
 import { ok, type Result } from "../core/result.js";
 import { defaultWorkflowManifest } from "./default-workflow.js";
@@ -13,11 +13,16 @@ import { defaultWorkflowManifest } from "./default-workflow.js";
 export async function loadWorkflowManifest(input: {
   readonly targetPath: string;
   readonly now: string;
-}): Promise<Result<{
-  readonly manifest: WorkflowManifest;
-  readonly exists: boolean;
-  readonly warnings: readonly string[];
-}, VispError>> {
+}): Promise<
+  Result<
+    {
+      readonly manifest: WorkflowManifest;
+      readonly exists: boolean;
+      readonly warnings: readonly string[];
+    },
+    VispError
+  >
+> {
   const manifestPath = workflowManifestArtifactPath(input.targetPath);
   const exists = await pathExists(manifestPath);
 

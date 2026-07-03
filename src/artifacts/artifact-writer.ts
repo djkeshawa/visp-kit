@@ -1,6 +1,6 @@
 import { type ZodType } from "zod";
 
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { writeJsonFile } from "../core/file-system.js";
 import { err, type Result } from "../core/result.js";
 import { createArtifactValidationError } from "./validation-error.js";

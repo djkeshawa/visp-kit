@@ -19,10 +19,10 @@ function appendFiles(lines: string[], label: string, files: readonly string[]): 
 export function formatAgentList(summary: AgentListSummary): string {
   return [
     formatHeader("Supported agent targets:"),
-    ...summary.targets.map((target) =>
-      `  ${target.name.padEnd(7)} ${target.description}`
-    )
-  ].join("\n").concat("\n");
+    ...summary.targets.map((target) => `  ${target.name.padEnd(7)} ${target.description}`)
+  ]
+    .join("\n")
+    .concat("\n");
 }
 
 export function formatAgentInstall(summary: AgentInstallSummary): string {

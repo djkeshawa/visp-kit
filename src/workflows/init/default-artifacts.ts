@@ -23,9 +23,7 @@ function projectName(targetPath: string): string {
   return path.basename(targetPath) || "project";
 }
 
-export function createDefaultProjectProfile(
-  input: DefaultArtifactInput
-): ProjectProfile {
+export function createDefaultProjectProfile(input: DefaultArtifactInput): ProjectProfile {
   return {
     name: projectName(input.targetPath),
     rootPath: input.targetPath,
@@ -45,9 +43,7 @@ export function createDefaultProjectProfile(
   };
 }
 
-export function createDefaultProjectConfig(
-  input: DefaultArtifactInput
-): ProjectConfig {
+export function createDefaultProjectConfig(input: DefaultArtifactInput): ProjectConfig {
   return {
     schemaVersion: "1",
     projectId: projectName(input.targetPath),
@@ -59,9 +55,7 @@ export function createDefaultProjectConfig(
   };
 }
 
-export function createDefaultProjectStatus(
-  input: DefaultArtifactInput
-): ProjectStatus {
+export function createDefaultProjectStatus(input: DefaultArtifactInput): ProjectStatus {
   return {
     initialized: true,
     activeFeatureId: null,

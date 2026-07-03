@@ -33,15 +33,9 @@ describe("artifact paths", () => {
   it("builds top-level artifact paths without creating files", () => {
     const root = path.join(path.sep, "workspace", "app");
 
-    expect(projectProfileArtifactPath(root)).toBe(
-      path.join(root, ".visp", "project.json")
-    );
-    expect(projectConfigArtifactPath(root)).toBe(
-      path.join(root, ".visp", "config.json")
-    );
-    expect(projectStatusArtifactPath(root)).toBe(
-      path.join(root, ".visp", "status.json")
-    );
+    expect(projectProfileArtifactPath(root)).toBe(path.join(root, ".visp", "project.json"));
+    expect(projectConfigArtifactPath(root)).toBe(path.join(root, ".visp", "config.json"));
+    expect(projectStatusArtifactPath(root)).toBe(path.join(root, ".visp", "status.json"));
     expect(constitutionArtifactPath(root)).toBe(
       path.join(root, ".visp", "memory", "constitution.json")
     );
@@ -71,14 +65,7 @@ describe("artifact paths", () => {
       path.join(root, ".visp", "features", featureKey, "task-graph.json")
     );
     expect(contextPackArtifactPath(root, featureKey, "T001")).toBe(
-      path.join(
-        root,
-        ".visp",
-        "features",
-        featureKey,
-        "context",
-        "T001.context.json"
-      )
+      path.join(root, ".visp", "features", featureKey, "context", "T001.context.json")
     );
     expect(verificationArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "verification.json")

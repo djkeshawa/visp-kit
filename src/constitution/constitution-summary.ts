@@ -1,7 +1,4 @@
-import {
-  type BudgetMode,
-  type Preset
-} from "../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { type CompactValidationResult } from "./validate-compact-constitution.js";
 

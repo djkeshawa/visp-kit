@@ -1,9 +1,6 @@
 import path from "node:path";
 
-import {
-  type CommandExecutionMode,
-  type CommandStdioMode
-} from "../core/command-runner.js";
+import { type CommandExecutionMode, type CommandStdioMode } from "../core/command-runner.js";
 import { readJsonFile } from "../core/file-system.js";
 
 export type VerificationCommandProfileName = "default" | "terminal-compatible";
@@ -38,18 +35,11 @@ function directScriptNames(command: string): readonly string[] {
   const runPattern = /\b(?:npm|pnpm|bun)\s+run\s+([^\s;&|]+)/g;
   const npmShortcutPattern = /\b(?:npm|pnpm|bun)\s+(test|start|build)\b/g;
   const yarnPattern = /\byarn\s+(?!run\b)([^\s;&|]+)/g;
-  let match: RegExpExecArray | null;
 
-  while ((match = runPattern.exec(command)) !== null) {
-    names.add(match[1] ?? "");
-  }
-
-  while ((match = npmShortcutPattern.exec(command)) !== null) {
-    names.add(match[1] ?? "");
-  }
-
-  while ((match = yarnPattern.exec(command)) !== null) {
-    names.add(match[1] ?? "");
+  for (const pattern of [runPattern, npmShortcutPattern, yarnPattern]) {
+    for (const match of command.matchAll(pattern)) {
+      names.add(match[1] ?? "");
+    }
   }
 
   return [...names].filter((name) => name.length > 0);
@@ -64,15 +54,15 @@ function packageManagerExecutable(command: string): string {
     return command;
   }
 
-  return ["npm", "pnpm", "yarn", "bun"].includes(command)
-    ? `${command}.cmd`
-    : command;
+  return ["npm", "pnpm", "yarn", "bun"].includes(command) ? `${command}.cmd` : command;
 }
 
-function parsePackageRunCommand(command: string): {
-  readonly executable: string;
-  readonly args: readonly string[];
-} | undefined {
+function parsePackageRunCommand(command: string):
+  | {
+      readonly executable: string;
+      readonly args: readonly string[];
+    }
+  | undefined {
   const trimmed = command.trim();
 
   if (trimmed.length === 0 || shellControlPattern.test(trimmed)) {
@@ -168,10 +158,9 @@ export async function profileVerificationCommand(input: {
       executionMode: packageRun === undefined ? "shell" : "argv",
       stdioMode,
       profile: "terminal-compatible",
-      reason:
-        input.jsonOutput
-          ? "Validation command references Electron/Chromium-style browser execution. Output is captured through files for JSON mode."
-          : "Validation command references Electron/Chromium-style browser execution.",
+      reason: input.jsonOutput
+        ? "Validation command references Electron/Chromium-style browser execution. Output is captured through files for JSON mode."
+        : "Validation command references Electron/Chromium-style browser execution.",
       executable: packageRun?.executable ?? null,
       args: packageRun?.args ?? []
     };
@@ -180,9 +169,7 @@ export async function profileVerificationCommand(input: {
   const scriptNames = directScriptNames(input.command);
 
   if (scriptNames.length > 0) {
-    const packageJson = await readJsonFile<PackageJsonShape>(
-      path.join(input.cwd, "package.json")
-    );
+    const packageJson = await readJsonFile<PackageJsonShape>(path.join(input.cwd, "package.json"));
 
     if (packageJson.ok) {
       const scripts = scriptsFromPackageJson(packageJson.value);
@@ -201,10 +188,9 @@ export async function profileVerificationCommand(input: {
           executionMode: packageRun === undefined ? "shell" : "argv",
           stdioMode,
           profile: "terminal-compatible",
-          reason:
-            input.jsonOutput
-              ? `npm script ${sensitiveScript} references Electron/Chromium-style browser execution. Output is captured through files for JSON mode.`
-              : `npm script ${sensitiveScript} references Electron/Chromium-style browser execution.`,
+          reason: input.jsonOutput
+            ? `npm script ${sensitiveScript} references Electron/Chromium-style browser execution. Output is captured through files for JSON mode.`
+            : `npm script ${sensitiveScript} references Electron/Chromium-style browser execution.`,
           executable: packageRun?.executable ?? null,
           args: packageRun?.args ?? []
         };

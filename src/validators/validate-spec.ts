@@ -8,9 +8,7 @@ export function validateSpec(input: {
   readonly traceability?: TraceabilityMatrix;
 }): WorkflowValidation {
   const requirementIds = input.spec.requirements.map((requirement) => requirement.id);
-  const acceptanceCriterionIds = input.spec.acceptanceCriteria.map(
-    (criterion) => criterion.id
-  );
+  const acceptanceCriterionIds = input.spec.acceptanceCriteria.map((criterion) => criterion.id);
   const requirementSet = new Set(requirementIds);
   const errors: string[] = [
     ...duplicateIds(requirementIds, "requirement"),

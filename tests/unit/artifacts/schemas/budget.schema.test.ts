@@ -9,12 +9,8 @@ import { validBudgetArtifact } from "../fixtures.js";
 
 describe("budget schemas", () => {
   it("accepts valid budget policies, reports, and artifacts", () => {
-    expect(
-      budgetPolicySchema.safeParse(validBudgetArtifact.policies[0]).success
-    ).toBe(true);
-    expect(budgetReportSchema.safeParse(validBudgetArtifact.reports[0]).success).toBe(
-      true
-    );
+    expect(budgetPolicySchema.safeParse(validBudgetArtifact.policies[0]).success).toBe(true);
+    expect(budgetReportSchema.safeParse(validBudgetArtifact.reports[0]).success).toBe(true);
     expect(budgetArtifactSchema.safeParse(validBudgetArtifact).success).toBe(true);
   });
 

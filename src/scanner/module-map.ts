@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import { type FileIndexEntry, type FileSummary } from "./types.js";
 
 export type ModuleMapEntry = {
@@ -57,8 +55,14 @@ export function buildModuleMap(input: {
       return {
         name,
         root: name === "." ? "." : name,
-        files: files.filter((file) => !file.isTestFile).map((file) => file.path).sort(),
-        testFiles: files.filter((file) => file.isTestFile).map((file) => file.path).sort(),
+        files: files
+          .filter((file) => !file.isTestFile)
+          .map((file) => file.path)
+          .sort(),
+        testFiles: files
+          .filter((file) => file.isTestFile)
+          .map((file) => file.path)
+          .sort(),
         internalImports: unique(imports.filter((item) => !isExternalImport(item))),
         externalDependencies: unique(imports.filter(isExternalImport))
       };

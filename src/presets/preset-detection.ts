@@ -31,25 +31,15 @@ function hasDependency(input: {
 }): boolean {
   const names = new Set(input.names);
 
-  return input.sections.some((section) =>
-    Object.keys(section).some((name) => names.has(name))
-  );
+  return input.sections.some((section) => Object.keys(section).some((name) => names.has(name)));
 }
 
-export async function detectPreset(
-  rootPath: string
-): Promise<Result<PresetDetection, VispError>> {
+export async function detectPreset(rootPath: string): Promise<Result<PresetDetection, VispError>> {
   const packageJson = await readPackageJson(rootPath);
 
   if (!packageJson.ok) return packageJson;
 
   if (packageJson.value !== undefined) {
-    const sections = [
-      packageJson.value.dependencies,
-      packageJson.value.devDependencies,
-      packageJson.value.peerDependencies,
-      packageJson.value.optionalDependencies
-    ];
     const frameworks = detectFrameworks(packageJson.value).map((item) => item.name);
     const frameworkSet = new Set(frameworks);
 
@@ -57,12 +47,11 @@ export async function detectPreset(
       return ok({ preset: "electron", reason: "Detected Electron dependency in package.json." });
     }
 
-    if (
-      frameworkSet.has("react") ||
-      frameworkSet.has("next") ||
-      frameworkSet.has("vite")
-    ) {
-      return ok({ preset: "react", reason: "Detected frontend framework dependency in package.json." });
+    if (frameworkSet.has("react") || frameworkSet.has("next") || frameworkSet.has("vite")) {
+      return ok({
+        preset: "react",
+        reason: "Detected frontend framework dependency in package.json."
+      });
     }
 
     if (
@@ -72,7 +61,10 @@ export async function detectPreset(
       frameworkSet.has("koa") ||
       frameworkSet.has("hapi")
     ) {
-      return ok({ preset: "node-api", reason: "Detected Node API framework dependency in package.json." });
+      return ok({
+        preset: "node-api",
+        reason: "Detected Node API framework dependency in package.json."
+      });
     }
   }
 
@@ -121,9 +113,12 @@ export async function detectPreset(
         sections,
         names: ["typescript", "ts-node", "tsx", "tsup"]
       }) ||
-      await hasAny(rootPath, ["tsconfig.json"])
+      (await hasAny(rootPath, ["tsconfig.json"]))
     ) {
-      return ok({ preset: "typescript", reason: "Detected TypeScript configuration or dependency." });
+      return ok({
+        preset: "typescript",
+        reason: "Detected TypeScript configuration or dependency."
+      });
     }
 
     return ok({ preset: "javascript", reason: "Detected package.json." });

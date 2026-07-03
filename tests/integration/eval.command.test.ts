@@ -64,6 +64,47 @@ describe("visp eval command", () => {
     expect(await exists(reportPath)).toBe(false);
   });
 
+  it("includes deterministic benchmark metrics with --benchmark", async () => {
+    await createPhase8Fixture(tempDir);
+    const setup = createCli({ writeOut: () => undefined });
+
+    await setup.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
+
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "eval", tempDir, "--benchmark", "--json"]);
+
+    const report = JSON.parse(output.join("")) as {
+      metrics?: {
+        contextEfficiency: {
+          measuredTaskCount: number;
+          wholeRepoTokenBaseline: number;
+          reductionRatio: number | null;
+        };
+        evidenceCompleteness: { ratio: number };
+      };
+    };
+
+    expect(report.metrics).toBeDefined();
+    expect(report.metrics?.contextEfficiency.measuredTaskCount).toBeGreaterThan(0);
+    expect(report.metrics?.contextEfficiency.wholeRepoTokenBaseline).toBeGreaterThan(0);
+    expect(report.metrics?.contextEfficiency.reductionRatio).not.toBeNull();
+    expect(report.metrics?.evidenceCompleteness.ratio).toBeGreaterThan(0);
+  });
+
+  it("omits benchmark metrics without --benchmark", async () => {
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "eval", tempDir, "--json"]);
+
+    const report = JSON.parse(output.join("")) as { metrics?: unknown };
+
+    expect(report.metrics).toBeUndefined();
+  });
+
   it("reports a failed evaluation when .visp is missing", async () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });

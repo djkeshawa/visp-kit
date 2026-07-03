@@ -126,35 +126,50 @@ export async function validateArtifacts(input: {
     },
     {
       path: specArtifactPath(input.targetPath, input.featureKey),
-      displayPath: relativePath(input.targetPath, specArtifactPath(input.targetPath, input.featureKey)),
+      displayPath: relativePath(
+        input.targetPath,
+        specArtifactPath(input.targetPath, input.featureKey)
+      ),
       schema: specArtifactSchema,
       name: "spec",
       required: false
     },
     {
       path: planArtifactPath(input.targetPath, input.featureKey),
-      displayPath: relativePath(input.targetPath, planArtifactPath(input.targetPath, input.featureKey)),
+      displayPath: relativePath(
+        input.targetPath,
+        planArtifactPath(input.targetPath, input.featureKey)
+      ),
       schema: planDraftArtifactSchema,
       name: "plan",
       required: false
     },
     {
       path: taskGraphArtifactPath(input.targetPath, input.featureKey),
-      displayPath: relativePath(input.targetPath, taskGraphArtifactPath(input.targetPath, input.featureKey)),
+      displayPath: relativePath(
+        input.targetPath,
+        taskGraphArtifactPath(input.targetPath, input.featureKey)
+      ),
       schema: taskGraphArtifactSchema,
       name: "task graph",
       required: true
     },
     {
       path: traceabilityArtifactPath(input.targetPath, input.featureKey),
-      displayPath: relativePath(input.targetPath, traceabilityArtifactPath(input.targetPath, input.featureKey)),
+      displayPath: relativePath(
+        input.targetPath,
+        traceabilityArtifactPath(input.targetPath, input.featureKey)
+      ),
       schema: traceabilityMatrixSchema,
       name: "traceability",
       required: false
     },
     {
       path: verificationArtifactPath(input.targetPath, input.featureKey),
-      displayPath: relativePath(input.targetPath, verificationArtifactPath(input.targetPath, input.featureKey)),
+      displayPath: relativePath(
+        input.targetPath,
+        verificationArtifactPath(input.targetPath, input.featureKey)
+      ),
       schema: verificationReportSchema,
       name: "verification report",
       required: false
@@ -164,7 +179,10 @@ export async function validateArtifacts(input: {
   if (input.taskId !== undefined) {
     checks.push({
       path: contextPackArtifactPath(input.targetPath, input.featureKey, input.taskId),
-      displayPath: relativePath(input.targetPath, contextPackArtifactPath(input.targetPath, input.featureKey, input.taskId)),
+      displayPath: relativePath(
+        input.targetPath,
+        contextPackArtifactPath(input.targetPath, input.featureKey, input.taskId)
+      ),
       schema: contextPackSchema,
       name: "context pack",
       required: false

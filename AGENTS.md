@@ -112,7 +112,7 @@ Do not claim a task is complete until Visp verification, review, and reconciliat
 
 ## Build Rules
 
-- Use TypeScript on Node.js 24+ with pnpm.
+- Use TypeScript on Node.js 22+ with pnpm.
 - Keep files small and focused.
 - Prefer existing workflow, artifact, schema, gate, policy, and agent installer utilities.
 - Add focused tests for implemented behavior.

@@ -123,12 +123,9 @@ async function createReviewFixture(rootPath: string): Promise<void> {
     validProjectProfile,
     { artifactName: "project profile" }
   );
-  await writeArtifact(
-    specArtifactPath(rootPath, featureKey),
-    specArtifactSchema,
-    spec,
-    { artifactName: "spec" }
-  );
+  await writeArtifact(specArtifactPath(rootPath, featureKey), specArtifactSchema, spec, {
+    artifactName: "spec"
+  });
   await writeArtifact(
     taskGraphArtifactPath(rootPath, featureKey),
     taskGraphArtifactSchema,
@@ -167,9 +164,7 @@ describe("runReviewWorkflow", () => {
     );
 
     expect(summary.result).toBe("warnings");
-    expect(summary.reportPath).toBe(
-      ".visp/features/001-add-note-pinning/review/T001.review.md"
-    );
+    expect(summary.reportPath).toBe(".visp/features/001-add-note-pinning/review/T001.review.md");
     expect(
       await readFile(
         path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review", "T001.review.md"),
@@ -197,7 +192,14 @@ describe("runReviewWorkflow", () => {
     expect(summary.reportPath).toBeNull();
     await expect(
       readFile(
-        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review", "T001.review.json"),
+        path.join(
+          tempDir,
+          ".visp",
+          "features",
+          "001-add-note-pinning",
+          "review",
+          "T001.review.json"
+        ),
         "utf8"
       )
     ).rejects.toThrow();

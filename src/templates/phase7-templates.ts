@@ -1,18 +1,8 @@
-import {
-  type ClarificationArtifact
-} from "../artifacts/schemas/clarification.schema.js";
-import {
-  type PlanDraftArtifact
-} from "../artifacts/schemas/plan.schema.js";
-import {
-  type SpecArtifact
-} from "../artifacts/schemas/spec.schema.js";
-import {
-  type TaskGraphArtifact
-} from "../artifacts/schemas/task.schema.js";
-import {
-  type TraceabilityMatrix
-} from "../artifacts/schemas/traceability.schema.js";
+import { type ClarificationArtifact } from "../artifacts/schemas/clarification.schema.js";
+import { type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
+import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
+import { type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
+import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 
 function request(feature: ActiveFeature): string {
@@ -114,13 +104,15 @@ export function renderClarificationsMarkdownFromArtifact(input: {
   readonly artifact: ClarificationArtifact;
 }): string {
   const questions = input.artifact.questions
-    .map((question) =>
-      `| ${question.id} | ${tableText(question.question)} | ${tableText(question.recommendedDefault)} | ${tableText(question.reason)} | ${question.status} | ${tableText(question.answer)} |`
+    .map(
+      (question) =>
+        `| ${question.id} | ${tableText(question.question)} | ${tableText(question.recommendedDefault)} | ${tableText(question.reason)} | ${question.status} | ${tableText(question.answer)} |`
     )
     .join("\n");
   const assumptions = input.artifact.assumptions
-    .map((assumption) =>
-      `| ${assumption.id} | ${tableText(assumption.text)} | ${tableText(assumption.reason)} | ${assumption.source} | ${assumption.accepted ? "yes" : "no"} |`
+    .map(
+      (assumption) =>
+        `| ${assumption.id} | ${tableText(assumption.text)} | ${tableText(assumption.reason)} | ${assumption.source} | ${assumption.accepted ? "yes" : "no"} |`
     )
     .join("\n");
 
@@ -309,9 +301,7 @@ export function createTraceabilitySeed(input: {
     featureSlug: input.feature.slug,
     entries: input.spec.requirements.map((requirement) => ({
       requirementId: requirement.id,
-      acceptanceCriterionIds: requirement.acceptanceCriteria.map(
-        (criterion) => criterion.id
-      ),
+      acceptanceCriterionIds: requirement.acceptanceCriteria.map((criterion) => criterion.id),
       planDecisionIds: [],
       taskIds: [],
       filePaths: [],
@@ -568,7 +558,9 @@ export function createTaskGraphArtifact(input: {
         dependsOn: [],
         allowedFiles: ["TBD"],
         expectedFiles: ["TBD"],
-        forbiddenFiles: ["Dependency manifests and lockfiles unless dependency approval is part of this task"],
+        forbiddenFiles: [
+          "Dependency manifests and lockfiles unless dependency approval is part of this task"
+        ],
         validationCommands: ["TBD"],
         status: "ready",
         parallelizable: false,

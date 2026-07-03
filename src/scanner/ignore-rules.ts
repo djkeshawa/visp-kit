@@ -57,17 +57,21 @@ export function isLockFile(relativePath: string): boolean {
 }
 
 export function isTestFilePath(relativePath: string): boolean {
-  return /(?:^|[/\\])(?:test|tests|__tests__|spec|specs|e2e|integration)(?:[/\\]|$)/.test(
-    relativePath
-  ) ||
+  return (
+    /(?:^|[/\\])(?:test|tests|__tests__|spec|specs|e2e|integration)(?:[/\\]|$)/.test(
+      relativePath
+    ) ||
     /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(relativePath) ||
     /_test\.go$/.test(relativePath) ||
     /(?:Test|Tests)\.java$/.test(relativePath) ||
     /(?:^|[/\\])test_[^/\\]+\.py$/.test(relativePath) ||
     /_test\.py$/.test(relativePath) ||
-    /_test\.rs$/.test(relativePath);
+    /_test\.rs$/.test(relativePath)
+  );
 }
 
 export function isConfigFilePath(relativePath: string): boolean {
-  return /(?:^|[/\\])(?:package\.json|tsconfig.*\.json|vitest\.config\.[jt]s|vite\.config\.[jt]s|webpack\.config\.[jt]s|eslint\.config\.[jt]s|go\.mod|pom\.xml|build\.gradle|build\.gradle\.kts|settings\.gradle|settings\.gradle\.kts|pyproject\.toml|requirements(?:-dev)?\.txt|Cargo\.toml)$/u.test(relativePath);
+  return /(?:^|[/\\])(?:package\.json|tsconfig.*\.json|vitest\.config\.[jt]s|vite\.config\.[jt]s|webpack\.config\.[jt]s|eslint\.config\.[jt]s|go\.mod|pom\.xml|build\.gradle|build\.gradle\.kts|settings\.gradle|settings\.gradle\.kts|pyproject\.toml|requirements(?:-dev)?\.txt|Cargo\.toml)$/u.test(
+    relativePath
+  );
 }

@@ -4,7 +4,7 @@ import {
   compactConstitutionArtifactPath,
   constitutionMarkdownArtifactPath
 } from "../../artifacts/artifact-paths.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { pathExists, writeTextFile } from "../../core/file-system.js";
 import { toPosixPath } from "../../core/paths.js";
 import { ok, type Result } from "../../core/result.js";

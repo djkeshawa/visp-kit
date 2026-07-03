@@ -1,10 +1,7 @@
 import { Command } from "commander";
 
 import { formatError } from "../../theme/terminal.js";
-import {
-  runScanWorkflow,
-  type ScanWorkflowOptions
-} from "../../workflows/scan.workflow.js";
+import { runScanWorkflow, type ScanWorkflowOptions } from "../../workflows/scan.workflow.js";
 import { formatScanSummary } from "../../workflows/scan/scan-summary.js";
 
 export type ScanCommandDependencies = {
@@ -35,14 +32,10 @@ function workflowOptions(
   };
 }
 
-export function createScanCommand(
-  dependencies: ScanCommandDependencies = {}
-): Command {
+export function createScanCommand(dependencies: ScanCommandDependencies = {}): Command {
   const runScan = dependencies.runScan ?? runScanWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("scan")
     .description("Scan a project and update the Visp project index.")
@@ -52,19 +45,11 @@ export function createScanCommand(
     .option("--dry-run", "Show what would be scanned and written.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: ScanCommandOptions) => {
-      const result = await runScan(
-        workflowOptions(targetPath, options, dependencies.cwd)
-      );
+      const result = await runScan(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {
         if (options.json) {
-          writeOut(
-            `${JSON.stringify(
-              { success: false, error: result.error.message },
-              null,
-              2
-            )}\n`
-          );
+          writeOut(`${JSON.stringify({ success: false, error: result.error.message }, null, 2)}\n`);
         } else {
           writeErr(`${formatError(result.error.message)}\n`);
         }

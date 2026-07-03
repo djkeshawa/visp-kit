@@ -4,7 +4,7 @@ This guide shows the shortest practical Visp Kit loop for a local project.
 
 ## Prerequisites
 
-- Node.js 24+
+- Node.js 22+
 - pnpm 11+
 - Git if you want review, reconcile, and PR diff evidence
 
@@ -20,11 +20,11 @@ visp --help
 
 For local development, build this repository and install or link the local CLI package.
 
-Use Node.js 24:
+Use Node.js 22 or newer:
 
 ```bash
-nvm install 24
-nvm use 24
+nvm install 22
+nvm use 22
 node --version
 ```
 

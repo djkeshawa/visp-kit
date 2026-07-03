@@ -49,7 +49,10 @@ export const builtinPresetPacks: Record<Preset, PresetPack> = {
     dependencyFiles: javascriptDependencyFiles,
     testFilePatterns: ["**/*.test.ts", "**/*.spec.ts", "**/*.test.tsx", "**/*.spec.tsx"],
     contextIncludePatterns: ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts"],
-    securityChecklist: ["Check runtime validation at input boundaries.", "Check dependency changes."],
+    securityChecklist: [
+      "Check runtime validation at input boundaries.",
+      "Check dependency changes."
+    ],
     reviewFocus: ["Type safety", "Schema validation", "Tests", "Dependency changes"],
     recommendedGates: ["context", "implement", "verify", "review", "reconcile", "pr"]
   },
@@ -60,7 +63,11 @@ export const builtinPresetPacks: Record<Preset, PresetPack> = {
     dependencyFiles: javascriptDependencyFiles,
     testFilePatterns: ["**/*.test.ts", "**/*.spec.ts"],
     contextIncludePatterns: ["src/**/*.ts", "electron/**/*.ts", "tests/**/*.ts"],
-    securityChecklist: ["Check preload boundaries.", "Check IPC validation.", "Check dependency changes."],
+    securityChecklist: [
+      "Check preload boundaries.",
+      "Check IPC validation.",
+      "Check dependency changes."
+    ],
     reviewFocus: ["Electron IPC", "Preload safety", "Renderer/main boundaries"],
     recommendedGates: ["context", "implement", "verify", "review", "reconcile", "pr"]
   },
@@ -81,8 +88,17 @@ export const builtinPresetPacks: Record<Preset, PresetPack> = {
     validationCommandHints: ["pnpm test", "pnpm typecheck", "pnpm build"],
     dependencyFiles: javascriptDependencyFiles,
     testFilePatterns: ["**/*.test.ts", "**/*.spec.ts"],
-    contextIncludePatterns: ["src/**/*.ts", "routes/**/*.ts", "controllers/**/*.ts", "tests/**/*.ts"],
-    securityChecklist: ["Check API input validation.", "Check authorization boundaries.", "Check dependency changes."],
+    contextIncludePatterns: [
+      "src/**/*.ts",
+      "routes/**/*.ts",
+      "controllers/**/*.ts",
+      "tests/**/*.ts"
+    ],
+    securityChecklist: [
+      "Check API input validation.",
+      "Check authorization boundaries.",
+      "Check dependency changes."
+    ],
     reviewFocus: ["API validation", "Authorization", "Error handling", "Tests"],
     recommendedGates: ["context", "implement", "verify", "review", "reconcile", "pr"]
   },
@@ -93,8 +109,17 @@ export const builtinPresetPacks: Record<Preset, PresetPack> = {
     dependencyFiles: goDependencyFiles,
     testFilePatterns: ["**/*_test.go"],
     contextIncludePatterns: ["**/*.go", "go.mod", "go.sum"],
-    securityChecklist: ["Check package boundaries.", "Check error handling.", "Check dependency changes."],
-    reviewFocus: ["Package boundaries", "Error handling", "Concurrency-sensitive changes", "Dependency changes"],
+    securityChecklist: [
+      "Check package boundaries.",
+      "Check error handling.",
+      "Check dependency changes."
+    ],
+    reviewFocus: [
+      "Package boundaries",
+      "Error handling",
+      "Concurrency-sensitive changes",
+      "Dependency changes"
+    ],
     recommendedGates: ["context", "implement", "verify", "review", "reconcile", "pr"]
   },
   java: {
@@ -103,8 +128,18 @@ export const builtinPresetPacks: Record<Preset, PresetPack> = {
     validationCommandHints: ["./gradlew test", "./gradlew check", "mvn test", "mvn verify"],
     dependencyFiles: javaDependencyFiles,
     testFilePatterns: ["src/test/**", "**/*Test.java", "**/*Tests.java"],
-    contextIncludePatterns: ["src/main/**/*.java", "src/test/**/*.java", "pom.xml", "build.gradle", "build.gradle.kts"],
-    securityChecklist: ["Check public API contracts.", "Check exception handling.", "Check dependency changes."],
+    contextIncludePatterns: [
+      "src/main/**/*.java",
+      "src/test/**/*.java",
+      "pom.xml",
+      "build.gradle",
+      "build.gradle.kts"
+    ],
+    securityChecklist: [
+      "Check public API contracts.",
+      "Check exception handling.",
+      "Check dependency changes."
+    ],
     reviewFocus: ["Public APIs", "Service boundaries", "Exception handling", "Dependency changes"],
     recommendedGates: ["context", "implement", "verify", "review", "reconcile", "pr"]
   },
@@ -114,15 +149,30 @@ export const builtinPresetPacks: Record<Preset, PresetPack> = {
     validationCommandHints: ["python -m pytest", "pytest", "ruff check .", "mypy ."],
     dependencyFiles: pythonDependencyFiles,
     testFilePatterns: ["tests/**/*.py", "test_*.py", "*_test.py"],
-    contextIncludePatterns: ["src/**/*.py", "tests/**/*.py", "*.py", "pyproject.toml", "requirements*.txt"],
-    securityChecklist: ["Check input validation.", "Check typing-sensitive changes.", "Check dependency changes."],
+    contextIncludePatterns: [
+      "src/**/*.py",
+      "tests/**/*.py",
+      "*.py",
+      "pyproject.toml",
+      "requirements*.txt"
+    ],
+    securityChecklist: [
+      "Check input validation.",
+      "Check typing-sensitive changes.",
+      "Check dependency changes."
+    ],
     reviewFocus: ["Input validation", "Typing", "Packaging", "Dependency changes"],
     recommendedGates: ["context", "implement", "verify", "review", "reconcile", "pr"]
   },
   rust: {
     name: "rust",
     description: "Rust project workflow defaults.",
-    validationCommandHints: ["cargo test", "cargo check", "cargo clippy --all-targets --all-features", "cargo fmt --check"],
+    validationCommandHints: [
+      "cargo test",
+      "cargo check",
+      "cargo clippy --all-targets --all-features",
+      "cargo fmt --check"
+    ],
     dependencyFiles: rustDependencyFiles,
     testFilePatterns: ["tests/**/*.rs", "**/*_test.rs"],
     contextIncludePatterns: ["src/**/*.rs", "tests/**/*.rs", "Cargo.toml", "Cargo.lock"],

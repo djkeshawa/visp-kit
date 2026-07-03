@@ -1,7 +1,4 @@
-import {
-  type BudgetMode,
-  type Preset
-} from "../../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../../artifacts/schemas/common.schema.js";
 
 const presetHints: Record<Preset, string> = {
   javascript: "Prefer clean JavaScript module boundaries and explicit data flow.",
@@ -72,10 +69,7 @@ No report has been generated yet. Visp Kit commands will replace this placeholde
 `;
 }
 
-export function genericAgentGuidanceMarkdown(
-  preset: Preset,
-  budget: BudgetMode
-): string {
+export function genericAgentGuidanceMarkdown(preset: Preset, budget: BudgetMode): string {
   return `# Visp Agent Guidance
 
 - Respect \`.visp/memory/constitution.md\`.

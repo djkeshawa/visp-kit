@@ -25,10 +25,7 @@ export function isSubpath(parentPath: string, childPath: string): boolean {
   const child = path.resolve(childPath);
   const relative = path.relative(parent, child);
 
-  return (
-    relative === "" ||
-    (!relative.startsWith("..") && !path.isAbsolute(relative))
-  );
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 export function vispDir(rootPath: string): string {

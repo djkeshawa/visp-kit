@@ -1,10 +1,4 @@
-const validValidationMethods = new Set([
-  "unit",
-  "integration",
-  "e2e",
-  "manual",
-  "static"
-]);
+const validValidationMethods = new Set(["unit", "integration", "e2e", "manual", "static"]);
 
 const validRequirementSources = new Set(["user", "clarification", "derived"]);
 
@@ -49,13 +43,9 @@ function normalizeValidationMethod(value: unknown): string | undefined {
   }
 
   if (
-    [
-      "end to end",
-      "end to end test",
-      "end to end tests",
-      "e2e test",
-      "e2e tests"
-    ].includes(normalized)
+    ["end to end", "end to end test", "end to end tests", "e2e test", "e2e tests"].includes(
+      normalized
+    )
   ) {
     return "e2e";
   }
@@ -164,9 +154,8 @@ function normalizeAssumptions(
     const description = descriptionFromObject(entry);
     if (description === undefined) return entry;
 
-    const existingId = typeof entry.id === "string" && entry.id.trim() !== ""
-      ? entry.id.trim()
-      : fallbackId;
+    const existingId =
+      typeof entry.id === "string" && entry.id.trim() !== "" ? entry.id.trim() : fallbackId;
     const normalized = { id: existingId, description };
 
     if (
@@ -181,20 +170,13 @@ function normalizeAssumptions(
   });
 }
 
-function normalizeCriterion(
-  criterion: unknown,
-  pathLabel: string,
-  changes: string[]
-): unknown {
+function normalizeCriterion(criterion: unknown, pathLabel: string, changes: string[]): unknown {
   if (!isObject(criterion)) return criterion;
 
   const output: MutableObject = { ...criterion };
   const normalizedMethod = normalizeValidationMethod(output.validationMethod);
 
-  if (
-    normalizedMethod !== undefined &&
-    output.validationMethod !== normalizedMethod
-  ) {
+  if (normalizedMethod !== undefined && output.validationMethod !== normalizedMethod) {
     changes.push(
       `${pathLabel}.validationMethod: ${String(output.validationMethod)} -> ${normalizedMethod}`
     );
@@ -204,11 +186,7 @@ function normalizeCriterion(
   return output;
 }
 
-function normalizeRequirement(
-  requirement: unknown,
-  index: number,
-  changes: string[]
-): unknown {
+function normalizeRequirement(requirement: unknown, index: number, changes: string[]): unknown {
   if (!isObject(requirement)) return requirement;
 
   const output: MutableObject = { ...requirement };
@@ -229,11 +207,7 @@ function normalizeRequirement(
 
   if (Array.isArray(output.acceptanceCriteria)) {
     output.acceptanceCriteria = output.acceptanceCriteria.map((criterion, criterionIndex) =>
-      normalizeCriterion(
-        criterion,
-        `${pathLabel}.acceptanceCriteria.${criterionIndex}`,
-        changes
-      )
+      normalizeCriterion(criterion, `${pathLabel}.acceptanceCriteria.${criterionIndex}`, changes)
     );
   }
 
@@ -248,12 +222,7 @@ export function normalizeSpecArtifact(value: unknown): SpecNormalizationResult {
   const changes: string[] = [];
   const output: MutableObject = { ...value };
 
-  output.assumptions = normalizeAssumptions(
-    output.assumptions,
-    "assumptions",
-    "ASM",
-    changes
-  );
+  output.assumptions = normalizeAssumptions(output.assumptions, "assumptions", "ASM", changes);
 
   if (Array.isArray(output.acceptanceCriteria)) {
     output.acceptanceCriteria = output.acceptanceCriteria.map((criterion, index) =>

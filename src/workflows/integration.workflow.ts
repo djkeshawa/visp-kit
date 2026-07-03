@@ -13,7 +13,7 @@ import {
 import { packageVersion } from "../core/package-version.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
 
 export type IntegrationContractOptions = {
@@ -115,7 +115,14 @@ export type IntegrationContractSummary = {
 export type OrchestratorReadArtifact = {
   readonly id: string;
   readonly path: string;
-  readonly role: "state" | "policy" | "profile" | "task-graph" | "context-pack" | "prompt" | "checklist";
+  readonly role:
+    | "state"
+    | "policy"
+    | "profile"
+    | "task-graph"
+    | "context-pack"
+    | "prompt"
+    | "checklist";
   readonly mimeType: "application/json" | "text/markdown";
   readonly requiredFor: readonly string[];
   readonly freshness: "read-latest" | "hash-pinned" | "gate-validated";
@@ -219,22 +226,27 @@ export async function runIntegrationContractWorkflow(
     projectStatus: relativePath(targetPath, projectStatusArtifactPath(targetPath)),
     projectProfile: relativePath(targetPath, projectProfileArtifactPath(targetPath)),
     featureRoot: relativePath(targetPath, featuresArtifactDir(targetPath)),
-    featureDir: state.value.selectedFeature === undefined
-      ? ".visp/features/<feature>"
-      : relativePath(targetPath, featureArtifactDir(targetPath, featureKey)),
-    taskGraph: state.value.selectedFeature === undefined
-      ? ".visp/features/<feature>/task-graph.json"
-      : relativePath(targetPath, taskGraphArtifactPath(targetPath, featureKey)),
-    contextPack: state.value.selectedFeature === undefined
-      ? ".visp/features/<feature>/context/<task-id>.context.json"
-      : relativePath(targetPath, contextPackArtifactPath(targetPath, featureKey, taskId)),
-    contextPrompt: state.value.selectedFeature === undefined
-      ? ".visp/features/<feature>/context/<task-id>.prompt.md"
-      : relativePath(targetPath, contextPromptPath(targetPath, featureKey, taskId)),
+    featureDir:
+      state.value.selectedFeature === undefined
+        ? ".visp/features/<feature>"
+        : relativePath(targetPath, featureArtifactDir(targetPath, featureKey)),
+    taskGraph:
+      state.value.selectedFeature === undefined
+        ? ".visp/features/<feature>/task-graph.json"
+        : relativePath(targetPath, taskGraphArtifactPath(targetPath, featureKey)),
+    contextPack:
+      state.value.selectedFeature === undefined
+        ? ".visp/features/<feature>/context/<task-id>.context.json"
+        : relativePath(targetPath, contextPackArtifactPath(targetPath, featureKey, taskId)),
+    contextPrompt:
+      state.value.selectedFeature === undefined
+        ? ".visp/features/<feature>/context/<task-id>.prompt.md"
+        : relativePath(targetPath, contextPromptPath(targetPath, featureKey, taskId)),
     currentTaskPrompt: relativePath(targetPath, promptArtifactPath(targetPath, "current-task")),
-    implementationChecklist: state.value.selectedFeature === undefined
-      ? ".visp/features/<feature>/context/<task-id>.implementation-checklist.json"
-      : relativePath(targetPath, contextChecklistJsonPath(targetPath, featureKey, taskId))
+    implementationChecklist:
+      state.value.selectedFeature === undefined
+        ? ".visp/features/<feature>/context/<task-id>.implementation-checklist.json"
+        : relativePath(targetPath, contextChecklistJsonPath(targetPath, featureKey, taskId))
   };
 
   return ok({
@@ -247,21 +259,23 @@ export async function runIntegrationContractWorkflow(
     },
     targetPath,
     initialized: state.value.initialized,
-    activeFeature: state.value.selectedFeature === undefined
-      ? null
-      : {
-          id: state.value.selectedFeature.id,
-          slug: state.value.selectedFeature.slug,
-          key: state.value.selectedFeature.key,
-          path: state.value.selectedFeature.relativePath
-        },
-    activeTask: state.value.selectedTask === undefined
-      ? null
-      : {
-          id: state.value.selectedTask.id,
-          title: state.value.selectedTask.title,
-          status: state.value.selectedTask.status
-        },
+    activeFeature:
+      state.value.selectedFeature === undefined
+        ? null
+        : {
+            id: state.value.selectedFeature.id,
+            slug: state.value.selectedFeature.slug,
+            key: state.value.selectedFeature.key,
+            path: state.value.selectedFeature.relativePath
+          },
+    activeTask:
+      state.value.selectedTask === undefined
+        ? null
+        : {
+            id: state.value.selectedTask.id,
+            title: state.value.selectedTask.title,
+            status: state.value.selectedTask.status
+          },
     commands: COMMANDS,
     capabilities: CAPABILITIES,
     workflow: WORKFLOW_CONTRACT,
@@ -280,18 +294,16 @@ export async function runIntegrationContractWorkflow(
   });
 }
 
-function buildOrchestratorContract(
-  artifacts: {
-    readonly kitSignals: readonly string[];
-    readonly projectStatus: string;
-    readonly projectProfile: string;
-    readonly taskGraph: string;
-    readonly contextPack: string;
-    readonly contextPrompt: string;
-    readonly currentTaskPrompt: string;
-    readonly implementationChecklist: string;
-  }
-): IntegrationContractSummary["orchestrator"] {
+function buildOrchestratorContract(artifacts: {
+  readonly kitSignals: readonly string[];
+  readonly projectStatus: string;
+  readonly projectProfile: string;
+  readonly taskGraph: string;
+  readonly contextPack: string;
+  readonly contextPrompt: string;
+  readonly currentTaskPrompt: string;
+  readonly implementationChecklist: string;
+}): IntegrationContractSummary["orchestrator"] {
   return {
     readContractVersion: "0.1",
     requiredArtifacts: [

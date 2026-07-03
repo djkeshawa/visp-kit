@@ -1,16 +1,13 @@
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
-import {
-  changedDependencyFiles,
-  sourceChangedFiles
-} from "./artifact-presence.js";
+import { changedDependencyFiles, sourceChangedFiles } from "./artifact-presence.js";
 import { type GateCheck } from "./gate-result.js";
 
-const behaviorKeywords = /\b(add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow)\b/i;
+const behaviorKeywords =
+  /\b(add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow)\b/i;
 
 export function isBehaviorTask(task: Task): boolean {
-  return task.riskLevel !== "low" ||
-    behaviorKeywords.test(`${task.title} ${task.description}`);
+  return task.riskLevel !== "low" || behaviorKeywords.test(`${task.title} ${task.description}`);
 }
 
 export function taskScopeChecks(state: ProjectState): readonly GateCheck[] {
@@ -23,16 +20,13 @@ export function taskScopeChecks(state: ProjectState): readonly GateCheck[] {
   const expected = new Set(task.expectedFiles ?? []);
   const allowed = new Set(task.allowedFiles);
   const forbiddenChanged = changed.filter((file) => forbidden.has(file));
-  const outOfScope = allowed.size === 0
-    ? []
-    : changed.filter((file) =>
-        !allowed.has(file) &&
-        !expected.has(file) &&
-        !forbidden.has(file)
-      );
+  const outOfScope =
+    allowed.size === 0
+      ? []
+      : changed.filter((file) => !allowed.has(file) && !expected.has(file) && !forbidden.has(file));
   const dependencyChanged = changedDependencyFiles(state);
-  const dependencyApproved = dependencyChanged.every((file) =>
-    allowed.has(file) || expected.has(file)
+  const dependencyApproved = dependencyChanged.every(
+    (file) => allowed.has(file) || expected.has(file)
   );
   const checks: GateCheck[] = [];
 
@@ -89,9 +83,10 @@ export function taskScopeChecks(state: ProjectState): readonly GateCheck[] {
       passed: true,
       message: "No unapproved dependency changes detected.",
       recommendation: "Continue.",
-      evidence: dependencyChanged.length === 0
-        ? "No dependency files changed."
-        : "Dependency files are in task allowedFiles or expectedFiles."
+      evidence:
+        dependencyChanged.length === 0
+          ? "No dependency files changed."
+          : "Dependency files are in task allowedFiles or expectedFiles."
     });
   }
 

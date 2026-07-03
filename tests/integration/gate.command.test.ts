@@ -1,15 +1,16 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
-import {
-  gateReportArtifactPath,
-  policyArtifactPath
-} from "../../src/artifacts/artifact-paths.js";
+import { gateReportArtifactPath, policyArtifactPath } from "../../src/artifacts/artifact-paths.js";
 import { pathExists } from "../../src/core/file-system.js";
+import {
+  taskImplementMarkerPath,
+  implementMarkerDirPath
+} from "../../src/gates/implement-marker.js";
 import { runInitWorkflow } from "../../src/workflows/init.workflow.js";
 import { runPolicySetStrictnessWorkflow } from "../../src/workflows/policy.workflow.js";
 import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
@@ -126,14 +127,7 @@ describe("visp gate command", () => {
 
     process.exitCode = undefined;
     output.length = 0;
-    await program.parseAsync([
-      "node",
-      "visp",
-      "context",
-      "T001",
-      tempDir,
-      "--force"
-    ]);
+    await program.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
 
     output.length = 0;
     await program.parseAsync([
@@ -150,6 +144,146 @@ describe("visp gate command", () => {
 
     expect(allowed.allowed).toBe(true);
     expect(process.exitCode).toBeUndefined();
+  });
+
+  it("blocks a second task whose scope overlaps an active authorization", async () => {
+    await createPhase8Fixture(tempDir);
+    expectOk(
+      await runPolicySetStrictnessWorkflow({
+        targetPath: tempDir,
+        strictness: "strict",
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+
+    // Give T001 a concrete scope so overlap detection has real paths.
+    const taskGraphPath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "task-graph.json"
+    );
+    const taskGraph = JSON.parse(await readFile(taskGraphPath, "utf8")) as {
+      tasks: Array<{ id: string; allowedFiles: string[] }>;
+    };
+
+    taskGraph.tasks[0] = { ...taskGraph.tasks[0], allowedFiles: ["src/notes.ts"] } as never;
+    await writeFile(taskGraphPath, `${JSON.stringify(taskGraph, null, 2)}\n`, "utf8");
+
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
+
+    // Simulate another agent's active authorization sharing src/notes.ts.
+    await mkdir(implementMarkerDirPath(tempDir), { recursive: true });
+    await writeFile(
+      taskImplementMarkerPath(tempDir, "T998"),
+      JSON.stringify({
+        version: "1.0",
+        taskId: "T998",
+        featureId: "001",
+        strictnessMode: "strict",
+        allowedFiles: ["src/notes.ts"],
+        expectedFiles: [],
+        forbiddenFiles: [],
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }),
+      "utf8"
+    );
+
+    const output: string[] = [];
+    const gateProgram = createCli({ writeOut: (value) => output.push(value) });
+
+    await gateProgram.parseAsync([
+      "node",
+      "visp",
+      "gate",
+      "implement",
+      tempDir,
+      "--task",
+      "T001",
+      "--json"
+    ]);
+
+    const result = JSON.parse(output.join("")) as {
+      allowed: boolean;
+      failedRules: Array<{ ruleId: string; message: string }>;
+    };
+
+    expect(result.allowed).toBe(false);
+    expect(
+      result.failedRules.some((rule) => rule.ruleId === "VSP012" && rule.message.includes("T998"))
+    ).toBe(true);
+  });
+
+  it("allows concurrent authorizations with disjoint scopes", async () => {
+    await createPhase8Fixture(tempDir);
+    expectOk(
+      await runPolicySetStrictnessWorkflow({
+        targetPath: tempDir,
+        strictness: "strict",
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+
+    const taskGraphPath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "task-graph.json"
+    );
+    const taskGraph = JSON.parse(await readFile(taskGraphPath, "utf8")) as {
+      tasks: Array<{ id: string; allowedFiles: string[]; parallelizable: boolean }>;
+    };
+
+    taskGraph.tasks[0] = {
+      ...taskGraph.tasks[0],
+      allowedFiles: ["src/notes.ts"],
+      parallelizable: true
+    } as never;
+    await writeFile(taskGraphPath, `${JSON.stringify(taskGraph, null, 2)}\n`, "utf8");
+
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
+
+    await mkdir(implementMarkerDirPath(tempDir), { recursive: true });
+    await writeFile(
+      taskImplementMarkerPath(tempDir, "T998"),
+      JSON.stringify({
+        version: "1.0",
+        taskId: "T998",
+        featureId: "001",
+        strictnessMode: "strict",
+        allowedFiles: ["src/other-module.ts"],
+        expectedFiles: [],
+        forbiddenFiles: [],
+        createdAt: "2026-01-01T00:00:00.000Z"
+      }),
+      "utf8"
+    );
+
+    const output: string[] = [];
+    const gateProgram = createCli({ writeOut: (value) => output.push(value) });
+
+    await gateProgram.parseAsync([
+      "node",
+      "visp",
+      "gate",
+      "implement",
+      tempDir,
+      "--task",
+      "T001",
+      "--json"
+    ]);
+
+    const result = JSON.parse(output.join("")) as { allowed: boolean };
+
+    expect(result.allowed).toBe(true);
+    expect(await exists(taskImplementMarkerPath(tempDir, "T001"))).toBe(true);
+    expect(await exists(taskImplementMarkerPath(tempDir, "T998"))).toBe(true);
   });
 
   it("blocks pr when verification, review, and reconcile evidence are missing", async () => {

@@ -92,10 +92,7 @@ function initOptions(
   };
 }
 
-function showOptions(
-  targetPath: string | undefined,
-  cwd: string | undefined
-): PolicyShowOptions {
+function showOptions(targetPath: string | undefined, cwd: string | undefined): PolicyShowOptions {
   return { targetPath, cwd };
 }
 
@@ -120,43 +117,36 @@ function setStrictnessOptions(
   };
 }
 
-export function createPolicyCommand(
-  dependencies: PolicyCommandDependencies = {}
-): Command {
+export function createPolicyCommand(dependencies: PolicyCommandDependencies = {}): Command {
   const runInit = dependencies.runPolicyInit ?? runPolicyInitWorkflow;
   const runShow = dependencies.runPolicyShow ?? runPolicyShowWorkflow;
   const runValidate = dependencies.runPolicyValidate ?? runPolicyValidateWorkflow;
-  const runSetStrictness =
-    dependencies.runPolicySetStrictness ?? runPolicySetStrictnessWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const runSetStrictness = dependencies.runPolicySetStrictness ?? runPolicySetStrictnessWorkflow;
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
   const writers = { writeOut, writeErr };
 
-  const policy = new Command("policy")
-    .description("Manage Visp policy-as-code.");
+  const policy = new Command("policy").description("Manage Visp policy-as-code.");
 
   policy
     .command("init")
     .description("Create .visp/policy.json.")
     .argument("[path]", "Target project path.")
     .addOption(
-      new Option("--strictness <mode>", "Policy strictness mode.")
-        .choices(strictnessModeSchema.options)
+      new Option("--strictness <mode>", "Policy strictness mode.").choices(
+        strictnessModeSchema.options
+      )
     )
     .option("--force", "Overwrite existing policy.json.")
     .option("--dry-run", "Show what would be written without writing files.")
     .option("--json", "Print a machine-readable summary.")
-    .action(
-      async (targetPath: string | undefined, options: PolicyInitCommandOptions) => {
-        await handleResult(
-          runInit(initOptions(targetPath, options, dependencies.cwd)),
-          options,
-          writers
-        );
-      }
-    );
+    .action(async (targetPath: string | undefined, options: PolicyInitCommandOptions) => {
+      await handleResult(
+        runInit(initOptions(targetPath, options, dependencies.cwd)),
+        options,
+        writers
+      );
+    });
 
   policy
     .command("show")
@@ -164,11 +154,7 @@ export function createPolicyCommand(
     .argument("[path]", "Target project path.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: JsonOption) => {
-      await handleResult(
-        runShow(showOptions(targetPath, dependencies.cwd)),
-        options,
-        writers
-      );
+      await handleResult(runShow(showOptions(targetPath, dependencies.cwd)), options, writers);
     });
 
   policy
@@ -189,9 +175,7 @@ export function createPolicyCommand(
     .description("Update policy strictness mode.")
     .argument("<mode>", "Strictness mode: relaxed, standard, strict, locked.")
     .argument("[path]", "Target project path.")
-    .addOption(
-      new Option("--dry-run", "Show what would be written without writing files.")
-    )
+    .addOption(new Option("--dry-run", "Show what would be written without writing files."))
     .option("--json", "Print a machine-readable summary.")
     .action(
       async (

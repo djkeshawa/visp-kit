@@ -44,10 +44,12 @@ describe("runNextWorkflow", () => {
   });
 
   it("recommends init when .visp is missing", async () => {
-    const next = expectOk(await runNextWorkflow({
-      targetPath: tempDir,
-      commandRunner: runner()
-    }));
+    const next = expectOk(
+      await runNextWorkflow({
+        targetPath: tempDir,
+        commandRunner: runner()
+      })
+    );
 
     expect(next.nextCommand).toBe("visp init");
     expect(next.state).toBe("not-initialized");
@@ -56,10 +58,12 @@ describe("runNextWorkflow", () => {
   it("recommends scan after initialization", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
 
-    const next = expectOk(await runNextWorkflow({
-      targetPath: tempDir,
-      commandRunner: runner()
-    }));
+    const next = expectOk(
+      await runNextWorkflow({
+        targetPath: tempDir,
+        commandRunner: runner()
+      })
+    );
 
     expect(next.nextCommand).toBe("visp scan");
     expect(formatNextSummary(next, { commandOnly: true })).toBe("visp scan\n");

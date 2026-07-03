@@ -102,11 +102,9 @@ export async function runHooksWorkflow(
   if (!initialized.ok) return initialized;
   if (!initialized.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Visp Kit is not initialized. Run `visp init` first.",
-        { recovery: "visp init" }
-      )
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
+        recovery: "visp init"
+      })
     );
   }
 
@@ -239,7 +237,9 @@ export async function runHooksWorkflow(
 export function formatHooksSummary(summary: HooksWorkflowSummary): string {
   const lines: string[] = [
     formatHeader(
-      summary.dryRun ? `Visp hooks ${summary.kind} dry run.` : `Visp hooks ${summary.kind} installed.`
+      summary.dryRun
+        ? `Visp hooks ${summary.kind} dry run.`
+        : `Visp hooks ${summary.kind} installed.`
     ),
     "",
     formatKeyValue("Target", summary.targetPath)

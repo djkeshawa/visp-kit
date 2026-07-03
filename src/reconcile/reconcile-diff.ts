@@ -23,9 +23,10 @@ function relatedFromTraceability(input: {
   readonly requirementIds: readonly string[];
   readonly acceptanceCriterionIds: readonly string[];
 } {
-  const entries = input.traceability?.entries.filter((entry) =>
-    [...entry.filePaths, ...entry.testPaths].map(normalizeReviewPath).includes(input.filePath)
-  ) ?? [];
+  const entries =
+    input.traceability?.entries.filter((entry) =>
+      [...entry.filePaths, ...entry.testPaths].map(normalizeReviewPath).includes(input.filePath)
+    ) ?? [];
 
   return {
     taskIds: [...new Set(entries.flatMap((entry) => entry.taskIds))].sort(),
@@ -48,10 +49,7 @@ function allTaskScope(taskGraph: TaskGraphArtifact): {
   };
 }
 
-function taskScope(input: {
-  readonly task?: Task;
-  readonly taskGraph: TaskGraphArtifact;
-}): {
+function taskScope(input: { readonly task?: Task; readonly taskGraph: TaskGraphArtifact }): {
   readonly allowed: readonly string[];
   readonly expected: readonly string[];
   readonly forbidden: readonly string[];
@@ -85,7 +83,6 @@ export function reconcileDiff(input: {
   readonly findings: readonly ReconcileFindingDraft[];
 } {
   const scope = taskScope(input);
-  const allowed = new Set([...scope.allowed, ...scope.expected]);
   const forbidden = new Set(scope.forbidden);
   const findings: ReconcileFindingDraft[] = [];
   const warnings: string[] = [];
@@ -99,7 +96,9 @@ export function reconcileDiff(input: {
     const generated = file.isGeneratedVispFile;
     const relatedTaskIds = [
       ...new Set([
-        ...(isAllowedByTask || isExpectedByTask ? [input.task?.id].filter(Boolean) as string[] : []),
+        ...(isAllowedByTask || isExpectedByTask
+          ? ([input.task?.id].filter(Boolean) as string[])
+          : []),
         ...trace.taskIds
       ])
     ].sort();
@@ -119,16 +118,20 @@ export function reconcileDiff(input: {
         ...trace.acceptanceCriterionIds
       ])
     ].sort();
-    const mapped = relatedTaskIds.length > 0 ||
+    const mapped =
+      relatedTaskIds.length > 0 ||
       relatedRequirementIds.length > 0 ||
       isAllowedByTask ||
       isExpectedByTask;
-    const mappingStatus =
-      generated
-        ? "generated"
-        : isForbiddenByTask ? "forbidden"
-        : file.isDependencyFile ? "dependency"
-        : mapped ? "mapped" : "unmapped";
+    const mappingStatus = generated
+      ? "generated"
+      : isForbiddenByTask
+        ? "forbidden"
+        : file.isDependencyFile
+          ? "dependency"
+          : mapped
+            ? "mapped"
+            : "unmapped";
     const notes = [
       ...(isAllowedByTask ? ["allowed by task"] : []),
       ...(isExpectedByTask ? ["expected by task"] : []),
@@ -197,10 +200,12 @@ export function reconcileDiff(input: {
         severity,
         driftType: "unmapped_file_change",
         title: "Unmapped file change",
-        description: "A changed file has no deterministic task, requirement, or acceptance criterion mapping.",
+        description:
+          "A changed file has no deterministic task, requirement, or acceptance criterion mapping.",
         file: filePath,
         evidence: message,
-        recommendation: "Confirm the change is intentional. Update task scope or create a follow-up task.",
+        recommendation:
+          "Confirm the change is intentional. Update task scope or create a follow-up task.",
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -215,8 +220,12 @@ export function reconcileDiff(input: {
         .map((file) => file.path),
       unmappedFiles,
       forbiddenFiles,
-      dependencyFiles: changedFiles.filter((file) => file.isDependencyFile).map((file) => file.path),
-      generatedFiles: changedFiles.filter((file) => file.isVispGeneratedFile).map((file) => file.path),
+      dependencyFiles: changedFiles
+        .filter((file) => file.isDependencyFile)
+        .map((file) => file.path),
+      generatedFiles: changedFiles
+        .filter((file) => file.isVispGeneratedFile)
+        .map((file) => file.path),
       warnings,
       errors
     },

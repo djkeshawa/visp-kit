@@ -20,8 +20,9 @@ export function renderTimelineMarkdown(timeline: FeatureTimeline): string {
     lines.push("- No timeline events available.");
   } else {
     lines.push(
-      ...timeline.events.map((event) =>
-        `- ${event.createdAt ?? "unknown"} ${event.kind}: ${event.title} (${event.status})${event.taskId === undefined ? "" : ` [${event.taskId}]`}`
+      ...timeline.events.map(
+        (event) =>
+          `- ${event.createdAt ?? "unknown"} ${event.kind}: ${event.title} (${event.status})${event.taskId === undefined ? "" : ` [${event.taskId}]`}`
       )
     );
   }

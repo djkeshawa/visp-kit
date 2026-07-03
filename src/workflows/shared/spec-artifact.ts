@@ -1,11 +1,8 @@
 import { writeArtifact } from "../../artifacts/artifact-writer.js";
 import { normalizeSpecArtifact } from "../../artifacts/normalizers/spec-normalizer.js";
-import {
-  specArtifactSchema,
-  type SpecArtifact
-} from "../../artifacts/schemas/spec.schema.js";
+import { specArtifactSchema, type SpecArtifact } from "../../artifacts/schemas/spec.schema.js";
 import { createArtifactValidationError } from "../../artifacts/validation-error.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { readJsonFile } from "../../core/file-system.js";
 import { err, ok, type Result } from "../../core/result.js";
 
@@ -25,8 +22,7 @@ function normalizationWarning(input: {
       ? `Would normalize ${input.displayPath}`
       : `Auto-normalized ${input.displayPath}`;
   const preview = input.changes.slice(0, 8).join("; ");
-  const hidden =
-    input.changes.length > 8 ? `; ${input.changes.length - 8} more change(s)` : "";
+  const hidden = input.changes.length > 8 ? `; ${input.changes.length - 8} more change(s)` : "";
 
   return `${prefix}: ${preview}${hidden}.`;
 }
@@ -45,9 +41,7 @@ export async function readSpecArtifactWithNormalization(input: {
   const parsed = specArtifactSchema.safeParse(normalized.value);
 
   if (!parsed.success) {
-    return err(
-      createArtifactValidationError(parsed.error, "spec", input.artifactPath)
-    );
+    return err(createArtifactValidationError(parsed.error, "spec", input.artifactPath));
   }
 
   const warnings =
@@ -62,11 +56,7 @@ export async function readSpecArtifactWithNormalization(input: {
         ]
       : [];
 
-  if (
-    normalized.changes.length > 0 &&
-    input.writeNormalized &&
-    !input.dryRun
-  ) {
+  if (normalized.changes.length > 0 && input.writeNormalized && !input.dryRun) {
     const write = await writeArtifact(input.artifactPath, specArtifactSchema, parsed.data, {
       artifactName: "spec"
     });

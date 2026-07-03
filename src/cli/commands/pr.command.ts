@@ -48,9 +48,7 @@ function workflowOptions(
   };
 }
 
-export function createPrCommand(
-  dependencies: PrCommandDependencies = {}
-): Command {
+export function createPrCommand(dependencies: PrCommandDependencies = {}): Command {
   const runPr = dependencies.runPr ?? runPrWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
@@ -82,7 +80,9 @@ export function createPrCommand(
         return;
       }
 
-      writeOut(options.json ? `${JSON.stringify(result.value, null, 2)}\n` : formatPrSummary(result.value));
+      writeOut(
+        options.json ? `${JSON.stringify(result.value, null, 2)}\n` : formatPrSummary(result.value)
+      );
       if (!result.value.success) process.exitCode = 1;
     });
 }

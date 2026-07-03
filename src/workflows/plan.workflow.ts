@@ -12,10 +12,7 @@ import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, type Result } from "../core/result.js";
 import { renderPlanPrompt } from "../prompts/render-plan-prompt.js";
-import {
-  createPlanDraftArtifact,
-  renderPlanMarkdown
-} from "../templates/phase7-templates.js";
+import { createPlanDraftArtifact, renderPlanMarkdown } from "../templates/phase7-templates.js";
 import { validatePlan } from "../validators/validate-plan.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import {
@@ -49,9 +46,7 @@ async function validateExisting(input: {
     "plan"
   );
   const semantic =
-    artifact.value === undefined
-      ? { passed: false, errors: [] }
-      : validatePlan(artifact.value);
+    artifact.value === undefined ? { passed: false, errors: [] } : validatePlan(artifact.value);
   const errors = [...textErrors, ...artifact.errors, ...semantic.errors];
 
   return { passed: errors.length === 0, errors };

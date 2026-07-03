@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { copilotTargetFiles } from "../../../../src/agent/targets/copilot.js";
+import { toPosixPath } from "../../../../src/core/paths.js";
 
 describe("copilot target", () => {
   it("renders Copilot repository and workflow instructions plus the rules file", () => {
@@ -10,7 +11,7 @@ describe("copilot target", () => {
       useFallbackAgentsFile: false
     });
 
-    expect(files.map((file) => file.path)).toEqual([
+    expect(files.map((file) => toPosixPath(file.path))).toEqual([
       "/repo/AGENTS.md",
       "/repo/.visp/prompts/visp-rules.md",
       "/repo/.github/copilot-instructions.md",
@@ -41,6 +42,6 @@ describe("copilot target", () => {
       useFallbackAgentsFile: true
     });
 
-    expect(files[0]?.path).toBe("/repo/AGENTS.visp.md");
+    expect(toPosixPath(files[0]?.path ?? "")).toBe("/repo/AGENTS.visp.md");
   });
 });

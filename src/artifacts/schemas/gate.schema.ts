@@ -87,12 +87,7 @@ export const gateResultSchema = z
   })
   .strict();
 
-export const policyStatusSchema = z.enum([
-  "valid",
-  "missing",
-  "invalid",
-  "default"
-]);
+export const policyStatusSchema = z.enum(["valid", "missing", "invalid", "default"]);
 
 export const policyGateSummarySchema = z
   .object({

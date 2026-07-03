@@ -75,7 +75,9 @@ describe("diff loader", () => {
     const result = await loadGitDiff({
       targetPath: "/workspace/project",
       staged: true,
-      commandRunner: runnerForDiff(".visp/features/001-add-note-pinning/reconcile/T001.reconcile.md")
+      commandRunner: runnerForDiff(
+        ".visp/features/001-add-note-pinning/reconcile/T001.reconcile.md"
+      )
     });
 
     expect(result.ok).toBe(true);

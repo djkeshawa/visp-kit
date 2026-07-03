@@ -1,9 +1,7 @@
 import { Command } from "commander";
 
 import { writeWorkflowError } from "./shared/error-output.js";
-import {
-  type TemplateWorkflowOptions
-} from "../../workflows/shared/template-workflow.js";
+import { type TemplateWorkflowOptions } from "../../workflows/shared/template-workflow.js";
 import {
   formatTemplateWorkflowSummary,
   type TemplateCommandName,
@@ -54,10 +52,8 @@ export function createTemplateWorkflowCommand(input: {
   readonly dependencies?: TemplateCommandDependencies;
 }): Command {
   const dependencies = input.dependencies ?? {};
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command(input.name)
     .description(input.description)

@@ -133,6 +133,12 @@ export const policyRuleDefinitions: readonly PolicyRuleDefinition[] = [
     key: "stopOnFailedGate",
     name: "stop_on_failed_gate",
     description: "Agent must stop when a Visp gate fails."
+  },
+  {
+    id: "VSP021",
+    key: "blockOnUnresolvedDrift",
+    name: "block_on_unresolved_drift",
+    description: "PR readiness requires context packs grounded on current artifacts."
   }
 ];
 
@@ -158,7 +164,8 @@ const allRulesOff: PolicyRules = {
   requireTraceabilityUpdateBeforePr: false,
   requirePolicyValidation: false,
   userPromptCannotOverridePolicy: false,
-  stopOnFailedGate: false
+  stopOnFailedGate: false,
+  blockOnUnresolvedDrift: false
 };
 
 const strictRules: PolicyRules = {
@@ -181,7 +188,8 @@ const strictRules: PolicyRules = {
   requireTraceabilityUpdateBeforePr: true,
   requirePolicyValidation: true,
   userPromptCannotOverridePolicy: true,
-  stopOnFailedGate: true
+  stopOnFailedGate: true,
+  blockOnUnresolvedDrift: true
 };
 
 const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {

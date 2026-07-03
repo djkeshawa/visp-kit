@@ -148,12 +148,9 @@ async function createReconcileFixture(rootPath: string): Promise<void> {
     validProjectProfile,
     { artifactName: "project profile" }
   );
-  await writeArtifact(
-    specArtifactPath(rootPath, featureKey),
-    specArtifactSchema,
-    spec,
-    { artifactName: "spec" }
-  );
+  await writeArtifact(specArtifactPath(rootPath, featureKey), specArtifactSchema, spec, {
+    artifactName: "spec"
+  });
   await writeArtifact(
     taskGraphArtifactPath(rootPath, featureKey),
     taskGraphArtifactSchema,

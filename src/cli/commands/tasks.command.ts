@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { type Command } from "commander";
 
 import { runTasksWorkflow } from "../../workflows/tasks.workflow.js";
 import {
@@ -10,9 +10,7 @@ export type TasksCommandDependencies = TemplateCommandDependencies & {
   readonly runTasks?: typeof runTasksWorkflow;
 };
 
-export function createTasksCommand(
-  dependencies: TasksCommandDependencies = {}
-): Command {
+export function createTasksCommand(dependencies: TasksCommandDependencies = {}): Command {
   return createTemplateWorkflowCommand({
     name: "tasks",
     description: "Generate or validate task graph templates for a feature.",

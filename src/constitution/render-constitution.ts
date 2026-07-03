@@ -1,7 +1,4 @@
-import {
-  type BudgetMode,
-  type Preset
-} from "../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 import { type ProjectProfile } from "../artifacts/schemas/project.schema.js";
 import { budgetGuidance, presetGuidance } from "./constitution-presets.js";
 import { type ConstitutionRule } from "./constitution-rules.js";
@@ -16,9 +13,7 @@ export type ConstitutionRenderInput = {
 };
 
 function list(items: readonly string[]): string {
-  return items.length === 0
-    ? "- None detected yet."
-    : items.map((item) => `- ${item}`).join("\n");
+  return items.length === 0 ? "- None detected yet." : items.map((item) => `- ${item}`).join("\n");
 }
 
 function ruleList(
@@ -26,9 +21,7 @@ function ruleList(
   category: ConstitutionRule["category"]
 ): string {
   return list(
-    rules
-      .filter((rule) => rule.category === category)
-      .map((rule) => `${rule.id}: ${rule.text}`)
+    rules.filter((rule) => rule.category === category).map((rule) => `${rule.id}: ${rule.text}`)
   );
 }
 
@@ -46,9 +39,7 @@ function projectSummaryExcerpt(summary: string | undefined): string {
   return list(lines.length > 0 ? lines : ["Project summary is present."]);
 }
 
-export function renderCompactConstitution(
-  rules: readonly ConstitutionRule[]
-): string {
+export function renderCompactConstitution(rules: readonly ConstitutionRule[]): string {
   return `${rules.map((rule) => `${rule.id}: ${rule.text}`).join("\n")}\n`;
 }
 

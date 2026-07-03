@@ -20,10 +20,12 @@ export function renderDoctorMarkdown(input: {
   const checkRows = input.checks
     .map((check) => `| ${check.name} | ${check.status} | ${check.findings.length} |`)
     .join("\n");
-  const findingText = input.findings.length === 0
-    ? "No findings."
-    : input.findings
-        .map((finding) => `### ${finding.severity.toUpperCase()} ${finding.id}: ${finding.title}
+  const findingText =
+    input.findings.length === 0
+      ? "No findings."
+      : input.findings
+          .map(
+            (finding) => `### ${finding.severity.toUpperCase()} ${finding.id}: ${finding.title}
 
 Category: ${finding.category}
 File: ${finding.file ?? "n/a"}
@@ -31,10 +33,11 @@ File: ${finding.file ?? "n/a"}
 ${finding.description}
 
 Recommendation: ${finding.recommendation}
-`)
-        .join("\n");
-  const fixes = input.fixes.map((fix) =>
-    `${fix.applied ? "applied" : "skipped"} ${fix.path}: ${fix.reason}`
+`
+          )
+          .join("\n");
+  const fixes = input.fixes.map(
+    (fix) => `${fix.applied ? "applied" : "skipped"} ${fix.path}: ${fix.reason}`
   );
 
   return `# Visp Doctor Report

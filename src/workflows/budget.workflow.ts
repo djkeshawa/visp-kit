@@ -23,10 +23,7 @@ import {
   type BudgetReportModel,
   type TaskBudgetEstimate
 } from "../budget/budget-report.js";
-import {
-  createBudgetSummary,
-  type BudgetSummary
-} from "../budget/budget-summary.js";
+import { createBudgetSummary, type BudgetSummary } from "../budget/budget-summary.js";
 import { compileContext } from "../context/context-compiler.js";
 import { markImplementationChecklistSteps } from "../context/implementation-checklist.js";
 import { selectTaskById } from "../context/task-selector.js";
@@ -65,11 +62,9 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Task graph is missing. Run `visp tasks` first.",
-        { recovery: "visp tasks" }
-      )
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", {
+        recovery: "visp tasks"
+      })
     );
   }
 
@@ -130,9 +125,7 @@ function nextUsageId(usage: readonly BudgetUsage[]): string {
   return `USG${String(max + 1).padStart(3, "0")}`;
 }
 
-async function loadBudgetArtifact(
-  targetPath: string
-): Promise<Result<BudgetArtifact, VispError>> {
+async function loadBudgetArtifact(targetPath: string): Promise<Result<BudgetArtifact, VispError>> {
   const artifactPath = budgetArtifactPath(targetPath);
   const exists = await pathExists(artifactPath);
 
@@ -157,9 +150,7 @@ function latestUsageFor(input: {
   readonly taskId: string;
 }): BudgetUsage | undefined {
   return input.usage
-    .filter((usage) =>
-      usage.featureId === input.featureId && usage.taskId === input.taskId
-    )
+    .filter((usage) => usage.featureId === input.featureId && usage.taskId === input.taskId)
     .sort((left, right) => right.recordedAt.localeCompare(left.recordedAt))[0];
 }
 
@@ -238,10 +229,7 @@ export async function runBudgetWorkflow(
 
   if ((recordUsage || recordUsageUnavailable) && options.taskId === undefined) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Recording actual token usage requires --task <task-id>."
-      )
+      new VispError("VALIDATION_FAILED", "Recording actual token usage requires --task <task-id>.")
     );
   }
 
@@ -300,44 +288,48 @@ export async function runBudgetWorkflow(
 
   if (!budgetArtifact.ok) return budgetArtifact;
 
-  const recordedUsage = (recordUsage || recordUsageUnavailable) && options.taskId !== undefined
-    ? usageEntry({
-        artifact: budgetArtifact.value,
-        feature: feature.value,
-        taskId: options.taskId,
-        inputTokens: recordUsage ? inputTokens : undefined,
-        outputTokens: recordUsage ? outputTokens : undefined,
-        totalTokens: recordUsage ? totalTokens : undefined,
-        status: recordUsageUnavailable ? "unavailable" : "recorded",
-        model: options.model,
-        note: options.usageNote,
-        now
-      })
-    : undefined;
-  const nextBudgetArtifact: BudgetArtifact = recordedUsage === undefined
-    ? budgetArtifact.value
-    : {
-        ...budgetArtifact.value,
-        usage: [
-          ...budgetArtifact.value.usage.filter((usage) =>
-            !(
-              usage.featureId === recordedUsage.featureId &&
-              usage.taskId === recordedUsage.taskId
-            )
-          ),
-          recordedUsage
-        ]
-      };
+  const recordedUsage =
+    (recordUsage || recordUsageUnavailable) && options.taskId !== undefined
+      ? usageEntry({
+          artifact: budgetArtifact.value,
+          feature: feature.value,
+          taskId: options.taskId,
+          inputTokens: recordUsage ? inputTokens : undefined,
+          outputTokens: recordUsage ? outputTokens : undefined,
+          totalTokens: recordUsage ? totalTokens : undefined,
+          status: recordUsageUnavailable ? "unavailable" : "recorded",
+          model: options.model,
+          note: options.usageNote,
+          now
+        })
+      : undefined;
+  const nextBudgetArtifact: BudgetArtifact =
+    recordedUsage === undefined
+      ? budgetArtifact.value
+      : {
+          ...budgetArtifact.value,
+          usage: [
+            ...budgetArtifact.value.usage.filter(
+              (usage) =>
+                !(
+                  usage.featureId === recordedUsage.featureId &&
+                  usage.taskId === recordedUsage.taskId
+                )
+            ),
+            recordedUsage
+          ]
+        };
   const estimates: TaskBudgetEstimate[] = [];
 
   for (const task of tasks) {
-    const usage = recordedUsage !== undefined && task.id === recordedUsage.taskId
-      ? recordedUsage
-      : latestUsageFor({
-          usage: nextBudgetArtifact.usage,
-          featureId: feature.value.id,
-          taskId: task.id
-        });
+    const usage =
+      recordedUsage !== undefined && task.id === recordedUsage.taskId
+        ? recordedUsage
+        : latestUsageFor({
+            usage: nextBudgetArtifact.usage,
+            featureId: feature.value.id,
+            taskId: task.id
+          });
     const estimate = await estimateTask({
       targetPath,
       feature: feature.value,
@@ -355,22 +347,16 @@ export async function runBudgetWorkflow(
     estimates.push(estimate.value);
   }
 
-  const budgetMode =
-    options.budget ??
-    feature.value.intent.budgetMode ??
-    "lean";
+  const budgetMode = options.budget ?? feature.value.intent.budgetMode ?? "lean";
   const writtenFiles: string[] = [];
 
   if (recordedUsage !== undefined) {
     const budgetPath = budgetArtifactPath(targetPath);
 
     if (!dryRun) {
-      const write = await writeArtifact(
-        budgetPath,
-        budgetArtifactSchema,
-        nextBudgetArtifact,
-        { artifactName: "budget" }
-      );
+      const write = await writeArtifact(budgetPath, budgetArtifactSchema, nextBudgetArtifact, {
+        artifactName: "budget"
+      });
 
       if (!write.ok) return write;
     }
@@ -384,9 +370,10 @@ export async function runBudgetWorkflow(
       steps: ["record-usage"],
       status: recordedUsage.status === "unavailable" ? "unavailable" : "done",
       reason: recordedUsage.status === "unavailable" ? recordedUsage.note : undefined,
-      evidence: recordedUsage.status === "unavailable"
-        ? "visp budget --record-usage-unavailable"
-        : "visp budget --record-usage",
+      evidence:
+        recordedUsage.status === "unavailable"
+          ? "visp budget --record-usage-unavailable"
+          : "visp budget --record-usage",
       dryRun
     });
 
@@ -446,37 +433,41 @@ export async function runBudgetWorkflow(
           path: filePath,
           action: "updated" as const
         })),
-        estimatedTokens: estimates.reduce((total, estimate) => total + estimate.estimatedTotalTokens, 0),
+        estimatedTokens: estimates.reduce(
+          (total, estimate) => total + estimate.estimatedTotalTokens,
+          0
+        ),
         actualTokens: recordedUsage?.totalTokens ?? undefined,
         warnings: [...warnings, ...timelineWarnings],
-        events: recordedUsage === undefined
-          ? [
-              {
-                type: "budget_estimated",
-                message: `Estimated budget for ${estimates.length} task(s).`
-              }
-            ]
-          : [
-              recordedUsage.status === "unavailable"
-                ? {
-                    type: "usage_recorded",
-                    message: `Recorded unavailable actual token usage for ${recordedUsage.taskId}.`,
-                    data: {
-                      status: recordedUsage.status,
-                      note: recordedUsage.note
+        events:
+          recordedUsage === undefined
+            ? [
+                {
+                  type: "budget_estimated",
+                  message: `Estimated budget for ${estimates.length} task(s).`
+                }
+              ]
+            : [
+                recordedUsage.status === "unavailable"
+                  ? {
+                      type: "usage_recorded",
+                      message: `Recorded unavailable actual token usage for ${recordedUsage.taskId}.`,
+                      data: {
+                        status: recordedUsage.status,
+                        note: recordedUsage.note
+                      }
                     }
-                  }
-                : {
-                    type: "usage_recorded",
-                    message: `Recorded ${recordedUsage.totalTokens ?? 0} actual tokens for ${recordedUsage.taskId}.`,
-                    data: {
-                      status: recordedUsage.status,
-                      inputTokens: recordedUsage.inputTokens,
-                      outputTokens: recordedUsage.outputTokens,
-                      totalTokens: recordedUsage.totalTokens
+                  : {
+                      type: "usage_recorded",
+                      message: `Recorded ${recordedUsage.totalTokens ?? 0} actual tokens for ${recordedUsage.taskId}.`,
+                      data: {
+                        status: recordedUsage.status,
+                        inputTokens: recordedUsage.inputTokens,
+                        outputTokens: recordedUsage.outputTokens,
+                        totalTokens: recordedUsage.totalTokens
+                      }
                     }
-                  }
-            ],
+              ],
         dryRun
       })
     : { writtenFiles: [], warnings: [] };

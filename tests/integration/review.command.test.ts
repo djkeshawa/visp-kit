@@ -16,10 +16,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-async function updateTask(
-  rootPath: string,
-  patch: Record<string, unknown>
-): Promise<void> {
+async function updateTask(rootPath: string, patch: Record<string, unknown>): Promise<void> {
   const taskGraphPath = path.join(
     rootPath,
     ".visp",
@@ -108,13 +105,7 @@ describe("visp review command", () => {
       "--skip-verification"
     ]);
 
-    const reviewDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning",
-      "review"
-    );
+    const reviewDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review");
 
     expect(output.join("")).toContain("Visp review complete");
     expect(await exists(path.join(reviewDir, "T001.review.md"))).toBe(true);
@@ -133,23 +124,13 @@ describe("visp review command", () => {
     await modifySource(tempDir);
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "review",
-      tempDir,
-      "--skip-verification"
-    ]);
+    await program.parseAsync(["node", "visp", "review", tempDir, "--skip-verification"]);
 
     expect(
-      await exists(
-        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review.md")
-      )
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review.md"))
     ).toBe(true);
     expect(
-      await exists(
-        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review.json")
-      )
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review.json"))
     ).toBe(true);
   });
 
@@ -204,13 +185,7 @@ describe("visp review command", () => {
       "--skip-verification"
     ]);
 
-    const reviewDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning",
-      "review"
-    );
+    const reviewDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review");
 
     expect(await exists(path.join(reviewDir, "T001.review-prompt.md"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "prompts", "review.prompt.md"))).toBe(true);
@@ -235,13 +210,7 @@ describe("visp review command", () => {
       "--skip-verification"
     ]);
 
-    const reviewDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning",
-      "review"
-    );
+    const reviewDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review");
 
     expect(await exists(path.join(reviewDir, "T001.review-checklist.md"))).toBe(true);
     expect(await exists(path.join(reviewDir, "T001.review.json"))).toBe(false);
@@ -304,9 +273,7 @@ describe("visp review command", () => {
       changedFiles: Array<{ path: string }>;
     };
 
-    expect(summary.changedFiles.map((file) => file.path)).toEqual([
-      "tests/notes.test.ts"
-    ]);
+    expect(summary.changedFiles.map((file) => file.path)).toEqual(["tests/notes.test.ts"]);
   });
 
   it("base ref reviews committed changes against base", async () => {

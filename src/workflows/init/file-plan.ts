@@ -32,7 +32,7 @@ import {
   policyArtifactSchema,
   type StrictnessMode
 } from "../../artifacts/schemas/policy.schema.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { pathExists } from "../../core/file-system.js";
 import { ok, type Result } from "../../core/result.js";
 import { createDefaultPolicy } from "../../policy/policy-defaults.js";
@@ -43,10 +43,7 @@ import {
   installedTargetsPath,
   workflowMapPath
 } from "../../agent/agent-paths.js";
-import {
-  buildWorkflowMapForTargets,
-  renderAgentGuide
-} from "../../agent/agent-renderer.js";
+import { buildWorkflowMapForTargets, renderAgentGuide } from "../../agent/agent-renderer.js";
 import { buildAgentCapabilities } from "../../agent/agent-capabilities.js";
 import { codexTargetFiles } from "../../agent/targets/codex.js";
 import { genericTargetFiles } from "../../agent/targets/generic.js";
@@ -157,25 +154,75 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
       workflowManifestSchema,
       defaultWorkflowManifest(input.now)
     ),
-    textFile(input.targetPath, path.join(memoryDir, "constitution.md"), constitutionMarkdown(input.preset, input.budget)),
-    textFile(input.targetPath, path.join(memoryDir, "constitution.compact.md"), compactConstitutionMarkdown()),
-    textFile(input.targetPath, path.join(memoryDir, "project-summary.md"), placeholderMemoryMarkdown("Project Summary")),
-    textFile(input.targetPath, path.join(memoryDir, "patterns.md"), placeholderMemoryMarkdown("Project Patterns")),
-    textFile(input.targetPath, path.join(cacheDir, "file-index.json"), jsonText(cachePlaceholder("file-index"))),
-    textFile(input.targetPath, path.join(cacheDir, "module-map.json"), jsonText(cachePlaceholder("module-map"))),
-    textFile(input.targetPath, path.join(cacheDir, "test-map.json"), jsonText(cachePlaceholder("test-map"))),
-    textFile(input.targetPath, path.join(cacheDir, "dependency-map.json"), jsonText(cachePlaceholder("dependency-map"))),
-    textFile(input.targetPath, path.join(cacheDir, "file-summaries.json"), jsonText(cachePlaceholder("file-summaries"))),
-    textFile(input.targetPath, path.join(cacheDir, "scan-meta.json"), jsonText({ status: "pending", populatedBy: "visp scan", updatedAt: null })),
-    textFile(input.targetPath, path.join(reportsDir, "budget-report.md"), placeholderReportMarkdown("Budget Report")),
-    textFile(input.targetPath, path.join(reportsDir, "scan-report.md"), placeholderReportMarkdown("Scan Report")),
-    textFile(input.targetPath, path.join(reportsDir, "doctor-report.md"), placeholderReportMarkdown("Doctor Report"))
+    textFile(
+      input.targetPath,
+      path.join(memoryDir, "constitution.md"),
+      constitutionMarkdown(input.preset, input.budget)
+    ),
+    textFile(
+      input.targetPath,
+      path.join(memoryDir, "constitution.compact.md"),
+      compactConstitutionMarkdown()
+    ),
+    textFile(
+      input.targetPath,
+      path.join(memoryDir, "project-summary.md"),
+      placeholderMemoryMarkdown("Project Summary")
+    ),
+    textFile(
+      input.targetPath,
+      path.join(memoryDir, "patterns.md"),
+      placeholderMemoryMarkdown("Project Patterns")
+    ),
+    textFile(
+      input.targetPath,
+      path.join(cacheDir, "file-index.json"),
+      jsonText(cachePlaceholder("file-index"))
+    ),
+    textFile(
+      input.targetPath,
+      path.join(cacheDir, "module-map.json"),
+      jsonText(cachePlaceholder("module-map"))
+    ),
+    textFile(
+      input.targetPath,
+      path.join(cacheDir, "test-map.json"),
+      jsonText(cachePlaceholder("test-map"))
+    ),
+    textFile(
+      input.targetPath,
+      path.join(cacheDir, "dependency-map.json"),
+      jsonText(cachePlaceholder("dependency-map"))
+    ),
+    textFile(
+      input.targetPath,
+      path.join(cacheDir, "file-summaries.json"),
+      jsonText(cachePlaceholder("file-summaries"))
+    ),
+    textFile(
+      input.targetPath,
+      path.join(cacheDir, "scan-meta.json"),
+      jsonText({ status: "pending", populatedBy: "visp scan", updatedAt: null })
+    ),
+    textFile(
+      input.targetPath,
+      path.join(reportsDir, "budget-report.md"),
+      placeholderReportMarkdown("Budget Report")
+    ),
+    textFile(
+      input.targetPath,
+      path.join(reportsDir, "scan-report.md"),
+      placeholderReportMarkdown("Scan Report")
+    ),
+    textFile(
+      input.targetPath,
+      path.join(reportsDir, "doctor-report.md"),
+      placeholderReportMarkdown("Doctor Report")
+    )
   ];
 }
 
-async function agentPlan(
-  input: InitFilePlanInput
-): Promise<Result<InitFilePlan, VispError>> {
+async function agentPlan(input: InitFilePlanInput): Promise<Result<InitFilePlan, VispError>> {
   const target = agentTargetFromMode(input.agent);
 
   if (target === undefined) {
@@ -198,17 +245,18 @@ async function agentPlan(
   }
 
   const useFallbackAgentsFile = agentsExists.value && !input.force;
-  const targetFiles = target === "codex"
-    ? codexTargetFiles({
-        targetPath: input.targetPath,
-        strictness: input.strictness,
-        useFallbackAgentsFile
-      })
-    : genericTargetFiles({
-        targetPath: input.targetPath,
-        strictness: input.strictness,
-        useFallbackAgentsFile
-      });
+  const targetFiles =
+    target === "codex"
+      ? codexTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness,
+          useFallbackAgentsFile
+        })
+      : genericTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness,
+          useFallbackAgentsFile
+        });
   const targetFilePaths = targetFiles.map((file) =>
     path.relative(input.targetPath, file.path).split(path.sep).join("/")
   );
@@ -229,9 +277,7 @@ async function agentPlan(
   return ok({
     directories: target === "codex" ? [path.join(input.targetPath, ".agents", "skills")] : [],
     files: [
-      ...targetFiles.map((file) =>
-        textFile(input.targetPath, file.path, file.contents)
-      ),
+      ...targetFiles.map((file) => textFile(input.targetPath, file.path, file.contents)),
       artifactFile(
         input.targetPath,
         installedTargetsPath(input.targetPath),

@@ -21,7 +21,7 @@ import {
   type TimelineEvent
 } from "../artifacts/schemas/timeline.schema.js";
 import { runIndexSchema } from "../artifacts/schemas/run.schema.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
@@ -54,9 +54,7 @@ async function latestRunEvents(input: {
   if (!index.ok) return [];
 
   return index.value.runs
-    .filter((run) =>
-      run.featureId === input.featureId || run.featureSlug === input.featureSlug
-    )
+    .filter((run) => run.featureId === input.featureId || run.featureSlug === input.featureSlug)
     .slice(-20)
     .map((run) => ({
       kind: "run" as const,
@@ -124,25 +122,29 @@ export async function buildFeatureTimeline(input: {
     {
       kind: "artifact",
       title: "Clarifications",
-      status: await exists(clarificationsArtifactPath(input.targetPath, featureKey)) ? "ready" : "missing",
+      status: (await exists(clarificationsArtifactPath(input.targetPath, featureKey)))
+        ? "ready"
+        : "missing",
       path: `.visp/features/${featureKey}/clarifications.json`
     },
     {
       kind: "artifact",
       title: "Specification",
-      status: await exists(specArtifactPath(input.targetPath, featureKey)) ? "ready" : "missing",
+      status: (await exists(specArtifactPath(input.targetPath, featureKey))) ? "ready" : "missing",
       path: `.visp/features/${featureKey}/spec.json`
     },
     {
       kind: "artifact",
       title: "Plan",
-      status: await exists(planArtifactPath(input.targetPath, featureKey)) ? "ready" : "missing",
+      status: (await exists(planArtifactPath(input.targetPath, featureKey))) ? "ready" : "missing",
       path: `.visp/features/${featureKey}/plan.json`
     },
     {
       kind: "artifact",
       title: "Task graph",
-      status: await exists(taskGraphArtifactPath(input.targetPath, featureKey)) ? "ready" : "missing",
+      status: (await exists(taskGraphArtifactPath(input.targetPath, featureKey)))
+        ? "ready"
+        : "missing",
       path: `.visp/features/${featureKey}/task-graph.json`
     }
   ];
@@ -151,21 +153,27 @@ export async function buildFeatureTimeline(input: {
     events.push({
       kind: "context",
       title: "Context pack",
-      status: await exists(contextPackArtifactPath(input.targetPath, featureKey, task.id)) ? "ready" : "missing",
+      status: (await exists(contextPackArtifactPath(input.targetPath, featureKey, task.id)))
+        ? "ready"
+        : "missing",
       path: `.visp/features/${featureKey}/context/${task.id}.context.json`,
       taskId: task.id
     });
     events.push({
       kind: "review",
       title: "Review report",
-      status: await exists(taskReviewArtifactPath(input.targetPath, featureKey, task.id)) ? "ready" : "missing",
+      status: (await exists(taskReviewArtifactPath(input.targetPath, featureKey, task.id)))
+        ? "ready"
+        : "missing",
       path: `.visp/features/${featureKey}/review/${task.id}.review.json`,
       taskId: task.id
     });
     events.push({
       kind: "reconcile",
       title: "Reconcile report",
-      status: await exists(taskReconcileArtifactPath(input.targetPath, featureKey, task.id)) ? "ready" : "missing",
+      status: (await exists(taskReconcileArtifactPath(input.targetPath, featureKey, task.id)))
+        ? "ready"
+        : "missing",
       path: `.visp/features/${featureKey}/reconcile/${task.id}.reconcile.json`,
       taskId: task.id
     });
@@ -174,14 +182,18 @@ export async function buildFeatureTimeline(input: {
   events.push({
     kind: "verification",
     title: "Verification report",
-    status: await exists(verificationArtifactPath(input.targetPath, featureKey)) ? "ready" : "missing",
+    status: (await exists(verificationArtifactPath(input.targetPath, featureKey)))
+      ? "ready"
+      : "missing",
     path: `.visp/features/${featureKey}/verification.json`
   });
-  events.push(...await latestRunEvents({
-    targetPath: input.targetPath,
-    featureId: feature.id,
-    featureSlug: feature.slug
-  }));
+  events.push(
+    ...(await latestRunEvents({
+      targetPath: input.targetPath,
+      featureId: feature.id,
+      featureSlug: feature.slug
+    }))
+  );
 
   const budget = await budgetTotals({
     targetPath: input.targetPath,
@@ -195,8 +207,8 @@ export async function buildFeatureTimeline(input: {
     ...(state.value.reconcile?.result === "failed" ? ["Reconciliation failed."] : [])
   ];
   const taskCount = state.value.taskGraph?.tasks.length ?? 0;
-  const completedTaskCount = (state.value.taskGraph?.tasks ?? []).filter((task) =>
-    task.status === "done" || task.status === "verified"
+  const completedTaskCount = (state.value.taskGraph?.tasks ?? []).filter(
+    (task) => task.status === "done" || task.status === "verified"
   ).length;
 
   return ok({
@@ -218,10 +230,15 @@ export async function writeFeatureTimeline(input: {
   readonly taskId?: string;
   readonly now: string;
   readonly dryRun: boolean;
-}): Promise<Result<{
-  readonly writtenFiles: readonly string[];
-  readonly warnings: readonly string[];
-}, VispError>> {
+}): Promise<
+  Result<
+    {
+      readonly writtenFiles: readonly string[];
+      readonly warnings: readonly string[];
+    },
+    VispError
+  >
+> {
   const timeline = await buildFeatureTimeline(input);
 
   if (!timeline.ok) return timeline;

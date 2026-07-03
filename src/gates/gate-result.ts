@@ -31,9 +31,8 @@ function commandForStage(stage: GateStage): string {
 }
 
 function finding(input: GateCheck, strictness: StrictnessMode): GateRuleFinding {
-  const severity = strictness === "locked" && input.severity === "warning"
-    ? "error"
-    : input.severity ?? "error";
+  const severity =
+    strictness === "locked" && input.severity === "warning" ? "error" : (input.severity ?? "error");
 
   return {
     ruleId: input.ruleId,
@@ -44,10 +43,7 @@ function finding(input: GateCheck, strictness: StrictnessMode): GateRuleFinding 
   };
 }
 
-function blockedCommand(
-  stage: GateStage,
-  rule: GateRuleFinding
-): GateBlockedCommand {
+function blockedCommand(stage: GateStage, rule: GateRuleFinding): GateBlockedCommand {
   return {
     command: commandForStage(stage),
     reason: rule.message,
@@ -87,12 +83,13 @@ export function buildGateResult(input: {
     strictnessMode: input.strictnessMode,
     allowed,
     dryRun: input.dryRun,
-    feature: input.state.selectedFeature === undefined
-      ? null
-      : {
-          id: input.state.selectedFeature.id,
-          slug: input.state.selectedFeature.slug
-        },
+    feature:
+      input.state.selectedFeature === undefined
+        ? null
+        : {
+            id: input.state.selectedFeature.id,
+            slug: input.state.selectedFeature.slug
+          },
     taskId: input.state.selectedTask?.id ?? null,
     passedRules: input.evaluation.checks
       .filter((check) => check.passed)

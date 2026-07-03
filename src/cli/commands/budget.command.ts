@@ -1,15 +1,9 @@
 import { Command, Option } from "commander";
 
-import {
-  budgetModeSchema,
-  type BudgetMode
-} from "../../artifacts/schemas/common.schema.js";
+import { budgetModeSchema, type BudgetMode } from "../../artifacts/schemas/common.schema.js";
 import { formatBudgetSummary } from "../../budget/budget-summary.js";
 import { formatError } from "../../theme/terminal.js";
-import {
-  runBudgetWorkflow,
-  type BudgetWorkflowOptions
-} from "../../workflows/budget.workflow.js";
+import { runBudgetWorkflow, type BudgetWorkflowOptions } from "../../workflows/budget.workflow.js";
 
 export type BudgetCommandDependencies = {
   readonly runBudget?: typeof runBudgetWorkflow;
@@ -73,14 +67,10 @@ function parseOptionalNonNegativeInteger(value: string | undefined): number | un
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : Number.NaN;
 }
 
-export function createBudgetCommand(
-  dependencies: BudgetCommandDependencies = {}
-): Command {
+export function createBudgetCommand(dependencies: BudgetCommandDependencies = {}): Command {
   const runBudget = dependencies.runBudget ?? runBudgetWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("budget")
     .description("Estimate Visp context token budgets.")
@@ -88,13 +78,17 @@ export function createBudgetCommand(
     .option("--feature <feature>", "Feature ID, slug, or folder name.")
     .option("--task <task-id>", "Estimate a single task.")
     .addOption(
-      new Option("--budget <budget>", "Budget mode for the estimate.")
-        .choices(budgetModeSchema.options)
+      new Option("--budget <budget>", "Budget mode for the estimate.").choices(
+        budgetModeSchema.options
+      )
     )
     .option("--max-tokens <number>", "Override the budget mode max input tokens.")
     .option("--write-report", "Write .visp/reports/budget-report.md.")
     .option("--record-usage", "Record actual agent-reported token usage for --task.")
-    .option("--record-usage-unavailable", "Record that actual token usage is unavailable for --task.")
+    .option(
+      "--record-usage-unavailable",
+      "Record that actual token usage is unavailable for --task."
+    )
     .option("--input-tokens <number>", "Actual input tokens used.")
     .option("--output-tokens <number>", "Actual output tokens used.")
     .option("--total-tokens <number>", "Actual total tokens used, if known.")
@@ -138,19 +132,11 @@ export function createBudgetCommand(
         return;
       }
 
-      const result = await runBudget(
-        workflowOptions(targetPath, options, dependencies.cwd)
-      );
+      const result = await runBudget(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {
         if (options.json) {
-          writeOut(
-            `${JSON.stringify(
-              { success: false, error: result.error.message },
-              null,
-              2
-            )}\n`
-          );
+          writeOut(`${JSON.stringify({ success: false, error: result.error.message }, null, 2)}\n`);
         } else {
           writeErr(`${formatError(result.error.message)}\n`);
         }

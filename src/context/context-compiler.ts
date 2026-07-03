@@ -26,10 +26,8 @@ import {
   type ContextPack
 } from "../artifacts/schemas/context-pack.schema.js";
 import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
-import {
-  projectConfigSchema,
-  projectProfileSchema
-} from "../artifacts/schemas/project.schema.js";
+import { snippetRelevanceScore, taskKeywords } from "./context-relevance.js";
+import { projectConfigSchema, projectProfileSchema } from "../artifacts/schemas/project.schema.js";
 import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
@@ -44,41 +42,46 @@ import {
   contextBudgetRecommendation,
   type ContextBudgetPolicy
 } from "./context-budget.js";
-import {
-  estimateContextPackInputTokens,
-  selectContextPack
-} from "./context-selector.js";
+import { estimateContextPackInputTokens, selectContextPack } from "./context-selector.js";
 import { renderContextMarkdown } from "./context-renderer.js";
 import { estimateTokens, tokenEstimatorName } from "./token-estimator.js";
 
 const fileIndexCacheSchema = z.object({
-  files: z.array(z.object({
-    path: z.string(),
-    extension: z.string(),
-    sizeBytes: z.number(),
-    hash: z.string(),
-    language: z.string(),
-    isTestFile: z.boolean(),
-    isConfigFile: z.boolean(),
-    isSourceFile: z.boolean(),
-    lastScannedAt: z.string()
-  }).strict())
+  files: z.array(
+    z
+      .object({
+        path: z.string(),
+        extension: z.string(),
+        sizeBytes: z.number(),
+        hash: z.string(),
+        language: z.string(),
+        isTestFile: z.boolean(),
+        isConfigFile: z.boolean(),
+        isSourceFile: z.boolean(),
+        lastScannedAt: z.string()
+      })
+      .strict()
+  )
 });
 
 const fileSummariesCacheSchema = z.object({
-  items: z.array(z.object({
-    path: z.string(),
-    hash: z.string(),
-    language: z.string(),
-    sizeBytes: z.number(),
-    lineCount: z.number(),
-    imports: z.array(z.string()),
-    exports: z.array(z.string()),
-    symbols: z.array(z.string()),
-    comments: z.array(z.string()),
-    summaryKind: z.literal("deterministic"),
-    summarySkippedReason: z.string().optional()
-  }).strict())
+  items: z.array(
+    z
+      .object({
+        path: z.string(),
+        hash: z.string(),
+        language: z.string(),
+        sizeBytes: z.number(),
+        lineCount: z.number(),
+        imports: z.array(z.string()),
+        exports: z.array(z.string()),
+        symbols: z.array(z.string()),
+        comments: z.array(z.string()),
+        summaryKind: z.literal("deterministic"),
+        summarySkippedReason: z.string().optional()
+      })
+      .strict()
+  )
 });
 
 export type ContextCompilation = {
@@ -121,7 +124,9 @@ async function optionalArtifact<T>(input: {
   });
 
   if (!artifact.ok) {
-    input.warnings.push(`Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`);
+    input.warnings.push(
+      `Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`
+    );
     return undefined;
   }
 
@@ -224,10 +229,9 @@ function tokenizedPack(input: {
     hasAllowedFiles: input.pack.selectedTask.allowedFiles.length > 0,
     includeFullFiles: input.includeFullFiles
   });
-  const warning =
-    overBudget
-      ? `Context is over budget by ${overBudgetBy} input tokens. ${recommendation}`
-      : undefined;
+  const warning = overBudget
+    ? `Context is over budget by ${overBudgetBy} input tokens. ${recommendation}`
+    : undefined;
 
   return {
     ...input.pack,
@@ -245,26 +249,51 @@ function tokenizedPack(input: {
   };
 }
 
-function removeLastSnippet(pack: ContextPack): ContextPack {
-  const snippet = pack.includedSnippets.at(-1);
+function lowestRelevanceSnippetIndex(pack: ContextPack): number {
+  const keywords = taskKeywords(pack.selectedTask);
+  let lowestIndex = pack.includedSnippets.length - 1;
+  let lowestScore = Number.POSITIVE_INFINITY;
+
+  pack.includedSnippets.forEach((snippet, index) => {
+    const score = snippetRelevanceScore(snippet, keywords);
+
+    // Ties prefer the later snippet, preserving the earlier remove-last order.
+    if (score <= lowestScore) {
+      lowestScore = score;
+      lowestIndex = index;
+    }
+  });
+
+  return lowestIndex;
+}
+
+function removeLowestRelevanceSnippet(pack: ContextPack): {
+  readonly pack: ContextPack;
+  readonly removedPath: string | undefined;
+} {
+  const index = lowestRelevanceSnippetIndex(pack);
+  const snippet = pack.includedSnippets[index];
 
   if (snippet === undefined) {
-    return pack;
+    return { pack, removedPath: undefined };
   }
 
   return {
-    ...pack,
-    includedSnippets: pack.includedSnippets.slice(0, -1),
-    includedFiles: pack.includedFiles.map((file) =>
-      file.path === snippet.filePath
-        ? {
-            ...file,
-            includeMode: file.includeMode === "full" ? "summary" : file.includeMode,
-            snippetIncluded: false,
-            warning: file.warning ?? "Snippet removed to reduce context size."
-          }
-        : file
-    )
+    removedPath: snippet.filePath,
+    pack: {
+      ...pack,
+      includedSnippets: pack.includedSnippets.filter((_, position) => position !== index),
+      includedFiles: pack.includedFiles.map((file) =>
+        file.path === snippet.filePath
+          ? {
+              ...file,
+              includeMode: file.includeMode === "full" ? "summary" : file.includeMode,
+              snippetIncluded: false,
+              warning: file.warning ?? "Snippet removed to reduce context size."
+            }
+          : file
+      )
+    }
   };
 }
 
@@ -290,7 +319,11 @@ function trimOptionalContext(input: {
     };
   }
 
+  const originalSnippetCount = pack.includedSnippets.length;
+  let removedPatterns = false;
+
   if (pack.includedProjectContext.patterns.length > 0) {
+    removedPatterns = true;
     pack = {
       ...pack,
       includedProjectContext: {
@@ -309,10 +342,42 @@ function trimOptionalContext(input: {
       break;
     }
 
-    pack = removeLastSnippet({
+    const removal = removeLowestRelevanceSnippet(pack);
+
+    pack = {
+      ...removal.pack,
+      warnings: [
+        ...pack.warnings,
+        removal.removedPath === undefined
+          ? "Removed a file snippet to reduce context size."
+          : `Removed snippet ${removal.removedPath} (lowest relevance) to reduce context size.`
+      ]
+    };
+  }
+
+  const removedSnippetCount = originalSnippetCount - pack.includedSnippets.length;
+  const stillOverBudget =
+    estimateTokens(renderContextMarkdown({ feature: input.feature, pack })) >
+    input.policy.maxInputTokens;
+  const heavilyTrimmed =
+    (originalSnippetCount > 0 && removedSnippetCount > originalSnippetCount / 2) ||
+    (pack.includedSnippets.length === 0 && stillOverBudget);
+
+  if (removedSnippetCount > 0 || removedPatterns) {
+    pack = {
       ...pack,
-      warnings: [...pack.warnings, "Removed a file snippet to reduce context size."]
-    });
+      trimming: {
+        removedSnippetCount,
+        removedPatterns,
+        heavilyTrimmed
+      },
+      warnings: heavilyTrimmed
+        ? [
+            ...pack.warnings,
+            "Context was heavily trimmed to fit the token budget; agents should treat this pack as degraded and consider splitting the task or raising --max-tokens."
+          ]
+        : pack.warnings
+    };
   }
 
   markdown = renderContextMarkdown({ feature: input.feature, pack });
@@ -350,7 +415,9 @@ async function collectArtifactProvenance(input: {
   for (const candidate of candidates) {
     const exists = await pathExists(candidate.path);
     if (!exists.ok) {
-      input.warnings.push(`Unable to access provenance artifact ${candidate.label}: ${exists.error.message}`);
+      input.warnings.push(
+        `Unable to access provenance artifact ${candidate.label}: ${exists.error.message}`
+      );
       continue;
     }
     if (!exists.value) {
@@ -359,7 +426,9 @@ async function collectArtifactProvenance(input: {
 
     const text = await readTextFile(candidate.path);
     if (!text.ok) {
-      input.warnings.push(`Unable to hash provenance artifact ${candidate.label}: ${text.error.message}`);
+      input.warnings.push(
+        `Unable to hash provenance artifact ${candidate.label}: ${text.error.message}`
+      );
       continue;
     }
 

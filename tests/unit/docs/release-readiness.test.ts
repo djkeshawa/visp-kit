@@ -86,9 +86,11 @@ describe("release documentation readiness", () => {
   });
 
   it("documents GitHub Spec Kit as a separate install", () => {
-    const docs = [read("README.md"), read("docs/quickstart.md"), read("docs/spec-vs-visp-kit.md")].join(
-      "\n"
-    );
+    const docs = [
+      read("README.md"),
+      read("docs/quickstart.md"),
+      read("docs/spec-vs-visp-kit.md")
+    ].join("\n");
 
     expect(docs).toContain(
       "uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z"
@@ -106,7 +108,9 @@ describe("release documentation readiness", () => {
 
     expect(pkg.description).toContain("agent harness");
     expect(pkg.bin?.visp).toBe("dist/index.js");
-    expect(pkg.files).toEqual(expect.arrayContaining(["dist", "docs", "examples", "README.md", "LICENSE"]));
+    expect(pkg.files).toEqual(
+      expect.arrayContaining(["dist", "docs", "examples", "README.md", "LICENSE"])
+    );
   });
 
   it("has a strict workflow example and dogfood script", () => {
@@ -125,7 +129,9 @@ describe("release documentation readiness", () => {
       "docs/agent-native-workflows.md",
       "docs/agent-targets.md",
       "docs/overrides.md"
-    ].map(read).join("\n");
+    ]
+      .map(read)
+      .join("\n");
 
     expect(docs).not.toContain("visp run");
   });

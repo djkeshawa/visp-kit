@@ -17,11 +17,7 @@ export const constitutionRuleCategorySchema = z.enum([
   "other"
 ]);
 
-export const constitutionRuleSeveritySchema = z.enum([
-  "must",
-  "should",
-  "could"
-]);
+export const constitutionRuleSeveritySchema = z.enum(["must", "should", "could"]);
 
 export const constitutionRuleSchema = z
   .object({
@@ -44,11 +40,7 @@ export const constitutionArtifactSchema = z
   })
   .strict();
 
-export type ConstitutionRuleCategory = z.infer<
-  typeof constitutionRuleCategorySchema
->;
-export type ConstitutionRuleSeverity = z.infer<
-  typeof constitutionRuleSeveritySchema
->;
+export type ConstitutionRuleCategory = z.infer<typeof constitutionRuleCategorySchema>;
+export type ConstitutionRuleSeverity = z.infer<typeof constitutionRuleSeveritySchema>;
 export type ConstitutionRule = z.infer<typeof constitutionRuleSchema>;
 export type ConstitutionArtifact = z.infer<typeof constitutionArtifactSchema>;

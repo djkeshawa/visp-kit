@@ -1,12 +1,7 @@
 import { Command, Option } from "commander";
 
-import {
-  budgetModeSchema,
-  type BudgetMode
-} from "../../artifacts/schemas/common.schema.js";
-import {
-  formatContextSummary
-} from "../../context/context-summary.js";
+import { budgetModeSchema, type BudgetMode } from "../../artifacts/schemas/common.schema.js";
+import { formatContextSummary } from "../../context/context-summary.js";
 import { formatError } from "../../theme/terminal.js";
 import { writeWorkflowError } from "./shared/error-output.js";
 import {
@@ -69,14 +64,10 @@ function workflowOptions(
   };
 }
 
-export function createContextCommand(
-  dependencies: ContextCommandDependencies = {}
-): Command {
+export function createContextCommand(dependencies: ContextCommandDependencies = {}): Command {
   const runContext = dependencies.runContext ?? runContextWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("context")
     .description("Compile a task-specific Visp context pack.")
@@ -85,8 +76,9 @@ export function createContextCommand(
     .option("--next", "Select the next ready or unblocked task.")
     .option("--feature <feature>", "Feature ID, slug, or folder name.")
     .addOption(
-      new Option("--budget <budget>", "Budget mode for this context.")
-        .choices(budgetModeSchema.options)
+      new Option("--budget <budget>", "Budget mode for this context.").choices(
+        budgetModeSchema.options
+      )
     )
     .option("--max-tokens <number>", "Override the budget mode max input tokens.")
     .option("--include-full-files", "Include full selected files when within budget.")

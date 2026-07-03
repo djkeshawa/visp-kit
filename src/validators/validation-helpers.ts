@@ -7,10 +7,7 @@ export function validation(errors: readonly string[]): WorkflowValidation {
   };
 }
 
-export function duplicateIds(
-  values: readonly string[],
-  label: string
-): readonly string[] {
+export function duplicateIds(values: readonly string[], label: string): readonly string[] {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
 

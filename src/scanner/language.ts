@@ -39,8 +39,7 @@ export function summarizeLanguages(files: readonly FileIndexEntry[]): LanguageSt
     .map(([name, fileCount]) => ({
       name,
       fileCount,
-      percentage:
-        files.length === 0 ? 0 : Math.round((fileCount / files.length) * 1000) / 10
+      percentage: files.length === 0 ? 0 : Math.round((fileCount / files.length) * 1000) / 10
     }))
     .sort((a, b) => b.fileCount - a.fileCount || a.name.localeCompare(b.name));
 }

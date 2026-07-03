@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { workflowManifestArtifactPath } from "../artifacts/artifact-paths.js";
 import { workflowManifestSchema } from "../artifacts/schemas/workflow.schema.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
 import { loadWorkflowManifest } from "../workflow-manifest/workflow-loader.js";

@@ -45,8 +45,6 @@ describe("summary cache", () => {
   });
 
   it("returns an empty cache when no valid cache exists", async () => {
-    expect(await readPreviousSummaries(path.join(tempDir, "missing.json"))).toEqual(
-      new Map()
-    );
+    expect(await readPreviousSummaries(path.join(tempDir, "missing.json"))).toEqual(new Map());
   });
 });

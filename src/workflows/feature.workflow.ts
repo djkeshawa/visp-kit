@@ -13,14 +13,8 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
-import {
-  type BudgetMode,
-  type RiskLevel
-} from "../artifacts/schemas/common.schema.js";
-import {
-  featureIntentSchema,
-  type FeatureIntent
-} from "../artifacts/schemas/feature.schema.js";
+import { type BudgetMode, type RiskLevel } from "../artifacts/schemas/common.schema.js";
+import { featureIntentSchema, type FeatureIntent } from "../artifacts/schemas/feature.schema.js";
 import {
   projectConfigSchema,
   projectStatusSchema,
@@ -29,12 +23,7 @@ import {
 } from "../artifacts/schemas/project.schema.js";
 import { type CommandRunner } from "../core/command-runner.js";
 import { VispError, toVispError } from "../core/errors.js";
-import {
-  ensureDir,
-  pathExists,
-  readTextFile,
-  writeTextFile
-} from "../core/file-system.js";
+import { ensureDir, pathExists, readTextFile, writeTextFile } from "../core/file-system.js";
 import { relativePath, vispDir } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import {
@@ -88,17 +77,18 @@ type PlannedFeature = {
   readonly featureRelativePath: string;
 };
 
-function titleFromIdea(featureIdea: string | undefined): Result<{
-  readonly title: string;
-  readonly rawUserRequest: string;
-}, VispError> {
+function titleFromIdea(featureIdea: string | undefined): Result<
+  {
+    readonly title: string;
+    readonly rawUserRequest: string;
+  },
+  VispError
+> {
   const rawUserRequest = featureIdea ?? "";
   const title = rawUserRequest.trim().replace(/\s+/g, " ");
 
   if (title.length === 0) {
-    return err(
-      new VispError("VALIDATION_FAILED", "Feature title is required.")
-    );
+    return err(new VispError("VALIDATION_FAILED", "Feature title is required."));
   }
 
   return ok({ title, rawUserRequest });
@@ -110,10 +100,7 @@ async function ensureInitialized(targetPath: string): Promise<Result<void, VispE
   if (!hasVisp.ok) return hasVisp;
   if (!hasVisp.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Visp Kit is not initialized. Run `visp init` first."
-      )
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
     );
   }
 
@@ -128,11 +115,9 @@ async function configBudget(
     return ok(budget);
   }
 
-  const config = await readArtifact(
-    projectConfigArtifactPath(targetPath),
-    projectConfigSchema,
-    { artifactName: "project config" }
-  );
+  const config = await readArtifact(projectConfigArtifactPath(targetPath), projectConfigSchema, {
+    artifactName: "project config"
+  });
 
   if (!config.ok && config.error.code !== "FILE_NOT_FOUND") {
     return config;
@@ -172,11 +157,9 @@ async function readOptionalText(filePath: string): Promise<string | undefined> {
 async function readExistingStatus(
   targetPath: string
 ): Promise<Result<ProjectStatus | undefined, VispError>> {
-  const status = await readArtifact(
-    projectStatusArtifactPath(targetPath),
-    projectStatusSchema,
-    { artifactName: "project status" }
-  );
+  const status = await readArtifact(projectStatusArtifactPath(targetPath), projectStatusSchema, {
+    artifactName: "project status"
+  });
 
   if (!status.ok && status.error.code !== "FILE_NOT_FOUND") {
     return status;
@@ -224,34 +207,32 @@ function plannedFeature(input: {
     );
   }
 
-  try {
-    const existingDirectory = featureDirectoryForSlug(
-      input.directoryNames,
-      slug
-    );
-    const existingId =
-      existingDirectory === undefined
-        ? undefined
-        : parseFeatureNumber(existingDirectory);
-    const id =
-      existingId === undefined
-        ? nextFeatureIdFromNames(input.directoryNames)
-        : String(existingId).padStart(3, "0");
-    const key = featureDirectoryName(id, slug);
-    const featurePath = featureArtifactDir(input.targetPath, key);
+  const existingDirectory = featureDirectoryForSlug(input.directoryNames, slug);
+  const existingId =
+    existingDirectory === undefined ? undefined : parseFeatureNumber(existingDirectory);
+  let id: string;
 
-    return ok({
-      id,
-      slug,
-      key,
-      title: title.value.title,
-      rawUserRequest: title.value.rawUserRequest,
-      featurePath,
-      featureRelativePath: relativePath(input.targetPath, featurePath)
-    });
-  } catch (error) {
-    return err(toVispError(error, "VALIDATION_FAILED"));
+  if (existingId === undefined) {
+    const nextId = nextFeatureIdFromNames(input.directoryNames);
+
+    if (!nextId.ok) return nextId;
+    id = nextId.value;
+  } else {
+    id = String(existingId).padStart(3, "0");
   }
+
+  const key = featureDirectoryName(id, slug);
+  const featurePath = featureArtifactDir(input.targetPath, key);
+
+  return ok({
+    id,
+    slug,
+    key,
+    title: title.value.title,
+    rawUserRequest: title.value.rawUserRequest,
+    featurePath,
+    featureRelativePath: relativePath(input.targetPath, featurePath)
+  });
 }
 
 async function featureFolderConflict(
@@ -349,10 +330,15 @@ async function maybeCreateBranch(input: {
   readonly force: boolean;
   readonly dryRun: boolean;
   readonly commandRunner?: CommandRunner;
-}): Promise<Result<{
-  readonly branch: FeatureBranchSummary;
-  readonly warnings: readonly string[];
-}, VispError>> {
+}): Promise<
+  Result<
+    {
+      readonly branch: FeatureBranchSummary;
+      readonly warnings: readonly string[];
+    },
+    VispError
+  >
+> {
   if (!input.requested) {
     return ok({
       branch: { requested: false, created: false, name: null },
@@ -360,8 +346,7 @@ async function maybeCreateBranch(input: {
     });
   }
 
-  const name =
-    input.branchName ?? defaultFeatureBranchName(input.planned.id, input.planned.slug);
+  const name = input.branchName ?? defaultFeatureBranchName(input.planned.id, input.planned.slug);
 
   if (input.dryRun) {
     return ok({
@@ -389,12 +374,7 @@ export async function runFeatureWorkflow(
   const risk = options.risk ?? "medium";
 
   if (options.branch && options.noBranch) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Use either --branch or --no-branch, not both."
-      )
-    );
+    return err(new VispError("VALIDATION_FAILED", "Use either --branch or --no-branch, not both."));
   }
 
   const initialized = await ensureInitialized(targetPath);
@@ -432,9 +412,7 @@ export async function runFeatureWorkflow(
     now
   });
   const projectSummary = await readOptionalText(projectSummaryArtifactPath(targetPath));
-  const compactConstitution = await readOptionalText(
-    compactConstitutionArtifactPath(targetPath)
-  );
+  const compactConstitution = await readOptionalText(compactConstitutionArtifactPath(targetPath));
   const intentMarkdown = renderIntentMarkdown({
     title: planned.value.title,
     rawUserRequest: planned.value.rawUserRequest,

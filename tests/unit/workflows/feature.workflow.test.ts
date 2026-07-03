@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -83,13 +83,7 @@ describe("runFeatureWorkflow", () => {
 
     const intent = expectOk(
       await readArtifact(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "intent.json"
-        ),
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "intent.json"),
         featureIntentSchema
       )
     );
@@ -98,10 +92,7 @@ describe("runFeatureWorkflow", () => {
     expect(intent.createdAt).toBe("2026-01-02T00:00:00.000Z");
 
     const status = expectOk(
-      await readArtifact(
-        path.join(tempDir, ".visp", "status.json"),
-        projectStatusSchema
-      )
+      await readArtifact(path.join(tempDir, ".visp", "status.json"), projectStatusSchema)
     );
 
     expect(status).toMatchObject({
@@ -136,7 +127,9 @@ describe("runFeatureWorkflow", () => {
     );
 
     expect(third.feature.id).toBe("003");
-    expect(await exists(path.join(tempDir, ".visp", "features", "002-export-notes-as-pdf"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "features", "002-export-notes-as-pdf"))).toBe(
+      true
+    );
     expect(await exists(path.join(tempDir, ".visp", "features", "003-add-local-sync"))).toBe(true);
   });
 
@@ -214,12 +207,7 @@ describe("runFeatureWorkflow", () => {
       })
     );
 
-    const featureDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning"
-    );
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
     await writeFile(path.join(featureDir, "custom.md"), "keep me", "utf8");
     await writeFile(path.join(featureDir, "intent.md"), "old intent", "utf8");
 
@@ -232,12 +220,8 @@ describe("runFeatureWorkflow", () => {
       })
     );
 
-    expect(summary.overwrittenFiles).toContain(
-      ".visp/features/001-add-note-pinning/intent.md"
-    );
-    expect(await readFile(path.join(featureDir, "custom.md"), "utf8")).toBe(
-      "keep me"
-    );
+    expect(summary.overwrittenFiles).toContain(".visp/features/001-add-note-pinning/intent.md");
+    expect(await readFile(path.join(featureDir, "custom.md"), "utf8")).toBe("keep me");
     expect(await readFile(path.join(featureDir, "intent.md"), "utf8")).toContain(
       "# Feature Intent: Add note pinning"
     );
@@ -255,10 +239,10 @@ describe("runFeatureWorkflow", () => {
     );
 
     expect(summary.dryRun).toBe(true);
-    expect(summary.createdFiles).toContain(
-      ".visp/features/001-dry-run-feature/intent.md"
+    expect(summary.createdFiles).toContain(".visp/features/001-dry-run-feature/intent.md");
+    expect(await exists(path.join(tempDir, ".visp", "features", "001-dry-run-feature"))).toBe(
+      false
     );
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-dry-run-feature"))).toBe(false);
   });
 
   it("recreates a missing status artifact when schema allows it", async () => {

@@ -1,7 +1,4 @@
-import {
-  policyArtifactPath,
-  projectConfigArtifactPath
-} from "../artifacts/artifact-paths.js";
+import { policyArtifactPath, projectConfigArtifactPath } from "../artifacts/artifact-paths.js";
 import {
   strictnessModeSchema,
   type PolicyArtifact,
@@ -23,19 +20,14 @@ export type LoadedPolicy = {
   readonly warnings: readonly string[];
 };
 
-export async function ensureVispProject(
-  targetPath: string
-): Promise<Result<void, VispError>> {
+export async function ensureVispProject(targetPath: string): Promise<Result<void, VispError>> {
   const exists = await pathExists(vispDir(targetPath));
 
   if (!exists.ok) return exists;
 
   if (!exists.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Visp Kit is not initialized. Run `visp init` first."
-      )
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
     );
   }
 
@@ -59,9 +51,7 @@ export async function defaultPolicyStrictness(
   return ok(configured.success ? configured.data : "standard");
 }
 
-export async function readPolicyFile(
-  targetPath: string
-): Promise<Result<LoadedPolicy, VispError>> {
+export async function readPolicyFile(targetPath: string): Promise<Result<LoadedPolicy, VispError>> {
   const policyPath = policyArtifactPath(targetPath);
   const raw = await readJsonFile<unknown>(policyPath);
 
@@ -71,11 +61,9 @@ export async function readPolicyFile(
 
   if (!validation.passed || validation.value === undefined) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        `Invalid policy:\n- ${validation.errors.join("\n- ")}`,
-        { details: { path: policyPath, errors: validation.errors } }
-      )
+      new VispError("VALIDATION_FAILED", `Invalid policy:\n- ${validation.errors.join("\n- ")}`, {
+        details: { path: policyPath, errors: validation.errors }
+      })
     );
   }
 

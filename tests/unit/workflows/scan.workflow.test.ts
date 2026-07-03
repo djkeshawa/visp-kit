@@ -105,23 +105,14 @@ describe("runScanWorkflow", () => {
     );
 
     expect(summary.packageManager).toBe("pnpm");
-    expect(summary.languages.map((language) => language.name)).toContain(
-      "TypeScript"
-    );
-    expect(summary.frameworks.map((framework) => framework.name)).toContain(
-      "react"
-    );
+    expect(summary.languages.map((language) => language.name)).toContain("TypeScript");
+    expect(summary.frameworks.map((framework) => framework.name)).toContain("react");
     expect(summary.testRoots).toEqual(["tests"]);
     expect(summary.writtenFiles).toContain(".visp/cache/file-index.json");
-    expect(await exists(path.join(tempDir, ".visp", "cache", "module-map.json"))).toBe(
-      true
-    );
+    expect(await exists(path.join(tempDir, ".visp", "cache", "module-map.json"))).toBe(true);
 
     const project = expectOk(
-      await readArtifact(
-        path.join(tempDir, ".visp", "project.json"),
-        projectProfileSchema
-      )
+      await readArtifact(path.join(tempDir, ".visp", "project.json"), projectProfileSchema)
     );
     expect(project.name).toBe("scan-fixture");
     expect(project.packageManager).toBe("pnpm");
@@ -133,9 +124,7 @@ describe("runScanWorkflow", () => {
         path.join(tempDir, ".visp", "cache", "file-summaries.json")
       )
     );
-    const sourceSummary = fileSummaries.items.find(
-      (item) => item.path === "src/index.ts"
-    );
+    const sourceSummary = fileSummaries.items.find((item) => item.path === "src/index.ts");
 
     expect(sourceSummary?.imports).toContain("react");
     expect(
@@ -154,9 +143,7 @@ describe("runScanWorkflow", () => {
     const summary = expectOk(await runScanWorkflow({ targetPath: tempDir }));
 
     expect(summary.packageManager).toBe("unknown");
-    expect(summary.languages.map((language) => language.name)).toContain(
-      "JavaScript"
-    );
+    expect(summary.languages.map((language) => language.name)).toContain("JavaScript");
   });
 
   it("detects Go project validation commands", async () => {
@@ -172,10 +159,7 @@ describe("runScanWorkflow", () => {
       })
     );
     const project = expectOk(
-      await readArtifact(
-        path.join(tempDir, ".visp", "project.json"),
-        projectProfileSchema
-      )
+      await readArtifact(path.join(tempDir, ".visp", "project.json"), projectProfileSchema)
     );
 
     expect(summary.languages.map((language) => language.name)).toContain("Go");
@@ -189,9 +173,7 @@ describe("runScanWorkflow", () => {
     await createTypeScriptFixture(tempDir);
     expectOk(await runScanWorkflow({ targetPath: tempDir }));
 
-    const second = expectOk(
-      await runScanWorkflow({ targetPath: tempDir, changed: true })
-    );
+    const second = expectOk(await runScanWorkflow({ targetPath: tempDir, changed: true }));
 
     expect(second.reusedSummaries).toBeGreaterThan(0);
   });
@@ -201,9 +183,7 @@ describe("runScanWorkflow", () => {
     await createTypeScriptFixture(tempDir);
     expectOk(await runScanWorkflow({ targetPath: tempDir }));
 
-    const second = expectOk(
-      await runScanWorkflow({ targetPath: tempDir, force: true })
-    );
+    const second = expectOk(await runScanWorkflow({ targetPath: tempDir, force: true }));
 
     expect(second.reusedSummaries).toBe(0);
     expect(second.changedFiles).toBeGreaterThan(0);
@@ -223,27 +203,18 @@ describe("runScanWorkflow", () => {
     );
 
     expect(second.deletedFiles).toBe(1);
-    expect(summaries.items.map((item) => item.path)).not.toContain(
-      "tests/index.test.ts"
-    );
+    expect(summaries.items.map((item) => item.path)).not.toContain("tests/index.test.ts");
   });
 
   it("dry-run writes nothing", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     await createTypeScriptFixture(tempDir);
 
-    const summary = expectOk(
-      await runScanWorkflow({ targetPath: tempDir, dryRun: true })
-    );
+    const summary = expectOk(await runScanWorkflow({ targetPath: tempDir, dryRun: true }));
 
     expect(summary.dryRun).toBe(true);
-    expect(await exists(path.join(tempDir, ".visp", "cache", "file-index.json"))).toBe(
-      true
-    );
-    const raw = await readFile(
-      path.join(tempDir, ".visp", "cache", "file-index.json"),
-      "utf8"
-    );
+    expect(await exists(path.join(tempDir, ".visp", "cache", "file-index.json"))).toBe(true);
+    const raw = await readFile(path.join(tempDir, ".visp", "cache", "file-index.json"), "utf8");
     expect(raw).toContain('"populatedBy": "visp scan"');
   });
 
@@ -259,10 +230,9 @@ describe("runScanWorkflow", () => {
       }>(path.join(tempDir, ".visp", "cache", "file-summaries.json"))
     );
 
-    expect(
-      summaries.items.find((item) => item.path === "src/large.ts")
-        ?.summarySkippedReason
-    ).toBe("file_too_large");
+    expect(summaries.items.find((item) => item.path === "src/large.ts")?.summarySkippedReason).toBe(
+      "file_too_large"
+    );
   });
 
   it("returns ok results", async () => {
