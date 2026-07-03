@@ -4,7 +4,7 @@ This guide is for contributors working on Visp Kit itself.
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 22+
 - pnpm 11+
 
 ## Setup

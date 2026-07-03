@@ -294,7 +294,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Install Visp Kit
         run: npm install -g visp-kit
       - name: Validate policy

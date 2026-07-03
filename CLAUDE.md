@@ -14,7 +14,7 @@ Visp Kit is a strict, token-efficient agent harness CLI (`visp`) that guides AI 
 ## Commands
 
 ```bash
-pnpm install          # Node.js 20+, pnpm 11+ required
+pnpm install          # Node.js 22+, pnpm 11+ required
 pnpm build            # tsup → dist/index.js (ESM, shebang banner)
 pnpm test             # vitest run (all tests)
 pnpm vitest run tests/integration/gate.command.test.ts   # single test file

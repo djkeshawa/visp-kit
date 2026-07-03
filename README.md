@@ -134,13 +134,13 @@ Observability and evaluation:
 
 Visp Kit is ready for local alpha use and internal pilots.
 
-### 1. Use Node.js 20+
+### 1. Use Node.js 22+
 
 With `nvm`:
 
 ```bash
-nvm install 20
-nvm use 20
+nvm install 22
+nvm use 22
 node --version
 ```
 
@@ -271,7 +271,7 @@ node /path/to/visp-kit/dist/index.js agent bootstrap codex --strictness strict
 
 Requirements:
 
-- Node.js 20+
+- Node.js 22+
 - pnpm 11+
 - Git for diff-based review, reconcile, and PR summaries
 
