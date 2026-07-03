@@ -27,6 +27,8 @@ describe("context renderer", () => {
     expect(markdown).toContain("Implementation Checklist");
     expect(markdown).toContain("visp checklist status --task T001");
     expect(markdown).toContain("## Artifact Provenance");
-    expect(markdown).toContain("spec: .visp/features/001-note-pinning/spec.json (sha256:0123456789ab)");
+    expect(markdown).toContain(
+      "spec: .visp/features/001-note-pinning/spec.json (sha256:0123456789ab)"
+    );
   });
 });

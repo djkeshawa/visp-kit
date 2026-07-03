@@ -66,14 +66,7 @@ describe("visp policy command", () => {
     expect(showSummary.policy.strictnessMode).toBe("strict");
 
     output.length = 0;
-    await program.parseAsync([
-      "node",
-      "visp",
-      "policy",
-      "validate",
-      tempDir,
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "policy", "validate", tempDir, "--json"]);
     const validateSummary = JSON.parse(output.join("")) as {
       success: boolean;
       validation: { passed: boolean };

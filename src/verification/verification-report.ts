@@ -13,7 +13,9 @@ function statusText(status: VerificationCheckStatus): string {
   return status;
 }
 
-export function createVerificationSummary(report: Omit<VerificationReport, "summary">): VerificationSummary {
+export function createVerificationSummary(
+  report: Omit<VerificationReport, "summary">
+): VerificationSummary {
   const commandsRun = report.commandValidation.commands.filter((command) => !command.skipped);
   const commandsFailed = commandsRun.filter((command) => !command.success);
   const warnings = new Set([

@@ -51,9 +51,9 @@ describe("resolveActiveFeature", () => {
       })
     );
 
-    expect(
-      expectOk(await resolveActiveFeature({ targetPath: tempDir, feature: "001" })).key
-    ).toBe("001-add-note-pinning");
+    expect(expectOk(await resolveActiveFeature({ targetPath: tempDir, feature: "001" })).key).toBe(
+      "001-add-note-pinning"
+    );
     expect(
       expectOk(
         await resolveActiveFeature({
@@ -76,21 +76,17 @@ describe("resolveActiveFeature", () => {
     const featureDir = path.join(tempDir, ".visp", "features", "002-a");
     await mkdir(featureDir, { recursive: true });
     expectOk(
-      await writeArtifact(
-        path.join(featureDir, "intent.json"),
-        featureIntentSchema,
-        {
-          id: "002",
-          slug: "a",
-          title: "A",
-          rawUserRequest: "A",
-          status: "draft",
-          budgetMode: "lean",
-          riskLevel: "medium",
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z"
-        }
-      )
+      await writeArtifact(path.join(featureDir, "intent.json"), featureIntentSchema, {
+        id: "002",
+        slug: "a",
+        title: "A",
+        rawUserRequest: "A",
+        status: "draft",
+        budgetMode: "lean",
+        riskLevel: "medium",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z"
+      })
     );
     await mkdir(path.join(tempDir, ".visp", "features", "003-b"), {
       recursive: true

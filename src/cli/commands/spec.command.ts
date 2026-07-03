@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { type Command } from "commander";
 
 import { runSpecWorkflow } from "../../workflows/spec.workflow.js";
 import {
@@ -10,9 +10,7 @@ export type SpecCommandDependencies = TemplateCommandDependencies & {
   readonly runSpec?: typeof runSpecWorkflow;
 };
 
-export function createSpecCommand(
-  dependencies: SpecCommandDependencies = {}
-): Command {
+export function createSpecCommand(dependencies: SpecCommandDependencies = {}): Command {
   return createTemplateWorkflowCommand({
     name: "spec",
     description: "Generate or validate specification templates for a feature.",

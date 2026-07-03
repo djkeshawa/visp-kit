@@ -48,9 +48,8 @@ export function reviewVerification(input: {
   }
 
   if (input.verification === undefined) {
-    const command = input.taskId === undefined
-      ? "visp verify"
-      : `visp verify --task ${input.taskId}`;
+    const command =
+      input.taskId === undefined ? "visp verify" : `visp verify --task ${input.taskId}`;
 
     warnings.push("Verification report is missing.");
     findings.push(
@@ -113,10 +112,7 @@ export function reviewVerification(input: {
 
   return {
     verificationReview: {
-      status:
-        errors.length > 0
-          ? "failed"
-          : warnings.length > 0 ? "warnings" : "passed",
+      status: errors.length > 0 ? "failed" : warnings.length > 0 ? "warnings" : "passed",
       reportPath: input.reportPath ?? null,
       verificationPassed: input.verification.success,
       verificationTaskId: input.verification.taskId,

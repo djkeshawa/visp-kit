@@ -33,18 +33,10 @@ export function validateTaskGraph(input: {
 }): WorkflowValidation {
   const taskIds = input.taskGraph.tasks.map((task) => task.id);
   const taskSet = new Set(taskIds);
-  const requirementSet = new Set(
-    input.spec.requirements.map((requirement) => requirement.id)
-  );
-  const criterionSet = new Set(
-    input.spec.acceptanceCriteria.map((criterion) => criterion.id)
-  );
-  const graph = new Map(
-    input.taskGraph.tasks.map((task) => [task.id, task.dependsOn] as const)
-  );
-  const errors: string[] = [
-    ...duplicateIds(taskIds, "task")
-  ];
+  const requirementSet = new Set(input.spec.requirements.map((requirement) => requirement.id));
+  const criterionSet = new Set(input.spec.acceptanceCriteria.map((criterion) => criterion.id));
+  const graph = new Map(input.taskGraph.tasks.map((task) => [task.id, task.dependsOn] as const));
+  const errors: string[] = [...duplicateIds(taskIds, "task")];
 
   if (input.taskGraph.tasks.length === 0) {
     errors.push("Task graph must include at least one task.");
@@ -83,9 +75,7 @@ export function validateTaskGraph(input: {
   }
 
   if (input.traceability !== undefined) {
-    const tracedTasks = new Set(
-      input.traceability.entries.flatMap((entry) => entry.taskIds)
-    );
+    const tracedTasks = new Set(input.traceability.entries.flatMap((entry) => entry.taskIds));
 
     for (const taskId of taskIds) {
       if (!tracedTasks.has(taskId)) {

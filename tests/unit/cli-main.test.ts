@@ -17,6 +17,7 @@ describe("createCli", () => {
     expect(help).toContain("constitution");
     expect(help).toContain("context");
     expect(help).toContain("doctor");
+    expect(help).toContain("drift");
     expect(help).toContain("eval");
     expect(help).toContain("feature");
     expect(help).toContain("gate");
@@ -50,10 +51,7 @@ describe("createCli", () => {
     try {
       program.parse(["node", "visp", "--version"]);
     } catch (error) {
-      if (
-        !(error instanceof CommanderError) ||
-        error.code !== "commander.version"
-      ) {
+      if (!(error instanceof CommanderError) || error.code !== "commander.version") {
         throw error;
       }
     }
@@ -61,8 +59,21 @@ describe("createCli", () => {
     expect(output.join("")).toContain("0.1.1");
   });
 
+  it("prints drift command help", () => {
+    const help = createCli()
+      .commands.find((command) => command.name() === "drift")
+      ?.helpInformation();
+
+    expect(help).toContain("Usage: visp drift [options] [path]");
+    expect(help).toContain("--task");
+    expect(help).toContain("--strict");
+    expect(help).toContain("--dry-run");
+    expect(help).toContain("--json");
+  });
+
   it("prints init command help", () => {
-    const help = createCli().commands.find((command) => command.name() === "init")
+    const help = createCli()
+      .commands.find((command) => command.name() === "init")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp init [options] [path]");
@@ -76,7 +87,8 @@ describe("createCli", () => {
   });
 
   it("prints scan command help", () => {
-    const help = createCli().commands.find((command) => command.name() === "scan")
+    const help = createCli()
+      .commands.find((command) => command.name() === "scan")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp scan [options] [path]");
@@ -87,8 +99,8 @@ describe("createCli", () => {
   });
 
   it("prints feature command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "feature")
+    const help = createCli()
+      .commands.find((command) => command.name() === "feature")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp feature [options] <feature idea> [path]");
@@ -103,8 +115,8 @@ describe("createCli", () => {
   });
 
   it("prints constitution command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "constitution")
+    const help = createCli()
+      .commands.find((command) => command.name() === "constitution")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp constitution [options] [path]");
@@ -118,8 +130,8 @@ describe("createCli", () => {
 
   it("prints phase 7 command help", () => {
     for (const name of ["clarify", "spec", "plan", "tasks"]) {
-      const help = createCli().commands
-        .find((command) => command.name() === name)
+      const help = createCli()
+        .commands.find((command) => command.name() === name)
         ?.helpInformation();
 
       expect(help).toContain(
@@ -140,8 +152,8 @@ describe("createCli", () => {
   });
 
   it("prints context command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "context")
+    const help = createCli()
+      .commands.find((command) => command.name() === "context")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp context [options] [task-id] [path]");
@@ -157,8 +169,8 @@ describe("createCli", () => {
   });
 
   it("prints budget command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "budget")
+    const help = createCli()
+      .commands.find((command) => command.name() === "budget")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp budget [options] [path]");
@@ -180,16 +192,10 @@ describe("createCli", () => {
     const hooks = createCli().commands.find((command) => command.name() === "hooks");
 
     expect(hooks).toBeDefined();
-    expect(hooks?.commands.map((command) => command.name())).toEqual([
-      "claude",
-      "git",
-      "ci"
-    ]);
+    expect(hooks?.commands.map((command) => command.name())).toEqual(["claude", "git", "ci"]);
 
     for (const name of ["claude", "git", "ci"]) {
-      const help = hooks?.commands
-        .find((command) => command.name() === name)
-        ?.helpInformation();
+      const help = hooks?.commands.find((command) => command.name() === name)?.helpInformation();
 
       expect(help).toContain("--force");
       expect(help).toContain("--dry-run");
@@ -198,8 +204,8 @@ describe("createCli", () => {
   });
 
   it("prints done command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "done")
+    const help = createCli()
+      .commands.find((command) => command.name() === "done")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp done [options] [path]");
@@ -215,8 +221,8 @@ describe("createCli", () => {
   });
 
   it("prints verify command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "verify")
+    const help = createCli()
+      .commands.find((command) => command.name() === "verify")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp verify [options] [path]");
@@ -237,8 +243,8 @@ describe("createCli", () => {
   });
 
   it("prints review command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "review")
+    const help = createCli()
+      .commands.find((command) => command.name() === "review")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp review [options] [path]");
@@ -257,8 +263,8 @@ describe("createCli", () => {
   });
 
   it("prints reconcile command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "reconcile")
+    const help = createCli()
+      .commands.find((command) => command.name() === "reconcile")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp reconcile [options] [path]");
@@ -280,12 +286,23 @@ describe("createCli", () => {
       status: ["--feature", "--task", "--verbose", "--write-report", "--json"],
       next: ["--feature", "--task", "--command-only", "--explain", "--strict", "--json"],
       doctor: ["--check", "--fix", "--dry-run", "--verbose", "--json"],
-      pr: ["--feature", "--task", "--base", "--staged", "--unstaged", "--title", "--prompt-only", "--force", "--dry-run", "--json"]
+      pr: [
+        "--feature",
+        "--task",
+        "--base",
+        "--staged",
+        "--unstaged",
+        "--title",
+        "--prompt-only",
+        "--force",
+        "--dry-run",
+        "--json"
+      ]
     };
 
     for (const [name, flags] of Object.entries(expected)) {
-      const help = createCli().commands
-        .find((command) => command.name() === name)
+      const help = createCli()
+        .commands.find((command) => command.name() === name)
         ?.helpInformation();
 
       expect(help).toContain(`Usage: visp ${name} [options] [path]`);
@@ -321,9 +338,7 @@ describe("createCli", () => {
     };
 
     for (const [name, flags] of Object.entries(expected)) {
-      const help = policy?.commands
-        .find((command) => command.name() === name)
-        ?.helpInformation();
+      const help = policy?.commands.find((command) => command.name() === name)?.helpInformation();
 
       expect(help).toContain(`Usage: visp policy ${name}`);
       for (const flag of flags) {
@@ -333,8 +348,8 @@ describe("createCli", () => {
   });
 
   it("prints gate command help", () => {
-    const help = createCli().commands
-      .find((command) => command.name() === "gate")
+    const help = createCli()
+      .commands.find((command) => command.name() === "gate")
       ?.helpInformation();
 
     expect(help).toContain("Usage: visp gate [options] <stage> [path]");
@@ -352,7 +367,16 @@ describe("createCli", () => {
     expect(override?.helpInformation()).toContain("Usage: visp override [options] [command]");
 
     const expected = {
-      create: ["--reason", "--scope", "--feature", "--task", "--stage", "--expires", "--dry-run", "--json"],
+      create: [
+        "--reason",
+        "--scope",
+        "--feature",
+        "--task",
+        "--stage",
+        "--expires",
+        "--dry-run",
+        "--json"
+      ],
       list: ["--active", "--revoked", "--expired", "--rule", "--feature", "--task", "--json"],
       show: ["--json"],
       revoke: ["--reason", "--dry-run", "--json"],
@@ -360,9 +384,7 @@ describe("createCli", () => {
     };
 
     for (const [name, flags] of Object.entries(expected)) {
-      const help = override?.commands
-        .find((command) => command.name() === name)
-        ?.helpInformation();
+      const help = override?.commands.find((command) => command.name() === name)?.helpInformation();
 
       expect(help).toContain(`Usage: visp override ${name}`);
       for (const flag of flags) {
@@ -384,9 +406,7 @@ describe("createCli", () => {
     };
 
     for (const [name, flags] of Object.entries(expected)) {
-      const help = agent?.commands
-        .find((command) => command.name() === name)
-        ?.helpInformation();
+      const help = agent?.commands.find((command) => command.name() === name)?.helpInformation();
 
       expect(help).toContain(`Usage: visp agent ${name}`);
       for (const flag of flags) {

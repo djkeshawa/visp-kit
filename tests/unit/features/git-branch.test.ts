@@ -3,16 +3,9 @@ import { describe, expect, it } from "vitest";
 import { type CommandResult, type CommandRunner } from "../../../src/core/command-runner.js";
 import { VispError } from "../../../src/core/errors.js";
 import { err, ok } from "../../../src/core/result.js";
-import {
-  createFeatureBranch,
-  defaultFeatureBranchName
-} from "../../../src/features/git-branch.js";
+import { createFeatureBranch, defaultFeatureBranchName } from "../../../src/features/git-branch.js";
 
-function commandResult(
-  command: string,
-  args: readonly string[],
-  stdout = ""
-): CommandResult {
+function commandResult(command: string, args: readonly string[], stdout = ""): CommandResult {
   return {
     command,
     args,
@@ -26,9 +19,7 @@ function commandResult(
 
 describe("feature git branch helpers", () => {
   it("generates stable default branch names", () => {
-    expect(defaultFeatureBranchName("001", "add-note-pinning")).toBe(
-      "visp/001-add-note-pinning"
-    );
+    expect(defaultFeatureBranchName("001", "add-note-pinning")).toBe("visp/001-add-note-pinning");
   });
 
   it("creates a branch when Git checks pass", async () => {

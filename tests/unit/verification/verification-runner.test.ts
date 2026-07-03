@@ -145,7 +145,9 @@ describe("verification runner", () => {
             outputCaptureMode:
               options?.stdioMode === "inherit"
                 ? "inherited"
-                : options?.stdioMode === "file" ? "file" : "captured"
+                : options?.stdioMode === "file"
+                  ? "file"
+                  : "captured"
           });
         }
       };
@@ -197,7 +199,9 @@ describe("verification runner", () => {
           outputCaptureMode:
             options?.stdioMode === "inherit"
               ? "inherited"
-              : options?.stdioMode === "file" ? "file" : "captured"
+              : options?.stdioMode === "file"
+                ? "file"
+                : "captured"
         });
       }
     };
@@ -260,7 +264,9 @@ describe("verification runner", () => {
             outputCaptureMode:
               options?.stdioMode === "inherit"
                 ? "inherited"
-                : options?.stdioMode === "file" ? "file" : "captured"
+                : options?.stdioMode === "file"
+                  ? "file"
+                  : "captured"
           });
         }
       };

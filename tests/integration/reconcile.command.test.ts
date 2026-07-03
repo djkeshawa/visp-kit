@@ -34,10 +34,7 @@ async function initGitBaseline(rootPath: string): Promise<void> {
   );
 }
 
-async function updateTask(
-  rootPath: string,
-  patch: Record<string, unknown>
-): Promise<void> {
+async function updateTask(rootPath: string, patch: Record<string, unknown>): Promise<void> {
   const taskGraphPath = path.join(
     rootPath,
     ".visp",
@@ -82,14 +79,7 @@ async function prepareReconcileFixture(rootPath: string): Promise<void> {
   await createPhase8Fixture(rootPath);
   const setupProgram = createCli({ writeOut: () => undefined });
 
-  await setupProgram.parseAsync([
-    "node",
-    "visp",
-    "context",
-    "T001",
-    rootPath,
-    "--force"
-  ]);
+  await setupProgram.parseAsync(["node", "visp", "context", "T001", rootPath, "--force"]);
   await initGitBaseline(rootPath);
   await modifySource(rootPath);
 
@@ -157,15 +147,7 @@ describe("visp reconcile command", () => {
       writeErr: (value) => errors.push(value)
     });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "reconcile",
-      tempDir,
-      "--task",
-      "T001",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "reconcile", tempDir, "--task", "T001", "--json"]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -200,15 +182,7 @@ describe("visp reconcile command", () => {
     await prepareReconcileFixture(tempDir);
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "reconcile",
-      tempDir,
-      "--task",
-      "T001",
-      "--dry-run"
-    ]);
+    await program.parseAsync(["node", "visp", "reconcile", tempDir, "--task", "T001", "--dry-run"]);
 
     expect(
       await exists(
@@ -327,7 +301,10 @@ describe("visp reconcile command", () => {
       "001-add-note-pinning",
       "verification.json"
     );
-    const verification = JSON.parse(await readFile(verificationPath, "utf8")) as Record<string, unknown>;
+    const verification = JSON.parse(await readFile(verificationPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 

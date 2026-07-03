@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type SpecArtifact } from "../../../src/artifacts/schemas/spec.schema.js";
-import {
-  selectContextPack
-} from "../../../src/context/context-selector.js";
+import { selectContextPack } from "../../../src/context/context-selector.js";
 import { contextBudgetPolicy } from "../../../src/context/context-budget.js";
 import {
   timestamp,
@@ -79,12 +77,8 @@ describe("context selector", () => {
       warnings: []
     });
 
-    expect(pack.includedRequirements.map((requirement) => requirement.id)).toEqual([
-      "REQ-001"
-    ]);
-    expect(
-      pack.includedAcceptanceCriteria.map((criterion) => criterion.id)
-    ).toEqual(["AC-001"]);
+    expect(pack.includedRequirements.map((requirement) => requirement.id)).toEqual(["REQ-001"]);
+    expect(pack.includedAcceptanceCriteria.map((criterion) => criterion.id)).toEqual(["AC-001"]);
     expect(pack.includedFiles[0]?.includeMode).toBe("new-file");
   });
 });

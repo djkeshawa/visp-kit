@@ -11,13 +11,32 @@ Enforcement activates when `.visp/policy.json` strictness is `strict` or
 
 ## How authorization works
 
-1. `visp gate implement --task <task-id>` writes
-   `.visp/state/implement-allowed.json` when the gate allows implementation.
-   The marker records the task ID and its allowed, expected, and forbidden
-   files.
-2. Hooks read that marker locally. They never call the network.
-3. `visp done --task <task-id>` clears the marker when every step passes.
-   A blocked implement gate also clears it.
+1. `visp gate implement --task <task-id>` writes a per-task marker under
+   `.visp/state/implement-allowed/<task-id>.json` when the gate allows
+   implementation (plus the legacy `.visp/state/implement-allowed.json` so
+   hooks generated before per-task markers keep enforcing — upgrade with
+   `visp hooks claude|git --force`). Each marker records the task ID and its
+   allowed, expected, and forbidden files.
+2. Hooks read every active marker locally. A file is editable when any active
+   task allows it and no active task forbids it (forbidden wins). Hooks never
+   call the network.
+3. `visp done --task <task-id>` clears that task's marker when every step
+   passes. A blocked implement gate clears only the blocked task's marker.
+
+## Parallel tasks
+
+Multiple tasks can hold implement authorizations at the same time, which lets
+orchestrators fan agents out over parallelizable tasks:
+
+- The implement gate blocks a second task whose allowed/expected files overlap
+  an active authorization (error in `strict`/`locked`, warning otherwise), and
+  warns when a non-`parallelizable` task is authorized while others are
+  active.
+- Markers are per-checkout state. Each git worktree has its own
+  `.visp/state/`, so agents working in separate worktrees never share or
+  clobber authorizations. Add `.visp/state/` to `.gitignore` if you commit the
+  rest of `.visp/` — markers are ephemeral authorization, not audit evidence
+  (`.visp/runs/` and `.visp/reports/` are the audit trail).
 
 ## Claude Code PreToolUse hook
 

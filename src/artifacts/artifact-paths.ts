@@ -1,9 +1,4 @@
-import {
-  joinPath,
-  vispConfigPath,
-  vispDir,
-  vispStatusPath
-} from "../core/paths.js";
+import { joinPath, vispConfigPath, vispDir, vispStatusPath } from "../core/paths.js";
 
 export function projectProfileArtifactPath(rootPath: string): string {
   return joinPath(vispDir(rootPath), "project.json");
@@ -109,6 +104,14 @@ export function evaluationReportMarkdownPath(rootPath: string): string {
   return joinPath(reportsArtifactDir(rootPath), "evaluation-report.md");
 }
 
+export function driftReportArtifactPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "drift-report.json");
+}
+
+export function driftReportMarkdownPath(rootPath: string): string {
+  return joinPath(reportsArtifactDir(rootPath), "drift-report.md");
+}
+
 export function runsArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "runs");
 }
@@ -145,45 +148,27 @@ export function featuresArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "features");
 }
 
-export function featureArtifactDir(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureArtifactDir(rootPath: string, featureKey: string): string {
   return joinPath(featuresArtifactDir(rootPath), featureKey);
 }
 
-export function featureArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "feature.json");
 }
 
-export function featureIntentMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureIntentMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "intent.md");
 }
 
-export function featureIntentArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureIntentArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "intent.json");
 }
 
-export function clarificationsMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function clarificationsMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "clarifications.md");
 }
 
-export function clarificationsArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function clarificationsArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "clarifications.json");
 }
 
@@ -203,17 +188,11 @@ export function tasksMarkdownPath(rootPath: string, featureKey: string): string 
   return joinPath(featureArtifactDir(rootPath, featureKey), "tasks.md");
 }
 
-export function traceabilityMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function traceabilityMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "traceability.md");
 }
 
-export function requirementsArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function requirementsArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "requirements.json");
 }
 
@@ -221,17 +200,11 @@ export function planArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "plan.json");
 }
 
-export function taskGraphArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function taskGraphArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "task-graph.json");
 }
 
-export function contextPacksArtifactDir(
-  rootPath: string,
-  featureKey: string
-): string {
+export function contextPacksArtifactDir(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "context");
 }
 
@@ -251,20 +224,15 @@ export function contextPackMarkdownPath(
   return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.context.md`);
 }
 
-export function contextPromptPath(
-  rootPath: string,
-  featureKey: string,
-  taskId: string
-): string {
+export function contextPromptPath(rootPath: string, featureKey: string, taskId: string): string {
   return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.prompt.md`);
 }
 
-export function contextChecklistPath(
-  rootPath: string,
-  featureKey: string,
-  taskId: string
-): string {
-  return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.implementation-checklist.md`);
+export function contextChecklistPath(rootPath: string, featureKey: string, taskId: string): string {
+  return joinPath(
+    contextPacksArtifactDir(rootPath, featureKey),
+    `${taskId}.implementation-checklist.md`
+  );
 }
 
 export function contextChecklistJsonPath(
@@ -272,34 +240,25 @@ export function contextChecklistJsonPath(
   featureKey: string,
   taskId: string
 ): string {
-  return joinPath(contextPacksArtifactDir(rootPath, featureKey), `${taskId}.implementation-checklist.json`);
+  return joinPath(
+    contextPacksArtifactDir(rootPath, featureKey),
+    `${taskId}.implementation-checklist.json`
+  );
 }
 
-export function verificationArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function verificationArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.json");
 }
 
-export function verificationMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function verificationMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.md");
 }
 
-export function featureReviewArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureReviewArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "review.json");
 }
 
-export function featureReviewMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureReviewMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "review.md");
 }
 
@@ -323,11 +282,7 @@ export function taskReviewMarkdownPath(
   return joinPath(reviewArtifactDir(rootPath, featureKey), `${taskId}.review.md`);
 }
 
-export function taskReviewPromptPath(
-  rootPath: string,
-  featureKey: string,
-  taskId: string
-): string {
+export function taskReviewPromptPath(rootPath: string, featureKey: string, taskId: string): string {
   return joinPath(reviewArtifactDir(rootPath, featureKey), `${taskId}.review-prompt.md`);
 }
 
@@ -339,31 +294,19 @@ export function taskReviewChecklistPath(
   return joinPath(reviewArtifactDir(rootPath, featureKey), `${taskId}.review-checklist.md`);
 }
 
-export function featureReviewPromptPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureReviewPromptPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "review-prompt.md");
 }
 
-export function featureReviewChecklistPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureReviewChecklistPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "review-checklist.md");
 }
 
-export function featureReconcileArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureReconcileArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile.json");
 }
 
-export function featureReconcileMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureReconcileMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile.md");
 }
 
@@ -395,45 +338,27 @@ export function taskReconcilePromptPath(
   return joinPath(reconcileArtifactDir(rootPath, featureKey), `${taskId}.reconcile-prompt.md`);
 }
 
-export function featureReconcilePromptPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureReconcilePromptPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "reconcile-prompt.md");
 }
 
-export function featurePrArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featurePrArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "pr.json");
 }
 
-export function featurePrMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featurePrMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "pr.md");
 }
 
-export function traceabilityArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function traceabilityArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "traceability.json");
 }
 
-export function featureTimelineArtifactPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureTimelineArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "timeline.json");
 }
 
-export function featureTimelineMarkdownPath(
-  rootPath: string,
-  featureKey: string
-): string {
+export function featureTimelineMarkdownPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "timeline.md");
 }
 

@@ -2,17 +2,13 @@ import {
   cacheArtifactDir,
   compactConstitutionArtifactPath,
   contextPackArtifactPath,
-  dependencyMapArtifactPath,
   evaluationReportArtifactPath,
   featureIntentArtifactPath,
   featurePrArtifactPath,
   featureReconcileArtifactPath,
   featureReviewArtifactPath,
   featuresArtifactDir,
-  fileIndexArtifactPath,
-  fileSummariesArtifactPath,
   memoryArtifactDir,
-  moduleMapArtifactPath,
   overridesArtifactPath,
   planArtifactPath,
   policyArtifactPath,
@@ -24,12 +20,10 @@ import {
   reportsArtifactDir,
   runIndexArtifactPath,
   runsArtifactDir,
-  scanMetaArtifactPath,
   specArtifactPath,
   taskGraphArtifactPath,
   taskReconcileArtifactPath,
   taskReviewArtifactPath,
-  testMapArtifactPath,
   traceabilityArtifactPath,
   verificationArtifactPath,
   workflowManifestArtifactPath,
@@ -60,19 +54,12 @@ import { verificationReportSchema } from "../artifacts/schemas/verification.sche
 import { runIndexSchema } from "../artifacts/schemas/run.schema.js";
 import { workflowManifestSchema } from "../artifacts/schemas/workflow.schema.js";
 import { pathExists, readTextFile } from "../core/file-system.js";
-import { vispDir } from "../core/paths.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
 import { loadEffectivePolicy } from "../policy/policy-loader.js";
 import { readOverrideStore } from "../overrides/override-store.js";
 import { validateOverrideArtifact } from "../overrides/override-validator.js";
 
-export type DoctorCheckName =
-  | "project"
-  | "artifacts"
-  | "agent"
-  | "git"
-  | "cache"
-  | "schemas";
+export type DoctorCheckName = "project" | "artifacts" | "agent" | "git" | "cache" | "schemas";
 
 export type DoctorFinding = {
   readonly id: string;
@@ -140,15 +127,17 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
   const findings: DoctorFinding[] = [];
 
   if (!state.initialized) {
-    findings.push(finding({
-      category: "project",
-      severity: "error",
-      title: "Project is not initialized",
-      description: "The target path does not contain a .visp directory.",
-      file: ".visp",
-      recommendation: "Run visp init.",
-      autoFixable: false
-    }));
+    findings.push(
+      finding({
+        category: "project",
+        severity: "error",
+        title: "Project is not initialized",
+        description: "The target path does not contain a .visp directory.",
+        file: ".visp",
+        recommendation: "Run visp init.",
+        autoFixable: false
+      })
+    );
 
     return result("project", findings);
   }
@@ -159,28 +148,33 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
     [".visp/status.json", projectStatusArtifactPath(state.targetPath)]
   ] as const) {
     if (!(await exists(filePath))) {
-      findings.push(finding({
-        category: "project",
-        severity: "error",
-        title: "Required project artifact missing",
-        description: `${label} is missing.`,
-        file: label,
-        recommendation: "Run visp init or restore the missing artifact.",
-        autoFixable: false
-      }));
+      findings.push(
+        finding({
+          category: "project",
+          severity: "error",
+          title: "Required project artifact missing",
+          description: `${label} is missing.`,
+          file: label,
+          recommendation: "Run visp init or restore the missing artifact.",
+          autoFixable: false
+        })
+      );
     }
   }
 
   if (!(await exists(policyArtifactPath(state.targetPath)))) {
-    findings.push(finding({
-      category: "project",
-      severity: "warning",
-      title: "Policy artifact missing",
-      description: ".visp/policy.json is missing, so Visp falls back to an in-memory default policy.",
-      file: ".visp/policy.json",
-      recommendation: "Run visp policy init --strictness strict.",
-      autoFixable: true
-    }));
+    findings.push(
+      finding({
+        category: "project",
+        severity: "warning",
+        title: "Policy artifact missing",
+        description:
+          ".visp/policy.json is missing, so Visp falls back to an in-memory default policy.",
+        file: ".visp/policy.json",
+        recommendation: "Run visp policy init --strictness strict.",
+        autoFixable: true
+      })
+    );
   }
 
   for (const [label, dirPath] of [
@@ -193,15 +187,17 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
     [".visp/presets", presetsArtifactDir(state.targetPath)]
   ] as const) {
     if (!(await exists(dirPath))) {
-      findings.push(finding({
-        category: "project",
-        severity: "warning",
-        title: "Required directory missing",
-        description: `${label} is missing.`,
-        file: label,
-        recommendation: "Run visp doctor --fix to recreate safe directories.",
-        autoFixable: true
-      }));
+      findings.push(
+        finding({
+          category: "project",
+          severity: "warning",
+          title: "Required directory missing",
+          description: `${label} is missing.`,
+          file: label,
+          recommendation: "Run visp doctor --fix to recreate safe directories.",
+          autoFixable: true
+        })
+      );
     }
   }
 
@@ -223,24 +219,84 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
     [".visp/overrides.json", overridesArtifactPath(state.targetPath), overrideArtifactSchema],
     [".visp/workflow.json", workflowManifestArtifactPath(state.targetPath), workflowManifestSchema],
     [".visp/runs/index.json", runIndexArtifactPath(state.targetPath), runIndexSchema],
-    [".visp/reports/evaluation-report.json", evaluationReportArtifactPath(state.targetPath), evaluationReportSchema],
-    [".visp/agent/capabilities.json", agentCapabilitiesPath(state.targetPath), agentCapabilitiesSchema],
-    ...(featureKey === undefined ? [] : [
-      [`.visp/features/${featureKey}/intent.json`, featureIntentArtifactPath(state.targetPath, featureKey), featureIntentSchema],
-      [`.visp/features/${featureKey}/spec.json`, specArtifactPath(state.targetPath, featureKey), specArtifactSchema],
-      [`.visp/features/${featureKey}/plan.json`, planArtifactPath(state.targetPath, featureKey), planDraftArtifactSchema],
-      [`.visp/features/${featureKey}/task-graph.json`, taskGraphArtifactPath(state.targetPath, featureKey), taskGraphArtifactSchema],
-      [`.visp/features/${featureKey}/traceability.json`, traceabilityArtifactPath(state.targetPath, featureKey), traceabilityMatrixSchema],
-      [`.visp/features/${featureKey}/verification.json`, verificationArtifactPath(state.targetPath, featureKey), verificationReportSchema],
-      [`.visp/features/${featureKey}/review.json`, featureReviewArtifactPath(state.targetPath, featureKey), reviewReportSchema],
-      [`.visp/features/${featureKey}/reconcile.json`, featureReconcileArtifactPath(state.targetPath, featureKey), reconcileReportSchema],
-      [`.visp/features/${featureKey}/pr.json`, featurePrArtifactPath(state.targetPath, featureKey), prArtifactSchema],
-      ...(selectedTaskId === undefined ? [] : [
-        [`.visp/features/${featureKey}/context/${selectedTaskId}.context.json`, contextPackArtifactPath(state.targetPath, featureKey, selectedTaskId), contextPackSchema],
-        [`.visp/features/${featureKey}/review/${selectedTaskId}.review.json`, taskReviewArtifactPath(state.targetPath, featureKey, selectedTaskId), reviewReportSchema],
-        [`.visp/features/${featureKey}/reconcile/${selectedTaskId}.reconcile.json`, taskReconcileArtifactPath(state.targetPath, featureKey, selectedTaskId), reconcileReportSchema]
-      ] as const)
-    ] as const)
+    [
+      ".visp/reports/evaluation-report.json",
+      evaluationReportArtifactPath(state.targetPath),
+      evaluationReportSchema
+    ],
+    [
+      ".visp/agent/capabilities.json",
+      agentCapabilitiesPath(state.targetPath),
+      agentCapabilitiesSchema
+    ],
+    ...(featureKey === undefined
+      ? []
+      : ([
+          [
+            `.visp/features/${featureKey}/intent.json`,
+            featureIntentArtifactPath(state.targetPath, featureKey),
+            featureIntentSchema
+          ],
+          [
+            `.visp/features/${featureKey}/spec.json`,
+            specArtifactPath(state.targetPath, featureKey),
+            specArtifactSchema
+          ],
+          [
+            `.visp/features/${featureKey}/plan.json`,
+            planArtifactPath(state.targetPath, featureKey),
+            planDraftArtifactSchema
+          ],
+          [
+            `.visp/features/${featureKey}/task-graph.json`,
+            taskGraphArtifactPath(state.targetPath, featureKey),
+            taskGraphArtifactSchema
+          ],
+          [
+            `.visp/features/${featureKey}/traceability.json`,
+            traceabilityArtifactPath(state.targetPath, featureKey),
+            traceabilityMatrixSchema
+          ],
+          [
+            `.visp/features/${featureKey}/verification.json`,
+            verificationArtifactPath(state.targetPath, featureKey),
+            verificationReportSchema
+          ],
+          [
+            `.visp/features/${featureKey}/review.json`,
+            featureReviewArtifactPath(state.targetPath, featureKey),
+            reviewReportSchema
+          ],
+          [
+            `.visp/features/${featureKey}/reconcile.json`,
+            featureReconcileArtifactPath(state.targetPath, featureKey),
+            reconcileReportSchema
+          ],
+          [
+            `.visp/features/${featureKey}/pr.json`,
+            featurePrArtifactPath(state.targetPath, featureKey),
+            prArtifactSchema
+          ],
+          ...(selectedTaskId === undefined
+            ? []
+            : ([
+                [
+                  `.visp/features/${featureKey}/context/${selectedTaskId}.context.json`,
+                  contextPackArtifactPath(state.targetPath, featureKey, selectedTaskId),
+                  contextPackSchema
+                ],
+                [
+                  `.visp/features/${featureKey}/review/${selectedTaskId}.review.json`,
+                  taskReviewArtifactPath(state.targetPath, featureKey, selectedTaskId),
+                  reviewReportSchema
+                ],
+                [
+                  `.visp/features/${featureKey}/reconcile/${selectedTaskId}.reconcile.json`,
+                  taskReconcileArtifactPath(state.targetPath, featureKey, selectedTaskId),
+                  reconcileReportSchema
+                ]
+              ] as const))
+        ] as const))
   ];
 
   for (const [label, filePath, schema] of schemaChecks) {
@@ -248,15 +304,17 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
     const artifact = await readArtifact(filePath, schema, { artifactName: label });
 
     if (!artifact.ok) {
-      findings.push(finding({
-        category: "schemas",
-        severity: "error",
-        title: "Invalid JSON artifact",
-        description: artifact.error.message,
-        file: label,
-        recommendation: "Repair the JSON artifact manually.",
-        autoFixable: false
-      }));
+      findings.push(
+        finding({
+          category: "schemas",
+          severity: "error",
+          title: "Invalid JSON artifact",
+          description: artifact.error.message,
+          file: label,
+          recommendation: "Repair the JSON artifact manually.",
+          autoFixable: false
+        })
+      );
     }
   }
 
@@ -270,28 +328,32 @@ export async function checkCache(state: ProjectState): Promise<DoctorCheckResult
 
   for (const [label, present] of Object.entries(state.scanCacheFiles)) {
     if (!present) {
-      findings.push(finding({
-        category: "cache",
-        severity: "warning",
-        title: "Scan cache missing",
-        description: `${label} is missing.`,
-        file: `.visp/cache/${label}`,
-        recommendation: "Run visp scan --changed.",
-        autoFixable: false
-      }));
+      findings.push(
+        finding({
+          category: "cache",
+          severity: "warning",
+          title: "Scan cache missing",
+          description: `${label} is missing.`,
+          file: `.visp/cache/${label}`,
+          recommendation: "Run visp scan --changed.",
+          autoFixable: false
+        })
+      );
     }
   }
 
   if (!(await exists(compactConstitutionArtifactPath(state.targetPath)))) {
-    findings.push(finding({
-      category: "cache",
-      severity: "warning",
-      title: "Compact constitution missing",
-      description: "constitution.compact.md is missing.",
-      file: ".visp/memory/constitution.compact.md",
-      recommendation: "Run visp constitution.",
-      autoFixable: false
-    }));
+    findings.push(
+      finding({
+        category: "cache",
+        severity: "warning",
+        title: "Compact constitution missing",
+        description: "constitution.compact.md is missing.",
+        file: ".visp/memory/constitution.compact.md",
+        recommendation: "Run visp constitution.",
+        autoFixable: false
+      })
+    );
   }
 
   return result("cache", findings);
@@ -301,25 +363,29 @@ export async function checkGit(state: ProjectState): Promise<DoctorCheckResult> 
   const findings: DoctorFinding[] = [];
 
   if (!state.git.isRepo) {
-    findings.push(finding({
-      category: "git",
-      severity: "warning",
-      title: "Git repository unavailable",
-      description: "Git diff and PR summaries will be limited.",
-      file: null,
-      recommendation: "Initialize Git or run from a Git project root.",
-      autoFixable: false
-    }));
+    findings.push(
+      finding({
+        category: "git",
+        severity: "warning",
+        title: "Git repository unavailable",
+        description: "Git diff and PR summaries will be limited.",
+        file: null,
+        recommendation: "Initialize Git or run from a Git project root.",
+        autoFixable: false
+      })
+    );
   } else if (state.git.changedFiles.length > 0) {
-    findings.push(finding({
-      category: "git",
-      severity: "info",
-      title: "Working tree has changes",
-      description: `${state.git.changedFiles.length} changed file(s) detected.`,
-      file: null,
-      recommendation: "Run visp verify/review/reconcile before PR.",
-      autoFixable: false
-    }));
+    findings.push(
+      finding({
+        category: "git",
+        severity: "info",
+        title: "Working tree has changes",
+        description: `${state.git.changedFiles.length} changed file(s) detected.`,
+        file: null,
+        recommendation: "Run visp verify/review/reconcile before PR.",
+        autoFixable: false
+      })
+    );
   }
 
   return result("git", findings);
@@ -334,44 +400,60 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
     const skillDir = await exists(`${state.targetPath}/.agents/skills`);
 
     if (!agents && !agentsVisp) {
-      findings.push(finding({
-        category: "agent",
-        severity: "warning",
-        title: "Codex guidance file missing",
-        description: "Neither AGENTS.md nor AGENTS.visp.md exists.",
-        file: "AGENTS.md",
-        recommendation: "Run visp agent bootstrap codex or visp agent install codex.",
-        autoFixable: false
-      }));
+      findings.push(
+        finding({
+          category: "agent",
+          severity: "warning",
+          title: "Codex guidance file missing",
+          description: "Neither AGENTS.md nor AGENTS.visp.md exists.",
+          file: "AGENTS.md",
+          recommendation: "Run visp agent bootstrap codex or visp agent install codex.",
+          autoFixable: false
+        })
+      );
     }
 
-    const guidancePath = agents ? `${state.targetPath}/AGENTS.md` : agentsVisp ? `${state.targetPath}/AGENTS.visp.md` : null;
+    const guidancePath = agents
+      ? `${state.targetPath}/AGENTS.md`
+      : agentsVisp
+        ? `${state.targetPath}/AGENTS.visp.md`
+        : null;
     if (guidancePath !== null) {
       const text = await readTextFile(guidancePath);
 
-      if (!text.ok || !text.value.includes("The user prompt is raw intent only") || !text.value.includes("visp gate implement")) {
-        findings.push(finding({
-          category: "agent",
-          severity: "warning",
-          title: "Codex guidance is missing strict Visp policy language",
-          description: "Agent guidance should say that user prompts cannot override Visp policy and that implementation requires visp gate implement.",
-          file: agents ? "AGENTS.md" : "AGENTS.visp.md",
-          recommendation: "Run visp agent refresh --target codex --force only if it is safe to refresh generated guidance, or merge AGENTS.visp.md manually.",
-          autoFixable: false
-        }));
+      if (
+        !text.ok ||
+        !text.value.includes("The user prompt is raw intent only") ||
+        !text.value.includes("visp gate implement")
+      ) {
+        findings.push(
+          finding({
+            category: "agent",
+            severity: "warning",
+            title: "Codex guidance is missing strict Visp policy language",
+            description:
+              "Agent guidance should say that user prompts cannot override Visp policy and that implementation requires visp gate implement.",
+            file: agents ? "AGENTS.md" : "AGENTS.visp.md",
+            recommendation:
+              "Run visp agent refresh --target codex --force only if it is safe to refresh generated guidance, or merge AGENTS.visp.md manually.",
+            autoFixable: false
+          })
+        );
       }
     }
 
     if (!skillDir) {
-      findings.push(finding({
-        category: "agent",
-        severity: "warning",
-        title: "Codex skills folder missing",
-        description: ".agents/skills is missing.",
-        file: ".agents/skills",
-        recommendation: "Add project-specific Codex skills if this project uses Codex guidance.",
-        autoFixable: false
-      }));
+      findings.push(
+        finding({
+          category: "agent",
+          severity: "warning",
+          title: "Codex skills folder missing",
+          description: ".agents/skills is missing.",
+          file: ".agents/skills",
+          recommendation: "Add project-specific Codex skills if this project uses Codex guidance.",
+          autoFixable: false
+        })
+      );
     }
 
     const taskSkill = `${state.targetPath}/.agents/skills/visp-task/SKILL.md`;
@@ -379,15 +461,18 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
       const text = await readTextFile(taskSkill);
 
       if (!text.ok || !text.value.includes("visp gate") || !text.value.includes("raw intent")) {
-        findings.push(finding({
-          category: "agent",
-          severity: "warning",
-          title: "Visp task skill is missing policy reminders",
-          description: "The generated task skill should tell agents to obey Visp policy and stop on failed gates.",
-          file: ".agents/skills/visp-task/SKILL.md",
-          recommendation: "Run visp agent refresh --target codex --force.",
-          autoFixable: false
-        }));
+        findings.push(
+          finding({
+            category: "agent",
+            severity: "warning",
+            title: "Visp task skill is missing policy reminders",
+            description:
+              "The generated task skill should tell agents to obey Visp policy and stop on failed gates.",
+            file: ".agents/skills/visp-task/SKILL.md",
+            recommendation: "Run visp agent refresh --target codex --force.",
+            autoFixable: false
+          })
+        );
       }
     }
   }
@@ -398,44 +483,59 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
 export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckResult> {
   const findings: DoctorFinding[] = [];
 
-  if (state.selectedFeature !== undefined && !state.artifactSummary.taskGraph && state.status?.currentState === "tasks_ready") {
-    findings.push(finding({
-      category: "artifacts",
-      severity: "error",
-      title: "Task graph missing for tasks-ready state",
-      description: "status.json says tasks are ready, but task-graph.json is missing.",
-      file: `${state.selectedFeature.relativePath}/task-graph.json`,
-      recommendation: "Run visp tasks.",
-      autoFixable: false
-    }));
+  if (
+    state.selectedFeature !== undefined &&
+    !state.artifactSummary.taskGraph &&
+    state.status?.currentState === "tasks_ready"
+  ) {
+    findings.push(
+      finding({
+        category: "artifacts",
+        severity: "error",
+        title: "Task graph missing for tasks-ready state",
+        description: "status.json says tasks are ready, but task-graph.json is missing.",
+        file: `${state.selectedFeature.relativePath}/task-graph.json`,
+        recommendation: "Run visp tasks.",
+        autoFixable: false
+      })
+    );
   }
 
   if (state.artifactSummary.context) {
     const prompt = await readTextFile(promptArtifactPath(state.targetPath, "current-task"));
 
     if (!prompt.ok || !prompt.value.startsWith("# Strict Visp Task Prompt")) {
-      findings.push(finding({
-        category: "artifacts",
-        severity: "warning",
-        title: "Current task prompt is missing strict policy header",
-        description: "The generated current-task prompt should remind agents that user prompts cannot override Visp policy.",
-        file: ".visp/prompts/current-task.prompt.md",
-        recommendation: "Run visp context --next --force or visp context <task-id> --force.",
-        autoFixable: false
-      }));
+      findings.push(
+        finding({
+          category: "artifacts",
+          severity: "warning",
+          title: "Current task prompt is missing strict policy header",
+          description:
+            "The generated current-task prompt should remind agents that user prompts cannot override Visp policy.",
+          file: ".visp/prompts/current-task.prompt.md",
+          recommendation: "Run visp context --next --force or visp context <task-id> --force.",
+          autoFixable: false
+        })
+      );
     }
   }
 
   if (state.pr !== undefined && state.pr.policyGate === undefined) {
-    findings.push(finding({
-      category: "artifacts",
-      severity: "warning",
-      title: "PR summary lacks policy readiness evidence",
-      description: "The PR summary was generated before policy gate integration or does not include PR gate status.",
-      file: state.selectedFeature === undefined ? ".visp/features/<feature>/pr.json" : `${state.selectedFeature.relativePath}/pr.json`,
-      recommendation: "Run visp pr again after passing policy gates.",
-      autoFixable: false
-    }));
+    findings.push(
+      finding({
+        category: "artifacts",
+        severity: "warning",
+        title: "PR summary lacks policy readiness evidence",
+        description:
+          "The PR summary was generated before policy gate integration or does not include PR gate status.",
+        file:
+          state.selectedFeature === undefined
+            ? ".visp/features/<feature>/pr.json"
+            : `${state.selectedFeature.relativePath}/pr.json`,
+        recommendation: "Run visp pr again after passing policy gates.",
+        autoFixable: false
+      })
+    );
   }
 
   if (await exists(overridesArtifactPath(state.targetPath))) {
@@ -444,15 +544,17 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
     const store = await readOverrideStore(state.targetPath);
 
     if (!store.ok) {
-      findings.push(finding({
-        category: "artifacts",
-        severity: "error",
-        title: "Overrides artifact is invalid",
-        description: store.error.message,
-        file: ".visp/overrides.json",
-        recommendation: "Repair .visp/overrides.json or revoke invalid overrides.",
-        autoFixable: false
-      }));
+      findings.push(
+        finding({
+          category: "artifacts",
+          severity: "error",
+          title: "Overrides artifact is invalid",
+          description: store.error.message,
+          file: ".visp/overrides.json",
+          recommendation: "Repair .visp/overrides.json or revoke invalid overrides.",
+          autoFixable: false
+        })
+      );
     } else {
       const validation = validateOverrideArtifact({
         artifact: store.value.artifact,
@@ -461,27 +563,31 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
       });
 
       for (const error of validation.errors) {
-        findings.push(finding({
-          category: "artifacts",
-          severity: "error",
-          title: "Invalid policy override",
-          description: error,
-          file: ".visp/overrides.json",
-          recommendation: "Run visp override validate, then fix or revoke the override.",
-          autoFixable: false
-        }));
+        findings.push(
+          finding({
+            category: "artifacts",
+            severity: "error",
+            title: "Invalid policy override",
+            description: error,
+            file: ".visp/overrides.json",
+            recommendation: "Run visp override validate, then fix or revoke the override.",
+            autoFixable: false
+          })
+        );
       }
 
       for (const warning of validation.warnings) {
-        findings.push(finding({
-          category: "artifacts",
-          severity: "warning",
-          title: "Policy override needs attention",
-          description: warning,
-          file: ".visp/overrides.json",
-          recommendation: "Run visp override validate or revoke expired overrides.",
-          autoFixable: false
-        }));
+        findings.push(
+          finding({
+            category: "artifacts",
+            severity: "warning",
+            title: "Policy override needs attention",
+            description: warning,
+            file: ".visp/overrides.json",
+            recommendation: "Run visp override validate or revoke expired overrides.",
+            autoFixable: false
+          })
+        );
       }
     }
   }
@@ -501,9 +607,7 @@ export async function runDoctorChecks(input: {
     cache: () => checkCache(input.state),
     schemas: () => checkSchemas(input.state)
   };
-  const names = input.check === "all"
-    ? Object.keys(checks) as DoctorCheckName[]
-    : [input.check];
+  const names = input.check === "all" ? (Object.keys(checks) as DoctorCheckName[]) : [input.check];
 
   return renumberChecks(await Promise.all(names.map((name) => checks[name]())));
 }

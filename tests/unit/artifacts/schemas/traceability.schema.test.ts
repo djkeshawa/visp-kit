@@ -5,9 +5,7 @@ import { validTraceabilityMatrix } from "../fixtures.js";
 
 describe("traceability schema", () => {
   it("accepts valid traceability matrices", () => {
-    expect(traceabilityMatrixSchema.safeParse(validTraceabilityMatrix).success).toBe(
-      true
-    );
+    expect(traceabilityMatrixSchema.safeParse(validTraceabilityMatrix).success).toBe(true);
   });
 
   it("rejects invalid traceability statuses", () => {

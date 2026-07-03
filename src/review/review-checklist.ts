@@ -46,10 +46,6 @@ ${checkboxItems(securityItems)}
 
 ## Final Decision
 
-${checkboxItems([
-  "Ready to reconcile",
-  "Needs changes",
-  "Blocked"
-])}
+${checkboxItems(["Ready to reconcile", "Needs changes", "Blocked"])}
 `;
 }

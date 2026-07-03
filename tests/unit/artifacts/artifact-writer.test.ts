@@ -24,12 +24,9 @@ describe("artifact writer", () => {
   it("validates data and writes formatted JSON", async () => {
     const artifactPath = path.join(tempDir, ".visp", "project.json");
 
-    const result = await writeArtifact(
-      artifactPath,
-      projectProfileSchema,
-      validProjectProfile,
-      { artifactName: "project profile" }
-    );
+    const result = await writeArtifact(artifactPath, projectProfileSchema, validProjectProfile, {
+      artifactName: "project profile"
+    });
     const raw = await readFile(artifactPath, "utf8");
 
     expect(result).toEqual({ ok: true, value: artifactPath });
@@ -41,12 +38,9 @@ describe("artifact writer", () => {
     const artifactPath = path.join(tempDir, ".visp", "project.json");
     const invalid = { ...validProjectProfile, rootPath: "" };
 
-    const result = await writeArtifact(
-      artifactPath,
-      projectProfileSchema,
-      invalid,
-      { artifactName: "project profile" }
-    );
+    const result = await writeArtifact(artifactPath, projectProfileSchema, invalid, {
+      artifactName: "project profile"
+    });
 
     expect(isOk(result)).toBe(false);
     expect(await pathExists(artifactPath)).toEqual({ ok: true, value: false });

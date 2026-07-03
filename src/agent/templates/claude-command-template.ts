@@ -1,8 +1,5 @@
 import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
-import {
-  type AgentWorkflowName,
-  renderWorkflowTemplate
-} from "../agent-renderer.js";
+import { type AgentWorkflowName, renderWorkflowTemplate } from "../agent-renderer.js";
 
 export function renderClaudeCommand(
   workflow: AgentWorkflowName,

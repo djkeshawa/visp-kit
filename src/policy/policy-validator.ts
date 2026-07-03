@@ -1,9 +1,6 @@
 import { type ZodError } from "zod";
 
-import {
-  policyArtifactSchema,
-  type PolicyArtifact
-} from "../artifacts/schemas/policy.schema.js";
+import { policyArtifactSchema, type PolicyArtifact } from "../artifacts/schemas/policy.schema.js";
 
 export type PolicyValidation = {
   readonly passed: boolean;

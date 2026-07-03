@@ -1,3 +1,6 @@
+import { VispError } from "../core/errors.js";
+import { err, ok, type Result } from "../core/result.js";
+
 const validFeatureDirectoryPattern = /^(\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export function parseFeatureNumber(directoryName: string): number | undefined {
@@ -12,7 +15,7 @@ export function parseFeatureNumber(directoryName: string): number | undefined {
 
 export function nextFeatureIdFromNames(
   directoryNames: readonly string[]
-): string {
+): Result<string, VispError> {
   const highest = [...directoryNames]
     .sort()
     .map(parseFeatureNumber)
@@ -21,10 +24,19 @@ export function nextFeatureIdFromNames(
   const next = highest + 1;
 
   if (next > 999) {
-    throw new RangeError("Feature ID limit reached.");
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Feature ID limit reached: 999 feature folders already exist.",
+        {
+          recovery:
+            "Archive or remove old feature folders under .visp/features/ before creating a new feature."
+        }
+      )
+    );
   }
 
-  return String(next).padStart(3, "0");
+  return ok(String(next).padStart(3, "0"));
 }
 
 export function featureDirectoryForSlug(
@@ -33,10 +45,7 @@ export function featureDirectoryForSlug(
 ): string | undefined {
   return [...directoryNames]
     .sort()
-    .find(
-      (name) =>
-        validFeatureDirectoryPattern.test(name) && name.slice(4) === slug
-    );
+    .find((name) => validFeatureDirectoryPattern.test(name) && name.slice(4) === slug);
 }
 
 export function featureDirectoryName(id: string, slug: string): string {

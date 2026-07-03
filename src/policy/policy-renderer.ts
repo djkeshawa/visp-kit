@@ -77,11 +77,7 @@ export function formatPolicySummary(summary: PolicyRenderSummary): string {
   );
 
   if (summary.validation.errors.length > 0) {
-    lines.push(
-      "",
-      "Validation errors:",
-      ...summary.validation.errors.map((error) => `  ${error}`)
-    );
+    lines.push("", "Validation errors:", ...summary.validation.errors.map((error) => `  ${error}`));
   }
 
   if (summary.warnings.length > 0) {

@@ -1,6 +1,4 @@
-export function renderPrPrompt(input: {
-  readonly featureKey: string;
-}): string {
+export function renderPrPrompt(input: { readonly featureKey: string }): string {
   return `# Visp PR Prompt
 
 Create or refine a pull request description using:

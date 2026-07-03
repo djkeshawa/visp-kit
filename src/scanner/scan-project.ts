@@ -36,10 +36,7 @@ function lockFiles(files: readonly FileIndexEntry[]): string[] {
     .sort((a, b) => a.localeCompare(b));
 }
 
-function mergeCommands(
-  left: readonly string[],
-  right: readonly string[]
-): readonly string[] {
+function mergeCommands(left: readonly string[], right: readonly string[]): readonly string[] {
   return unique([...left, ...right]);
 }
 
@@ -80,11 +77,7 @@ function manifestCommands(files: readonly FileIndexEntry[]): {
     lintCommands.push(`${gradle} check`);
   }
 
-  if (
-    paths.has("pyproject.toml") ||
-    paths.has("requirements.txt") ||
-    paths.has("setup.py")
-  ) {
+  if (paths.has("pyproject.toml") || paths.has("requirements.txt") || paths.has("setup.py")) {
     testCommands.push("python -m pytest");
   }
 
@@ -106,9 +99,7 @@ export type ProjectScanResult = {
   readonly detection: ProjectDetection;
 };
 
-export async function scanProject(
-  input: ProjectScanInput
-): Promise<ProjectScanResult> {
+export async function scanProject(input: ProjectScanInput): Promise<ProjectScanResult> {
   const files = await scanFiles(input.rootPath, input.scannedAt);
   const packageJsonResult = await readPackageJson(input.rootPath);
 
@@ -134,16 +125,17 @@ export async function scanProject(
       languages: summarizeLanguages(files).filter((language) => language.name !== "Other"),
       frameworks,
       testFrameworks: unique(
-        frameworks
-          .map((framework) => framework.name)
-          .filter((name) => testFrameworkNames.has(name))
+        frameworks.map((framework) => framework.name).filter((name) => testFrameworkNames.has(name))
       ),
       sourceRoots: await detectSourceRoots(input.rootPath),
       testRoots: await detectTestRoots(input.rootPath),
       buildCommands: mergeCommands(commands.buildCommands, nonPackageCommands.buildCommands),
       testCommands: mergeCommands(commands.testCommands, nonPackageCommands.testCommands),
       lintCommands: mergeCommands(commands.lintCommands, nonPackageCommands.lintCommands),
-      typecheckCommands: mergeCommands(commands.typecheckCommands, nonPackageCommands.typecheckCommands)
+      typecheckCommands: mergeCommands(
+        commands.typecheckCommands,
+        nonPackageCommands.typecheckCommands
+      )
     }
   };
 }

@@ -17,9 +17,7 @@ import {
 describe("path helpers", () => {
   it("normalizes and joins paths through node path semantics", () => {
     expect(normalizePath("src/../tests")).toBe("tests");
-    expect(joinPath("src", "core", "paths.ts")).toBe(
-      path.join("src", "core", "paths.ts")
-    );
+    expect(joinPath("src", "core", "paths.ts")).toBe(path.join("src", "core", "paths.ts"));
     expect(resolvePath(".", "src")).toBe(path.resolve(".", "src"));
   });
 

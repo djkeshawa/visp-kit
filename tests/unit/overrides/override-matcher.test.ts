@@ -102,7 +102,10 @@ function artifact(scope: OverrideArtifact["overrides"][number]["scope"]): Overri
 
 describe("override matcher", () => {
   it("applies matching task overrides", () => {
-    const policy = createDefaultPolicy({ strictnessMode: "strict", now: "2026-01-01T00:00:00.000Z" });
+    const policy = createDefaultPolicy({
+      strictnessMode: "strict",
+      now: "2026-01-01T00:00:00.000Z"
+    });
     const match = findApplicableOverride({
       rule,
       stage: "review",
@@ -116,7 +119,10 @@ describe("override matcher", () => {
   });
 
   it("does not apply task overrides to another task", () => {
-    const policy = createDefaultPolicy({ strictnessMode: "strict", now: "2026-01-01T00:00:00.000Z" });
+    const policy = createDefaultPolicy({
+      strictnessMode: "strict",
+      now: "2026-01-01T00:00:00.000Z"
+    });
     const match = findApplicableOverride({
       rule,
       stage: "review",
@@ -130,7 +136,10 @@ describe("override matcher", () => {
   });
 
   it("does not apply overrides in locked mode by default", () => {
-    const policy = createDefaultPolicy({ strictnessMode: "locked", now: "2026-01-01T00:00:00.000Z" });
+    const policy = createDefaultPolicy({
+      strictnessMode: "locked",
+      now: "2026-01-01T00:00:00.000Z"
+    });
     const match = findApplicableOverride({
       rule,
       stage: "review",

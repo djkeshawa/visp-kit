@@ -66,6 +66,8 @@ describe("test signal review", () => {
       }
     });
 
-    expect(result.findings.some((finding) => finding.title === "No test files changed")).toBe(false);
+    expect(result.findings.some((finding) => finding.title === "No test files changed")).toBe(
+      false
+    );
   });
 });

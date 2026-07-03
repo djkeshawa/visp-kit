@@ -12,15 +12,9 @@ function isNodeError(error: unknown): error is NodeError {
   return error instanceof Error;
 }
 
-function fileSystemError(
-  error: unknown,
-  message: string,
-  filePath: string
-): VispError {
+function fileSystemError(error: unknown, message: string, filePath: string): VispError {
   const code =
-    isNodeError(error) && error.code === "ENOENT"
-      ? "FILE_NOT_FOUND"
-      : "FILE_SYSTEM_ERROR";
+    isNodeError(error) && error.code === "ENOENT" ? "FILE_NOT_FOUND" : "FILE_SYSTEM_ERROR";
 
   return new VispError(code, message, {
     cause: error,
@@ -28,9 +22,7 @@ function fileSystemError(
   });
 }
 
-export async function pathExists(
-  targetPath: string
-): Promise<Result<boolean, VispError>> {
+export async function pathExists(targetPath: string): Promise<Result<boolean, VispError>> {
   try {
     await access(targetPath);
     return ok(true);
@@ -43,9 +35,7 @@ export async function pathExists(
   }
 }
 
-export async function ensureDir(
-  dirPath: string
-): Promise<Result<string, VispError>> {
+export async function ensureDir(dirPath: string): Promise<Result<string, VispError>> {
   try {
     await mkdir(dirPath, { recursive: true });
     return ok(dirPath);
@@ -54,9 +44,7 @@ export async function ensureDir(
   }
 }
 
-export async function readTextFile(
-  filePath: string
-): Promise<Result<string, VispError>> {
+export async function readTextFile(filePath: string): Promise<Result<string, VispError>> {
   try {
     return ok(await readFile(filePath, "utf8"));
   } catch (error) {
@@ -77,9 +65,7 @@ export async function writeTextFile(
   }
 }
 
-export async function removeFile(
-  filePath: string
-): Promise<Result<void, VispError>> {
+export async function removeFile(filePath: string): Promise<Result<void, VispError>> {
   try {
     await rm(filePath, { force: true });
     return ok(undefined);
@@ -88,9 +74,7 @@ export async function removeFile(
   }
 }
 
-export async function readJsonFile<T = unknown>(
-  filePath: string
-): Promise<Result<T, VispError>> {
+export async function readJsonFile<T = unknown>(filePath: string): Promise<Result<T, VispError>> {
   const text = await readTextFile(filePath);
 
   if (!text.ok) {

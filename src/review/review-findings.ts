@@ -32,9 +32,7 @@ export function finding(input: {
   };
 }
 
-export function numberFindings(
-  drafts: readonly ReviewFindingDraft[]
-): readonly ReviewFinding[] {
+export function numberFindings(drafts: readonly ReviewFindingDraft[]): readonly ReviewFinding[] {
   return drafts.map((draft, index) => ({
     id: `REVIEW${String(index + 1).padStart(3, "0")}`,
     ...draft

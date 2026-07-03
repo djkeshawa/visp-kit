@@ -17,13 +17,16 @@ export function emptyOverrideArtifact(): OverrideArtifact {
   };
 }
 
-export async function readOverrideStore(
-  targetPath: string
-): Promise<Result<{
-  readonly artifact: OverrideArtifact;
-  readonly exists: boolean;
-  readonly path: string;
-}, VispError>> {
+export async function readOverrideStore(targetPath: string): Promise<
+  Result<
+    {
+      readonly artifact: OverrideArtifact;
+      readonly exists: boolean;
+      readonly path: string;
+    },
+    VispError
+  >
+> {
   const initialized = await ensureVispProject(targetPath);
 
   if (!initialized.ok) return initialized;

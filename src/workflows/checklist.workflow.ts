@@ -85,24 +85,33 @@ function stepFrom(itemId: string | undefined): Result<ImplementationChecklistSte
   return ok(normalized);
 }
 
-function statusFrom(status: ImplementationChecklistStatus | undefined): Result<ImplementationChecklistStatus, VispError> {
+function statusFrom(
+  status: ImplementationChecklistStatus | undefined
+): Result<ImplementationChecklistStatus, VispError> {
   const parsed = implementationChecklistStatusSchema.safeParse(status);
 
   if (!parsed.success) {
-    return err(new VispError(
-      "VALIDATION_FAILED",
-      "Checklist update requires --status pending|done|not_applicable|unavailable|blocked."
-    ));
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Checklist update requires --status pending|done|not_applicable|unavailable|blocked."
+      )
+    );
   }
 
   return ok(parsed.data);
 }
 
-async function base(input: ChecklistStatusWorkflowOptions): Promise<Result<{
-  readonly targetPath: string;
-  readonly feature: ActiveFeature;
-  readonly taskId: string;
-}, VispError>> {
+async function base(input: ChecklistStatusWorkflowOptions): Promise<
+  Result<
+    {
+      readonly targetPath: string;
+      readonly feature: ActiveFeature;
+      readonly taskId: string;
+    },
+    VispError
+  >
+> {
   const targetPath = targetPathFrom(input);
   const feature = await resolveActiveFeature({
     targetPath,
@@ -146,7 +155,10 @@ export async function runChecklistStatusWorkflow(
   if (!summary.ok) return summary;
 
   return ok({
-    success: summary.value.exists && summary.value.pendingRequired.length === 0 && summary.value.blockedRequired.length === 0,
+    success:
+      summary.value.exists &&
+      summary.value.pendingRequired.length === 0 &&
+      summary.value.blockedRequired.length === 0,
     targetPath: resolved.value.targetPath,
     feature: {
       id: resolved.value.feature.id,
@@ -160,9 +172,10 @@ export async function runChecklistStatusWorkflow(
     updatedItemId: null,
     dryRun: false,
     warnings: summary.value.exists ? [] : ["Implementation checklist is missing."],
-    nextCommand: summary.value.pendingRequired.length > 0 || summary.value.blockedRequired.length > 0
-      ? `visp checklist status --task ${resolved.value.taskId}`
-      : `visp verify --task ${resolved.value.taskId}`
+    nextCommand:
+      summary.value.pendingRequired.length > 0 || summary.value.blockedRequired.length > 0
+        ? `visp checklist status --task ${resolved.value.taskId}`
+        : `visp verify --task ${resolved.value.taskId}`
   });
 }
 
@@ -179,12 +192,18 @@ export async function runChecklistUpdateWorkflow(
   const status = statusFrom(options.status);
   if (!status.ok) return status;
 
-  if ((status.value === "blocked" || status.value === "not_applicable" || status.value === "unavailable") &&
-    (options.reason?.trim() ?? "").length === 0) {
-    return err(new VispError(
-      "VALIDATION_FAILED",
-      "--reason is required when checklist status is blocked, not_applicable, or unavailable."
-    ));
+  if (
+    (status.value === "blocked" ||
+      status.value === "not_applicable" ||
+      status.value === "unavailable") &&
+    (options.reason?.trim() ?? "").length === 0
+  ) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "--reason is required when checklist status is blocked, not_applicable, or unavailable."
+      )
+    );
   }
 
   const updated = await updateImplementationChecklistItem({
@@ -237,7 +256,9 @@ export function formatChecklistSummary(summary: ChecklistWorkflowSummary): strin
   const pending = summary.summary.pendingRequired.map((item) => `  ${item.id}: ${item.label}`);
   const blocked = summary.summary.blockedRequired.map((item) => `  ${item.id}: ${item.label}`);
   const lines = [
-    formatHeader(summary.updatedItemId === null ? "Visp checklist status" : "Visp checklist updated"),
+    formatHeader(
+      summary.updatedItemId === null ? "Visp checklist status" : "Visp checklist updated"
+    ),
     "",
     formatKeyValue("Feature", `${summary.feature.id}-${summary.feature.slug}`),
     formatKeyValue("Task", summary.taskId),

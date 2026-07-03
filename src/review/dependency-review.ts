@@ -14,8 +14,10 @@ function dependencyApprovedByTask(task: Task | undefined): boolean {
   ]);
   const text = `${task.title} ${task.description}`.toLowerCase();
 
-  return [...scoped].some((file) => isDependencyFile(file)) ||
-    /dependency|package|manifest|lockfile|install/.test(text);
+  return (
+    [...scoped].some((file) => isDependencyFile(file)) ||
+    /dependency|package|manifest|lockfile|install/.test(text)
+  );
 }
 
 function dependencyApprovedByPlan(plan: PlanDraftArtifact | undefined): boolean {

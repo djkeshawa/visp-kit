@@ -53,6 +53,8 @@ describe("override validator", () => {
     };
 
     expect(overrideArtifactSchema.safeParse(artifact).success).toBe(true);
-    expect(validateOverrideArtifact({ artifact, policy, now: "2026-01-01T00:00:00.000Z" }).passed).toBe(true);
+    expect(
+      validateOverrideArtifact({ artifact, policy, now: "2026-01-01T00:00:00.000Z" }).passed
+    ).toBe(true);
   });
 });

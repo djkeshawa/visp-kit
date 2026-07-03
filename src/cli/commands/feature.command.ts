@@ -73,26 +73,22 @@ function branchConflict(command: Command): boolean {
   return hasRawFlag(args, "--branch") && hasRawFlag(args, "--no-branch");
 }
 
-export function createFeatureCommand(
-  dependencies: FeatureCommandDependencies = {}
-): Command {
+export function createFeatureCommand(dependencies: FeatureCommandDependencies = {}): Command {
   const runFeature = dependencies.runFeature ?? runFeatureWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("feature")
     .description("Create a Visp feature intent workspace.")
     .argument("<feature idea>", "Feature idea or title.")
     .argument("[path]", "Target project path.")
     .addOption(
-      new Option("--budget <budget>", "Budget mode for this feature.")
-        .choices(budgetModeSchema.options)
+      new Option("--budget <budget>", "Budget mode for this feature.").choices(
+        budgetModeSchema.options
+      )
     )
     .addOption(
-      new Option("--risk <risk>", "Risk level for this feature.")
-        .choices(riskLevelSchema.options)
+      new Option("--risk <risk>", "Risk level for this feature.").choices(riskLevelSchema.options)
     )
     .option("--branch", "Create a Git branch for the feature.")
     .option("--no-branch", "Do not create a Git branch.")
@@ -111,9 +107,7 @@ export function createFeatureCommand(
           const message = "Use either --branch or --no-branch, not both.";
 
           if (options.json) {
-            writeOut(
-              `${JSON.stringify({ success: false, error: message }, null, 2)}\n`
-            );
+            writeOut(`${JSON.stringify({ success: false, error: message }, null, 2)}\n`);
           } else {
             writeErr(`${formatError(message)}\n`);
           }
@@ -123,23 +117,13 @@ export function createFeatureCommand(
         }
 
         const result = await runFeature(
-          workflowOptions(
-            featureIdea,
-            targetPath,
-            options,
-            command,
-            dependencies.cwd
-          )
+          workflowOptions(featureIdea, targetPath, options, command, dependencies.cwd)
         );
 
         if (!result.ok) {
           if (options.json) {
             writeOut(
-              `${JSON.stringify(
-                { success: false, error: result.error.message },
-                null,
-                2
-              )}\n`
+              `${JSON.stringify({ success: false, error: result.error.message }, null, 2)}\n`
             );
           } else {
             writeErr(`${formatError(result.error.message)}\n`);

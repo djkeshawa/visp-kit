@@ -1,4 +1,7 @@
-import { type ReconcileChangedFile, type ReconcileResult } from "../artifacts/schemas/reconcile.schema.js";
+import {
+  type ReconcileChangedFile,
+  type ReconcileResult
+} from "../artifacts/schemas/reconcile.schema.js";
 import {
   type TraceabilityEntry,
   type TraceabilityMatrix
@@ -30,15 +33,18 @@ export function updateTraceabilityForReconcile(input: {
   readonly result: ReconcileResult;
   readonly now: string;
 }): TraceabilityMatrix {
-  const changed = input.changedFiles.filter((file) =>
-    !file.isVispGeneratedFile && file.mappingStatus !== "unmapped" && file.mappingStatus !== "forbidden"
+  const changed = input.changedFiles.filter(
+    (file) =>
+      !file.isVispGeneratedFile &&
+      file.mappingStatus !== "unmapped" &&
+      file.mappingStatus !== "forbidden"
   );
 
   return {
     ...input.traceability,
     entries: input.traceability.entries.map((entry) => {
-      const related = changed.filter((file) =>
-        entryMatchesTask(entry, input.task) || entryMatchesRequirement(entry, file)
+      const related = changed.filter(
+        (file) => entryMatchesTask(entry, input.task) || entryMatchesRequirement(entry, file)
       );
 
       if (related.length === 0) return entry;
@@ -66,8 +72,9 @@ export function updateTraceabilityForReconcile(input: {
 
 export function renderTraceabilityMarkdown(matrix: TraceabilityMatrix): string {
   const rows = matrix.entries
-    .map((entry) =>
-      `| ${entry.requirementId} | ${entry.acceptanceCriterionIds.join(", ") || "none"} | ${entry.taskIds.join(", ") || "none"} | ${entry.filePaths.join(", ") || "none"} | ${entry.testPaths.join(", ") || "none"} | ${entry.status} |`
+    .map(
+      (entry) =>
+        `| ${entry.requirementId} | ${entry.acceptanceCriterionIds.join(", ") || "none"} | ${entry.taskIds.join(", ") || "none"} | ${entry.filePaths.join(", ") || "none"} | ${entry.testPaths.join(", ") || "none"} | ${entry.status} |`
     )
     .join("\n");
 

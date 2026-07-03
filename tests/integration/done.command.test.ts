@@ -140,7 +140,7 @@ describe("visp done command", () => {
   it("stops at the first failing step and reports a recovery command", async () => {
     await createPhase8Fixture(tempDir);
     await updateTask(tempDir, {
-      validationCommands: ["node -e \"process.exit(1)\""]
+      validationCommands: ['node -e "process.exit(1)"']
     });
     const silent = createCli({ writeOut: () => undefined });
     await silent.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
@@ -149,15 +149,7 @@ describe("visp done command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "done",
-      tempDir,
-      "--task",
-      "T001",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "done", tempDir, "--task", "T001", "--json"]);
 
     const summary = JSON.parse(output.join("")) as DoneJson;
 

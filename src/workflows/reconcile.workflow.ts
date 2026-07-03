@@ -30,11 +30,11 @@ import {
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
-import { planDraftArtifactSchema, type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
 import {
-  projectStatusSchema,
-  type ProjectStatus
-} from "../artifacts/schemas/project.schema.js";
+  planDraftArtifactSchema,
+  type PlanDraftArtifact
+} from "../artifacts/schemas/plan.schema.js";
+import { projectStatusSchema, type ProjectStatus } from "../artifacts/schemas/project.schema.js";
 import {
   reconcileReportSchema,
   type ReconcileReport,
@@ -52,7 +52,10 @@ import {
   traceabilityMatrixSchema,
   type TraceabilityMatrix
 } from "../artifacts/schemas/traceability.schema.js";
-import { verificationReportSchema, type VerificationReport } from "../artifacts/schemas/verification.schema.js";
+import {
+  verificationReportSchema,
+  type VerificationReport
+} from "../artifacts/schemas/verification.schema.js";
 import { type CommandRunner } from "../core/command-runner.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
@@ -144,7 +147,9 @@ async function optionalArtifact<T>(input: {
   });
 
   if (!artifact.ok) {
-    input.warnings.push(`Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`);
+    input.warnings.push(
+      `Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`
+    );
     return undefined;
   }
 
@@ -159,7 +164,11 @@ async function ensureTaskGraph(input: {
 
   if (!exists.ok) return exists;
   if (!exists.value) {
-    return err(new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", { recovery: "visp tasks" }));
+    return err(
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", {
+        recovery: "visp tasks"
+      })
+    );
   }
 
   return ok(undefined);
@@ -222,15 +231,36 @@ function outputPaths(input: {
     contextRelative:
       input.task === undefined
         ? null
-        : relativePath(input.targetPath, contextPackMarkdownPath(input.targetPath, input.featureKey, input.task.id)),
-    verificationRelative: relativePath(input.targetPath, verificationMarkdownPath(input.targetPath, input.featureKey)),
+        : relativePath(
+            input.targetPath,
+            contextPackMarkdownPath(input.targetPath, input.featureKey, input.task.id)
+          ),
+    verificationRelative: relativePath(
+      input.targetPath,
+      verificationMarkdownPath(input.targetPath, input.featureKey)
+    ),
     reviewRelative:
       input.task === undefined
-        ? relativePath(input.targetPath, featureReviewMarkdownPath(input.targetPath, input.featureKey))
-        : relativePath(input.targetPath, taskReviewMarkdownPath(input.targetPath, input.featureKey, input.task.id)),
-    specRelative: relativePath(input.targetPath, specMarkdownPath(input.targetPath, input.featureKey)),
-    planRelative: relativePath(input.targetPath, planMarkdownPath(input.targetPath, input.featureKey)),
-    tasksRelative: relativePath(input.targetPath, tasksMarkdownPath(input.targetPath, input.featureKey))
+        ? relativePath(
+            input.targetPath,
+            featureReviewMarkdownPath(input.targetPath, input.featureKey)
+          )
+        : relativePath(
+            input.targetPath,
+            taskReviewMarkdownPath(input.targetPath, input.featureKey, input.task.id)
+          ),
+    specRelative: relativePath(
+      input.targetPath,
+      specMarkdownPath(input.targetPath, input.featureKey)
+    ),
+    planRelative: relativePath(
+      input.targetPath,
+      planMarkdownPath(input.targetPath, input.featureKey)
+    ),
+    tasksRelative: relativePath(
+      input.targetPath,
+      tasksMarkdownPath(input.targetPath, input.featureKey)
+    )
   };
 }
 
@@ -240,7 +270,9 @@ function resultFromFindings(findings: readonly { severity: string }[]): Reconcil
   return "passed";
 }
 
-function nextCommand(report: Pick<ReconcileReport, "result" | "taskId" | "traceabilityUpdate">): string {
+function nextCommand(
+  report: Pick<ReconcileReport, "result" | "taskId" | "traceabilityUpdate">
+): string {
   const taskFlag = report.taskId === null ? "" : ` --task ${report.taskId}`;
 
   if (report.result === "failed") {
@@ -450,7 +482,9 @@ export async function runReconcileWorkflow(
   const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
 
   if (!policyGateResult.ok) {
-    optionalWarnings.push(`Reconcile gate could not be evaluated: ${policyGateResult.error.message}`);
+    optionalWarnings.push(
+      `Reconcile gate could not be evaluated: ${policyGateResult.error.message}`
+    );
   }
   if (selectedTask !== undefined) {
     const checklistSummary = await getImplementationChecklistSummary({
@@ -462,7 +496,9 @@ export async function runReconcileWorkflow(
     if (checklistSummary.ok) {
       optionalWarnings.push(implementationChecklistStatusLine(checklistSummary.value));
     } else {
-      optionalWarnings.push(`Implementation checklist status unavailable: ${checklistSummary.error.message}`);
+      optionalWarnings.push(
+        `Implementation checklist status unavailable: ${checklistSummary.error.message}`
+      );
     }
   }
 
@@ -565,24 +601,24 @@ export async function runReconcileWorkflow(
     task: selectedTask,
     plan: plan as PlanDraftArtifact | undefined
   });
-  const gateBlocks = policyGate === undefined
-    ? false
-    : gateBlocksWorkflow({ gate: policyGate, force });
+  const gateBlocks =
+    policyGate === undefined ? false : gateBlocksWorkflow({ gate: policyGate, force });
   const gateFindingSeverity = gateBlocks ? "error" : "warning";
-  const gateFindings: ReconcileFindingDraft[] = policyGate === undefined
-    ? []
-    : policyGate.failedRules.map((rule) =>
-        reconcileFinding({
-          category: "review",
-          severity: gateFindingSeverity,
-          driftType: "manual_review_needed",
-          title: `Policy gate ${rule.ruleId} did not pass`,
-          description: rule.message,
-          evidence: rule.evidence,
-          recommendation: rule.recommendation,
-          relatedTaskId: selectedTask?.id ?? null
-        })
-      );
+  const gateFindings: ReconcileFindingDraft[] =
+    policyGate === undefined
+      ? []
+      : policyGate.failedRules.map((rule) =>
+          reconcileFinding({
+            category: "review",
+            severity: gateFindingSeverity,
+            driftType: "manual_review_needed",
+            title: `Policy gate ${rule.ruleId} did not pass`,
+            description: rule.message,
+            evidence: rule.evidence,
+            recommendation: rule.recommendation,
+            relatedTaskId: selectedTask?.id ?? null
+          })
+        );
   const findingDrafts: ReconcileFindingDraft[] = [
     ...gateFindings,
     ...mapped.findings,

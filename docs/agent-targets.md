@@ -1,11 +1,13 @@
 # Agent Targets
 
-Visp Kit can install strict workflow guidance for four targets:
+Visp Kit can install strict workflow guidance for six targets:
 
 - `codex`
 - `generic`
 - `claude`
 - `copilot`
+- `cursor`
+- `gemini`
 
 Install with:
 
@@ -146,6 +148,67 @@ AGENTS.md or AGENTS.visp.md
 ```
 
 Copilot support varies by surface. These files provide repository guidance for Copilot-compatible tools and can also be copied into the active chat/session.
+
+## Cursor
+
+Command:
+
+```bash
+visp agent install cursor
+```
+
+Generated files:
+
+```text
+.cursor/rules/visp-rules.mdc
+.cursor/rules/visp-feature.mdc
+.cursor/rules/visp-task.mdc
+.cursor/rules/visp-fix.mdc
+.cursor/rules/visp-review.mdc
+.cursor/rules/visp-pr.mdc
+.visp/agent/installed-targets.json
+.visp/agent/agent-guide.md
+.visp/agent/workflow-map.json
+```
+
+The base rule `visp-rules.mdc` is always applied. Workflow rules attach by
+description or by mentioning them in chat:
+
+```text
+@visp-feature Add note pinning.
+```
+
+## Gemini CLI
+
+Command:
+
+```bash
+visp agent install gemini
+```
+
+Generated files:
+
+```text
+GEMINI.md or GEMINI.visp.md
+.gemini/commands/visp-feature.toml
+.gemini/commands/visp-task.toml
+.gemini/commands/visp-fix.toml
+.gemini/commands/visp-review.toml
+.gemini/commands/visp-pr.toml
+.visp/agent/installed-targets.json
+.visp/agent/agent-guide.md
+.visp/agent/workflow-map.json
+```
+
+Usage examples:
+
+```text
+/visp-feature Add note pinning.
+/visp-task
+```
+
+Existing `GEMINI.md` is not overwritten without `--force`; Visp writes
+`GEMINI.visp.md` where appropriate.
 
 ## Shared Rules
 

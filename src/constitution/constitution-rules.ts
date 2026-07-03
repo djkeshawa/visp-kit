@@ -1,7 +1,4 @@
-import {
-  type BudgetMode,
-  type Preset
-} from "../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 
 export type ConstitutionRule = {
   readonly id: string;
@@ -36,22 +33,10 @@ const presetRules: Record<Preset, readonly string[]> = {
     "Keep Electron main, preload, and renderer concerns separated.",
     "Avoid broad or unsafe IPC exposure."
   ],
-  react: [
-    "Keep React components small and accessible.",
-    "Avoid unnecessary global state."
-  ],
-  "node-api": [
-    "Validate API request inputs.",
-    "Keep handlers thin and domain logic separate."
-  ],
-  go: [
-    "Keep Go package boundaries clear.",
-    "Handle errors explicitly and consistently."
-  ],
-  java: [
-    "Preserve Java public API contracts.",
-    "Keep service and domain boundaries explicit."
-  ],
+  react: ["Keep React components small and accessible.", "Avoid unnecessary global state."],
+  "node-api": ["Validate API request inputs.", "Keep handlers thin and domain logic separate."],
+  go: ["Keep Go package boundaries clear.", "Handle errors explicitly and consistently."],
+  java: ["Preserve Java public API contracts.", "Keep service and domain boundaries explicit."],
   python: [
     "Keep Python modules focused and imports clear.",
     "Preserve typing and validation conventions where present."
@@ -80,10 +65,7 @@ function numberedRule(
   };
 }
 
-export function buildConstitutionRules(
-  preset: Preset,
-  budget: BudgetMode
-): ConstitutionRule[] {
+export function buildConstitutionRules(preset: Preset, budget: BudgetMode): ConstitutionRule[] {
   const rules = [
     ...baseRules.map((text) => ({ text, category: "base" as const })),
     ...presetRules[preset].map((text) => ({ text, category: "preset" as const })),

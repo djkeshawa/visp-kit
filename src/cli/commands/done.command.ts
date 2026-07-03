@@ -50,14 +50,10 @@ function workflowOptions(
   };
 }
 
-export function createDoneCommand(
-  dependencies: DoneCommandDependencies = {}
-): Command {
+export function createDoneCommand(dependencies: DoneCommandDependencies = {}): Command {
   const runDone = dependencies.runDone ?? runDoneWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("done")
     .description(
@@ -74,9 +70,7 @@ export function createDoneCommand(
     .option("--dry-run", "Run the pipeline without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: DoneCommandOptions) => {
-      const result = await runDone(
-        workflowOptions(targetPath, options, dependencies.cwd)
-      );
+      const result = await runDone(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {
         writeWorkflowError({

@@ -14,10 +14,7 @@ import { runIndexSchema } from "../artifacts/schemas/run.schema.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { err, ok, type Result } from "../core/result.js";
-import {
-  loadProjectState,
-  type ProjectState
-} from "../orchestrator/project-state.js";
+import { loadProjectState, type ProjectState } from "../orchestrator/project-state.js";
 import { type NextStep } from "../orchestrator/next-step.js";
 import { renderStatusMarkdown } from "../status/status-report.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
@@ -116,26 +113,35 @@ function summaryFromState(input: {
     initialized: state.initialized,
     scanned: state.scanned,
     constitution: state.constitution,
-    activeFeature: state.selectedFeature === undefined
-      ? null
-      : {
-          id: state.selectedFeature.id,
-          slug: state.selectedFeature.slug,
-          key: state.selectedFeature.key
-        },
-    activeTask: state.selectedTask === undefined
-      ? null
-      : {
-          id: state.selectedTask.id,
-          title: state.selectedTask.title,
-          status: state.selectedTask.status
-        },
+    activeFeature:
+      state.selectedFeature === undefined
+        ? null
+        : {
+            id: state.selectedFeature.id,
+            slug: state.selectedFeature.slug,
+            key: state.selectedFeature.key
+          },
+    activeTask:
+      state.selectedTask === undefined
+        ? null
+        : {
+            id: state.selectedTask.id,
+            title: state.selectedTask.title,
+            status: state.selectedTask.status
+          },
     featureState: state.status?.currentState ?? "unknown",
     taskSummary: state.taskSummary,
     artifactSummary: state.artifactSummary,
     latestEvidence: {
-      context: state.artifactSummary.context ? `${state.selectedTask?.id ?? "feature"} ready` : "missing",
-      verification: state.verification === undefined ? "missing" : state.verification.success ? "passed" : "failed",
+      context: state.artifactSummary.context
+        ? `${state.selectedTask?.id ?? "feature"} ready`
+        : "missing",
+      verification:
+        state.verification === undefined
+          ? "missing"
+          : state.verification.success
+            ? "passed"
+            : "failed",
       review: state.review === undefined ? "missing" : state.review.result,
       reconcile: state.reconcile === undefined ? "missing" : state.reconcile.result,
       pr: state.artifactSummary.pr ? "ready" : "missing"
@@ -150,7 +156,9 @@ function summaryFromState(input: {
     implementationAllowed: input.next.implementationAllowed ?? false,
     prAllowed: input.next.prAllowed ?? false,
     blockedCommands: input.next.blockedCommands ?? [],
-    warnings: [...new Set([...state.warnings, ...input.next.warnings, ...(input.overrideWarnings ?? [])])],
+    warnings: [
+      ...new Set([...state.warnings, ...input.next.warnings, ...(input.overrideWarnings ?? [])])
+    ],
     nextCommand: input.next.nextCommand,
     reportPath: input.reportPath
   };
@@ -198,7 +206,9 @@ async function latestRunSummary(targetPath: string): Promise<string> {
 
   if (!index.ok || index.value.latestRunId === null) return "missing";
   const latest = index.value.runs.find((run) => run.id === index.value.latestRunId);
-  return latest === undefined ? index.value.latestRunId : `${latest.id} ${latest.command} ${latest.result}`;
+  return latest === undefined
+    ? index.value.latestRunId
+    : `${latest.id} ${latest.command} ${latest.result}`;
 }
 
 async function evaluationSummary(targetPath: string): Promise<string> {
@@ -206,9 +216,13 @@ async function evaluationSummary(targetPath: string): Promise<string> {
 
   if (!exists.ok || !exists.value) return "missing";
 
-  const report = await readArtifact(evaluationReportArtifactPath(targetPath), evaluationReportSchema, {
-    artifactName: "evaluation report"
-  });
+  const report = await readArtifact(
+    evaluationReportArtifactPath(targetPath),
+    evaluationReportSchema,
+    {
+      artifactName: "evaluation report"
+    }
+  );
 
   if (!report.ok) return "invalid";
   return report.value.result;
@@ -229,9 +243,9 @@ async function activeOverrideCount(targetPath: string): Promise<{
   }
 
   return {
-    count: store.value.artifact.overrides.filter((override) =>
-      override.status === "active" &&
-        !overrideExpired({ expiresAt: override.expiresAt, now })
+    count: store.value.artifact.overrides.filter(
+      (override) =>
+        override.status === "active" && !overrideExpired({ expiresAt: override.expiresAt, now })
     ).length,
     warnings: []
   };
@@ -244,7 +258,11 @@ export async function runStatusWorkflow(
 
   if (!state.ok) return state;
   if (!state.value.initialized) {
-    return err(new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", { recovery: "visp init" }));
+    return err(
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
+        recovery: "visp init"
+      })
+    );
   }
   if (state.value.errors.length > 0) {
     return err(new VispError("VALIDATION_FAILED", state.value.errors.join(" ")));
@@ -290,18 +308,20 @@ export async function runStatusWorkflow(
     reportPath = relativePath(targetPath, absolute);
   }
 
-  return ok(summaryFromState({
-    state: state.value,
-    next: next.value,
-    reportPath,
-    policyStatus: policy.status,
-    strictnessMode: policy.strictnessMode,
-    latestGate,
-    latestRun,
-    evaluation,
-    activeOverrideCount: overrides.count,
-    overrideWarnings: overrides.warnings
-  }));
+  return ok(
+    summaryFromState({
+      state: state.value,
+      next: next.value,
+      reportPath,
+      policyStatus: policy.status,
+      strictnessMode: policy.strictnessMode,
+      latestGate,
+      latestRun,
+      evaluation,
+      activeOverrideCount: overrides.count,
+      overrideWarnings: overrides.warnings
+    })
+  );
 }
 
 export function formatStatusSummary(

@@ -1,17 +1,9 @@
-import {
-  policyArtifactPath
-} from "../artifacts/artifact-paths.js";
-import {
-  type PolicyArtifact,
-  type StrictnessMode
-} from "../artifacts/schemas/policy.schema.js";
+import { policyArtifactPath } from "../artifacts/artifact-paths.js";
+import { type PolicyArtifact, type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { pathExists } from "../core/file-system.js";
 import { vispDir } from "../core/paths.js";
 import { createDefaultPolicy } from "../policy/policy-defaults.js";
-import {
-  defaultPolicyStrictness,
-  readPolicyFile
-} from "../policy/policy-loader.js";
+import { defaultPolicyStrictness, readPolicyFile } from "../policy/policy-loader.js";
 
 export type EffectiveGatePolicy = {
   readonly initialized: boolean;

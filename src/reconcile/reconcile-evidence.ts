@@ -45,7 +45,10 @@ export function reconcileVerificationEvidence(input: {
         title: "Verification evidence missing",
         description: "No verification report was available for reconciliation.",
         evidence: message,
-        recommendation: input.task === undefined ? "Run visp verify." : `Run visp verify --task ${input.task.id}.`,
+        recommendation:
+          input.task === undefined
+            ? "Run visp verify."
+            : `Run visp verify --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -81,7 +84,10 @@ export function reconcileVerificationEvidence(input: {
         title: "Verification failed",
         description: "Reconciliation cannot pass while verification is failed.",
         evidence: input.verification.errors.join("; ") || "verification success is false.",
-        recommendation: input.task === undefined ? "Fix verification and rerun visp verify." : `Fix verification and rerun visp verify --task ${input.task.id}.`,
+        recommendation:
+          input.task === undefined
+            ? "Fix verification and rerun visp verify."
+            : `Fix verification and rerun visp verify --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -155,7 +161,10 @@ export function reconcileReviewEvidence(input: {
         title: "Review evidence missing",
         description: "No review report was available for reconciliation.",
         evidence: message,
-        recommendation: input.task === undefined ? "Run visp review." : `Run visp review --task ${input.task.id}.`,
+        recommendation:
+          input.task === undefined
+            ? "Run visp review."
+            : `Run visp review --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -176,7 +185,9 @@ export function reconcileReviewEvidence(input: {
   }
 
   if (input.task !== undefined && input.review.taskId !== input.task.id) {
-    warnings.push(`Review task ${input.review.taskId ?? "feature-level"} does not match ${input.task.id}.`);
+    warnings.push(
+      `Review task ${input.review.taskId ?? "feature-level"} does not match ${input.task.id}.`
+    );
   }
 
   if (input.review.result === "failed") {
@@ -189,7 +200,10 @@ export function reconcileReviewEvidence(input: {
         title: "Review failed",
         description: "Reconciliation cannot pass while review is failed.",
         evidence: input.review.errors.join("; ") || "review result is failed.",
-        recommendation: input.task === undefined ? "Fix review findings and rerun visp review." : `Fix review findings and rerun visp review --task ${input.task.id}.`,
+        recommendation:
+          input.task === undefined
+            ? "Fix review findings and rerun visp review."
+            : `Fix review findings and rerun visp review --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -203,7 +217,10 @@ export function reconcileReviewEvidence(input: {
         title: "Review warnings remain",
         description: "The review report passed with warnings that need human attention.",
         evidence: "Review report has warnings.",
-        recommendation: input.task === undefined ? "Review warnings before PR." : `Review warnings before reconciling ${input.task.id}.`,
+        recommendation:
+          input.task === undefined
+            ? "Review warnings before PR."
+            : `Review warnings before reconciling ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null,
         relatedRequirementIds: input.task?.requirementIds ?? [],
         relatedAcceptanceCriterionIds: input.task?.acceptanceCriterionIds ?? []

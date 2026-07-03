@@ -55,11 +55,9 @@ describe("visp init command", () => {
     expect(output.join("")).toContain("Visp Kit initialized");
     expect(await exists(path.join(tempDir, ".visp", "project.json"))).toBe(true);
     expect(await exists(path.join(tempDir, "AGENTS.md"))).toBe(true);
-    expect(
-      await exists(
-        path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md")
-      )
-    ).toBe(true);
+    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md"))).toBe(
+      true
+    );
     expect(await exists(path.join(tempDir, ".visp", "policy.json"))).toBe(true);
     expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
       "visp gate implement"
@@ -70,15 +68,7 @@ describe("visp init command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "init",
-      tempDir,
-      "--agent",
-      "none",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "none", "--json"]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -112,13 +102,7 @@ describe("visp init command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "init",
-      path.join(tempDir, "dry"),
-      "--dry-run"
-    ]);
+    await program.parseAsync(["node", "visp", "init", path.join(tempDir, "dry"), "--dry-run"]);
 
     expect(output.join("")).toContain("dry run");
     expect(await exists(path.join(tempDir, "dry"))).toBe(false);

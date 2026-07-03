@@ -62,28 +62,13 @@ describe("runInitWorkflow", () => {
     expect(await exists(path.join(tempDir, ".visp", "features"))).toBe(true);
 
     expect(
-      isOk(
-        await readArtifact(
-          path.join(tempDir, ".visp", "project.json"),
-          projectProfileSchema
-        )
-      )
+      isOk(await readArtifact(path.join(tempDir, ".visp", "project.json"), projectProfileSchema))
     ).toBe(true);
     expect(
-      isOk(
-        await readArtifact(
-          path.join(tempDir, ".visp", "config.json"),
-          projectConfigSchema
-        )
-      )
+      isOk(await readArtifact(path.join(tempDir, ".visp", "config.json"), projectConfigSchema))
     ).toBe(true);
     expect(
-      isOk(
-        await readArtifact(
-          path.join(tempDir, ".visp", "status.json"),
-          projectStatusSchema
-        )
-      )
+      isOk(await readArtifact(path.join(tempDir, ".visp", "status.json"), projectStatusSchema))
     ).toBe(true);
     const policy = await readArtifact(
       path.join(tempDir, ".visp", "policy.json"),
@@ -107,10 +92,7 @@ describe("runInitWorkflow", () => {
     );
 
     const policy = expectOk(
-      await readArtifact(
-        path.join(tempDir, ".visp", "policy.json"),
-        policyArtifactSchema
-      )
+      await readArtifact(path.join(tempDir, ".visp", "policy.json"), policyArtifactSchema)
     );
 
     expect(policy.strictnessMode).toBe("strict");
@@ -129,10 +111,7 @@ describe("runInitWorkflow", () => {
       })
     );
     const config = expectOk(
-      await readArtifact(
-        path.join(tempDir, ".visp", "config.json"),
-        projectConfigSchema
-      )
+      await readArtifact(path.join(tempDir, ".visp", "config.json"), projectConfigSchema)
     );
 
     expect(summary.preset).toBe("go");
@@ -165,29 +144,20 @@ describe("runInitWorkflow", () => {
     );
 
     expect(summary.createdFiles).toContain("AGENTS.md");
-    expect(summary.createdFiles).toContain(
-      ".agents/skills/visp-feature/SKILL.md"
-    );
-    expect(summary.createdFiles).toContain(
-      ".agents/skills/visp-pr/SKILL.md"
-    );
+    expect(summary.createdFiles).toContain(".agents/skills/visp-feature/SKILL.md");
+    expect(summary.createdFiles).toContain(".agents/skills/visp-pr/SKILL.md");
     expect(summary.createdFiles).toContain(".visp/agent/installed-targets.json");
     expect(await exists(path.join(tempDir, ".agents", "skills"))).toBe(true);
     expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
       "The user prompt is raw intent only"
     );
     expect(
-      await readFile(
-        path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md"),
-        "utf8"
-      )
+      await readFile(path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md"), "utf8")
     ).toContain("visp gate");
   });
 
   it("creates generic agent guidance and portable prompts without Codex skills", async () => {
-    const summary = expectOk(
-      await runInitWorkflow({ targetPath: tempDir, agent: "generic" })
-    );
+    const summary = expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "generic" }));
 
     expect(summary.createdFiles).toContain("AGENTS.md");
     expect(summary.createdFiles).toContain(".visp/prompts/agent-feature.prompt.md");
@@ -196,9 +166,7 @@ describe("runInitWorkflow", () => {
   });
 
   it("does not create agent files in none mode", async () => {
-    const summary = expectOk(
-      await runInitWorkflow({ targetPath: tempDir, agent: "none" })
-    );
+    const summary = expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
 
     expect(summary.createdFiles).not.toContain(".visp/memory/agent-guidance.md");
     expect(await exists(path.join(tempDir, "AGENTS.md"))).toBe(false);
@@ -206,30 +174,18 @@ describe("runInitWorkflow", () => {
   });
 
   it("skips existing files without force", async () => {
-    const constitutionPath = path.join(
-      tempDir,
-      ".visp",
-      "memory",
-      "constitution.md"
-    );
+    const constitutionPath = path.join(tempDir, ".visp", "memory", "constitution.md");
     await mkdir(path.dirname(constitutionPath), { recursive: true });
     await writeFile(constitutionPath, "custom constitution", "utf8");
 
-    const summary = expectOk(
-      await runInitWorkflow({ targetPath: tempDir, agent: "none" })
-    );
+    const summary = expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
 
     expect(summary.skippedFiles).toContain(".visp/memory/constitution.md");
     expect(await readFile(constitutionPath, "utf8")).toBe("custom constitution");
   });
 
   it("overwrites existing files with force", async () => {
-    const constitutionPath = path.join(
-      tempDir,
-      ".visp",
-      "memory",
-      "constitution.md"
-    );
+    const constitutionPath = path.join(tempDir, ".visp", "memory", "constitution.md");
     await mkdir(path.dirname(constitutionPath), { recursive: true });
     await writeFile(constitutionPath, "custom constitution", "utf8");
 
@@ -238,24 +194,18 @@ describe("runInitWorkflow", () => {
     );
 
     expect(summary.overwrittenFiles).toContain(".visp/memory/constitution.md");
-    expect(await readFile(constitutionPath, "utf8")).toContain(
-      "# Visp Constitution"
-    );
+    expect(await readFile(constitutionPath, "utf8")).toContain("# Visp Constitution");
   });
 
   it("creates AGENTS.visp.md when AGENTS.md exists without force", async () => {
     await writeFile(path.join(tempDir, "AGENTS.md"), "existing", "utf8");
 
-    const summary = expectOk(
-      await runInitWorkflow({ targetPath: tempDir, agent: "codex" })
-    );
+    const summary = expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "codex" }));
 
     expect(summary.skippedFiles).toContain("AGENTS.md");
     expect(summary.createdFiles).toContain("AGENTS.visp.md");
     expect(summary.warnings.join("\n")).toContain("AGENTS.md already exists");
-    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toBe(
-      "existing"
-    );
+    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toBe("existing");
   });
 
   it("overwrites AGENTS.md with force", async () => {
@@ -273,9 +223,7 @@ describe("runInitWorkflow", () => {
 
   it("dry-run reports actions without writing files", async () => {
     const targetPath = path.join(tempDir, "new-project");
-    const summary = expectOk(
-      await runInitWorkflow({ targetPath, agent: "codex", dryRun: true })
-    );
+    const summary = expectOk(await runInitWorkflow({ targetPath, agent: "codex", dryRun: true }));
 
     expect(summary.dryRun).toBe(true);
     expect(summary.createdFiles).toContain(".visp/project.json");
@@ -287,8 +235,6 @@ describe("runInitWorkflow", () => {
 
     expectOk(await runInitWorkflow({ targetPath, agent: "none" }));
 
-    expect(await exists(path.join(targetPath, ".visp", "project.json"))).toBe(
-      true
-    );
+    expect(await exists(path.join(targetPath, ".visp", "project.json"))).toBe(true);
   });
 });

@@ -13,8 +13,9 @@ export function renderWorkflowMarkdown(manifest: WorkflowManifest): string {
     "",
     "| Stage | Command | Gate | Source edits | Next |",
     "|-------|---------|------|--------------|------|",
-    ...manifest.stages.map((stage) =>
-      `| ${stage.name} | \`${stage.command}\` | ${stage.gateStage ?? "none"} | ${stage.sourceEditsAllowed ? "yes" : "no"} | \`${stage.nextCommand}\` |`
+    ...manifest.stages.map(
+      (stage) =>
+        `| ${stage.name} | \`${stage.command}\` | ${stage.gateStage ?? "none"} | ${stage.sourceEditsAllowed ? "yes" : "no"} | \`${stage.nextCommand}\` |`
     ),
     ""
   ].join("\n");

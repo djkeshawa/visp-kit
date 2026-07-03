@@ -9,7 +9,10 @@ function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
 }
 
-function count(findings: readonly ReconcileFinding[], severity: ReconcileFinding["severity"]): number {
+function count(
+  findings: readonly ReconcileFinding[],
+  severity: ReconcileFinding["severity"]
+): number {
   return findings.filter((finding) => finding.severity === severity).length;
 }
 
@@ -35,8 +38,9 @@ function coverageRows(report: ReconcileReport): string {
   }
 
   return report.requirementCoverage.items
-    .map((item) =>
-      `| ${item.requirementId} | ${item.acceptanceCriterionIds.join(", ") || "none"} | ${item.taskIds.join(", ") || "none"} | ${item.filePaths.join(", ") || "none"} | ${item.status} |`
+    .map(
+      (item) =>
+        `| ${item.requirementId} | ${item.acceptanceCriterionIds.join(", ") || "none"} | ${item.taskIds.join(", ") || "none"} | ${item.filePaths.join(", ") || "none"} | ${item.status} |`
     )
     .join("\n");
 }
@@ -45,7 +49,8 @@ function findingsMarkdown(findings: readonly ReconcileFinding[]): string {
   if (findings.length === 0) return "No drift findings.";
 
   return findings
-    .map((finding) => `### ${finding.severity.toUpperCase()} ${finding.id}: ${finding.title}
+    .map(
+      (finding) => `### ${finding.severity.toUpperCase()} ${finding.id}: ${finding.title}
 
 File:
 ${finding.file ?? "n/a"}
@@ -55,7 +60,8 @@ ${finding.evidence}
 
 Recommendation:
 ${finding.recommendation}
-`)
+`
+    )
     .join("\n");
 }
 

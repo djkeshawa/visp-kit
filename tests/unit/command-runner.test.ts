@@ -16,9 +16,11 @@ function successCommand(): { command: string; args: string[] } {
 
 function failureCommand(): { command: string; args: string[] } {
   if (process.platform === "win32") {
+    // cmd.exe echo appends trailing whitespace and CRLF, so use node for an
+    // exact stderr payload on Windows.
     return {
-      command: "cmd.exe",
-      args: ["/d", "/s", "/c", "echo not ok 1>&2 & exit /b 7"]
+      command: process.execPath,
+      args: ["-e", "process.stderr.write('not ok'); process.exit(7);"]
     };
   }
 

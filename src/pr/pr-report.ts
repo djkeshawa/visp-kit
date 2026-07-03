@@ -7,20 +7,22 @@ function list(values: readonly string[], empty = "- None."): string {
 
 export function renderPrMarkdown(pr: PrArtifact): string {
   const requirements = pr.requirementsCovered
-    .map((item) =>
-      `| ${item.requirementId} | ${item.acceptanceCriterionIds.join(", ") || "none"} | ${item.status} |`
+    .map(
+      (item) =>
+        `| ${item.requirementId} | ${item.acceptanceCriterionIds.join(", ") || "none"} | ${item.status} |`
     )
     .join("\n");
   const tasks = pr.tasksIncluded
-    .map((task) =>
-      `| ${task.taskId} | ${task.status} | ${task.evidence.join(", ") || "missing"} |`
-    )
+    .map((task) => `| ${task.taskId} | ${task.status} | ${task.evidence.join(", ") || "missing"} |`)
     .join("\n");
   const files = pr.changedFiles
     .map((file) => `| ${file.path} | ${file.changeType} | ${file.notes} |`)
     .join("\n");
   const checklistItems = pr.implementationChecklist.items
-    .map((item) => `| ${item.id} | ${item.status} | ${item.required ? "yes" : "no"} | ${item.evidence ?? ""} | ${item.reason ?? ""} |`)
+    .map(
+      (item) =>
+        `| ${item.id} | ${item.status} | ${item.required ? "yes" : "no"} | ${item.evidence ?? ""} | ${item.reason ?? ""} |`
+    )
     .join("\n");
 
   return `# Pull Request: ${pr.title}
@@ -70,9 +72,9 @@ ${list(pr.validationEvidence.summary.filter((item) => item.startsWith("Command r
 ## Actual Token Usage
 
 - Status: ${pr.usage.status}
-- Input: ${pr.usage.status === "unavailable" ? "unavailable" : pr.usage.inputTokens ?? "not recorded"}
-- Output: ${pr.usage.status === "unavailable" ? "unavailable" : pr.usage.outputTokens ?? "not recorded"}
-- Total: ${pr.usage.status === "unavailable" ? "unavailable" : pr.usage.totalTokens ?? "not recorded"}
+- Input: ${pr.usage.status === "unavailable" ? "unavailable" : (pr.usage.inputTokens ?? "not recorded")}
+- Output: ${pr.usage.status === "unavailable" ? "unavailable" : (pr.usage.outputTokens ?? "not recorded")}
+- Total: ${pr.usage.status === "unavailable" ? "unavailable" : (pr.usage.totalTokens ?? "not recorded")}
 - Source: ${pr.usage.source ?? "none"}
 - Model: ${pr.usage.model ?? "none"}
 - Recorded: ${pr.usage.recordedAt ?? "none"}

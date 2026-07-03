@@ -56,7 +56,9 @@ describe("runStatusWorkflow", () => {
 
     expect(summary.initialized).toBe(true);
     expect(summary.reportPath).toBe(".visp/reports/status-report.md");
-    expect(await readFile(path.join(tempDir, ".visp", "reports", "status-report.md"), "utf8")).toContain("Visp Status");
+    expect(
+      await readFile(path.join(tempDir, ".visp", "reports", "status-report.md"), "utf8")
+    ).toContain("Visp Status");
   });
 
   it("fails clearly when the project is not initialized", async () => {

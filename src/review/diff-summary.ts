@@ -13,19 +13,22 @@ export function isDependencyFile(filePath: string): boolean {
 export function isTestFile(filePath: string): boolean {
   const normalized = normalizeReviewPath(filePath).toLowerCase();
 
-  return /(^|\/)(tests?|__tests__)\//.test(normalized) ||
+  return (
+    /(^|\/)(tests?|__tests__)\//.test(normalized) ||
     /\.(test|spec)\.[cm]?[jt]sx?$/.test(normalized) ||
     /_test\.go$/.test(normalized) ||
     /(?:test|tests)\.java$/.test(normalized) ||
     /(^|\/)test_[^/]+\.py$/.test(normalized) ||
     /_test\.py$/.test(normalized) ||
-    /_test\.rs$/.test(normalized);
+    /_test\.rs$/.test(normalized)
+  );
 }
 
 export function isGeneratedVispReviewFile(filePath: string): boolean {
   const normalized = normalizeReviewPath(filePath);
 
-  return normalized.startsWith(".visp/reports/") ||
+  return (
+    normalized.startsWith(".visp/reports/") ||
     normalized.startsWith(".visp/cache/") ||
     normalized.startsWith(".visp/runs/") ||
     normalized.startsWith(".visp/agent/") ||
@@ -40,14 +43,17 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     /^\.visp\/features\/[^/]+\/timeline\.(json|md)$/.test(normalized) ||
     normalized === ".visp/prompts/review.prompt.md" ||
     normalized === ".visp/prompts/reconcile.prompt.md" ||
-    /^\.visp\/features\/[^/]+\/context\/[^/]+\.implementation-checklist\.(json|md)$/.test(normalized) ||
+    /^\.visp\/features\/[^/]+\/context\/[^/]+\.implementation-checklist\.(json|md)$/.test(
+      normalized
+    ) ||
     /^\.visp\/features\/[^/]+\/review\//.test(normalized) ||
     /^\.visp\/features\/[^/]+\/review\.(json|md)$/.test(normalized) ||
     /^\.visp\/features\/[^/]+\/review-(prompt|checklist)\.md$/.test(normalized) ||
     /^\.visp\/features\/[^/]+\/reconcile\//.test(normalized) ||
     /^\.visp\/features\/[^/]+\/reconcile\.(json|md)$/.test(normalized) ||
     /^\.visp\/features\/[^/]+\/reconcile-prompt\.md$/.test(normalized) ||
-    /^\.visp\/features\/[^/]+\/verification\.(json|md)$/.test(normalized);
+    /^\.visp\/features\/[^/]+\/verification\.(json|md)$/.test(normalized)
+  );
 }
 
 export function summarizeDiff(input: {

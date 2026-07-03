@@ -45,10 +45,12 @@ describe("project state loader", () => {
   });
 
   it("handles missing .visp", async () => {
-    const state = expectOk(await loadProjectState({
-      targetPath: tempDir,
-      commandRunner: gitRunner()
-    }));
+    const state = expectOk(
+      await loadProjectState({
+        targetPath: tempDir,
+        commandRunner: gitRunner()
+      })
+    );
 
     expect(state.initialized).toBe(false);
     expect(state.warnings.join(" ")).toContain("not initialized");
@@ -57,10 +59,12 @@ describe("project state loader", () => {
   it("detects initialized projects", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
 
-    const state = expectOk(await loadProjectState({
-      targetPath: tempDir,
-      commandRunner: gitRunner()
-    }));
+    const state = expectOk(
+      await loadProjectState({
+        targetPath: tempDir,
+        commandRunner: gitRunner()
+      })
+    );
 
     expect(state.initialized).toBe(true);
     expect(state.config?.budgetMode).toBe("lean");

@@ -4,7 +4,7 @@ import {
   taskGraphArtifactSchema,
   type TaskGraphArtifact
 } from "../../artifacts/schemas/task.schema.js";
-import { VispError } from "../../core/errors.js";
+import { type VispError } from "../../core/errors.js";
 import { type Result } from "../../core/result.js";
 
 export function loadTaskGraph(input: {

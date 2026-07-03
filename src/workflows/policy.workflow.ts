@@ -11,20 +11,14 @@ import { VispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import {
-  createDefaultPolicy,
-  policyRulesForStrictness
-} from "../policy/policy-defaults.js";
+import { createDefaultPolicy, policyRulesForStrictness } from "../policy/policy-defaults.js";
 import {
   defaultPolicyStrictness,
   ensureVispProject,
   loadEffectivePolicy,
   readPolicyFile
 } from "../policy/policy-loader.js";
-import {
-  formatPolicySummary,
-  type PolicyRenderSummary
-} from "../policy/policy-renderer.js";
+import { formatPolicySummary, type PolicyRenderSummary } from "../policy/policy-renderer.js";
 import { validatePolicyArtifact } from "../policy/policy-validator.js";
 
 export type PolicyWorkflowSummary = PolicyRenderSummary & {
@@ -130,12 +124,9 @@ async function writePolicy(
   targetPath: string,
   policy: PolicyArtifact
 ): Promise<Result<void, VispError>> {
-  const write = await writeArtifact(
-    policyArtifactPath(targetPath),
-    policyArtifactSchema,
-    policy,
-    { artifactName: "policy" }
-  );
+  const write = await writeArtifact(policyArtifactPath(targetPath), policyArtifactSchema, policy, {
+    artifactName: "policy"
+  });
 
   return write.ok ? ok(undefined) : write;
 }
@@ -147,10 +138,7 @@ async function requirePolicyFile(targetPath: string): Promise<Result<void, VispE
 
   if (!exists.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Policy file is missing. Run `visp policy init` first."
-      )
+      new VispError("VALIDATION_FAILED", "Policy file is missing. Run `visp policy init` first.")
     );
   }
 
@@ -175,10 +163,7 @@ export async function runPolicyInitWorkflow(
 
   if (exists.value && !force) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Policy file already exists. Use --force to overwrite it."
-      )
+      new VispError("VALIDATION_FAILED", "Policy file already exists. Use --force to overwrite it.")
     );
   }
 

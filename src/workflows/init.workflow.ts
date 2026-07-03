@@ -6,15 +6,11 @@ import {
   type Preset
 } from "../artifacts/schemas/common.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { ensureDir } from "../core/file-system.js";
 import { ok, type Result } from "../core/result.js";
 import { buildInitFilePlan } from "./init/file-plan.js";
-import {
-  createInitSummary,
-  type InitFileAction,
-  type InitSummary
-} from "./init/init-summary.js";
+import { createInitSummary, type InitFileAction, type InitSummary } from "./init/init-summary.js";
 import { detectPreset } from "../presets/preset-detection.js";
 import { writePlannedFile } from "./init/planned-file.js";
 import { recordWorkflowRun } from "./shared/run-recorder.js";
@@ -61,9 +57,10 @@ export async function runInitWorkflow(
   const force = options.force ?? false;
   const dryRun = options.dryRun ?? false;
   const now = options.now ?? new Date().toISOString();
-  const detectedPreset = options.preset === undefined
-    ? await detectPreset(targetPath)
-    : ok({ preset: options.preset, reason: "Preset provided by --preset." });
+  const detectedPreset =
+    options.preset === undefined
+      ? await detectPreset(targetPath)
+      : ok({ preset: options.preset, reason: "Preset provided by --preset." });
 
   if (!detectedPreset.ok) return detectedPreset;
 

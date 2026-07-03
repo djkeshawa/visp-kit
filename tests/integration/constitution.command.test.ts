@@ -54,14 +54,9 @@ describe("visp constitution command", () => {
 
     expect(output.join("")).toContain("Visp constitution complete");
     expect(output.join("")).toContain("Validation: passed");
+    expect(await exists(path.join(tempDir, ".visp", "memory", "constitution.md"))).toBe(true);
     expect(
-      await exists(path.join(tempDir, ".visp", "memory", "constitution.md"))
-    ).toBe(true);
-    expect(
-      await readFile(
-        path.join(tempDir, ".visp", "memory", "constitution.md"),
-        "utf8"
-      )
+      await readFile(path.join(tempDir, ".visp", "memory", "constitution.md"), "utf8")
     ).toContain("explicit types");
   });
 
@@ -70,14 +65,7 @@ describe("visp constitution command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "constitution",
-      tempDir,
-      "--force",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "constitution", tempDir, "--force", "--json"]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -95,13 +83,7 @@ describe("visp constitution command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "constitution",
-      tempDir,
-      "--validate"
-    ]);
+    await program.parseAsync(["node", "visp", "constitution", tempDir, "--validate"]);
 
     expect(output.join("")).toContain("Validation: passed");
   });
@@ -116,14 +98,7 @@ describe("visp constitution command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "constitution",
-      tempDir,
-      "--validate",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "constitution", tempDir, "--validate", "--json"]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -143,18 +118,10 @@ describe("visp constitution command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "constitution",
-      tempDir,
-      "--dry-run"
-    ]);
+    await program.parseAsync(["node", "visp", "constitution", tempDir, "--dry-run"]);
 
     expect(output.join("")).toContain("Created: 2 files");
-    expect(
-      await exists(path.join(tempDir, ".visp", "memory", "constitution.md"))
-    ).toBe(false);
+    expect(await exists(path.join(tempDir, ".visp", "memory", "constitution.md"))).toBe(false);
   });
 
   it("fails clearly when .visp is missing", async () => {

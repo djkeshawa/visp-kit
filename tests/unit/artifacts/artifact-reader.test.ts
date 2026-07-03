@@ -24,11 +24,9 @@ describe("artifact reader", () => {
     const artifactPath = path.join(tempDir, "project.json");
     await writeFile(artifactPath, JSON.stringify(validProjectProfile), "utf8");
 
-    const result = await readArtifact(
-      artifactPath,
-      projectProfileSchema,
-      { artifactName: "project profile" }
-    );
+    const result = await readArtifact(artifactPath, projectProfileSchema, {
+      artifactName: "project profile"
+    });
 
     expect(result).toEqual({ ok: true, value: validProjectProfile });
   });
@@ -52,11 +50,9 @@ describe("artifact reader", () => {
     const invalid = { ...validProjectProfile, packageManager: "pnpmx" };
     await writeFile(artifactPath, JSON.stringify(invalid), "utf8");
 
-    const result = await readArtifact(
-      artifactPath,
-      projectProfileSchema,
-      { artifactName: "project profile" }
-    );
+    const result = await readArtifact(artifactPath, projectProfileSchema, {
+      artifactName: "project profile"
+    });
 
     expect(isOk(result)).toBe(false);
 

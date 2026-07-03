@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { updateTraceabilityForReconcile } from "../../../src/reconcile/reconcile-traceability.js";
-import {
-  timestamp,
-  validTaskGraph,
-  validTraceabilityMatrix
-} from "../artifacts/fixtures.js";
+import { timestamp, validTaskGraph, validTraceabilityMatrix } from "../artifacts/fixtures.js";
 
 describe("reconcile traceability", () => {
   it("adds changed files to the matching requirement/task link", () => {

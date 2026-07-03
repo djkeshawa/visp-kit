@@ -65,15 +65,11 @@ export function reviewScope(input: {
     .map((file) => file.path);
   const outOfScopeFiles =
     input.task !== undefined && allowedFiles.length > 0
-      ? implementationFiles
-          .filter((file) => !allowedSet.has(file.path))
-          .map((file) => file.path)
+      ? implementationFiles.filter((file) => !allowedSet.has(file.path)).map((file) => file.path)
       : [];
   const unmappedChangedFiles =
     input.task === undefined && allowedSet.size > 0
-      ? implementationFiles
-          .filter((file) => !allowedSet.has(file.path))
-          .map((file) => file.path)
+      ? implementationFiles.filter((file) => !allowedSet.has(file.path)).map((file) => file.path)
       : [];
 
   if (input.task !== undefined && allowedFiles.length === 0) {
@@ -127,7 +123,8 @@ export function reviewScope(input: {
         description: "The selected task has allowed files, and this changed file is outside them.",
         file: filePath,
         evidence: message,
-        recommendation: "Keep the implementation inside allowedFiles or split/expand the task scope.",
+        recommendation:
+          "Keep the implementation inside allowedFiles or split/expand the task scope.",
         relatedTaskId: input.task?.id ?? null,
         relatedRequirementIds: input.task?.requirementIds ?? [],
         relatedAcceptanceCriterionIds: input.task?.acceptanceCriterionIds ?? []

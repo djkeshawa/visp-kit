@@ -21,7 +21,8 @@ export type GateRuleId =
   | "VSP017"
   | "VSP018"
   | "VSP019"
-  | "VSP020";
+  | "VSP020"
+  | "VSP021";
 
 export type GateRuleDefinition = {
   readonly id: GateRuleId;
@@ -32,12 +33,10 @@ export type GateRuleDefinition = {
 
 export const gateRuleDefinitions = policyRuleDefinitions as readonly GateRuleDefinition[];
 
-export function ruleById(ruleId: GateRuleId): GateRuleDefinition {
-  const rule = gateRuleDefinitions.find((candidate) => candidate.id === ruleId);
+const rulesById: ReadonlyMap<GateRuleId, GateRuleDefinition> = new Map(
+  gateRuleDefinitions.map((rule) => [rule.id, rule])
+);
 
-  if (rule === undefined) {
-    throw new Error(`Unknown gate rule: ${ruleId}`);
-  }
-
-  return rule;
+export function ruleById(ruleId: GateRuleId): GateRuleDefinition | undefined {
+  return rulesById.get(ruleId);
 }

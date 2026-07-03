@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { selectValidationCommands } from "../../../src/verification/validation-command-selector.js";
-import {
-  validContextPack,
-  validProjectProfile,
-  validTaskGraph
-} from "../artifacts/fixtures.js";
+import { validContextPack, validProjectProfile, validTaskGraph } from "../artifacts/fixtures.js";
 
 describe("validation command selector", () => {
   it("uses task commands in targeted mode", () => {
@@ -53,11 +49,6 @@ describe("validation command selector", () => {
       }
     });
 
-    expect(selection.commands).toEqual([
-      "pnpm typecheck",
-      "pnpm lint",
-      "pnpm test",
-      "pnpm build"
-    ]);
+    expect(selection.commands).toEqual(["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]);
   });
 });

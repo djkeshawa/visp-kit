@@ -1,9 +1,6 @@
 import { Command, Option } from "commander";
 
-import {
-  gateStageSchema,
-  type GateStage
-} from "../../artifacts/schemas/gate.schema.js";
+import { gateStageSchema, type GateStage } from "../../artifacts/schemas/gate.schema.js";
 import {
   strictnessModeSchema,
   type StrictnessMode
@@ -50,14 +47,10 @@ function workflowOptions(
   };
 }
 
-export function createGateCommand(
-  dependencies: GateCommandDependencies = {}
-): Command {
+export function createGateCommand(dependencies: GateCommandDependencies = {}): Command {
   const runGate = dependencies.runGate ?? runGateWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   return new Command("gate")
     .description("Evaluate deterministic Visp policy gates.")
@@ -66,58 +59,53 @@ export function createGateCommand(
     .option("--feature <feature>", "Feature ID, slug, or folder name.")
     .option("--task <task-id>", "Task ID such as T001.")
     .addOption(
-      new Option("--strictness <mode>", "Runtime strictness override.")
-        .choices(strictnessModeSchema.options)
+      new Option("--strictness <mode>", "Runtime strictness override.").choices(
+        strictnessModeSchema.options
+      )
     )
     .option("--explain", "Include detailed gate reasoning.")
     .option("--dry-run", "Evaluate without writing gate reports.")
     .option("--json", "Print a machine-readable summary.")
-    .action(
-      async (
-        stage: string,
-        targetPath: string | undefined,
-        options: GateCommandOptions
-      ) => {
-        const parsedStage = gateStageSchema.safeParse(stage);
+    .action(async (stage: string, targetPath: string | undefined, options: GateCommandOptions) => {
+      const parsedStage = gateStageSchema.safeParse(stage);
 
-        if (!parsedStage.success) {
-          const message =
-            "Stage must be one of: next, setup, feature, clarify, spec, plan, tasks, context, implement, verify, review, reconcile, pr.";
-
-          if (options.json) {
-            writeOut(`${JSON.stringify({ success: false, error: message }, null, 2)}\n`);
-          } else {
-            writeErr(`${formatError(message)}\n`);
-          }
-
-          process.exitCode = 1;
-          return;
-        }
-
-        const result = await runGate(
-          workflowOptions(parsedStage.data, targetPath, options, dependencies.cwd)
-        );
-
-        if (!result.ok) {
-          writeWorkflowError({
-            error: result.error,
-            json: options.json ?? false,
-            writeOut,
-            writeErr
-          });
-          process.exitCode = 1;
-          return;
-        }
+      if (!parsedStage.success) {
+        const message =
+          "Stage must be one of: next, setup, feature, clarify, spec, plan, tasks, context, implement, verify, review, reconcile, pr.";
 
         if (options.json) {
-          writeOut(`${JSON.stringify(result.value, null, 2)}\n`);
+          writeOut(`${JSON.stringify({ success: false, error: message }, null, 2)}\n`);
         } else {
-          writeOut(formatGateResult(result.value, { explain: options.explain }));
+          writeErr(`${formatError(message)}\n`);
         }
 
-        if (!result.value.allowed) {
-          process.exitCode = 1;
-        }
+        process.exitCode = 1;
+        return;
       }
-    );
+
+      const result = await runGate(
+        workflowOptions(parsedStage.data, targetPath, options, dependencies.cwd)
+      );
+
+      if (!result.ok) {
+        writeWorkflowError({
+          error: result.error,
+          json: options.json ?? false,
+          writeOut,
+          writeErr
+        });
+        process.exitCode = 1;
+        return;
+      }
+
+      if (options.json) {
+        writeOut(`${JSON.stringify(result.value, null, 2)}\n`);
+      } else {
+        writeOut(formatGateResult(result.value, { explain: options.explain }));
+      }
+
+      if (!result.value.allowed) {
+        process.exitCode = 1;
+      }
+    });
 }

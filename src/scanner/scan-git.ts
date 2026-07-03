@@ -1,7 +1,4 @@
-import {
-  defaultCommandRunner,
-  type CommandRunner
-} from "../core/command-runner.js";
+import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 
 export type GitScanInfo = {
   readonly isGitRepository: boolean;

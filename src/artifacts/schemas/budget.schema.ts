@@ -10,11 +10,7 @@ import {
 
 export const clarificationLevelSchema = z.enum(["blocking", "important", "full"]);
 export const reviewLevelSchema = z.enum(["diff", "context", "traceability"]);
-export const securityReviewPolicySchema = z.enum([
-  "medium-high-only",
-  "risk-based",
-  "always"
-]);
+export const securityReviewPolicySchema = z.enum(["medium-high-only", "risk-based", "always"]);
 export const budgetUsageStatusSchema = z.enum([
   "recorded",
   "unavailable",

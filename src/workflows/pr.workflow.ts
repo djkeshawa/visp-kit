@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import {
   featurePrArtifactPath,
   featurePrMarkdownPath,
@@ -8,10 +6,7 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
-import {
-  projectStatusSchema,
-  type ProjectStatus
-} from "../artifacts/schemas/project.schema.js";
+import { projectStatusSchema, type ProjectStatus } from "../artifacts/schemas/project.schema.js";
 import { prArtifactSchema } from "../artifacts/schemas/pr.schema.js";
 import { type CommandRunner } from "../core/command-runner.js";
 import { VispError } from "../core/errors.js";
@@ -80,9 +75,13 @@ async function updateStatus(input: {
   readonly targetPath: string;
   readonly now: string;
 }): Promise<Result<void, VispError>> {
-  const status = await readArtifact(projectStatusArtifactPath(input.targetPath), projectStatusSchema, {
-    artifactName: "project status"
-  });
+  const status = await readArtifact(
+    projectStatusArtifactPath(input.targetPath),
+    projectStatusSchema,
+    {
+      artifactName: "project status"
+    }
+  );
 
   if (!status.ok) return status;
 
@@ -110,10 +109,20 @@ export async function runPrWorkflow(
 
   if (!state.ok) return state;
   if (!state.value.initialized) {
-    return err(new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", { recovery: "visp init" }));
+    return err(
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
+        recovery: "visp init"
+      })
+    );
   }
   if (state.value.selectedFeature === undefined) {
-    return err(new VispError("VALIDATION_FAILED", 'No active feature found. Run `visp feature "<idea>"` first or pass --feature.', { recovery: 'visp feature "<describe your feature>"' }));
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        'No active feature found. Run `visp feature "<idea>"` first or pass --feature.',
+        { recovery: 'visp feature "<describe your feature>"' }
+      )
+    );
   }
   if (state.value.errors.length > 0) {
     return err(new VispError("VALIDATION_FAILED", state.value.errors.join(" ")));
@@ -121,7 +130,10 @@ export async function runPrWorkflow(
 
   const feature = state.value.selectedFeature;
   const now = options.now ?? new Date().toISOString();
-  const title = options.title ?? state.value.selectedFeature.intent?.title ?? `Feature ${feature.id}-${feature.slug}`;
+  const title =
+    options.title ??
+    state.value.selectedFeature.intent?.title ??
+    `Feature ${feature.id}-${feature.slug}`;
   const diff = await loadGitDiff({
     targetPath: state.value.targetPath,
     base: options.base,
@@ -149,9 +161,10 @@ export async function runPrWorkflow(
     warnings.push(`PR gate could not be evaluated: ${policyGateResult.error.message}`);
   }
 
-  const gateBlocks = policyGate === undefined
-    ? false
-    : gateBlocksWorkflow({ gate: policyGate, force: options.force });
+  const gateBlocks =
+    policyGate === undefined
+      ? false
+      : gateBlocksWorkflow({ gate: policyGate, force: options.force });
   const pr = buildPrArtifact({
     state: state.value,
     title,
@@ -180,7 +193,12 @@ export async function runPrWorkflow(
   const parsed = prArtifactSchema.safeParse(prWithPolicy);
 
   if (!parsed.success) {
-    return err(new VispError("VALIDATION_FAILED", `Generated PR artifact is invalid: ${parsed.error.issues[0]?.message ?? "unknown error"}`));
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        `Generated PR artifact is invalid: ${parsed.error.issues[0]?.message ?? "unknown error"}`
+      )
+    );
   }
 
   const prJsonPath = featurePrArtifactPath(state.value.targetPath, feature.key);
@@ -253,7 +271,9 @@ export async function runPrWorkflow(
     taskId: options.taskId,
     success: parsed.data.success,
     result: parsed.data.success
-      ? parsed.data.warnings.length > 0 ? "warnings" : "passed"
+      ? parsed.data.warnings.length > 0
+        ? "warnings"
+        : "passed"
       : "failed",
     actions: writtenFiles.map((filePath) => ({
       path: filePath,
@@ -265,7 +285,9 @@ export async function runPrWorkflow(
       {
         type: "evidence_recorded",
         message: `PR readiness ${parsed.data.success ? "ready" : "blocked"}.`,
-        artifactPath: options.promptOnly ? relativePath(state.value.targetPath, promptPath) : relativePath(state.value.targetPath, prMdPath)
+        artifactPath: options.promptOnly
+          ? relativePath(state.value.targetPath, promptPath)
+          : relativePath(state.value.targetPath, prMdPath)
       }
     ],
     dryRun: options.dryRun ?? false
@@ -278,26 +300,38 @@ export async function runPrWorkflow(
       id: feature.id,
       slug: feature.slug
     },
-    task: options.taskId === undefined || state.value.selectedTask === undefined
-      ? null
-      : {
-          id: state.value.selectedTask.id,
-          title: state.value.selectedTask.title
-        },
+    task:
+      options.taskId === undefined || state.value.selectedTask === undefined
+        ? null
+        : {
+            id: state.value.selectedTask.id,
+            title: state.value.selectedTask.title
+          },
     title,
-    prPath: options.dryRun || options.promptOnly ? null : relativePath(state.value.targetPath, prMdPath),
-    prJsonPath: options.dryRun || options.promptOnly ? null : relativePath(state.value.targetPath, prJsonPath),
+    prPath:
+      options.dryRun || options.promptOnly ? null : relativePath(state.value.targetPath, prMdPath),
+    prJsonPath:
+      options.dryRun || options.promptOnly
+        ? null
+        : relativePath(state.value.targetPath, prJsonPath),
     promptPath: options.dryRun ? null : relativePath(state.value.targetPath, promptPath),
     evidenceSummary: {
       verification: parsed.data.validationEvidence.status,
       review: parsed.data.reviewEvidence.status,
       reconcile: parsed.data.reconcileEvidence.status
     },
-    warnings: [...new Set([...parsed.data.warnings, ...budgetRefresh.warnings, ...timeline.warnings, ...run.warnings])],
+    warnings: [
+      ...new Set([
+        ...parsed.data.warnings,
+        ...budgetRefresh.warnings,
+        ...timeline.warnings,
+        ...run.warnings
+      ])
+    ],
     errors: parsed.data.errors,
     nextCommand: parsed.data.success
       ? "Review pr.md and use it in your pull request."
-      : policyGate?.nextAllowedCommand ?? "Resolve policy readiness errors and rerun visp pr."
+      : (policyGate?.nextAllowedCommand ?? "Resolve policy readiness errors and rerun visp pr.")
   });
 }
 

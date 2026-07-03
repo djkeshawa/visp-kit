@@ -8,10 +8,7 @@ import { resolvePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { ensureVispProject } from "../policy/policy-loader.js";
 import { installedTargetsPath } from "./agent-paths.js";
-import {
-  runAgentInstall,
-  type AgentInstallSummary
-} from "./agent-installer.js";
+import { runAgentInstall, type AgentInstallSummary } from "./agent-installer.js";
 
 export type AgentRefreshOptions = {
   readonly targetPath?: string;
@@ -95,11 +92,12 @@ export async function runAgentRefresh(
 
   if (!installed.ok) return installed;
 
-  const targets = options.target === undefined || options.target === "all"
-    ? installed.value
-    : installed.value.includes(options.target)
-      ? [options.target]
-      : [];
+  const targets =
+    options.target === undefined || options.target === "all"
+      ? installed.value
+      : installed.value.includes(options.target)
+        ? [options.target]
+        : [];
 
   if (targets.length === 0) {
     return err(

@@ -13,46 +13,33 @@ import {
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { type BudgetMode } from "../artifacts/schemas/common.schema.js";
-import {
-  contextPackSchema,
-  type ContextPack
-} from "../artifacts/schemas/context-pack.schema.js";
+import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
 import { type PolicyGateSummary } from "../artifacts/schemas/gate.schema.js";
-import {
-  projectStatusSchema,
-  type ProjectStatus
-} from "../artifacts/schemas/project.schema.js";
+import { projectStatusSchema, type ProjectStatus } from "../artifacts/schemas/project.schema.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { compileContext } from "../context/context-compiler.js";
-import {
-  renderContextMarkdown,
-} from "../context/context-renderer.js";
+import { renderContextMarkdown } from "../context/context-renderer.js";
 import {
   createImplementationChecklistArtifact,
   renderImplementationChecklistMarkdown
 } from "../context/implementation-checklist.js";
 import { implementationChecklistArtifactSchema } from "../artifacts/schemas/implementation-checklist.schema.js";
-import {
-  createContextSummary,
-  type ContextSummary
-} from "../context/context-summary.js";
+import { createContextSummary, type ContextSummary } from "../context/context-summary.js";
 import { renderCurrentTaskPrompt, renderTaskPrompt } from "../context/prompt-renderer.js";
-import { selectNextTask, selectTaskById, validateTaskDependencies } from "../context/task-selector.js";
 import {
-  evaluatePolicyGate,
-  gateResultLabel
-} from "../gates/policy-gate-summary.js";
+  selectNextTask,
+  selectTaskById,
+  validateTaskDependencies
+} from "../context/task-selector.js";
+import { evaluatePolicyGate, gateResultLabel } from "../gates/policy-gate-summary.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import { recordWorkflowRun } from "./shared/run-recorder.js";
 import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
-import {
-  artifactGeneratedFile,
-  textGeneratedFile
-} from "./shared/template-workflow.js";
+import { artifactGeneratedFile, textGeneratedFile } from "./shared/template-workflow.js";
 import {
   type WorkflowFileAction,
   writeGeneratedFiles,
@@ -84,10 +71,7 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Task graph is missing. Run `visp tasks` first."
-      )
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.")
     );
   }
 
@@ -174,7 +158,10 @@ function enrichPackWithGate(input: {
   };
 }
 
-function actionFor(actions: readonly WorkflowFileAction[], filePath: string): WorkflowFileAction | undefined {
+function actionFor(
+  actions: readonly WorkflowFileAction[],
+  filePath: string
+): WorkflowFileAction | undefined {
   return actions.find((action) => action.path === filePath);
 }
 
@@ -189,12 +176,7 @@ export async function runContextWorkflow(
   const now = options.now ?? new Date().toISOString();
 
   if (options.next && options.taskId !== undefined) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Use either a task ID or --next, not both."
-      )
-    );
+    return err(new VispError("VALIDATION_FAILED", "Use either a task ID or --next, not both."));
   }
 
   const feature = await resolveActiveFeature({
@@ -231,12 +213,7 @@ export async function runContextWorkflow(
   if (!selected.ok) return selected;
 
   if (!/^T\d{3}$/.test(selected.value.id)) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        `${selected.value.id} must use T### format.`
-      )
-    );
+    return err(new VispError("VALIDATION_FAILED", `${selected.value.id} must use T### format.`));
   }
 
   const dependencyErrors = validateTaskDependencies(taskGraph.value, selected.value);
@@ -258,16 +235,8 @@ export async function runContextWorkflow(
 
   if (!compiled.ok) return compiled;
 
-  const contextMarkdown = contextPackMarkdownPath(
-    targetPath,
-    feature.value.key,
-    selected.value.id
-  );
-  const contextJson = contextPackArtifactPath(
-    targetPath,
-    feature.value.key,
-    selected.value.id
-  );
+  const contextMarkdown = contextPackMarkdownPath(targetPath, feature.value.key, selected.value.id);
+  const contextJson = contextPackArtifactPath(targetPath, feature.value.key, selected.value.id);
   const taskPrompt = contextPromptPath(targetPath, feature.value.key, selected.value.id);
   const checklist = contextChecklistPath(targetPath, feature.value.key, selected.value.id);
   const checklistJson = contextChecklistJsonPath(targetPath, feature.value.key, selected.value.id);
@@ -320,7 +289,9 @@ export async function runContextWorkflow(
     taskId: selected.value.id,
     now
   });
-  const gateWarnings = gate.ok ? gate.value.warnings : [`Implementation gate could not be evaluated: ${gate.error.message}`];
+  const gateWarnings = gate.ok
+    ? gate.value.warnings
+    : [`Implementation gate could not be evaluated: ${gate.error.message}`];
   const enrichedPack = enrichPackWithGate({
     pack: {
       ...compiled.value.pack,
@@ -361,12 +332,9 @@ export async function runContextWorkflow(
     }
 
     if (contextJsonAction !== undefined && contextJsonAction.action !== "skipped") {
-      const rewriteJson = await writeArtifact(
-        contextJson,
-        contextPackSchema,
-        enrichedPack,
-        { artifactName: "context pack" }
-      );
+      const rewriteJson = await writeArtifact(contextJson, contextPackSchema, enrichedPack, {
+        artifactName: "context pack"
+      });
 
       if (!rewriteJson.ok) return rewriteJson;
     }

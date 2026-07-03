@@ -51,10 +51,12 @@ describe("runDoctorWorkflow", () => {
   });
 
   it("reports missing .visp without creating files", async () => {
-    const summary = expectOk(await runDoctorWorkflow({
-      targetPath: tempDir,
-      commandRunner: runner()
-    }));
+    const summary = expectOk(
+      await runDoctorWorkflow({
+        targetPath: tempDir,
+        commandRunner: runner()
+      })
+    );
 
     expect(summary.success).toBe(false);
     expect(summary.result).toBe("failed");
@@ -66,11 +68,13 @@ describe("runDoctorWorkflow", () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     await rm(path.join(tempDir, ".visp", "reports"), { recursive: true, force: true });
 
-    const summary = expectOk(await runDoctorWorkflow({
-      targetPath: tempDir,
-      fix: true,
-      commandRunner: runner()
-    }));
+    const summary = expectOk(
+      await runDoctorWorkflow({
+        targetPath: tempDir,
+        fix: true,
+        commandRunner: runner()
+      })
+    );
 
     expect(summary.reportPath).toBe(".visp/reports/doctor-report.md");
     expect(summary.fixesApplied.map((fix) => fix.path)).toContain(".visp/reports");
@@ -81,11 +85,13 @@ describe("runDoctorWorkflow", () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     await rm(path.join(tempDir, ".visp", "reports"), { recursive: true, force: true });
 
-    const summary = expectOk(await runDoctorWorkflow({
-      targetPath: tempDir,
-      dryRun: true,
-      commandRunner: runner()
-    }));
+    const summary = expectOk(
+      await runDoctorWorkflow({
+        targetPath: tempDir,
+        dryRun: true,
+        commandRunner: runner()
+      })
+    );
 
     expect(summary.reportPath).toBeNull();
     expect(await exists(path.join(tempDir, ".visp", "reports", "doctor-report.md"))).toBe(false);

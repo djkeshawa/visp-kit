@@ -14,7 +14,7 @@ import {
   type RunEvent,
   type RunIndex
 } from "../artifacts/schemas/run.schema.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { pathExists, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
@@ -58,20 +58,22 @@ function resultFrom(input: RecordRunInput): "passed" | "warnings" | "failed" {
   return (input.warnings?.length ?? 0) > 0 ? "warnings" : "passed";
 }
 
-export async function recordRun(input: RecordRunInput): Promise<Result<{
-  readonly runId: string;
-  readonly writtenFiles: readonly string[];
-}, VispError>> {
+export async function recordRun(input: RecordRunInput): Promise<
+  Result<
+    {
+      readonly runId: string;
+      readonly writtenFiles: readonly string[];
+    },
+    VispError
+  >
+> {
   const index = await loadRunIndex(input.targetPath);
 
   if (!index.ok) return index;
 
   const runId = nextRunId(index.value.runs.map((run) => run.id));
   const startedAt = input.startedAt ?? input.endedAt;
-  const durationMs = Math.max(
-    0,
-    Date.parse(input.endedAt) - Date.parse(startedAt)
-  );
+  const durationMs = Math.max(0, Date.parse(input.endedAt) - Date.parse(startedAt));
   const result = resultFrom(input);
   const baseEvents: RunEvent[] = [
     {

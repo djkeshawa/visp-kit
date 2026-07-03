@@ -8,9 +8,7 @@ export type FeatureStatusUpdateInput = {
   readonly now: string;
 };
 
-export function updateStatusForFeatureIntent(
-  input: FeatureStatusUpdateInput
-): ProjectStatus {
+export function updateStatusForFeatureIntent(input: FeatureStatusUpdateInput): ProjectStatus {
   return {
     initialized: true,
     activeFeatureId: input.featureId,

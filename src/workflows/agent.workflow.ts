@@ -1,26 +1,11 @@
 import { type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
-import {
-  type BudgetMode,
-  type Preset
-} from "../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { supportedAgentTargets } from "../agent/agent-target.js";
-import {
-  runAgentInstall,
-  type AgentInstallSummary
-} from "../agent/agent-installer.js";
-import {
-  runAgentBootstrap,
-  type AgentBootstrapSummary
-} from "../agent/agent-bootstrap.js";
-import {
-  runAgentDoctor,
-  type AgentDoctorSummary
-} from "../agent/agent-doctor.js";
-import {
-  runAgentRefresh,
-  type AgentRefreshSummary
-} from "../agent/agent-refresh.js";
+import { runAgentInstall, type AgentInstallSummary } from "../agent/agent-installer.js";
+import { runAgentBootstrap, type AgentBootstrapSummary } from "../agent/agent-bootstrap.js";
+import { runAgentDoctor, type AgentDoctorSummary } from "../agent/agent-doctor.js";
+import { runAgentRefresh, type AgentRefreshSummary } from "../agent/agent-refresh.js";
 import {
   formatAgentDoctor,
   formatAgentBootstrap,

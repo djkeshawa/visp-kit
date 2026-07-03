@@ -21,12 +21,7 @@ export const verificationModeSchema = z.enum([
   "custom"
 ]);
 
-export const verificationCheckStatusSchema = z.enum([
-  "passed",
-  "failed",
-  "skipped",
-  "warned"
-]);
+export const verificationCheckStatusSchema = z.enum(["passed", "failed", "skipped", "warned"]);
 
 export const verificationCommandRunnerSchema = z
   .object({

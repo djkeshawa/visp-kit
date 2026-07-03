@@ -38,9 +38,7 @@ function workflowOptions(
   };
 }
 
-export function createDoctorCommand(
-  dependencies: DoctorCommandDependencies = {}
-): Command {
+export function createDoctorCommand(dependencies: DoctorCommandDependencies = {}): Command {
   const runDoctor = dependencies.runDoctor ?? runDoctorWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
@@ -48,7 +46,11 @@ export function createDoctorCommand(
   return new Command("doctor")
     .description("Diagnose Visp project health.")
     .argument("[path]", "Target project path.")
-    .option("--check <check>", "Check to run: all, project, artifacts, agent, git, cache, schemas.", "all")
+    .option(
+      "--check <check>",
+      "Check to run: all, project, artifacts, agent, git, cache, schemas.",
+      "all"
+    )
     .option("--fix", "Apply safe fixes.")
     .option("--dry-run", "Show fixes without writing files.")
     .option("--verbose", "Include more diagnostic detail.")
@@ -67,7 +69,11 @@ export function createDoctorCommand(
         return;
       }
 
-      writeOut(options.json ? `${JSON.stringify(result.value, null, 2)}\n` : formatDoctorSummary(result.value));
+      writeOut(
+        options.json
+          ? `${JSON.stringify(result.value, null, 2)}\n`
+          : formatDoctorSummary(result.value)
+      );
       if (!result.value.success) process.exitCode = 1;
     });
 }

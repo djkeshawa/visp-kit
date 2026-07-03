@@ -1,14 +1,8 @@
 import path from "node:path";
 
 import { overridesArtifactPath } from "../artifacts/artifact-paths.js";
-import {
-  type GateStage,
-  gateStageSchema
-} from "../artifacts/schemas/gate.schema.js";
-import {
-  type OverrideRecord,
-  type OverrideScope
-} from "../artifacts/schemas/override.schema.js";
+import { type GateStage, gateStageSchema } from "../artifacts/schemas/gate.schema.js";
+import { type OverrideRecord, type OverrideScope } from "../artifacts/schemas/override.schema.js";
 import { VispError, toVispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
@@ -19,16 +13,10 @@ import { parseOverrideExpiry, overrideExpired } from "../overrides/override-expi
 import { nextOverrideId } from "../overrides/override-id.js";
 import { formatOverrideSummary } from "../overrides/override-report.js";
 import { normalizeOverrideReason, validateOverrideReason } from "../overrides/override-reason.js";
-import {
-  defaultNextCommand,
-  type OverrideWorkflowSummary
-} from "../overrides/override-summary.js";
+import { defaultNextCommand, type OverrideWorkflowSummary } from "../overrides/override-summary.js";
 
 export type { OverrideWorkflowSummary };
-import {
-  readOverrideStore,
-  writeOverrideStore
-} from "../overrides/override-store.js";
+import { readOverrideStore, writeOverrideStore } from "../overrides/override-store.js";
 import {
   isKnownPolicyRule,
   isNonOverridableRule,
@@ -125,11 +113,16 @@ async function resolveScope(input: {
   readonly scope: OverrideScope;
   readonly feature?: string;
   readonly taskId?: string;
-}): Promise<Result<{
-  readonly featureId: string | null;
-  readonly featureSlug: string | null;
-  readonly taskId: string | null;
-}, VispError>> {
+}): Promise<
+  Result<
+    {
+      readonly featureId: string | null;
+      readonly featureSlug: string | null;
+      readonly taskId: string | null;
+    },
+    VispError
+  >
+> {
   if (input.scope === "feature" && input.feature === undefined) {
     return fail("Feature-scoped overrides require --feature.");
   }
@@ -155,7 +148,10 @@ async function resolveScope(input: {
   if (!state.ok) return state;
   if (state.value.errors.length > 0) return fail(state.value.errors.join(" "));
 
-  if ((input.scope === "feature" || input.scope === "task") && state.value.selectedFeature === undefined) {
+  if (
+    (input.scope === "feature" || input.scope === "task") &&
+    state.value.selectedFeature === undefined
+  ) {
     return fail(`Feature not found: ${input.feature ?? "active feature"}.`);
   }
 
@@ -259,25 +255,29 @@ export async function runOverrideCreateWorkflow(
       if (!write.ok) return write;
     }
 
-    return ok(summary({
-      success: true,
-      mode: "create",
-      targetPath,
-      dryRun,
-      override,
-      overrides: [override],
-      createdFiles: store.value.exists || dryRun ? [] : [relativePath(targetPath, store.value.path)],
-      updatedFiles: store.value.exists && !dryRun ? [relativePath(targetPath, store.value.path)] : [],
-      warnings: [
-        ...(scope === "project" && (options.feature !== undefined || options.taskId !== undefined)
-          ? ["--feature and --task are ignored for project-scoped overrides."]
-          : []),
-        ...validation.warnings
-      ],
-      errors: [],
-      validation,
-      nextCommand: defaultNextCommand({ scope, stage: options.stage, taskId: options.taskId })
-    }));
+    return ok(
+      summary({
+        success: true,
+        mode: "create",
+        targetPath,
+        dryRun,
+        override,
+        overrides: [override],
+        createdFiles:
+          store.value.exists || dryRun ? [] : [relativePath(targetPath, store.value.path)],
+        updatedFiles:
+          store.value.exists && !dryRun ? [relativePath(targetPath, store.value.path)] : [],
+        warnings: [
+          ...(scope === "project" && (options.feature !== undefined || options.taskId !== undefined)
+            ? ["--feature and --task are ignored for project-scoped overrides."]
+            : []),
+          ...validation.warnings
+        ],
+        errors: [],
+        validation,
+        nextCommand: defaultNextCommand({ scope, stage: options.stage, taskId: options.taskId })
+      })
+    );
   } catch (error) {
     return err(toVispError(error, "VALIDATION_FAILED"));
   }
@@ -300,11 +300,18 @@ function filterOverrides(input: {
         (input.options.expired && override.status === "expired")
       );
     })
-    .filter((override) => input.options.ruleId === undefined || override.ruleId === input.options.ruleId)
-    .filter((override) => input.options.feature === undefined ||
-      override.featureId === input.options.feature ||
-      override.featureSlug === input.options.feature)
-    .filter((override) => input.options.taskId === undefined || override.taskId === input.options.taskId);
+    .filter(
+      (override) => input.options.ruleId === undefined || override.ruleId === input.options.ruleId
+    )
+    .filter(
+      (override) =>
+        input.options.feature === undefined ||
+        override.featureId === input.options.feature ||
+        override.featureSlug === input.options.feature
+    )
+    .filter(
+      (override) => input.options.taskId === undefined || override.taskId === input.options.taskId
+    );
 }
 
 export async function runOverrideListWorkflow(
@@ -322,20 +329,22 @@ export async function runOverrideListWorkflow(
     now
   });
 
-  return ok(summary({
-    success: true,
-    mode: "list",
-    targetPath,
-    dryRun: false,
-    override: null,
-    overrides,
-    createdFiles: [],
-    updatedFiles: [],
-    warnings: store.value.exists ? [] : ["No overrides file found."],
-    errors: [],
-    validation: null,
-    nextCommand: "visp override validate"
-  }));
+  return ok(
+    summary({
+      success: true,
+      mode: "list",
+      targetPath,
+      dryRun: false,
+      override: null,
+      overrides,
+      createdFiles: [],
+      updatedFiles: [],
+      warnings: store.value.exists ? [] : ["No overrides file found."],
+      errors: [],
+      validation: null,
+      nextCommand: "visp override validate"
+    })
+  );
 }
 
 export async function runOverrideShowWorkflow(
@@ -353,20 +362,22 @@ export async function runOverrideShowWorkflow(
 
   const materialized = materializeStatus(override, now);
 
-  return ok(summary({
-    success: true,
-    mode: "show",
-    targetPath,
-    dryRun: false,
-    override: materialized,
-    overrides: [materialized],
-    createdFiles: [],
-    updatedFiles: [],
-    warnings: [],
-    errors: [],
-    validation: null,
-    nextCommand: "visp override list"
-  }));
+  return ok(
+    summary({
+      success: true,
+      mode: "show",
+      targetPath,
+      dryRun: false,
+      override: materialized,
+      overrides: [materialized],
+      createdFiles: [],
+      updatedFiles: [],
+      warnings: [],
+      errors: [],
+      validation: null,
+      nextCommand: "visp override list"
+    })
+  );
 }
 
 export async function runOverrideRevokeWorkflow(
@@ -388,20 +399,22 @@ export async function runOverrideRevokeWorkflow(
   if (existing === undefined) return fail(`Override not found: ${options.overrideId}.`);
 
   if (existing.status === "revoked") {
-    return ok(summary({
-      success: true,
-      mode: "revoke",
-      targetPath,
-      dryRun,
-      override: existing,
-      overrides: [existing],
-      createdFiles: [],
-      updatedFiles: [],
-      warnings: [`${existing.id} is already revoked.`],
-      errors: [],
-      validation: null,
-      nextCommand: "visp override list --revoked"
-    }));
+    return ok(
+      summary({
+        success: true,
+        mode: "revoke",
+        targetPath,
+        dryRun,
+        override: existing,
+        overrides: [existing],
+        createdFiles: [],
+        updatedFiles: [],
+        warnings: [`${existing.id} is already revoked.`],
+        errors: [],
+        validation: null,
+        nextCommand: "visp override list --revoked"
+      })
+    );
   }
 
   const revoked: OverrideRecord = {
@@ -422,20 +435,22 @@ export async function runOverrideRevokeWorkflow(
     if (!write.ok) return write;
   }
 
-  return ok(summary({
-    success: true,
-    mode: "revoke",
-    targetPath,
-    dryRun,
-    override: revoked,
-    overrides: [revoked],
-    createdFiles: [],
-    updatedFiles: dryRun ? [] : [relativePath(targetPath, overridesArtifactPath(targetPath))],
-    warnings: [],
-    errors: [],
-    validation: null,
-    nextCommand: "visp override validate"
-  }));
+  return ok(
+    summary({
+      success: true,
+      mode: "revoke",
+      targetPath,
+      dryRun,
+      override: revoked,
+      overrides: [revoked],
+      createdFiles: [],
+      updatedFiles: dryRun ? [] : [relativePath(targetPath, overridesArtifactPath(targetPath))],
+      warnings: [],
+      errors: [],
+      validation: null,
+      nextCommand: "visp override validate"
+    })
+  );
 }
 
 export async function runOverrideValidateWorkflow(
@@ -456,25 +471,31 @@ export async function runOverrideValidateWorkflow(
     policy: policy.value.policy,
     now
   });
-  const overrides = store.value.artifact.overrides.map((override) => materializeStatus(override, now));
+  const overrides = store.value.artifact.overrides.map((override) =>
+    materializeStatus(override, now)
+  );
 
-  return ok(summary({
-    success: validation.passed,
-    mode: "validate",
-    targetPath,
-    dryRun: false,
-    override: null,
-    overrides,
-    createdFiles: [],
-    updatedFiles: [],
-    warnings: [
-      ...(store.value.exists ? [] : ["No overrides file found."]),
-      ...validation.warnings
-    ],
-    errors: validation.errors,
-    validation,
-    nextCommand: validation.passed ? "visp override list" : "Fix .visp/overrides.json and rerun visp override validate."
-  }));
+  return ok(
+    summary({
+      success: validation.passed,
+      mode: "validate",
+      targetPath,
+      dryRun: false,
+      override: null,
+      overrides,
+      createdFiles: [],
+      updatedFiles: [],
+      warnings: [
+        ...(store.value.exists ? [] : ["No overrides file found."]),
+        ...validation.warnings
+      ],
+      errors: validation.errors,
+      validation,
+      nextCommand: validation.passed
+        ? "visp override list"
+        : "Fix .visp/overrides.json and rerun visp override validate."
+    })
+  );
 }
 
 export { formatOverrideSummary };

@@ -32,9 +32,7 @@ function projectContextSection(projectContext: string | undefined): string {
   return `\n## Project Context\n\n${projectContext.trim()}\n`;
 }
 
-export function projectContextFromSummary(
-  projectSummary: string | undefined
-): string | undefined {
+export function projectContextFromSummary(projectSummary: string | undefined): string | undefined {
   if (projectSummary === undefined) {
     return undefined;
   }
@@ -42,11 +40,7 @@ export function projectContextFromSummary(
   const selected = projectSummary
     .split("\n")
     .filter((line) =>
-      [
-        "- Project name:",
-        "- Languages:",
-        "- Frameworks:"
-      ].some((prefix) => line.startsWith(prefix))
+      ["- Project name:", "- Languages:", "- Frameworks:"].some((prefix) => line.startsWith(prefix))
     )
     .filter((line) => !line.includes("Unknown") && !line.includes("None detected"))
     .slice(0, 3);
@@ -68,9 +62,7 @@ export function knownConstraintsFromCompactConstitution(
     .slice(0, 3)
     .map((line) => `Constitution ${line}`);
 
-  return rules.length > 0
-    ? [...defaultKnownConstraints, ...rules]
-    : undefined;
+  return rules.length > 0 ? [...defaultKnownConstraints, ...rules] : undefined;
 }
 
 export function renderIntentMarkdown(input: RenderIntentInput): string {

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { renderCurrentTaskPrompt, renderTaskPrompt } from "../../../src/context/prompt-renderer.js";
 import {
-  renderCurrentTaskPrompt,
-  renderTaskPrompt
-} from "../../../src/context/prompt-renderer.js";
-import { agentMarkedChecklistSteps, implementationChecklistSteps } from "../../../src/context/implementation-checklist.js";
+  agentMarkedChecklistSteps,
+  implementationChecklistSteps
+} from "../../../src/context/implementation-checklist.js";
 import { validContextPack } from "../artifacts/fixtures.js";
 
 describe("prompt renderer", () => {
@@ -49,9 +49,7 @@ describe("prompt renderer", () => {
 
     for (const step of agentMarkedChecklistSteps) {
       expect(implementationChecklistSteps).toContain(step);
-      expect(prompt).toContain(
-        `visp checklist update --task T001 --item ${step} --status done`
-      );
+      expect(prompt).toContain(`visp checklist update --task T001 --item ${step} --status done`);
     }
   });
 

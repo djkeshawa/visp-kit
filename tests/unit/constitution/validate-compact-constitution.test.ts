@@ -4,9 +4,7 @@ import { validateCompactConstitution } from "../../../src/constitution/validate-
 
 describe("validateCompactConstitution", () => {
   it("passes valid compact rules", () => {
-    const result = validateCompactConstitution(
-      "C001: Keep functions small.\nC002: Write tests.\n"
-    );
+    const result = validateCompactConstitution("C001: Keep functions small.\nC002: Write tests.\n");
 
     expect(result).toEqual({ passed: true, ruleCount: 2, errors: [] });
   });
@@ -27,9 +25,7 @@ describe("validateCompactConstitution", () => {
   });
 
   it("fails empty rule text and empty files", () => {
-    expect(validateCompactConstitution("C001:   \n").errors).toContain(
-      "Rule C001 has empty text."
-    );
+    expect(validateCompactConstitution("C001:   \n").errors).toContain("Rule C001 has empty text.");
     expect(validateCompactConstitution("\n").errors).toContain(
       "Compact constitution must contain at least one rule."
     );

@@ -12,7 +12,9 @@ function evidence(state: ProjectState): string {
     `Review: ${state.review === undefined ? "missing" : state.review.result}`,
     `Reconcile: ${state.reconcile === undefined ? "missing" : state.reconcile.result}`,
     `PR: ${state.artifactSummary.pr ? "ready" : "missing"}`
-  ].map((line) => `  ${line}`).join("\n");
+  ]
+    .map((line) => `  ${line}`)
+    .join("\n");
 }
 
 export function renderStatusMarkdown(input: {
@@ -26,23 +28,28 @@ export function renderStatusMarkdown(input: {
   readonly evaluation?: string;
   readonly activeOverrideCount?: number;
   readonly overrideWarnings?: readonly string[];
-  readonly blockedCommands?: readonly { readonly command: string; readonly reason: string; readonly ruleId: string }[];
+  readonly blockedCommands?: readonly {
+    readonly command: string;
+    readonly reason: string;
+    readonly ruleId: string;
+  }[];
 }): string {
   const state = input.state;
   const projectName = state.profile?.name ?? state.config?.projectId ?? "unknown";
-  const feature = state.selectedFeature === undefined
-    ? "none"
-    : `${state.selectedFeature.id}-${state.selectedFeature.slug}`;
-  const activeTask = state.selectedTask === undefined
-    ? "none"
-    : `${state.selectedTask.id} - ${state.selectedTask.title}`;
+  const feature =
+    state.selectedFeature === undefined
+      ? "none"
+      : `${state.selectedFeature.id}-${state.selectedFeature.slug}`;
+  const activeTask =
+    state.selectedTask === undefined
+      ? "none"
+      : `${state.selectedTask.id} - ${state.selectedTask.title}`;
   const artifacts = Object.entries(state.artifactSummary)
     .map(([name, present]) => `- ${name}: ${yes(present)}`)
     .join("\n");
   const allWarnings = [...state.warnings, ...(input.overrideWarnings ?? [])];
-  const warnings = allWarnings.length === 0
-    ? "- None."
-    : allWarnings.map((warning) => `- ${warning}`).join("\n");
+  const warnings =
+    allWarnings.length === 0 ? "- None." : allWarnings.map((warning) => `- ${warning}`).join("\n");
 
   return `# Visp Status
 

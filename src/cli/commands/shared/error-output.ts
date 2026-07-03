@@ -25,9 +25,7 @@ export function writeWorkflowError(input: ErrorOutputInput): void {
   }
 
   const recovery =
-    input.error.recovery === undefined
-      ? ""
-      : `\nRecover: run \`${input.error.recovery}\``;
+    input.error.recovery === undefined ? "" : `\nRecover: run \`${input.error.recovery}\``;
 
   input.writeErr(`${formatError(input.error.message)}${recovery}\n`);
 }

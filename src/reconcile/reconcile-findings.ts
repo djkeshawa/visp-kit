@@ -1,7 +1,4 @@
-import {
-  type DriftType,
-  type ReconcileFinding
-} from "../artifacts/schemas/reconcile.schema.js";
+import { type DriftType, type ReconcileFinding } from "../artifacts/schemas/reconcile.schema.js";
 
 export type ReconcileFindingDraft = Omit<ReconcileFinding, "id">;
 

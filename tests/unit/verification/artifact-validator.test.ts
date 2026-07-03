@@ -60,18 +60,13 @@ describe("artifact validator", () => {
     expect(result.errors).toEqual([]);
     expect(result.warnings.join(" ")).toContain("Optional artifact missing");
     expect(
-      result.checked.find((artifact) => artifact.path.endsWith("task-graph.json"))
-        ?.passed
+      result.checked.find((artifact) => artifact.path.endsWith("task-graph.json"))?.passed
     ).toBe(true);
   });
 
   it("fails invalid JSON artifacts", async () => {
     await writeRequiredArtifacts(tempDir);
-    await writeFile(
-      taskGraphArtifactPath(tempDir, "001-note-pinning"),
-      "{not-json",
-      "utf8"
-    );
+    await writeFile(taskGraphArtifactPath(tempDir, "001-note-pinning"), "{not-json", "utf8");
 
     const result = await validateArtifacts({
       targetPath: tempDir,

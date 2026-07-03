@@ -8,12 +8,8 @@ describe("slugifyFeatureTitle", () => {
   });
 
   it("converts punctuation to hyphens", () => {
-    expect(slugifyFeatureTitle("Export Notes as PDF!")).toBe(
-      "export-notes-as-pdf"
-    );
-    expect(slugifyFeatureTitle("Improve AI/LLM settings")).toBe(
-      "improve-ai-llm-settings"
-    );
+    expect(slugifyFeatureTitle("Export Notes as PDF!")).toBe("export-notes-as-pdf");
+    expect(slugifyFeatureTitle("Improve AI/LLM settings")).toBe("improve-ai-llm-settings");
   });
 
   it("collapses whitespace and repeated hyphens", () => {
@@ -26,8 +22,6 @@ describe("slugifyFeatureTitle", () => {
   });
 
   it("limits slug length without trailing hyphens", () => {
-    expect(slugifyFeatureTitle("Add a very long feature title", 10)).toBe(
-      "add-a-very"
-    );
+    expect(slugifyFeatureTitle("Add a very long feature title", 10)).toBe("add-a-very");
   });
 });

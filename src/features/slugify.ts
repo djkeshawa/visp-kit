@@ -1,9 +1,6 @@
 const defaultMaxSlugLength = 60;
 
-export function slugifyFeatureTitle(
-  title: string,
-  maxLength = defaultMaxSlugLength
-): string {
+export function slugifyFeatureTitle(title: string, maxLength = defaultMaxSlugLength): string {
   const normalized = title
     .trim()
     .toLowerCase()

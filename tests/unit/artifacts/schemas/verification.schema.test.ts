@@ -5,9 +5,7 @@ import { validVerificationReport } from "../fixtures.js";
 
 describe("verification schema", () => {
   it("accepts valid verification reports", () => {
-    expect(verificationReportSchema.safeParse(validVerificationReport).success).toBe(
-      true
-    );
+    expect(verificationReportSchema.safeParse(validVerificationReport).success).toBe(true);
   });
 
   it("rejects invalid verification statuses", () => {
@@ -54,7 +52,8 @@ describe("verification schema", () => {
               args: [],
               pid: 123,
               profile: "terminal-compatible",
-              profileReason: "npm script test:all references Electron/Chromium-style browser execution."
+              profileReason:
+                "npm script test:all references Electron/Chromium-style browser execution."
             }
           }
         ]

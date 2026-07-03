@@ -21,13 +21,11 @@ import { policyArtifactPath } from "../artifacts/artifact-paths.js";
 import {
   agentGuidePath,
   agentsMarkdownPath,
+  geminiMarkdownPath,
   installedTargetsPath,
   workflowMapPath
 } from "./agent-paths.js";
-import {
-  buildWorkflowMapForTargets,
-  renderAgentGuide
-} from "./agent-renderer.js";
+import { buildWorkflowMapForTargets, renderAgentGuide } from "./agent-renderer.js";
 import { agentCapabilitiesPlannedFile } from "./agent-capabilities.js";
 import {
   writeAgentPlannedFile,
@@ -38,6 +36,8 @@ import { codexTargetFiles } from "./targets/codex.js";
 import { genericTargetFiles } from "./targets/generic.js";
 import { claudeTargetFiles } from "./targets/claude.js";
 import { copilotTargetFiles } from "./targets/copilot.js";
+import { cursorTargetFiles } from "./targets/cursor.js";
+import { geminiTargetFiles } from "./targets/gemini.js";
 
 export type AgentInstallOptions = {
   readonly targetPath?: string;
@@ -137,10 +137,16 @@ function nextInstructions(target: AgentTargetName): string {
       return "Use the repository instructions, or paste:\nUse Visp Kit workflow for this feature:\n<your feature request>\nFollow .github/instructions/visp-feature.instructions.md.";
     case "generic":
       return "Paste .visp/prompts/agent-feature.prompt.md into your AI coding tool with your feature request.";
+    case "cursor":
+      return "Open Cursor and mention the rule in chat:\n@visp-feature Add note pinning";
+    case "gemini":
+      return "Open Gemini CLI and use:\n/visp-feature Add note pinning";
   }
 }
 
-function bucketActions(actions: readonly { readonly path: string; readonly action: AgentFileAction }[]): {
+function bucketActions(
+  actions: readonly { readonly path: string; readonly action: AgentFileAction }[]
+): {
   readonly createdFiles: readonly string[];
   readonly skippedFiles: readonly string[];
   readonly overwrittenFiles: readonly string[];
@@ -149,7 +155,9 @@ function bucketActions(actions: readonly { readonly path: string; readonly actio
   return {
     createdFiles: actions.filter((item) => item.action === "created").map((item) => item.path),
     skippedFiles: actions.filter((item) => item.action === "skipped").map((item) => item.path),
-    overwrittenFiles: actions.filter((item) => item.action === "overwritten").map((item) => item.path),
+    overwrittenFiles: actions
+      .filter((item) => item.action === "overwritten")
+      .map((item) => item.path),
     updatedFiles: actions.filter((item) => item.action === "updated").map((item) => item.path)
   };
 }
@@ -159,17 +167,31 @@ async function targetFiles(input: {
   readonly target: AgentTargetName;
   readonly strictness: StrictnessMode;
   readonly force: boolean;
-}): Promise<Result<{ readonly files: readonly AgentPlannedFile[]; readonly warnings: readonly string[] }, VispError>> {
-  const shouldPlanAgentsFile = input.target === "codex" || input.target === "generic" || input.target === "copilot";
-  const agentsExists = shouldPlanAgentsFile
-    ? await pathExists(agentsMarkdownPath(input.targetPath))
-    : ok(false);
+}): Promise<
+  Result<
+    { readonly files: readonly AgentPlannedFile[]; readonly warnings: readonly string[] },
+    VispError
+  >
+> {
+  const shouldPlanAgentsFile =
+    input.target === "codex" || input.target === "generic" || input.target === "copilot";
+  const guidanceFilePath =
+    input.target === "gemini"
+      ? geminiMarkdownPath(input.targetPath)
+      : agentsMarkdownPath(input.targetPath);
+  const guidanceExists =
+    shouldPlanAgentsFile || input.target === "gemini"
+      ? await pathExists(guidanceFilePath)
+      : ok(false);
 
-  if (!agentsExists.ok) return agentsExists;
+  if (!guidanceExists.ok) return guidanceExists;
 
-  const useFallbackAgentsFile = shouldPlanAgentsFile && agentsExists.value && !input.force;
+  const useFallbackAgentsFile =
+    (shouldPlanAgentsFile || input.target === "gemini") && guidanceExists.value && !input.force;
   const warnings = useFallbackAgentsFile
-    ? ["AGENTS.md already exists. Wrote AGENTS.visp.md for manual merge or reference."]
+    ? input.target === "gemini"
+      ? ["GEMINI.md already exists. Wrote GEMINI.visp.md for manual merge or reference."]
+      : ["AGENTS.md already exists. Wrote AGENTS.visp.md for manual merge or reference."]
     : [];
 
   const files = (() => {
@@ -197,6 +219,17 @@ async function targetFiles(input: {
           strictness: input.strictness,
           useFallbackAgentsFile
         });
+      case "cursor":
+        return cursorTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness
+        });
+      case "gemini":
+        return geminiTargetFiles({
+          targetPath: input.targetPath,
+          strictness: input.strictness,
+          useFallbackAgentsFile
+        });
     }
   })();
 
@@ -211,9 +244,7 @@ function nextMetadata(input: {
   readonly targetFilePaths: readonly string[];
   readonly warnings: readonly string[];
 }): InstalledAgentTargets {
-  const existing = input.metadata.installedTargets.find(
-    (target) => target.target === input.target
-  );
+  const existing = input.metadata.installedTargets.find((target) => target.target === input.target);
   const nextTarget: InstalledAgentTarget = {
     target: input.target,
     strictnessMode: input.strictness,

@@ -1,7 +1,4 @@
-import {
-  type BudgetMode,
-  type Preset
-} from "../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 
 export type PresetGuidance = {
   readonly title: string;

@@ -8,7 +8,7 @@ import {
   promptArtifactPath
 } from "../artifacts/artifact-paths.js";
 import { clarificationArtifactSchema } from "../artifacts/schemas/clarification.schema.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
 import { renderClarifyPrompt } from "../prompts/render-clarify-prompt.js";
@@ -36,14 +36,8 @@ async function validateExisting(input: {
   readonly targetPath: string;
   readonly featureKey: string;
 }): Promise<WorkflowValidation> {
-  const markdownPath = clarificationsMarkdownPath(
-    input.targetPath,
-    input.featureKey
-  );
-  const artifactPath = clarificationsArtifactPath(
-    input.targetPath,
-    input.featureKey
-  );
+  const markdownPath = clarificationsMarkdownPath(input.targetPath, input.featureKey);
+  const artifactPath = clarificationsArtifactPath(input.targetPath, input.featureKey);
   const textErrors = await validateTextExists(
     markdownPath,
     relativePath(input.targetPath, markdownPath)
@@ -125,28 +119,26 @@ export async function runClarifyWorkflow(
       ]);
 
   if (prerequisiteErrors.length > 0) {
-    return ok(
-      {
-        success: false,
-        command: "clarify",
-        targetPath,
-        feature: {
-          id: feature.value.id,
-          slug: feature.value.slug,
-          path: feature.value.relativePath
-        },
-        createdFiles: [],
-        skippedFiles: [],
-        overwrittenFiles: [],
-        updatedFiles: [],
-        validated: true,
-        validation: { passed: false, errors: prerequisiteErrors },
-        dryRun,
-        promptPath: promptDisplayPath,
-        warnings: [],
-        nextCommand: "visp spec"
-      }
-    );
+    return ok({
+      success: false,
+      command: "clarify",
+      targetPath,
+      feature: {
+        id: feature.value.id,
+        slug: feature.value.slug,
+        path: feature.value.relativePath
+      },
+      createdFiles: [],
+      skippedFiles: [],
+      overwrittenFiles: [],
+      updatedFiles: [],
+      validated: true,
+      validation: { passed: false, errors: prerequisiteErrors },
+      dryRun,
+      promptPath: promptDisplayPath,
+      warnings: [],
+      nextCommand: "visp spec"
+    });
   }
 
   const artifact = createClarificationArtifact({ feature: feature.value, now });

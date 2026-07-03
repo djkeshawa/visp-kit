@@ -155,7 +155,9 @@ describe("integration contract workflow", () => {
       expect(result.value.kit.version).toMatch(/^\d+\.\d+\.\d+/);
       expect(result.value.activeFeature?.key).toBe("001-note-pinning");
       expect(result.value.activeTask?.id).toBe("T001");
-      expect(result.value.artifacts.taskGraph).toBe(".visp/features/001-note-pinning/task-graph.json");
+      expect(result.value.artifacts.taskGraph).toBe(
+        ".visp/features/001-note-pinning/task-graph.json"
+      );
       expect(result.value.artifacts.contextPack).toBe(
         ".visp/features/001-note-pinning/context/T001.context.json"
       );
@@ -204,7 +206,9 @@ describe("integration contract workflow", () => {
     expect(parsed.contractVersion).toBe("1.3");
     expect(parsed.capabilities.governance.failClosedGates).toBe(true);
     expect(parsed.capabilities.contextGrounding.orchestratorReadContract).toBe(true);
-    expect(parsed.orchestrator.requiredArtifacts.map((artifact) => artifact.id)).toContain("context-pack");
+    expect(parsed.orchestrator.requiredArtifacts.map((artifact) => artifact.id)).toContain(
+      "context-pack"
+    );
   });
 
   it("prints the package version through --version from package.json", async () => {

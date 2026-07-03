@@ -80,9 +80,7 @@ export async function readPackageJson(
 
 function managerFromPackageManager(value: string | undefined): PackageManager | undefined {
   const name = value?.split("@")[0];
-  return name === "pnpm" || name === "npm" || name === "yarn" || name === "bun"
-    ? name
-    : undefined;
+  return name === "pnpm" || name === "npm" || name === "yarn" || name === "bun" ? name : undefined;
 }
 
 export function detectPackageManager(input: {
@@ -134,12 +132,7 @@ export function detectScriptCommands(
   const scripts = packageJson?.scripts ?? {};
 
   return {
-    buildCommands: commandsForScripts(scripts, manager, [
-      "build",
-      "compile",
-      "package",
-      "dist"
-    ]),
+    buildCommands: commandsForScripts(scripts, manager, ["build", "compile", "package", "dist"]),
     testCommands: commandsForScripts(scripts, manager, [
       "test",
       "test:unit",
@@ -158,9 +151,7 @@ export function detectScriptCommands(
   };
 }
 
-export function detectFrameworks(
-  packageJson: PackageJsonInfo | undefined
-): FrameworkDetection[] {
+export function detectFrameworks(packageJson: PackageJsonInfo | undefined): FrameworkDetection[] {
   if (packageJson === undefined) {
     return [];
   }

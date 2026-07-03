@@ -15,9 +15,7 @@ function runner(): CommandRunner {
   return {
     async run(command, args, options) {
       const joined = (args ?? []).join(" ");
-      const stdout = joined === "rev-parse --is-inside-work-tree"
-        ? "false\n"
-        : "";
+      const stdout = joined === "rev-parse --is-inside-work-tree" ? "false\n" : "";
 
       return ok({
         command,
@@ -81,46 +79,60 @@ describe("runPrWorkflow", () => {
   it("writes PR markdown, JSON, prompt, and status when a feature is active", async () => {
     await createFeature(tempDir);
 
-    const summary = expectOk(await runPrWorkflow({
-      targetPath: tempDir,
-      title: "Add note pinning",
-      now: "2026-01-01T00:00:00.000Z",
-      commandRunner: runner()
-    }));
+    const summary = expectOk(
+      await runPrWorkflow({
+        targetPath: tempDir,
+        title: "Add note pinning",
+        now: "2026-01-01T00:00:00.000Z",
+        commandRunner: runner()
+      })
+    );
 
     expect(summary.success).toBe(false);
     expect(summary.prPath).toBe(".visp/features/001-add-note-pinning/pr.md");
     expect(summary.prJsonPath).toBe(".visp/features/001-add-note-pinning/pr.json");
     expect(summary.promptPath).toBe(".visp/prompts/pr.prompt.md");
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"))).toBe(true);
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))).toBe(true);
-    expect(await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")).toContain('"lastCommand": "pr"');
+    expect(
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.md"))
+    ).toBe(true);
+    expect(
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))
+    ).toBe(true);
+    expect(await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")).toContain(
+      '"lastCommand": "pr"'
+    );
   });
 
   it("prompt-only writes only the PR prompt", async () => {
     await createFeature(tempDir);
 
-    const summary = expectOk(await runPrWorkflow({
-      targetPath: tempDir,
-      promptOnly: true,
-      commandRunner: runner()
-    }));
+    const summary = expectOk(
+      await runPrWorkflow({
+        targetPath: tempDir,
+        promptOnly: true,
+        commandRunner: runner()
+      })
+    );
 
     expect(summary.prPath).toBeNull();
     expect(summary.prJsonPath).toBeNull();
     expect(summary.promptPath).toBe(".visp/prompts/pr.prompt.md");
     expect(await exists(path.join(tempDir, ".visp", "prompts", "pr.prompt.md"))).toBe(true);
-    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))).toBe(false);
+    expect(
+      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))
+    ).toBe(false);
   });
 
   it("dry-run writes nothing", async () => {
     await createFeature(tempDir);
 
-    const summary = expectOk(await runPrWorkflow({
-      targetPath: tempDir,
-      dryRun: true,
-      commandRunner: runner()
-    }));
+    const summary = expectOk(
+      await runPrWorkflow({
+        targetPath: tempDir,
+        dryRun: true,
+        commandRunner: runner()
+      })
+    );
 
     expect(summary.prPath).toBeNull();
     expect(summary.promptPath).toBeNull();

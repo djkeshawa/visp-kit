@@ -1,9 +1,6 @@
 import { Command, Option } from "commander";
 
-import {
-  gateStageSchema,
-  type GateStage
-} from "../../artifacts/schemas/gate.schema.js";
+import { gateStageSchema, type GateStage } from "../../artifacts/schemas/gate.schema.js";
 import {
   overrideScopeSchema,
   type OverrideScope
@@ -170,22 +167,19 @@ function validateOptions(
   return { targetPath, cwd };
 }
 
-export function createOverrideCommand(
-  dependencies: OverrideCommandDependencies = {}
-): Command {
+export function createOverrideCommand(dependencies: OverrideCommandDependencies = {}): Command {
   const runCreate = dependencies.runOverrideCreate ?? runOverrideCreateWorkflow;
   const runList = dependencies.runOverrideList ?? runOverrideListWorkflow;
   const runShow = dependencies.runOverrideShow ?? runOverrideShowWorkflow;
   const runRevoke = dependencies.runOverrideRevoke ?? runOverrideRevokeWorkflow;
   const runValidate = dependencies.runOverrideValidate ?? runOverrideValidateWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
   const writers = { writeOut, writeErr };
 
-  const override = new Command("override")
-    .description("Manage explicit, auditable Visp policy overrides.");
+  const override = new Command("override").description(
+    "Manage explicit, auditable Visp policy overrides."
+  );
 
   override
     .command("create")
@@ -194,24 +188,20 @@ export function createOverrideCommand(
     .argument("[path]", "Target project path.")
     .option("--reason <text>", "Reason for the override.")
     .addOption(
-      new Option("--scope <scope>", "Override scope.")
-        .choices(overrideScopeSchema.options)
+      new Option("--scope <scope>", "Override scope.").choices(overrideScopeSchema.options)
     )
     .option("--feature <feature>", "Feature ID, slug, or folder name.")
     .option("--task <task-id>", "Task ID such as T001.")
     .addOption(
-      new Option("--stage <stage>", "Gate stage for stage-scoped overrides.")
-        .choices(gateStageSchema.options)
+      new Option("--stage <stage>", "Gate stage for stage-scoped overrides.").choices(
+        gateStageSchema.options
+      )
     )
     .option("--expires <value>", "Expiration ISO datetime or duration such as 7d.")
     .option("--dry-run", "Validate without writing overrides.json.")
     .option("--json", "Print a machine-readable summary.")
     .action(
-      async (
-        ruleId: string,
-        targetPath: string | undefined,
-        options: OverrideCreateOptions
-      ) => {
+      async (ruleId: string, targetPath: string | undefined, options: OverrideCreateOptions) => {
         await handleResult(
           runCreate(createOptions(ruleId, targetPath, options, dependencies.cwd)),
           options,
@@ -245,19 +235,13 @@ export function createOverrideCommand(
     .argument("<override-id>", "Override ID such as OVR001.")
     .argument("[path]", "Target project path.")
     .option("--json", "Print a machine-readable summary.")
-    .action(
-      async (
-        overrideId: string,
-        targetPath: string | undefined,
-        options: JsonOption
-      ) => {
-        await handleResult(
-          runShow(showOptions(overrideId, targetPath, dependencies.cwd)),
-          options,
-          writers
-        );
-      }
-    );
+    .action(async (overrideId: string, targetPath: string | undefined, options: JsonOption) => {
+      await handleResult(
+        runShow(showOptions(overrideId, targetPath, dependencies.cwd)),
+        options,
+        writers
+      );
+    });
 
   override
     .command("revoke")

@@ -32,15 +32,11 @@ function workflowOptions(
   };
 }
 
-export function createWorkflowCommand(
-  dependencies: WorkflowCliDependencies = {}
-): Command {
+export function createWorkflowCommand(dependencies: WorkflowCliDependencies = {}): Command {
   const runShow = dependencies.runWorkflowShow ?? runWorkflowShowWorkflow;
   const runValidate = dependencies.runWorkflowValidate ?? runWorkflowValidateWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   async function handle(
     resultPromise: ReturnType<typeof runWorkflowShowWorkflow>,
@@ -68,8 +64,7 @@ export function createWorkflowCommand(
     if (!result.value.success) process.exitCode = 1;
   }
 
-  const workflow = new Command("workflow")
-    .description("Inspect the Visp workflow manifest.");
+  const workflow = new Command("workflow").description("Inspect the Visp workflow manifest.");
 
   workflow
     .command("show")
@@ -77,10 +72,7 @@ export function createWorkflowCommand(
     .argument("[path]", "Target project path.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: JsonOption) => {
-      await handle(
-        runShow(workflowOptions(targetPath, options, dependencies.cwd)),
-        options
-      );
+      await handle(runShow(workflowOptions(targetPath, options, dependencies.cwd)), options);
     });
 
   workflow
@@ -89,10 +81,7 @@ export function createWorkflowCommand(
     .argument("[path]", "Target project path.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: JsonOption) => {
-      await handle(
-        runValidate(workflowOptions(targetPath, options, dependencies.cwd)),
-        options
-      );
+      await handle(runValidate(workflowOptions(targetPath, options, dependencies.cwd)), options);
     });
 
   return workflow;

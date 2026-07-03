@@ -7,9 +7,7 @@ const fileSummaryCacheSchema = z.object({
   items: z.array(z.object({ path: z.string(), hash: z.string() }).passthrough())
 });
 
-export async function readPreviousSummaries(
-  cachePath: string
-): Promise<Map<string, FileSummary>> {
+export async function readPreviousSummaries(cachePath: string): Promise<Map<string, FileSummary>> {
   const result = await readJsonFile<unknown>(cachePath);
 
   if (!result.ok) {
@@ -22,7 +20,5 @@ export async function readPreviousSummaries(
     return new Map();
   }
 
-  return new Map(
-    parsed.data.items.map((item) => [item.path, item as unknown as FileSummary])
-  );
+  return new Map(parsed.data.items.map((item) => [item.path, item as unknown as FileSummary]));
 }

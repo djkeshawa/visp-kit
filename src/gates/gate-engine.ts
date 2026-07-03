@@ -9,7 +9,7 @@ import { VispError, toVispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { buildGateResult } from "./gate-result.js";
-import { loadGateContext } from "./gate-context.js";
+import { loadGateContext, type GateContext } from "./gate-context.js";
 import { findApplicableOverride } from "../overrides/override-matcher.js";
 import { readOverrideStore } from "../overrides/override-store.js";
 import {
@@ -38,7 +38,7 @@ export type GateEngineOptions = {
   readonly now: string;
 };
 
-function evaluateStage(context: Awaited<ReturnType<typeof loadGateContext>>, stage: GateStage) {
+function evaluateStage(context: GateContext, stage: GateStage) {
   switch (stage) {
     case "next":
       return evaluateNextGate(context);
@@ -71,7 +71,7 @@ function evaluateStage(context: Awaited<ReturnType<typeof loadGateContext>>, sta
 
 async function applyPolicyOverrides(input: {
   readonly result: GateResult;
-  readonly context: Awaited<ReturnType<typeof loadGateContext>>;
+  readonly context: GateContext;
   readonly stage: GateStage;
   readonly now: string;
 }): Promise<Result<GateResult, VispError>> {
@@ -100,7 +100,9 @@ async function applyPolicyOverrides(input: {
 
     const key = `${override.overrideId}:${override.ruleId}:${override.appliedToStage}`;
 
-    if (!applied.some((item) => `${item.overrideId}:${item.ruleId}:${item.appliedToStage}` === key)) {
+    if (
+      !applied.some((item) => `${item.overrideId}:${item.ruleId}:${item.appliedToStage}` === key)
+    ) {
       applied.push(override);
     }
 
@@ -120,8 +122,9 @@ async function applyPolicyOverrides(input: {
   const warnings = [
     ...new Set([
       ...input.result.warnings,
-      ...applied.map((override) =>
-        `${override.ruleId}: Rule was overridden by ${override.overrideId}. Reason: ${override.reason}`
+      ...applied.map(
+        (override) =>
+          `${override.ruleId}: Rule was overridden by ${override.overrideId}. Reason: ${override.reason}`
       )
     ])
   ];
@@ -132,8 +135,8 @@ async function applyPolicyOverrides(input: {
     allowed,
     failedRules,
     warnings,
-    blockedCommands: input.result.blockedCommands.filter((command) =>
-      !overriddenRules.has(command.ruleId)
+    blockedCommands: input.result.blockedCommands.filter(
+      (command) => !overriddenRules.has(command.ruleId)
     ),
     overriddenRules: [...overriddenRules].sort(),
     appliedOverrides: applied
@@ -144,7 +147,7 @@ export async function evaluateGate(
   options: GateEngineOptions
 ): Promise<Result<GateResult, VispError>> {
   try {
-    const context = await loadGateContext({
+    const loaded = await loadGateContext({
       targetPath: options.targetPath,
       feature: options.feature,
       taskId: options.taskId,
@@ -152,13 +155,15 @@ export async function evaluateGate(
       now: options.now
     });
 
+    if (!loaded.ok) return loaded;
+
+    const context = loaded.value;
+
     if (!context.state.initialized && options.stage !== "setup" && options.stage !== "next") {
       return err(
-        new VispError(
-          "VALIDATION_FAILED",
-          "Visp Kit is not initialized. Run `visp init` first.",
-          { recovery: "visp init" }
-        )
+        new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
+          recovery: "visp init"
+        })
       );
     }
 

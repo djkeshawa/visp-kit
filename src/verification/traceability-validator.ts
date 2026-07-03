@@ -1,8 +1,6 @@
 import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
-import {
-  type TraceabilityMatrix
-} from "../artifacts/schemas/traceability.schema.js";
+import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { type TraceabilityValidationSection } from "../artifacts/schemas/verification.schema.js";
 
 function duplicates(values: readonly string[], label: string): readonly string[] {
@@ -61,14 +59,24 @@ export function validateTraceability(input: {
 
   const requirements = new Set(input.spec?.requirements.map((requirement) => requirement.id) ?? []);
   const criteria = new Set(input.spec?.acceptanceCriteria.map((criterion) => criterion.id) ?? []);
-  const tracedRequirements = new Set(input.traceability.entries.map((entry) => entry.requirementId));
-  const tracedCriteria = new Set(input.traceability.entries.flatMap((entry) => entry.acceptanceCriterionIds));
+  const tracedRequirements = new Set(
+    input.traceability.entries.map((entry) => entry.requirementId)
+  );
+  const tracedCriteria = new Set(
+    input.traceability.entries.flatMap((entry) => entry.acceptanceCriterionIds)
+  );
   const tracedTasks = new Set(input.traceability.entries.flatMap((entry) => entry.taskIds));
 
   if (input.spec !== undefined) {
     errors.push(
-      ...duplicates(input.spec.requirements.map((requirement) => requirement.id), "requirement"),
-      ...duplicates(input.spec.acceptanceCriteria.map((criterion) => criterion.id), "acceptance criterion")
+      ...duplicates(
+        input.spec.requirements.map((requirement) => requirement.id),
+        "requirement"
+      ),
+      ...duplicates(
+        input.spec.acceptanceCriteria.map((criterion) => criterion.id),
+        "acceptance criterion"
+      )
     );
 
     for (const requirement of input.spec.requirements) {

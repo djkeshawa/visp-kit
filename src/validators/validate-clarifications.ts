@@ -2,11 +2,12 @@ import { type ClarificationArtifact } from "../artifacts/schemas/clarification.s
 import { duplicateIds, validation } from "./validation-helpers.js";
 import { type WorkflowValidation } from "../workflows/shared/workflow-summary.js";
 
-export function validateClarifications(
-  artifact: ClarificationArtifact
-): WorkflowValidation {
+export function validateClarifications(artifact: ClarificationArtifact): WorkflowValidation {
   const errors: string[] = [
-    ...duplicateIds(artifact.questions.map((question) => question.id), "question"),
+    ...duplicateIds(
+      artifact.questions.map((question) => question.id),
+      "question"
+    ),
     ...duplicateIds(
       artifact.assumptions.map((assumption) => assumption.id),
       "assumption"
@@ -30,10 +31,7 @@ export function validateClarifications(
       errors.push(`${question.id} needs a recommended default.`);
     }
 
-    if (
-      question.status === "answered" &&
-      question.answer.trim().length === 0
-    ) {
+    if (question.status === "answered" && question.answer.trim().length === 0) {
       errors.push(`${question.id} is answered but has no answer text.`);
     }
   }

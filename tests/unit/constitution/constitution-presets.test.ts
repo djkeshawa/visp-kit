@@ -1,21 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  budgetGuidance,
-  presetGuidance
-} from "../../../src/constitution/constitution-presets.js";
+import { budgetGuidance, presetGuidance } from "../../../src/constitution/constitution-presets.js";
 import { buildConstitutionRules } from "../../../src/constitution/constitution-rules.js";
 
 describe("constitution presets", () => {
   it("includes preset-specific guidance", () => {
-    expect(presetGuidance.typescript.guidance.join(" ")).toContain(
-      "explicit types"
-    );
+    expect(presetGuidance.typescript.guidance.join(" ")).toContain("explicit types");
     expect(presetGuidance.electron.guidance.join(" ")).toContain("IPC");
     expect(presetGuidance.react.guidance.join(" ")).toContain("accessibility");
-    expect(presetGuidance["node-api"].guidance.join(" ")).toContain(
-      "request inputs"
-    );
+    expect(presetGuidance["node-api"].guidance.join(" ")).toContain("request inputs");
     expect(presetGuidance.go.guidance.join(" ")).toContain("package boundaries");
     expect(presetGuidance.java.guidance.join(" ")).toContain("public API");
     expect(presetGuidance.python.guidance.join(" ")).toContain("modules");

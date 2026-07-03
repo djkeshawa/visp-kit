@@ -20,14 +20,10 @@ type HooksCommandOptions = {
   readonly json?: boolean;
 };
 
-export function createHooksCommand(
-  dependencies: HooksCommandDependencies = {}
-): Command {
+export function createHooksCommand(dependencies: HooksCommandDependencies = {}): Command {
   const runHooks = dependencies.runHooks ?? runHooksWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
   const hooks = new Command("hooks").description(
     "Install Visp enforcement hooks: Claude Code gate hook, git pre-commit check, CI evidence workflow."

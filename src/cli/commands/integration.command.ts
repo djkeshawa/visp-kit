@@ -32,8 +32,9 @@ export function createIntegrationCommand(
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
-  const integration = new Command("integration")
-    .description("Print machine-readable integration contracts for orchestrators.");
+  const integration = new Command("integration").description(
+    "Print machine-readable integration contracts for orchestrators."
+  );
 
   integration
     .command("contract")
@@ -53,9 +54,11 @@ export function createIntegrationCommand(
         return;
       }
 
-      writeOut(options.json
-        ? `${JSON.stringify(result.value, null, 2)}\n`
-        : formatIntegrationContractSummary(result.value));
+      writeOut(
+        options.json
+          ? `${JSON.stringify(result.value, null, 2)}\n`
+          : formatIntegrationContractSummary(result.value)
+      );
     });
 
   return integration;

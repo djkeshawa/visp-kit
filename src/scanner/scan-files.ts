@@ -28,10 +28,7 @@ function isSourceLanguage(language: string): boolean {
   ].includes(language);
 }
 
-export async function scanFiles(
-  rootPath: string,
-  scannedAt: string
-): Promise<FileIndexEntry[]> {
+export async function scanFiles(rootPath: string, scannedAt: string): Promise<FileIndexEntry[]> {
   const entries: FileIndexEntry[] = [];
 
   async function walk(directory: string): Promise<void> {

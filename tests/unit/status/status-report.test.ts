@@ -3,11 +3,7 @@ import { describe, expect, it } from "vitest";
 import { renderStatusMarkdown } from "../../../src/status/status-report.js";
 import { recommendNextStep } from "../../../src/orchestrator/next-step.js";
 import { type ProjectState } from "../../../src/orchestrator/project-state.js";
-import {
-  validProjectConfig,
-  validProjectProfile,
-  validTaskGraph
-} from "../artifacts/fixtures.js";
+import { validProjectConfig, validProjectProfile, validTaskGraph } from "../artifacts/fixtures.js";
 
 describe("status report renderer", () => {
   it("includes active feature and next command", () => {

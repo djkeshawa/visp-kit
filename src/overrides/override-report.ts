@@ -1,9 +1,6 @@
 import { type OverrideRecord } from "../artifacts/schemas/override.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
-import {
-  scopeLabel,
-  type OverrideWorkflowSummary
-} from "./override-summary.js";
+import { scopeLabel, type OverrideWorkflowSummary } from "./override-summary.js";
 
 function row(override: OverrideRecord): string {
   return `${override.id} ${override.ruleId} ${scopeLabel(override)}\nReason: ${override.reason}\nExpires: ${override.expiresAt ?? "none"}`;
@@ -19,7 +16,9 @@ function overridesByStatus(
 function section(title: string, overrides: readonly OverrideRecord[]): readonly string[] {
   return [
     `${title}:`,
-    ...(overrides.length === 0 ? ["none"] : overrides.flatMap((override) => [row(override), ""]).slice(0, -1))
+    ...(overrides.length === 0
+      ? ["none"]
+      : overrides.flatMap((override) => [row(override), ""]).slice(0, -1))
   ];
 }
 
@@ -27,11 +26,17 @@ export function formatOverrideSummary(summary: OverrideWorkflowSummary): string 
   const lines = [
     formatHeader(
       summary.mode === "create"
-        ? summary.dryRun ? "Visp override dry run." : "Visp override created."
+        ? summary.dryRun
+          ? "Visp override dry run."
+          : "Visp override created."
         : summary.mode === "revoke"
-          ? summary.dryRun ? "Visp override revoke dry run." : "Visp override revoked."
+          ? summary.dryRun
+            ? "Visp override revoke dry run."
+            : "Visp override revoked."
           : summary.mode === "validate"
-            ? summary.success ? "Visp overrides valid." : "Visp overrides invalid."
+            ? summary.success
+              ? "Visp overrides valid."
+              : "Visp overrides invalid."
             : "Visp overrides"
     ),
     "",

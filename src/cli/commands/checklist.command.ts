@@ -97,18 +97,15 @@ function updateOptions(
   };
 }
 
-export function createChecklistCommand(
-  dependencies: ChecklistCommandDependencies = {}
-): Command {
+export function createChecklistCommand(dependencies: ChecklistCommandDependencies = {}): Command {
   const runStatus = dependencies.runChecklistStatus ?? runChecklistStatusWorkflow;
   const runUpdate = dependencies.runChecklistUpdate ?? runChecklistUpdateWorkflow;
-  const writeOut =
-    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr =
-    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
   const writers = { writeOut, writeErr };
-  const checklist = new Command("checklist")
-    .description("Inspect and update implementation checklist artifacts.");
+  const checklist = new Command("checklist").description(
+    "Inspect and update implementation checklist artifacts."
+  );
 
   checklist
     .command("status")
@@ -133,8 +130,9 @@ export function createChecklistCommand(
     .option("--task <task-id>", "Task ID such as T001.")
     .option("--item <id>", "Checklist item ID.")
     .addOption(
-      new Option("--status <status>", "Checklist item status.")
-        .choices(implementationChecklistStatusSchema.options)
+      new Option("--status <status>", "Checklist item status.").choices(
+        implementationChecklistStatusSchema.options
+      )
     )
     .option("--reason <reason>", "Reason for blocked, not_applicable, or unavailable status.")
     .option("--evidence <text>", "Evidence for the status update.")

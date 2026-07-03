@@ -1,7 +1,4 @@
-import {
-  defaultCommandRunner,
-  type CommandRunner
-} from "../core/command-runner.js";
+import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
 import {
@@ -79,9 +76,7 @@ function parseNameStatus(stdout: string): Map<string, LoadedDiffFile["changeType
 
     if (status === undefined) continue;
 
-    const filePath = status.startsWith("R") || status.startsWith("C")
-      ? parts[2]
-      : parts[1];
+    const filePath = status.startsWith("R") || status.startsWith("C") ? parts[2] : parts[1];
 
     if (filePath !== undefined) {
       entries.set(cleanPath(filePath), changeTypeFromStatus(status));
@@ -91,16 +86,22 @@ function parseNameStatus(stdout: string): Map<string, LoadedDiffFile["changeType
   return entries;
 }
 
-function parseNumstat(stdout: string): Map<string, {
-  readonly additions: number;
-  readonly deletions: number;
-  readonly isBinary: boolean;
-}> {
-  const entries = new Map<string, {
+function parseNumstat(stdout: string): Map<
+  string,
+  {
     readonly additions: number;
     readonly deletions: number;
     readonly isBinary: boolean;
-  }>();
+  }
+> {
+  const entries = new Map<
+    string,
+    {
+      readonly additions: number;
+      readonly deletions: number;
+      readonly isBinary: boolean;
+    }
+  >();
 
   for (const line of stdout.split(/\r?\n/)) {
     const parts = line.split("\t");

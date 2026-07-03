@@ -29,11 +29,11 @@ Task:
 ${input.report.taskId === null ? "feature-level review" : `${input.report.taskId} - ${input.taskTitle ?? "Untitled task"}`}
 
 Read:
-${list([
-  input.contextPath,
-  input.verificationPath,
-  input.reviewReportPath
-].filter((value): value is string => Boolean(value)))}
+${list(
+  [input.contextPath, input.verificationPath, input.reviewReportPath].filter(
+    (value): value is string => Boolean(value)
+  )
+)}
 
 Review focus:
 - Check whether the implementation satisfies the selected task only.

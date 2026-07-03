@@ -95,7 +95,10 @@ function dependencyTasks(pack: ContextPack): string {
     .join("\n");
 }
 
-function snippetFor(pack: ContextPack, filePath: string): ContextPack["includedSnippets"][number] | undefined {
+function snippetFor(
+  pack: ContextPack,
+  filePath: string
+): ContextPack["includedSnippets"][number] | undefined {
   return pack.includedSnippets.find((snippet) => snippet.filePath === filePath);
 }
 
@@ -130,8 +133,11 @@ ${warning}${summary}${snippetText}`;
 
 function policyGate(pack: ContextPack): string {
   const gate = pack.policyGate;
-  const failed = gate?.failedRules.map((rule) => `- ${rule.ruleId}: ${rule.message}`).join("\n") || "- None.";
-  const blocked = gate?.blockedCommands.map((command) => `- ${command.command}: ${command.reason}`).join("\n") || "- None.";
+  const failed =
+    gate?.failedRules.map((rule) => `- ${rule.ruleId}: ${rule.message}`).join("\n") || "- None.";
+  const blocked =
+    gate?.blockedCommands.map((command) => `- ${command.command}: ${command.reason}`).join("\n") ||
+    "- None.";
 
   return `## Policy Gate
 
@@ -157,7 +163,10 @@ function artifactProvenance(pack: ContextPack): string {
   }
 
   return pack.artifactProvenance
-    .map((artifact) => `- ${artifact.label}: ${artifact.path} (${artifact.hashAlgorithm}:${artifact.hash.slice(0, 12)})`)
+    .map(
+      (artifact) =>
+        `- ${artifact.label}: ${artifact.path} (${artifact.hashAlgorithm}:${artifact.hash.slice(0, 12)})`
+    )
     .join("\n");
 }
 
@@ -213,9 +222,7 @@ ${dependencyTasks(input.pack)}
 
 ## Constitution Rules
 
-${input.pack.includedConstitutionRules
-  .map((rule) => `- ${rule.id}: ${rule.text}`)
-  .join("\n")}
+${input.pack.includedConstitutionRules.map((rule) => `- ${rule.id}: ${rule.text}`).join("\n")}
 
 ## Project Context
 

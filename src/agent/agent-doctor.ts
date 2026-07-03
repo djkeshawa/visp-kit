@@ -17,6 +17,10 @@ import {
   codexSkillPath,
   copilotInstructionsPath,
   copilotWorkflowInstructionPath,
+  cursorRulePath,
+  geminiCommandPath,
+  geminiMarkdownPath,
+  geminiVispMarkdownPath,
   genericAgentPromptPath,
   installedTargetsPath,
   vispRulesFilePath
@@ -79,23 +83,30 @@ async function readOptionalText(filePath: string): Promise<Result<string | null,
   return text.ok ? ok(text.value) : text;
 }
 
-async function guidanceText(targetPath: string): Promise<Result<{ readonly path: string | null; readonly text: string | null }, VispError>> {
-  const agents = await readOptionalText(agentsMarkdownPath(targetPath));
+async function guidanceText(
+  targetPath: string,
+  target?: AgentTargetName
+): Promise<Result<{ readonly path: string | null; readonly text: string | null }, VispError>> {
+  const primaryPath =
+    target === "gemini" ? geminiMarkdownPath(targetPath) : agentsMarkdownPath(targetPath);
+  const fallbackPath =
+    target === "gemini" ? geminiVispMarkdownPath(targetPath) : agentsVispMarkdownPath(targetPath);
+  const primary = await readOptionalText(primaryPath);
 
-  if (!agents.ok) return agents;
-  if (agents.value !== null) {
+  if (!primary.ok) return primary;
+  if (primary.value !== null) {
     return ok({
-      path: relativePath(targetPath, agentsMarkdownPath(targetPath)),
-      text: agents.value
+      path: relativePath(targetPath, primaryPath),
+      text: primary.value
     });
   }
 
-  const fallback = await readOptionalText(agentsVispMarkdownPath(targetPath));
+  const fallback = await readOptionalText(fallbackPath);
 
   if (!fallback.ok) return fallback;
 
   return ok({
-    path: fallback.value === null ? null : relativePath(targetPath, agentsVispMarkdownPath(targetPath)),
+    path: fallback.value === null ? null : relativePath(targetPath, fallbackPath),
     text: fallback.value
   });
 }
@@ -109,13 +120,13 @@ function containsRequiredGuidance(text: string): boolean {
       lower.includes("visp reconcile"));
 
   return (
-    lower.includes("user prompt is raw intent") &&
-    lower.includes("visp gate") &&
-    evidencePipeline
+    lower.includes("user prompt is raw intent") && lower.includes("visp gate") && evidencePipeline
   );
 }
 
-async function installedTargets(targetPath: string): Promise<Result<readonly AgentTargetName[], VispError>> {
+async function installedTargets(
+  targetPath: string
+): Promise<Result<readonly AgentTargetName[], VispError>> {
   const metadataPath = installedTargetsPath(targetPath);
   const exists = await pathExists(metadataPath);
 
@@ -175,8 +186,8 @@ async function checkTarget(input: {
   readonly target: AgentTargetName;
   readonly findings: AgentDoctorFinding[];
 }): Promise<Result<void, VispError>> {
-  if (input.target !== "claude") {
-    const guidance = await guidanceText(input.targetPath);
+  if (input.target !== "claude" && input.target !== "cursor") {
+    const guidance = await guidanceText(input.targetPath, input.target);
 
     if (!guidance.ok) return guidance;
 
@@ -187,7 +198,10 @@ async function checkTarget(input: {
             category: "guidance",
             severity: "warning",
             title: "Agent guidance missing",
-            description: "AGENTS.md or AGENTS.visp.md is missing.",
+            description:
+              input.target === "gemini"
+                ? "GEMINI.md or GEMINI.visp.md is missing."
+                : "AGENTS.md or AGENTS.visp.md is missing.",
             recommendation: `Run \`visp agent install ${input.target}\`.`,
             autoFixable: true
           },
@@ -223,9 +237,7 @@ async function checkTarget(input: {
           genericAgentPromptPath(input.targetPath, workflow)
         );
       case "claude":
-        return agentWorkflowNames.map((workflow) =>
-          claudeCommandPath(input.targetPath, workflow)
-        );
+        return agentWorkflowNames.map((workflow) => claudeCommandPath(input.targetPath, workflow));
       case "copilot":
         return [
           copilotInstructionsPath(input.targetPath),
@@ -233,6 +245,17 @@ async function checkTarget(input: {
             copilotWorkflowInstructionPath(input.targetPath, workflow)
           )
         ];
+      case "cursor":
+        return [
+          cursorRulePath(input.targetPath, "visp-rules"),
+          ...agentWorkflowNames.map((workflow) =>
+            cursorRulePath(input.targetPath, `visp-${workflow}`)
+          )
+        ];
+      case "gemini":
+        return agentWorkflowNames.map((workflow) =>
+          geminiCommandPath(input.targetPath, `visp-${workflow}`)
+        );
     }
   })().concat(vispRulesFilePath(input.targetPath));
 
@@ -275,8 +298,10 @@ async function checkTarget(input: {
           category: "guidance",
           severity: "info",
           title: "Codex repo-local skill loading depends on the active surface",
-          description: "Visp verified repository Codex skill files. If `$visp-feature` or `$visp-task` is not visible in the active Codex session, reload the session or reference AGENTS.md and .agents/skills directly.",
-          recommendation: "Use `visp agent bootstrap codex` in new projects and run `visp agent doctor --target codex` after installation.",
+          description:
+            "Visp verified repository Codex skill files. If `$visp-feature` or `$visp-task` is not visible in the active Codex session, reload the session or reference AGENTS.md and .agents/skills directly.",
+          recommendation:
+            "Use `visp agent bootstrap codex` in new projects and run `visp agent doctor --target codex` after installation.",
           autoFixable: false
         },
         input.findings.length + 1
@@ -367,7 +392,8 @@ export async function runAgentDoctor(
             category: "metadata",
             severity: "error",
             title: "Agent capability profile is invalid",
-            description: parsedCapabilities.error.issues[0]?.message ?? "Invalid capabilities metadata.",
+            description:
+              parsedCapabilities.error.issues[0]?.message ?? "Invalid capabilities metadata.",
             file: ".visp/agent/capabilities.json",
             recommendation: "Run `visp agent refresh --force`.",
             autoFixable: true
@@ -377,7 +403,9 @@ export async function runAgentDoctor(
       );
     } else {
       const capabilityTargets = parsedCapabilities.data.capabilities.map((item) => item.target);
-      const missingCapabilities = installed.value.filter((target) => !capabilityTargets.includes(target));
+      const missingCapabilities = installed.value.filter(
+        (target) => !capabilityTargets.includes(target)
+      );
 
       if (missingCapabilities.length > 0) {
         findings.push(
@@ -398,9 +426,7 @@ export async function runAgentDoctor(
     }
   }
 
-  const targets = options.target === undefined
-    ? installed.value
-    : [options.target];
+  const targets = options.target === undefined ? installed.value : [options.target];
 
   if (targets.length === 0) {
     findings.push(
@@ -456,8 +482,12 @@ export async function runAgentDoctor(
     }
   }
 
-  const errors = findings.filter((item) => item.severity === "error").map((item) => item.description);
-  const warnings = findings.filter((item) => item.severity === "warning").map((item) => item.description);
+  const errors = findings
+    .filter((item) => item.severity === "error")
+    .map((item) => item.description);
+  const warnings = findings
+    .filter((item) => item.severity === "warning")
+    .map((item) => item.description);
   const result = errors.length > 0 ? "failed" : warnings.length > 0 ? "warnings" : "passed";
 
   return ok({

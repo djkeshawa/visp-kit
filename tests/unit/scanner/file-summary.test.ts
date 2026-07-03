@@ -106,10 +106,7 @@ type Handler struct {}
       "std::fs",
       "worker"
     ]);
-    expect(extractLanguageSymbols("pub fn run() {}\nstruct Job;", "Rust")).toEqual([
-      "Job",
-      "run"
-    ]);
+    expect(extractLanguageSymbols("pub fn run() {}\nstruct Job;", "Rust")).toEqual(["Job", "run"]);
   });
 
   it("skips large files while keeping metadata", async () => {

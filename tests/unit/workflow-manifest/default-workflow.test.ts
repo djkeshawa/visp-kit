@@ -10,7 +10,9 @@ describe("default workflow manifest", () => {
 
     expect(parsed.success).toBe(true);
     expect(manifest.stages.map((stage) => stage.name)).toContain("implement");
-    expect(manifest.stages.find((stage) => stage.name === "implement")?.sourceEditsAllowed).toBe(true);
+    expect(manifest.stages.find((stage) => stage.name === "implement")?.sourceEditsAllowed).toBe(
+      true
+    );
     expect(manifest.principles.join(" ")).toContain("raw intent");
   });
 });

@@ -15,12 +15,7 @@ import {
 import { budgetUsageStatusSchema } from "./budget.schema.js";
 import { reviewChangeTypeSchema } from "./review.schema.js";
 
-export const prStatusSchema = z.enum([
-  "ready",
-  "warnings",
-  "blocked",
-  "missing"
-]);
+export const prStatusSchema = z.enum(["ready", "warnings", "blocked", "missing"]);
 
 export const prRequirementSchema = z
   .object({

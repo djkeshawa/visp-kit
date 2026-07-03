@@ -5,10 +5,7 @@ import {
   projectProfileSchema,
   projectStatusSchema
 } from "../../../../src/artifacts/schemas/project.schema.js";
-import {
-  validProjectConfig,
-  validProjectProfile
-} from "../fixtures.js";
+import { validProjectConfig, validProjectProfile } from "../fixtures.js";
 
 describe("project schemas", () => {
   it("accepts valid project profile and config artifacts", () => {

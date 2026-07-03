@@ -53,11 +53,11 @@ describe("phase 7 validators", () => {
       tasks: [{ ...taskGraph.tasks[0]!, dependsOn: ["T001"] }]
     };
 
-    expect(
-      validateTaskGraph({ taskGraph: missingDependency, spec }).errors.join("\n")
-    ).toContain("missing task T999");
-    expect(
-      validateTaskGraph({ taskGraph: circular, spec }).errors.join("\n")
-    ).toContain("circular dependency");
+    expect(validateTaskGraph({ taskGraph: missingDependency, spec }).errors.join("\n")).toContain(
+      "missing task T999"
+    );
+    expect(validateTaskGraph({ taskGraph: circular, spec }).errors.join("\n")).toContain(
+      "circular dependency"
+    );
   });
 });

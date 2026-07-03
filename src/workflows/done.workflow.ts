@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
-import { clearImplementMarker } from "../gates/implement-marker.js";
+import { clearTaskImplementMarker } from "../gates/implement-marker.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { runBudgetWorkflow } from "./budget.workflow.js";
 import { runChecklistStatusWorkflow } from "./checklist.workflow.js";
@@ -25,13 +25,7 @@ export type DoneWorkflowOptions = {
   readonly now?: string;
 };
 
-export type DoneStepName =
-  | "verify"
-  | "budget"
-  | "review"
-  | "reconcile"
-  | "checklist"
-  | "next";
+export type DoneStepName = "verify" | "budget" | "review" | "reconcile" | "checklist" | "next";
 
 export type DoneStepResult = {
   readonly name: DoneStepName;
@@ -118,23 +112,27 @@ export async function runDoneWorkflow(
   const verify = await runVerifyWorkflow({ ...shared, dryRun });
 
   if (!verify.ok) {
-    steps.push(step({
-      name: "verify",
-      success: false,
-      detail: verify.error.message,
-      recovery: `visp verify --task ${taskId}`
-    }));
+    steps.push(
+      step({
+        name: "verify",
+        success: false,
+        detail: verify.error.message,
+        recovery: `visp verify --task ${taskId}`
+      })
+    );
     return ok(summarize(`visp verify --task ${taskId}`));
   }
 
-  steps.push(step({
-    name: "verify",
-    success: verify.value.success,
-    detail: verify.value.success
-      ? "Verification passed."
-      : "Verification failed. Fix the reported issues, then rerun.",
-    recovery: verify.value.success ? undefined : `visp verify --task ${taskId}`
-  }));
+  steps.push(
+    step({
+      name: "verify",
+      success: verify.value.success,
+      detail: verify.value.success
+        ? "Verification passed."
+        : "Verification failed. Fix the reported issues, then rerun.",
+      recovery: verify.value.success ? undefined : `visp verify --task ${taskId}`
+    })
+  );
 
   if (!verify.value.success) {
     return ok(summarize(`visp verify --task ${taskId}`));
@@ -155,50 +153,60 @@ export async function runDoneWorkflow(
     });
 
     if (!budget.ok) {
-      steps.push(step({
-        name: "budget",
-        success: false,
-        detail: budget.error.message,
-        recovery: `visp budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report`
-      }));
+      steps.push(
+        step({
+          name: "budget",
+          success: false,
+          detail: budget.error.message,
+          recovery: `visp budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report`
+        })
+      );
       return ok(summarize(null));
     }
 
-    steps.push(step({
-      name: "budget",
-      success: true,
-      detail: recordsUsage ? "Actual token usage recorded." : "Usage recorded as unavailable."
-    }));
+    steps.push(
+      step({
+        name: "budget",
+        success: true,
+        detail: recordsUsage ? "Actual token usage recorded." : "Usage recorded as unavailable."
+      })
+    );
   } else {
-    steps.push(step({
-      name: "budget",
-      success: true,
-      skipped: true,
-      detail:
-        "No usage flags provided. Record usage with --input-tokens/--output-tokens or --usage-unavailable."
-    }));
+    steps.push(
+      step({
+        name: "budget",
+        success: true,
+        skipped: true,
+        detail:
+          "No usage flags provided. Record usage with --input-tokens/--output-tokens or --usage-unavailable."
+      })
+    );
   }
 
   const review = await runReviewWorkflow({ ...shared, dryRun });
 
   if (!review.ok) {
-    steps.push(step({
-      name: "review",
-      success: false,
-      detail: review.error.message,
-      recovery: `visp review --task ${taskId}`
-    }));
+    steps.push(
+      step({
+        name: "review",
+        success: false,
+        detail: review.error.message,
+        recovery: `visp review --task ${taskId}`
+      })
+    );
     return ok(summarize(`visp review --task ${taskId}`));
   }
 
-  steps.push(step({
-    name: "review",
-    success: review.value.success,
-    detail: review.value.success
-      ? `Review ${review.value.result}.`
-      : "Review failed. Fix the blocking findings, then rerun.",
-    recovery: review.value.success ? undefined : `visp review --task ${taskId}`
-  }));
+  steps.push(
+    step({
+      name: "review",
+      success: review.value.success,
+      detail: review.value.success
+        ? `Review ${review.value.result}.`
+        : "Review failed. Fix the blocking findings, then rerun.",
+      recovery: review.value.success ? undefined : `visp review --task ${taskId}`
+    })
+  );
 
   if (!review.value.success) {
     return ok(summarize(`visp review --task ${taskId}`));
@@ -211,25 +219,29 @@ export async function runDoneWorkflow(
   });
 
   if (!reconcile.ok) {
-    steps.push(step({
-      name: "reconcile",
-      success: false,
-      detail: reconcile.error.message,
-      recovery: `visp reconcile --task ${taskId} --update-traceability`
-    }));
+    steps.push(
+      step({
+        name: "reconcile",
+        success: false,
+        detail: reconcile.error.message,
+        recovery: `visp reconcile --task ${taskId} --update-traceability`
+      })
+    );
     return ok(summarize(`visp reconcile --task ${taskId} --update-traceability`));
   }
 
-  steps.push(step({
-    name: "reconcile",
-    success: reconcile.value.success,
-    detail: reconcile.value.success
-      ? `Reconciliation ${reconcile.value.result}.`
-      : "Reconciliation failed. Fix the reported drift, then rerun.",
-    recovery: reconcile.value.success
-      ? undefined
-      : `visp reconcile --task ${taskId} --update-traceability`
-  }));
+  steps.push(
+    step({
+      name: "reconcile",
+      success: reconcile.value.success,
+      detail: reconcile.value.success
+        ? `Reconciliation ${reconcile.value.result}.`
+        : "Reconciliation failed. Fix the reported drift, then rerun.",
+      recovery: reconcile.value.success
+        ? undefined
+        : `visp reconcile --task ${taskId} --update-traceability`
+    })
+  );
 
   if (!reconcile.value.success) {
     return ok(summarize(`visp reconcile --task ${taskId} --update-traceability`));
@@ -238,28 +250,32 @@ export async function runDoneWorkflow(
   const checklist = await runChecklistStatusWorkflow(shared);
 
   if (!checklist.ok) {
-    steps.push(step({
-      name: "checklist",
-      success: false,
-      detail: checklist.error.message,
-      recovery: `visp checklist status --task ${taskId}`
-    }));
+    steps.push(
+      step({
+        name: "checklist",
+        success: false,
+        detail: checklist.error.message,
+        recovery: `visp checklist status --task ${taskId}`
+      })
+    );
     return ok(summarize(`visp checklist status --task ${taskId}`));
   }
 
   const pending = checklist.value.summary.pendingRequired.map((item) => item.id);
   const blocked = checklist.value.summary.blockedRequired.map((item) => item.id);
 
-  steps.push(step({
-    name: "checklist",
-    success: checklist.value.success,
-    detail: checklist.value.success
-      ? "All required checklist items are complete."
-      : `Required checklist items are incomplete: ${[...pending, ...blocked].join(", ")}.`,
-    recovery: checklist.value.success
-      ? undefined
-      : `visp checklist update --task ${taskId} --item <item-id> --status done`
-  }));
+  steps.push(
+    step({
+      name: "checklist",
+      success: checklist.value.success,
+      detail: checklist.value.success
+        ? "All required checklist items are complete."
+        : `Required checklist items are incomplete: ${[...pending, ...blocked].join(", ")}.`,
+      recovery: checklist.value.success
+        ? undefined
+        : `visp checklist update --task ${taskId} --item <item-id> --status done`
+    })
+  );
 
   const next = await runNextWorkflow({
     targetPath: options.targetPath,
@@ -268,25 +284,29 @@ export async function runDoneWorkflow(
   });
 
   if (!next.ok) {
-    steps.push(step({
-      name: "next",
-      success: false,
-      detail: next.error.message,
-      recovery: "visp next"
-    }));
+    steps.push(
+      step({
+        name: "next",
+        success: false,
+        detail: next.error.message,
+        recovery: "visp next"
+      })
+    );
     return ok(summarize("visp next"));
   }
 
-  steps.push(step({
-    name: "next",
-    success: true,
-    detail: next.value.nextCommand
-  }));
+  steps.push(
+    step({
+      name: "next",
+      success: true,
+      detail: next.value.nextCommand
+    })
+  );
 
   const summary = summarize(next.value.nextCommand);
 
   if (summary.success && !dryRun) {
-    const cleared = await clearImplementMarker(targetPath);
+    const cleared = await clearTaskImplementMarker(targetPath, taskId);
 
     if (!cleared.ok) return cleared;
   }

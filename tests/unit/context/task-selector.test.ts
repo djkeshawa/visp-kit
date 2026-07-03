@@ -1,16 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { type TaskGraphArtifact } from "../../../src/artifacts/schemas/task.schema.js";
-import {
-  selectNextTask,
-  selectTaskById
-} from "../../../src/context/task-selector.js";
+import { selectNextTask, selectTaskById } from "../../../src/context/task-selector.js";
 import { isErr } from "../../../src/core/result.js";
 import { timestamp, validTaskGraph } from "../artifacts/fixtures.js";
 
-function graph(
-  tasks: TaskGraphArtifact["tasks"]
-): TaskGraphArtifact {
+function graph(tasks: TaskGraphArtifact["tasks"]): TaskGraphArtifact {
   return {
     featureId: "001",
     featureSlug: "note-pinning",

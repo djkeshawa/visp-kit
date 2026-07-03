@@ -70,9 +70,7 @@ export function validateScope(input: {
   );
 
   if (unmappedChangedFiles.length > 0) {
-    warnings.push(
-      `Changed files are not mapped to any task: ${unmappedChangedFiles.join(", ")}.`
-    );
+    warnings.push(`Changed files are not mapped to any task: ${unmappedChangedFiles.join(", ")}.`);
   }
 
   return {

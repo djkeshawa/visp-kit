@@ -195,7 +195,12 @@ describe("visp override command", () => {
 
     const created = JSON.parse(output.join("")) as {
       success: boolean;
-      override: { scope: string; featureId: string | null; featureSlug: string | null; taskId: string | null };
+      override: {
+        scope: string;
+        featureId: string | null;
+        featureSlug: string | null;
+        taskId: string | null;
+      };
       warnings: string[];
     };
 
@@ -211,14 +216,7 @@ describe("visp override command", () => {
     await createPhase8Fixture(tempDir);
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "policy",
-      "set-strictness",
-      "locked",
-      tempDir
-    ]);
+    await program.parseAsync(["node", "visp", "policy", "set-strictness", "locked", tempDir]);
 
     process.exitCode = undefined;
     const errors: string[] = [];

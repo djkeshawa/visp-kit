@@ -1,6 +1,4 @@
-import {
-  agentCapabilitiesPath
-} from "./agent-paths.js";
+import { agentCapabilitiesPath } from "./agent-paths.js";
 import {
   agentCapabilitiesSchema,
   type AgentCapabilities,
@@ -33,7 +31,13 @@ function capabilityFor(input: {
         canRunShellExpected: true,
         canEditFilesExpected: true,
         tokenUsageVisibility: "manual",
-        recommendedWorkflowTriggers: ["$visp-feature", "$visp-task", "$visp-fix", "$visp-review", "$visp-pr"],
+        recommendedWorkflowTriggers: [
+          "$visp-feature",
+          "$visp-task",
+          "$visp-fix",
+          "$visp-review",
+          "$visp-pr"
+        ],
         generatedFiles: [...input.files],
         limitations: [...baseLimitations()]
       };
@@ -46,9 +50,18 @@ function capabilityFor(input: {
         canRunShellExpected: true,
         canEditFilesExpected: true,
         tokenUsageVisibility: "manual",
-        recommendedWorkflowTriggers: ["/visp-feature", "/visp-task", "/visp-fix", "/visp-review", "/visp-pr"],
+        recommendedWorkflowTriggers: [
+          "/visp-feature",
+          "/visp-task",
+          "/visp-fix",
+          "/visp-review",
+          "/visp-pr"
+        ],
         generatedFiles: [...input.files],
-        limitations: [...baseLimitations(), "Claude command support depends on the installed Claude Code surface."]
+        limitations: [
+          ...baseLimitations(),
+          "Claude command support depends on the installed Claude Code surface."
+        ]
       };
     case "copilot":
       return {
@@ -61,7 +74,10 @@ function capabilityFor(input: {
         tokenUsageVisibility: "manual",
         recommendedWorkflowTriggers: ["Follow .github/instructions/visp-feature.instructions.md."],
         generatedFiles: [...input.files],
-        limitations: [...baseLimitations(), "Copilot instruction support varies by product surface."]
+        limitations: [
+          ...baseLimitations(),
+          "Copilot instruction support varies by product surface."
+        ]
       };
     case "generic":
       return {
@@ -72,9 +88,59 @@ function capabilityFor(input: {
         canRunShellExpected: false,
         canEditFilesExpected: true,
         tokenUsageVisibility: "manual",
-        recommendedWorkflowTriggers: [".visp/prompts/agent-feature.prompt.md", ".visp/prompts/agent-task.prompt.md"],
+        recommendedWorkflowTriggers: [
+          ".visp/prompts/agent-feature.prompt.md",
+          ".visp/prompts/agent-task.prompt.md"
+        ],
         generatedFiles: [...input.files],
-        limitations: [...baseLimitations(), "Generic prompts may need to be pasted into the active AI coding tool."]
+        limitations: [
+          ...baseLimitations(),
+          "Generic prompts may need to be pasted into the active AI coding tool."
+        ]
+      };
+    case "cursor":
+      return {
+        target: "cursor",
+        supportsSkillFiles: false,
+        supportsCommandFiles: false,
+        supportsRepositoryInstructions: true,
+        canRunShellExpected: true,
+        canEditFilesExpected: true,
+        tokenUsageVisibility: "manual",
+        recommendedWorkflowTriggers: [
+          "@visp-feature",
+          "@visp-task",
+          "@visp-fix",
+          "@visp-review",
+          "@visp-pr"
+        ],
+        generatedFiles: [...input.files],
+        limitations: [
+          ...baseLimitations(),
+          "Cursor rule attachment depends on the editor version and rule settings."
+        ]
+      };
+    case "gemini":
+      return {
+        target: "gemini",
+        supportsSkillFiles: false,
+        supportsCommandFiles: true,
+        supportsRepositoryInstructions: true,
+        canRunShellExpected: true,
+        canEditFilesExpected: true,
+        tokenUsageVisibility: "manual",
+        recommendedWorkflowTriggers: [
+          "/visp-feature",
+          "/visp-task",
+          "/visp-fix",
+          "/visp-review",
+          "/visp-pr"
+        ],
+        generatedFiles: [...input.files],
+        limitations: [
+          ...baseLimitations(),
+          "Gemini CLI custom command support depends on the installed Gemini CLI version."
+        ]
       };
   }
 }

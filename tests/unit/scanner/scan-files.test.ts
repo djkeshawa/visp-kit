@@ -26,10 +26,7 @@ describe("file scanner", () => {
 
     const files = await scanFiles(tempDir, "2026-01-01T00:00:00.000Z");
 
-    expect(files.map((file) => file.path)).toEqual([
-      "src/index.test.ts",
-      "src/index.ts"
-    ]);
+    expect(files.map((file) => file.path)).toEqual(["src/index.test.ts", "src/index.ts"]);
     expect(files[0].hash).toHaveLength(64);
     expect(files[0].isTestFile).toBe(true);
     expect(files[1].language).toBe("TypeScript");

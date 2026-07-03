@@ -61,9 +61,7 @@ describe("visp scan command", () => {
     await program.parseAsync(["node", "visp", "scan", tempDir]);
 
     expect(output.join("")).toContain("Visp scan complete");
-    expect(await exists(path.join(tempDir, ".visp", "cache", "scan-meta.json"))).toBe(
-      true
-    );
+    expect(await exists(path.join(tempDir, ".visp", "cache", "scan-meta.json"))).toBe(true);
   });
 
   it("fails clearly when the project is not initialized", async () => {
@@ -91,8 +89,6 @@ describe("visp scan command", () => {
     await program.parseAsync(["node", "visp", "scan", tempDir, "--dry-run"]);
 
     expect(output.join("")).toContain("dry run");
-    expect(await exists(path.join(tempDir, ".visp", "reports", "scan-report.md"))).toBe(
-      true
-    );
+    expect(await exists(path.join(tempDir, ".visp", "reports", "scan-report.md"))).toBe(true);
   });
 });

@@ -3,12 +3,8 @@ import path from "node:path";
 import { readTextFile } from "../core/file-system.js";
 import { toPosixPath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import { VispError } from "../core/errors.js";
-import {
-  isBinaryPath,
-  isLockFile,
-  shouldIgnorePath
-} from "../scanner/ignore-rules.js";
+import { type VispError } from "../core/errors.js";
+import { isBinaryPath, isLockFile, shouldIgnorePath } from "../scanner/ignore-rules.js";
 import { estimateTokens } from "./token-estimator.js";
 
 export type FileSnippet = {
@@ -55,11 +51,7 @@ export async function extractFileSnippet(
 ): Promise<Result<FileSnippet | undefined, VispError>> {
   const relativePath = toPosixPath(options.filePath);
 
-  if (
-    shouldIgnorePath(relativePath) ||
-    isBinaryPath(relativePath) ||
-    isLockFile(relativePath)
-  ) {
+  if (shouldIgnorePath(relativePath) || isBinaryPath(relativePath) || isLockFile(relativePath)) {
     return ok(undefined);
   }
 

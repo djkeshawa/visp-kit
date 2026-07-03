@@ -1,8 +1,5 @@
 import { type Task } from "../artifacts/schemas/task.schema.js";
-import {
-  type GateBlockedCommand,
-  type GateRuleFinding
-} from "../artifacts/schemas/gate.schema.js";
+import { type GateBlockedCommand, type GateRuleFinding } from "../artifacts/schemas/gate.schema.js";
 import { type ProjectState } from "./project-state.js";
 
 export type NextStep = {
@@ -33,29 +30,31 @@ export type NextStep = {
   readonly agentInstruction?: string;
 };
 
-function taskFlag(task: Task | undefined): string {
-  return task === undefined ? "" : ` --task ${task.id}`;
-}
-
 function sourceChanges(state: ProjectState): boolean {
   return state.git.changedFiles.some((file) => !file.startsWith(".visp/"));
 }
 
 function nextUnfinishedTask(state: ProjectState): Task | undefined {
-  return state.taskGraph?.tasks.find((task) =>
-    task.status !== "done" && task.status !== "verified"
+  return state.taskGraph?.tasks.find(
+    (task) => task.status !== "done" && task.status !== "verified"
   );
 }
 
 function incompleteChecklist(state: ProjectState): boolean {
-  return state.implementationChecklist === undefined ||
-    state.implementationChecklist.items.some((item) =>
-      item.required && (item.status === "pending" || item.status === "blocked")
-    );
+  return (
+    state.implementationChecklist === undefined ||
+    state.implementationChecklist.items.some(
+      (item) => item.required && (item.status === "pending" || item.status === "blocked")
+    )
+  );
 }
 
 function usageStatus(state: ProjectState): string {
-  return state.actualUsage?.status ?? state.implementationChecklist?.items.find((item) => item.id === "record-usage")?.status ?? "not_recorded";
+  return (
+    state.actualUsage?.status ??
+    state.implementationChecklist?.items.find((item) => item.id === "record-usage")?.status ??
+    "not_recorded"
+  );
 }
 
 function output(input: {
@@ -73,29 +72,26 @@ function output(input: {
   return {
     success: (input.blockers ?? []).length === 0,
     targetPath: input.state.targetPath,
-    feature: input.state.selectedFeature === undefined
-      ? null
-      : {
-          id: input.state.selectedFeature.id,
-          slug: input.state.selectedFeature.slug
-        },
-    task: task === undefined
-      ? null
-      : {
-          id: task.id,
-          title: task.title,
-          status: task.status
-        },
+    feature:
+      input.state.selectedFeature === undefined
+        ? null
+        : {
+            id: input.state.selectedFeature.id,
+            slug: input.state.selectedFeature.slug
+          },
+    task:
+      task === undefined
+        ? null
+        : {
+            id: task.id,
+            title: task.title,
+            status: task.status
+          },
     state: input.stateName ?? input.state.status?.currentState ?? "unknown",
     nextCommand: input.nextCommand,
     reason: input.reason,
     blockers: input.blockers ?? [],
-    warnings: [
-      ...new Set([
-        ...input.state.warnings,
-        ...(input.warnings ?? [])
-      ])
-    ],
+    warnings: [...new Set([...input.state.warnings, ...(input.warnings ?? [])])],
     confidence: input.confidence ?? "high"
   };
 }
@@ -117,7 +113,7 @@ export function recommendNextStep(input: {
     });
   }
 
-  if (!state.scanned || input.strict && !state.scanned) {
+  if (!state.scanned || (input.strict && !state.scanned)) {
     return output({
       state,
       nextCommand: "visp scan",
@@ -126,7 +122,7 @@ export function recommendNextStep(input: {
     });
   }
 
-  if (!state.constitution || input.strict && !state.constitution) {
+  if (!state.constitution || (input.strict && !state.constitution)) {
     return output({
       state,
       nextCommand: "visp constitution",
@@ -180,9 +176,10 @@ export function recommendNextStep(input: {
     });
   }
 
-  const selectedTask = input.taskId === undefined
-    ? state.selectedTask
-    : state.taskGraph?.tasks.find((task) => task.id === input.taskId);
+  const selectedTask =
+    input.taskId === undefined
+      ? state.selectedTask
+      : state.taskGraph?.tasks.find((task) => task.id === input.taskId);
 
   if (input.taskId !== undefined && selectedTask === undefined) {
     return output({
@@ -223,7 +220,8 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: input.taskId === undefined ? "visp context --next" : `visp context ${selectedTask.id}`,
+      nextCommand:
+        input.taskId === undefined ? "visp context --next" : `visp context ${selectedTask.id}`,
       reason: `No context pack exists for ${selectedTask.id}.`,
       stateName: "context-needed"
     });
@@ -317,11 +315,14 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: state.implementationChecklist === undefined
-        ? `visp context ${selectedTask.id}`
-        : `visp checklist status --task ${selectedTask.id}`,
+      nextCommand:
+        state.implementationChecklist === undefined
+          ? `visp context ${selectedTask.id}`
+          : `visp checklist status --task ${selectedTask.id}`,
       reason: `Required implementation checklist items are incomplete. Usage status: ${usageStatus(state)}.`,
-      blockers: ["Required implementation checklist items must be done, unavailable, or not applicable before PR."],
+      blockers: [
+        "Required implementation checklist items must be done, unavailable, or not applicable before PR."
+      ],
       stateName: "checklist-needed"
     });
   }

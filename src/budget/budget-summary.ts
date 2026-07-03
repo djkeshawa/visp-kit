@@ -47,40 +47,29 @@ export function createBudgetSummary(input: {
   readonly warnings: readonly string[];
 }): BudgetSummary {
   const totals = {
-    estimatedInputTokens: input.tasks.reduce(
-      (sum, task) => sum + task.estimatedInputTokens,
-      0
-    ),
-    expectedOutputTokens: input.tasks.reduce(
-      (sum, task) => sum + task.expectedOutputTokens,
-      0
-    ),
-    estimatedTotalTokens: input.tasks.reduce(
-      (sum, task) => sum + task.estimatedTotalTokens,
-      0
-    ),
-    actualInputTokens:
-      input.tasks.some((task) => typeof task.actualInputTokens === "number")
-        ? input.tasks.reduce((sum, task) => sum + (task.actualInputTokens ?? 0), 0)
-        : null,
-    actualOutputTokens:
-      input.tasks.some((task) => typeof task.actualOutputTokens === "number")
-        ? input.tasks.reduce((sum, task) => sum + (task.actualOutputTokens ?? 0), 0)
-        : null,
-    actualTotalTokens:
-      input.tasks.some((task) => typeof task.actualTotalTokens === "number")
-        ? input.tasks.reduce((sum, task) => sum + (task.actualTotalTokens ?? 0), 0)
-        : null,
+    estimatedInputTokens: input.tasks.reduce((sum, task) => sum + task.estimatedInputTokens, 0),
+    expectedOutputTokens: input.tasks.reduce((sum, task) => sum + task.expectedOutputTokens, 0),
+    estimatedTotalTokens: input.tasks.reduce((sum, task) => sum + task.estimatedTotalTokens, 0),
+    actualInputTokens: input.tasks.some((task) => typeof task.actualInputTokens === "number")
+      ? input.tasks.reduce((sum, task) => sum + (task.actualInputTokens ?? 0), 0)
+      : null,
+    actualOutputTokens: input.tasks.some((task) => typeof task.actualOutputTokens === "number")
+      ? input.tasks.reduce((sum, task) => sum + (task.actualOutputTokens ?? 0), 0)
+      : null,
+    actualTotalTokens: input.tasks.some((task) => typeof task.actualTotalTokens === "number")
+      ? input.tasks.reduce((sum, task) => sum + (task.actualTotalTokens ?? 0), 0)
+      : null,
     actualUsageStatus: input.tasks.some((task) => task.actualUsageStatus === "recorded")
-      ? "recorded" as const
+      ? ("recorded" as const)
       : input.tasks.some((task) => task.actualUsageStatus === "unavailable")
-        ? "unavailable" as const
-        : "not_recorded" as const,
+        ? ("unavailable" as const)
+        : ("not_recorded" as const),
     overBudgetTaskCount: input.tasks.filter((task) => task.overBudget).length
   };
-  const selected = input.taskId === undefined
-    ? undefined
-    : input.tasks.find((task) => task.taskId === input.taskId);
+  const selected =
+    input.taskId === undefined
+      ? undefined
+      : input.tasks.find((task) => task.taskId === input.taskId);
 
   return {
     success: true,
@@ -118,8 +107,22 @@ export function formatBudgetSummary(summary: BudgetSummary): string {
     formatKeyValue("Estimated input tokens", String(summary.totals.estimatedInputTokens)),
     formatKeyValue("Estimated total tokens", String(summary.totals.estimatedTotalTokens)),
     formatKeyValue("Actual usage", summary.totals.actualUsageStatus),
-    formatKeyValue("Actual input tokens", summary.totals.actualInputTokens === null ? summary.totals.actualUsageStatus === "unavailable" ? "unavailable" : "not recorded" : String(summary.totals.actualInputTokens)),
-    formatKeyValue("Actual total tokens", summary.totals.actualTotalTokens === null ? summary.totals.actualUsageStatus === "unavailable" ? "unavailable" : "not recorded" : String(summary.totals.actualTotalTokens)),
+    formatKeyValue(
+      "Actual input tokens",
+      summary.totals.actualInputTokens === null
+        ? summary.totals.actualUsageStatus === "unavailable"
+          ? "unavailable"
+          : "not recorded"
+        : String(summary.totals.actualInputTokens)
+    ),
+    formatKeyValue(
+      "Actual total tokens",
+      summary.totals.actualTotalTokens === null
+        ? summary.totals.actualUsageStatus === "unavailable"
+          ? "unavailable"
+          : "not recorded"
+        : String(summary.totals.actualTotalTokens)
+    ),
     formatKeyValue("Over-budget tasks", String(summary.totals.overBudgetTaskCount))
   ];
 

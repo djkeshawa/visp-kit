@@ -6,9 +6,13 @@ import { finding, type ReviewFindingDraft } from "./review-findings.js";
 function taskLooksBehaviorChanging(task: Task): boolean {
   const text = `${task.title} ${task.description}`.toLowerCase();
 
-  return task.acceptanceCriterionIds.length > 0 ||
+  return (
+    task.acceptanceCriterionIds.length > 0 ||
     task.riskLevel !== "low" ||
-    /add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow/.test(text);
+    /add|update|create|delete|validate|calculate|permission|api|persistence|state|workflow/.test(
+      text
+    )
+  );
 }
 
 export function reviewTraceability(input: {
@@ -33,8 +37,12 @@ export function reviewTraceability(input: {
   const tasks = input.task === undefined ? input.taskGraph.tasks : [input.task];
   const requirementIds = tasks.flatMap((task) => task.requirementIds);
   const acceptanceCriterionIds = tasks.flatMap((task) => task.acceptanceCriterionIds);
-  const specRequirements = new Set(input.spec?.requirements.map((requirement) => requirement.id) ?? []);
-  const specCriteria = new Set(input.spec?.acceptanceCriteria.map((criterion) => criterion.id) ?? []);
+  const specRequirements = new Set(
+    input.spec?.requirements.map((requirement) => requirement.id) ?? []
+  );
+  const specCriteria = new Set(
+    input.spec?.acceptanceCriteria.map((criterion) => criterion.id) ?? []
+  );
   const tracedTasks = new Set(input.traceability?.entries.flatMap((entry) => entry.taskIds) ?? []);
 
   if (input.spec === undefined) {
@@ -130,8 +138,11 @@ export function reviewTraceability(input: {
       status:
         errors.length > 0
           ? "failed"
-          : input.traceability === undefined ? "missing"
-          : warnings.length > 0 ? "warnings" : "passed",
+          : input.traceability === undefined
+            ? "missing"
+            : warnings.length > 0
+              ? "warnings"
+              : "passed",
       requirementIds: [...new Set(requirementIds)].sort(),
       acceptanceCriterionIds: [...new Set(acceptanceCriterionIds)].sort(),
       traceabilityFound: input.traceability !== undefined,

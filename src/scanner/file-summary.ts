@@ -96,7 +96,10 @@ export function extractLanguageSymbols(content: string, language: string): strin
   if (language === "Java" || language === "Kotlin") {
     return unique([
       ...matches(content, /\b(?:class|interface|enum|record)\s+([A-Za-z_][\w]*)/gm),
-      ...matches(content, /^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[\w<>\[\], ?]+\s+([A-Za-z_][\w]*)\s*\(/gm)
+      ...matches(
+        content,
+        /^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[\w<>[\], ?]+\s+([A-Za-z_][\w]*)\s*\(/gm
+      )
     ]);
   }
 
@@ -129,11 +132,7 @@ function extractComments(content: string): string[] {
     .slice(0, 5);
 }
 
-function skippedSummary(
-  file: FileIndexEntry,
-  reason: string,
-  lineCount = 0
-): FileSummary {
+function skippedSummary(file: FileIndexEntry, reason: string, lineCount = 0): FileSummary {
   return {
     path: file.path,
     hash: file.hash,
@@ -149,10 +148,7 @@ function skippedSummary(
   };
 }
 
-export async function summarizeFile(
-  rootPath: string,
-  file: FileIndexEntry
-): Promise<FileSummary> {
+export async function summarizeFile(rootPath: string, file: FileIndexEntry): Promise<FileSummary> {
   if (isBinaryPath(file.path)) {
     return skippedSummary(file, "binary_file");
   }
@@ -175,9 +171,10 @@ export async function summarizeFile(
     sizeBytes: file.sizeBytes,
     lineCount,
     imports: extractLanguageImports(content, file.language),
-    exports: file.language === "TypeScript" || file.language === "JavaScript"
-      ? extractExports(content)
-      : [],
+    exports:
+      file.language === "TypeScript" || file.language === "JavaScript"
+        ? extractExports(content)
+        : [],
     symbols: extractLanguageSymbols(content, file.language),
     comments: extractComments(content),
     summaryKind: "deterministic"

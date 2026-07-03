@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { type GateResult } from "../../../src/artifacts/schemas/gate.schema.js";
-import {
-  formatGateResult,
-  renderGateReport
-} from "../../../src/gates/gate-report.js";
+import { formatGateResult, renderGateReport } from "../../../src/gates/gate-report.js";
 
 const result: GateResult = {
   success: false,

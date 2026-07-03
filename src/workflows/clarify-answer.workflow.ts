@@ -57,8 +57,8 @@ function meaningfulAnswer(value: string | undefined): string | undefined {
 }
 
 function nextArtifactStatus(artifact: ClarificationArtifact): "draft" | "ready" {
-  return artifact.questions.some((question) =>
-    question.blocking && question.status === "unanswered"
+  return artifact.questions.some(
+    (question) => question.blocking && question.status === "unanswered"
   )
     ? "draft"
     : "ready";
@@ -86,16 +86,11 @@ export async function runClarifyAnswerWorkflow(
 
   if (!artifact.ok) {
     return err(
-      new VispError(
-        artifact.error.code,
-        `${artifact.error.message} Run \`visp clarify\` first.`
-      )
+      new VispError(artifact.error.code, `${artifact.error.message} Run \`visp clarify\` first.`)
     );
   }
 
-  const question = artifact.value.questions.find((item) =>
-    item.id === options.questionId
-  );
+  const question = artifact.value.questions.find((item) => item.id === options.questionId);
 
   if (question === undefined) {
     return err(
@@ -185,7 +180,9 @@ export async function runClarifyAnswerWorkflow(
 
 export function formatClarifyAnswerSummary(summary: ClarifyAnswerSummary): string {
   const lines = [
-    formatHeader(summary.dryRun ? "Visp clarification answer dry run." : "Visp clarification answered."),
+    formatHeader(
+      summary.dryRun ? "Visp clarification answer dry run." : "Visp clarification answered."
+    ),
     "",
     formatKeyValue("Feature", `${summary.feature.id}-${summary.feature.slug}`),
     formatKeyValue("Question", summary.questionId),

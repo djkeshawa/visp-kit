@@ -34,7 +34,9 @@ describe("agent workflow", () => {
       "codex",
       "generic",
       "claude",
-      "copilot"
+      "copilot",
+      "cursor",
+      "gemini"
     ]);
   });
 

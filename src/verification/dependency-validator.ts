@@ -10,10 +10,7 @@ function normalize(values: readonly string[] | undefined): readonly string[] {
 function taskApprovesDependencies(task: Task | undefined): boolean {
   if (task === undefined) return false;
 
-  const scoped = new Set([
-    ...normalize(task.allowedFiles),
-    ...normalize(task.expectedFiles)
-  ]);
+  const scoped = new Set([...normalize(task.allowedFiles), ...normalize(task.expectedFiles)]);
   const text = `${task.title} ${task.description}`.toLowerCase();
 
   return (
@@ -23,10 +20,7 @@ function taskApprovesDependencies(task: Task | undefined): boolean {
 }
 
 function planApprovesDependencies(plan: PlanDraftArtifact | undefined): boolean {
-  return Boolean(
-    plan?.dependencies.newDependenciesRequired &&
-      plan.dependencies.requiresApproval
-  );
+  return Boolean(plan?.dependencies.newDependenciesRequired && plan.dependencies.requiresApproval);
 }
 
 export function validateDependencies(input: {

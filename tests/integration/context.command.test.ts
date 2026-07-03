@@ -30,22 +30,9 @@ describe("visp context command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "context",
-      "T001",
-      tempDir,
-      "--force"
-    ]);
+    await program.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
 
-    const contextDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning",
-      "context"
-    );
+    const contextDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "context");
 
     expect(output.join("")).toContain("Visp context ready");
     expect(await exists(path.join(contextDir, "T001.context.md"))).toBe(true);
@@ -66,7 +53,12 @@ describe("visp context command", () => {
       policyGate?: { stage: string; allowed: boolean };
       includedRequirements: Array<{ id: string }>;
       includedFiles: Array<{ path: string; includeMode: string }>;
-      artifactProvenance: Array<{ label: string; path: string; hash: string; hashAlgorithm: string }>;
+      artifactProvenance: Array<{
+        label: string;
+        path: string;
+        hash: string;
+        hashAlgorithm: string;
+      }>;
       estimatedTokens: { maxInput: number };
     };
     const currentPrompt = await readFile(
@@ -100,19 +92,17 @@ describe("visp context command", () => {
     expect(checklistJson.items.map((item) => item.id)).toContain("record-usage");
     expect(checklistJson.items.every((item) => item.status === "pending")).toBe(true);
     expect(checklistJson.items.every((item) => item.required)).toBe(true);
-    expect(contextJson.includedRequirements.map((item) => item.id)).toEqual([
-      "REQ001"
-    ]);
-    expect(contextJson.includedFiles.map((item) => item.path)).toContain(
-      "src/notes.ts"
-    );
+    expect(contextJson.includedRequirements.map((item) => item.id)).toEqual(["REQ001"]);
+    expect(contextJson.includedFiles.map((item) => item.path)).toContain("src/notes.ts");
     expect(contextJson.artifactProvenance.map((item) => item.label)).toContain("spec");
     expect(contextJson.artifactProvenance.map((item) => item.label)).toContain("task graph");
     expect(contextJson.artifactProvenance.find((item) => item.label === "spec")).toMatchObject({
       path: ".visp/features/001-add-note-pinning/spec.json",
       hashAlgorithm: "sha256"
     });
-    expect(contextJson.artifactProvenance.find((item) => item.label === "spec")?.hash).toMatch(/^[a-f0-9]{64}$/u);
+    expect(contextJson.artifactProvenance.find((item) => item.label === "spec")?.hash).toMatch(
+      /^[a-f0-9]{64}$/u
+    );
     expect(contextJson.estimatedTokens.maxInput).toBe(8000);
     expect(budgetReport).toContain("# Visp Budget Report");
     expect(budgetReport).toContain("| T001 |");
@@ -123,15 +113,7 @@ describe("visp context command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "context",
-      "--next",
-      tempDir,
-      "--json",
-      "--force"
-    ]);
+    await program.parseAsync(["node", "visp", "context", "--next", tempDir, "--json", "--force"]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -174,14 +156,7 @@ describe("visp context command", () => {
     await createPhase8Fixture(tempDir);
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "context",
-      "T001",
-      tempDir,
-      "--dry-run"
-    ]);
+    await program.parseAsync(["node", "visp", "context", "T001", tempDir, "--dry-run"]);
 
     expect(
       await exists(

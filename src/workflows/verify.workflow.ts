@@ -15,23 +15,19 @@ import {
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
-import { planDraftArtifactSchema, type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
+import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
 import {
   projectProfileSchema,
   projectStatusSchema,
-  type ProjectProfile,
   type ProjectStatus
 } from "../artifacts/schemas/project.schema.js";
-import { specArtifactSchema, type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
+import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import {
   taskGraphArtifactSchema,
   type Task,
   type TaskGraphArtifact
 } from "../artifacts/schemas/task.schema.js";
-import {
-  traceabilityMatrixSchema,
-  type TraceabilityMatrix
-} from "../artifacts/schemas/traceability.schema.js";
+import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
 import {
   verificationReportSchema,
   type ArtifactValidationSection,
@@ -61,10 +57,7 @@ import {
   renderVerificationMarkdown
 } from "../verification/verification-report.js";
 import { runVerificationCommands } from "../verification/verification-runner.js";
-import {
-  formatVerifySummary,
-  type VerifySummary
-} from "../verification/verification-summary.js";
+import { formatVerifySummary, type VerifySummary } from "../verification/verification-summary.js";
 import {
   evaluatePolicyGate,
   gateBlocksWorkflow,
@@ -130,7 +123,9 @@ async function optionalArtifact<T>(input: {
   });
 
   if (!artifact.ok) {
-    input.warnings.push(`Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`);
+    input.warnings.push(
+      `Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`
+    );
     return undefined;
   }
 
@@ -233,11 +228,9 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Task graph is missing. Run `visp tasks` first.",
-        { recovery: "visp tasks" }
-      )
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", {
+        recovery: "visp tasks"
+      })
     );
   }
 
@@ -268,15 +261,19 @@ function commandSection(input: {
   const errors = input.results
     .filter((result) => !result.success && !result.skipped)
     .map((result) => `Command failed: ${result.command}`);
-  const allSkipped =
-    input.results.length > 0 && input.results.every((result) => result.skipped);
+  const allSkipped = input.results.length > 0 && input.results.every((result) => result.skipped);
 
   return {
     status:
       input.results.length === 0
-        ? input.warnings.length > 0 ? "warned" : "skipped"
-        : allSkipped ? "skipped"
-        : errors.length > 0 ? "failed" : "passed",
+        ? input.warnings.length > 0
+          ? "warned"
+          : "skipped"
+        : allSkipped
+          ? "skipped"
+          : errors.length > 0
+            ? "failed"
+            : "passed",
     commands: [...input.results],
     warnings: [...input.warnings],
     errors
@@ -431,7 +428,9 @@ export async function runVerifyWorkflow(
     if (checklistSummary.ok) {
       warnings.push(implementationChecklistStatusLine(checklistSummary.value));
     } else {
-      warnings.push(`Implementation checklist status unavailable: ${checklistSummary.error.message}`);
+      warnings.push(
+        `Implementation checklist status unavailable: ${checklistSummary.error.message}`
+      );
     }
   }
 
@@ -485,35 +484,37 @@ export async function runVerifyWorkflow(
         explicit: options.traceability === true
       })
     : skippedTraceability(selectedTask?.id);
-  const commandSelection =
-    checks.commands
-      ? selectValidationCommands({
-          mode: commandMode({
-            task: selectedTask,
-            all: options.all,
-            targeted: options.targeted
-          }),
+  const commandSelection = checks.commands
+    ? selectValidationCommands({
+        mode: commandMode({
           task: selectedTask,
-          contextPack,
-          project
-        })
-      : { commands: [], warnings: [] };
-  const commandResults =
-    checks.commands
-      ? await runVerificationCommands({
-          targetPath,
-          commands: commandSelection.commands,
-          dryRun,
-          commandRunner: options.commandRunner,
-          jsonOutput: options.jsonOutput
-        })
-      : [];
+          all: options.all,
+          targeted: options.targeted
+        }),
+        task: selectedTask,
+        contextPack,
+        project
+      })
+    : { commands: [], warnings: [] };
+  const commandResults = checks.commands
+    ? await runVerificationCommands({
+        targetPath,
+        commands: commandSelection.commands,
+        dryRun,
+        commandRunner: options.commandRunner,
+        jsonOutput: options.jsonOutput
+      })
+    : [];
   const commandValidation = checks.commands
     ? commandSection({
         results: commandResults,
         warnings: commandSelection.warnings
       })
-    : skippedCommands(options.skipCommands ? "Command execution skipped by --skip-commands." : "Command execution not selected.");
+    : skippedCommands(
+        options.skipCommands
+          ? "Command execution skipped by --skip-commands."
+          : "Command execution not selected."
+      );
   const git =
     checks.scope || checks.dependencies
       ? await getGitChangedFiles({
@@ -558,15 +559,19 @@ export async function runVerifyWorkflow(
     errors: [],
     nextCommand: "pending"
   };
-  const gateBlocks = policyGate === undefined
-    ? false
-    : gateBlocksWorkflow({ gate: policyGate, force: options.force });
+  const gateBlocks =
+    policyGate === undefined
+      ? false
+      : gateBlocksWorkflow({ gate: policyGate, force: options.force });
   const gateMessages = policyGate === undefined ? [] : gateFailureMessages(policyGate);
-  const gateWarnings = policyGate === undefined
-    ? []
-    : gateBlocks ? [] : gateWarningMessages(policyGate);
-  const collectedWarnings = [...new Set([...warnings, ...gateWarnings, ...collectWarnings(baseReport)])];
-  const collectedErrors = [...new Set([...collectErrors(baseReport), ...(gateBlocks ? gateMessages : [])])];
+  const gateWarnings =
+    policyGate === undefined ? [] : gateBlocks ? [] : gateWarningMessages(policyGate);
+  const collectedWarnings = [
+    ...new Set([...warnings, ...gateWarnings, ...collectWarnings(baseReport)])
+  ];
+  const collectedErrors = [
+    ...new Set([...collectErrors(baseReport), ...(gateBlocks ? gateMessages : [])])
+  ];
   const nextCommand =
     collectedErrors.length === 0
       ? "visp review --diff-only"
@@ -602,12 +607,9 @@ export async function runVerifyWorkflow(
   const reportPath = relativePath(targetPath, reportMarkdownPath);
 
   if (!dryRun) {
-    const writeJson = await writeArtifact(
-      reportJsonPath,
-      verificationReportSchema,
-      parsed.data,
-      { artifactName: "verification report" }
-    );
+    const writeJson = await writeArtifact(reportJsonPath, verificationReportSchema, parsed.data, {
+      artifactName: "verification report"
+    });
 
     if (!writeJson.ok) return writeJson;
 
@@ -681,7 +683,9 @@ export async function runVerifyWorkflow(
     taskId: selectedTask?.id,
     success: parsed.data.success,
     result: parsed.data.success
-      ? parsed.data.warnings.length > 0 ? "warnings" : "passed"
+      ? parsed.data.warnings.length > 0
+        ? "warnings"
+        : "passed"
       : "failed",
     actions: writtenFiles.map((filePath) => ({
       path: filePath,
@@ -725,7 +729,14 @@ export async function runVerifyWorkflow(
       runner: command.runner
     })),
     reportPath: dryRun ? null : reportPath,
-    warnings: [...new Set([...parsed.data.warnings, ...budgetRefresh.warnings, ...timeline.warnings, ...run.warnings])],
+    warnings: [
+      ...new Set([
+        ...parsed.data.warnings,
+        ...budgetRefresh.warnings,
+        ...timeline.warnings,
+        ...run.warnings
+      ])
+    ],
     errors: parsed.data.errors,
     nextCommand: parsed.data.nextCommand,
     dryRun

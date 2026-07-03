@@ -7,10 +7,7 @@ import {
   projectSummaryArtifactPath
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
-import {
-  type BudgetMode,
-  type Preset
-} from "../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 import {
   projectConfigSchema,
   projectProfileSchema,
@@ -18,11 +15,7 @@ import {
   type ProjectProfile
 } from "../artifacts/schemas/project.schema.js";
 import { VispError } from "../core/errors.js";
-import {
-  ensureDir,
-  pathExists,
-  readTextFile
-} from "../core/file-system.js";
+import { ensureDir, pathExists, readTextFile } from "../core/file-system.js";
 import { vispDir } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import {
@@ -56,11 +49,9 @@ export type ConstitutionWorkflowOptions = {
 };
 
 async function optionalProject(targetPath: string): Promise<ProjectProfile | undefined> {
-  const result = await readArtifact(
-    projectProfileArtifactPath(targetPath),
-    projectProfileSchema,
-    { artifactName: "project profile" }
-  );
+  const result = await readArtifact(projectProfileArtifactPath(targetPath), projectProfileSchema, {
+    artifactName: "project profile"
+  });
 
   return result.ok ? result.value : undefined;
 }
@@ -128,10 +119,7 @@ export async function runConstitutionWorkflow(
   if (!hasVisp.ok) return hasVisp;
   if (!hasVisp.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Visp Kit is not initialized. Run `visp init` first."
-      )
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
     );
   }
 
@@ -161,10 +149,7 @@ export async function runConstitutionWorkflow(
     );
   }
 
-  const rules = buildConstitutionRules(
-    resolved.value.preset,
-    resolved.value.budget
-  );
+  const rules = buildConstitutionRules(resolved.value.preset, resolved.value.budget);
   const compact = renderCompactConstitution(rules);
   const full = renderFullConstitution({
     generatedAt: now,
@@ -191,9 +176,7 @@ export async function runConstitutionWorkflow(
     actions.push(result.value);
   }
 
-  const compactAction = actions.find((entry) =>
-    entry.path.endsWith("constitution.compact.md")
-  );
+  const compactAction = actions.find((entry) => entry.path.endsWith("constitution.compact.md"));
   const validation =
     compactAction?.action === "skipped" && !dryRun
       ? await validateExistingCompact(targetPath)

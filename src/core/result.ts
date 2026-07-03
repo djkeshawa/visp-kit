@@ -26,17 +26,11 @@ export function isErr<T, E>(result: Result<T, E>): result is Err<E> {
   return !result.ok;
 }
 
-export function mapResult<T, E, U>(
-  result: Result<T, E>,
-  mapper: (value: T) => U
-): Result<U, E> {
+export function mapResult<T, E, U>(result: Result<T, E>, mapper: (value: T) => U): Result<U, E> {
   return isOk(result) ? ok(mapper(result.value)) : result;
 }
 
-export function mapError<T, E, F>(
-  result: Result<T, E>,
-  mapper: (error: E) => F
-): Result<T, F> {
+export function mapError<T, E, F>(result: Result<T, E>, mapper: (error: E) => F): Result<T, F> {
   return isErr(result) ? err(mapper(result.error)) : result;
 }
 

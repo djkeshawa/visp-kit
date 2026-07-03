@@ -1,14 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  err,
-  isErr,
-  isOk,
-  mapError,
-  mapResult,
-  ok,
-  unwrapOr
-} from "../../src/core/result.js";
+import { err, isErr, isOk, mapError, mapResult, ok, unwrapOr } from "../../src/core/result.js";
 
 describe("result helpers", () => {
   it("narrows successful results", () => {
@@ -35,18 +27,12 @@ describe("result helpers", () => {
 
   it("maps values without changing errors", () => {
     expect(mapResult(ok(2), (value) => value * 3)).toEqual(ok(6));
-    expect(mapResult(err("nope"), (value: number) => value * 3)).toEqual(
-      err("nope")
-    );
+    expect(mapResult(err("nope"), (value: number) => value * 3)).toEqual(err("nope"));
   });
 
   it("maps errors without changing values", () => {
-    expect(mapError(err("nope"), (error) => error.toUpperCase())).toEqual(
-      err("NOPE")
-    );
-    expect(mapError(ok(2), (error: string) => error.toUpperCase())).toEqual(
-      ok(2)
-    );
+    expect(mapError(err("nope"), (error) => error.toUpperCase())).toEqual(err("NOPE"));
+    expect(mapError(ok(2), (error: string) => error.toUpperCase())).toEqual(ok(2));
   });
 
   it("unwraps successful values or returns a fallback", () => {

@@ -9,7 +9,10 @@ function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
 }
 
-function findingCount(findings: readonly ReviewFinding[], severity: ReviewFinding["severity"]): number {
+function findingCount(
+  findings: readonly ReviewFinding[],
+  severity: ReviewFinding["severity"]
+): number {
   return findings.filter((finding) => finding.severity === severity).length;
 }
 
@@ -22,10 +25,13 @@ function changedFileRows(files: readonly ReviewChangedFile[]): string {
     .map((file) => {
       const scope = file.inForbiddenFiles
         ? "forbidden"
-        : file.inAllowedFiles ? "allowed"
-        : file.inExpectedFiles ? "expected"
-        : file.isGeneratedVispFile ? "generated"
-        : "unmapped";
+        : file.inAllowedFiles
+          ? "allowed"
+          : file.inExpectedFiles
+            ? "expected"
+            : file.isGeneratedVispFile
+              ? "generated"
+              : "unmapped";
 
       return `| ${file.path} | ${file.changeType} | ${file.additions} | ${file.deletions} | ${scope} |`;
     })
@@ -53,9 +59,7 @@ ${finding.recommendation}
 }
 
 function securityChecklist(report: ReviewReport): string {
-  return report.securityChecklist
-    .map((item) => `- [ ] ${item.text}`)
-    .join("\n");
+  return report.securityChecklist.map((item) => `- [ ] ${item.text}`).join("\n");
 }
 
 export function renderReviewMarkdown(report: ReviewReport): string {

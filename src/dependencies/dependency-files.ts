@@ -25,9 +25,7 @@ const dependencyFileNames = new Set([
   "Cargo.lock"
 ]);
 
-export const dependencyFiles = [...dependencyFileNames].sort((a, b) =>
-  a.localeCompare(b)
-);
+export const dependencyFiles = [...dependencyFileNames].sort((a, b) => a.localeCompare(b));
 
 export function normalizeDependencyPath(filePath: string): string {
   return filePath.replaceAll("\\", "/");

@@ -173,12 +173,9 @@ async function createVerifyFixture(rootPath: string): Promise<void> {
     validProjectProfile,
     { artifactName: "project profile" }
   );
-  await writeArtifact(
-    specArtifactPath(rootPath, featureKey),
-    specArtifactSchema,
-    spec,
-    { artifactName: "spec" }
-  );
+  await writeArtifact(specArtifactPath(rootPath, featureKey), specArtifactSchema, spec, {
+    artifactName: "spec"
+  });
   await writeArtifact(
     taskGraphArtifactPath(rootPath, featureKey),
     taskGraphArtifactSchema,
@@ -220,9 +217,7 @@ describe("runVerifyWorkflow", () => {
     );
 
     expect(summary.success).toBe(true);
-    expect(summary.reportPath).toBe(
-      ".visp/features/001-add-note-pinning/verification.md"
-    );
+    expect(summary.reportPath).toBe(".visp/features/001-add-note-pinning/verification.md");
     expect(
       await readFile(
         path.join(tempDir, ".visp", "features", "001-add-note-pinning", "verification.md"),

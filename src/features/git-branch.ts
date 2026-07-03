@@ -1,8 +1,5 @@
 import { VispError } from "../core/errors.js";
-import {
-  defaultCommandRunner,
-  type CommandRunner
-} from "../core/command-runner.js";
+import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 import { err, ok, type Result } from "../core/result.js";
 
 export type FeatureBranchSummary = {
@@ -38,11 +35,9 @@ export async function createFeatureBranch(
     name: input.branchName
   };
 
-  const insideRepo = await commandRunner.run(
-    "git",
-    ["rev-parse", "--is-inside-work-tree"],
-    { cwd: input.targetPath }
-  );
+  const insideRepo = await commandRunner.run("git", ["rev-parse", "--is-inside-work-tree"], {
+    cwd: input.targetPath
+  });
 
   if (!insideRepo.ok || insideRepo.value.stdout.trim() !== "true") {
     return ok({
@@ -58,12 +53,7 @@ export async function createFeatureBranch(
   );
 
   if (!validName.ok) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        `Invalid Git branch name: ${input.branchName}.`
-      )
-    );
+    return err(new VispError("VALIDATION_FAILED", `Invalid Git branch name: ${input.branchName}.`));
   }
 
   const status = await commandRunner.run("git", ["status", "--porcelain"], {
@@ -71,9 +61,7 @@ export async function createFeatureBranch(
   });
 
   if (status.ok && status.value.stdout.trim().length > 0) {
-    warnings.push(
-      "Working tree has uncommitted changes; creating the feature branch anyway."
-    );
+    warnings.push("Working tree has uncommitted changes; creating the feature branch anyway.");
   }
 
   const existing = await commandRunner.run(
@@ -107,11 +95,9 @@ export async function createFeatureBranch(
     });
   }
 
-  const created = await commandRunner.run(
-    "git",
-    ["switch", "-c", input.branchName],
-    { cwd: input.targetPath }
-  );
+  const created = await commandRunner.run("git", ["switch", "-c", input.branchName], {
+    cwd: input.targetPath
+  });
 
   if (!created.ok) return created;
 

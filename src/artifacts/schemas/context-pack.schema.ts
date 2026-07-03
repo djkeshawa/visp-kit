@@ -10,10 +10,7 @@ import {
   riskLevelSchema,
   stringListSchema
 } from "./common.schema.js";
-import {
-  acceptanceCriterionSchema,
-  requirementSchema
-} from "./requirement.schema.js";
+import { acceptanceCriterionSchema, requirementSchema } from "./requirement.schema.js";
 import { taskSchema } from "./task.schema.js";
 import {
   gateBlockedCommandSchema,
@@ -23,12 +20,7 @@ import {
 } from "./gate.schema.js";
 import { strictnessModeSchema } from "./policy.schema.js";
 
-export const contextIncludeModeSchema = z.enum([
-  "summary",
-  "snippet",
-  "full",
-  "new-file"
-]);
+export const contextIncludeModeSchema = z.enum(["summary", "snippet", "full", "new-file"]);
 
 export const contextTokenEstimateSchema = z
   .object({
@@ -37,7 +29,7 @@ export const contextTokenEstimateSchema = z
     total: z.number().int().nonnegative(),
     maxInput: z.number().int().positive(),
     mode: budgetModeSchema,
-    estimator: z.literal("chars-divided-by-four")
+    estimator: z.enum(["chars-divided-by-four", "heuristic-v1"])
   })
   .strict();
 
@@ -124,6 +116,14 @@ export const contextSnippetSchema = z
     path: ["endLine"]
   });
 
+export const contextTrimmingSchema = z
+  .object({
+    removedSnippetCount: z.number().int().nonnegative(),
+    removedPatterns: z.boolean(),
+    heavilyTrimmed: z.boolean()
+  })
+  .strict();
+
 export const contextPackSchema = z
   .object({
     id: idSchema,
@@ -155,6 +155,7 @@ export const contextPackSchema = z
     failedGateRules: z.array(gateRuleFindingSchema).optional(),
     blockedCommands: z.array(gateBlockedCommandSchema).optional(),
     policyGate: policyGateSummarySchema.optional(),
+    trimming: contextTrimmingSchema.optional(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema
   })
@@ -170,4 +171,5 @@ export type ContextDependencyTask = z.infer<typeof contextDependencyTaskSchema>;
 export type ContextArtifactProvenance = z.infer<typeof contextArtifactProvenanceSchema>;
 export type ContextFile = z.infer<typeof contextFileSchema>;
 export type ContextSnippet = z.infer<typeof contextSnippetSchema>;
+export type ContextTrimming = z.infer<typeof contextTrimmingSchema>;
 export type ContextPack = z.infer<typeof contextPackSchema>;

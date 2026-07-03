@@ -16,10 +16,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-async function updateTask(
-  rootPath: string,
-  patch: Record<string, unknown>
-): Promise<void> {
+async function updateTask(rootPath: string, patch: Record<string, unknown>): Promise<void> {
   const taskGraphPath = path.join(
     rootPath,
     ".visp",
@@ -83,23 +80,11 @@ describe("visp verify command", () => {
     const contextProgram = createCli({ writeOut: () => undefined });
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await contextProgram.parseAsync([
-      "node",
-      "visp",
-      "context",
-      "T001",
-      tempDir,
-      "--force"
-    ]);
+    await contextProgram.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
 
     await program.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001"]);
 
-    const featureDir = path.join(
-      tempDir,
-      ".visp",
-      "features",
-      "001-add-note-pinning"
-    );
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
 
     expect(output.join("")).toContain("Visp verification complete");
     expect(await exists(path.join(featureDir, "verification.md"))).toBe(true);
@@ -111,10 +96,7 @@ describe("visp verify command", () => {
       "## Policy Gate"
     );
     expect(
-      await readFile(
-        path.join(featureDir, "context", "T001.implementation-checklist.md"),
-        "utf8"
-      )
+      await readFile(path.join(featureDir, "context", "T001.implementation-checklist.md"), "utf8")
     ).toContain("- [x] Run validation commands or report why they could not run.");
   });
 
@@ -128,15 +110,7 @@ describe("visp verify command", () => {
       writeErr: (value) => errors.push(value)
     });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "verify",
-      tempDir,
-      "--task",
-      "T001",
-      "--json"
-    ]);
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001", "--json"]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -153,7 +127,7 @@ describe("visp verify command", () => {
   it("skips commands when requested", async () => {
     await createPhase8Fixture(tempDir);
     await updateTask(tempDir, {
-      validationCommands: ["node -e \"process.exit(1)\""]
+      validationCommands: ['node -e "process.exit(1)"']
     });
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
@@ -170,13 +144,7 @@ describe("visp verify command", () => {
 
     const report = JSON.parse(
       await readFile(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "verification.json"
-        ),
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "verification.json"),
         "utf8"
       )
     ) as { commandValidation: { status: string; commands: unknown[] } };
@@ -189,29 +157,15 @@ describe("visp verify command", () => {
   it("dry-run writes nothing and runs no commands", async () => {
     await createPhase8Fixture(tempDir);
     await updateTask(tempDir, {
-      validationCommands: ["node -e \"process.exit(1)\""]
+      validationCommands: ['node -e "process.exit(1)"']
     });
     const program = createCli({ writeOut: () => undefined });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "verify",
-      tempDir,
-      "--task",
-      "T001",
-      "--dry-run"
-    ]);
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001", "--dry-run"]);
 
     expect(
       await exists(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "verification.json"
-        )
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "verification.json")
       )
     ).toBe(false);
   });
@@ -230,13 +184,7 @@ describe("visp verify command", () => {
     expect(output.join("")).toContain("Visp verification failed");
     expect(
       await readFile(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "verification.md"
-        ),
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "verification.md"),
         "utf8"
       )
     ).toContain("failed");
@@ -250,15 +198,7 @@ describe("visp verify command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync([
-      "node",
-      "visp",
-      "verify",
-      tempDir,
-      "--scope",
-      "--task",
-      "T001"
-    ]);
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--scope", "--task", "T001"]);
 
     expect(process.exitCode).toBe(1);
     expect(output.join("")).toContain("Scope: failed");
@@ -306,13 +246,7 @@ describe("visp verify command", () => {
 
     const taskGraph = JSON.parse(
       await readFile(
-        path.join(
-          tempDir,
-          ".visp",
-          "features",
-          "001-add-note-pinning",
-          "task-graph.json"
-        ),
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "task-graph.json"),
         "utf8"
       )
     ) as { tasks: Array<{ id: string; status: string }> };

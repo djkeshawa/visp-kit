@@ -37,9 +37,7 @@ function dependenciesResolved(task: Task, done: Set<string>): boolean {
   return task.dependsOn.every((dependency) => done.has(dependency));
 }
 
-export function selectNextTask(
-  taskGraph: TaskGraphArtifact
-): Result<Task, VispError> {
+export function selectNextTask(taskGraph: TaskGraphArtifact): Result<Task, VispError> {
   const ready = taskGraph.tasks.find((task) => task.status === "ready");
 
   if (ready !== undefined) {

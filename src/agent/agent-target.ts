@@ -1,7 +1,4 @@
-import {
-  agentTargetNameSchema,
-  type AgentTargetName
-} from "../artifacts/schemas/agent.schema.js";
+import { agentTargetNameSchema, type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
 
 export type AgentTarget = {
   readonly name: AgentTargetName;
@@ -24,6 +21,14 @@ export const supportedAgentTargets: readonly AgentTarget[] = [
   {
     name: "copilot",
     description: "Generate GitHub Copilot repository instructions."
+  },
+  {
+    name: "cursor",
+    description: "Generate Cursor rules under .cursor/rules/."
+  },
+  {
+    name: "gemini",
+    description: "Generate GEMINI.md and Gemini CLI custom commands."
   }
 ];
 

@@ -1,17 +1,11 @@
 import path from "node:path";
 
 import {
-  dependencyMapArtifactPath,
-  fileIndexArtifactPath,
   fileSummariesArtifactPath,
-  projectProfileArtifactPath,
-  scanMetaArtifactPath
+  projectProfileArtifactPath
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
-import {
-  projectProfileSchema,
-  type ProjectProfile
-} from "../artifacts/schemas/project.schema.js";
+import { projectProfileSchema, type ProjectProfile } from "../artifacts/schemas/project.schema.js";
 import { VispError, toVispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
 import { vispDir } from "../core/paths.js";
@@ -23,21 +17,10 @@ import { scanGit } from "../scanner/scan-git.js";
 import { scanProject } from "../scanner/scan-project.js";
 import { buildTestMap } from "../scanner/scan-tests.js";
 import { buildFileSummaries } from "../scanner/summarize-project.js";
-import {
-  type ProjectDetection,
-  type ScanCounts
-} from "../scanner/types.js";
-import {
-  patternsMarkdown,
-  projectSummaryMarkdown,
-  scanReportMarkdown
-} from "./scan/reports.js";
+import { type ProjectDetection, type ScanCounts } from "../scanner/types.js";
+import { patternsMarkdown, projectSummaryMarkdown, scanReportMarkdown } from "./scan/reports.js";
 import { type ScanSummary } from "./scan/scan-summary.js";
-import {
-  ensureScanDirectories,
-  plannedScanWrites,
-  writeScanPlan
-} from "./scan/write-plan.js";
+import { ensureScanDirectories, plannedScanWrites, writeScanPlan } from "./scan/write-plan.js";
 
 export type ScanWorkflowOptions = {
   readonly targetPath?: string;
@@ -132,10 +115,7 @@ export async function runScanWorkflow(
   if (!hasVisp.ok) return hasVisp;
   if (!hasVisp.value) {
     return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Visp Kit is not initialized. Run `visp init` first."
-      )
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
     );
   }
 
@@ -217,9 +197,7 @@ export async function runScanWorkflow(
       })
     };
     const writes = plannedScanWrites(targetPath, values);
-    const directoryResult = flags.dryRun
-      ? ok(undefined)
-      : await ensureScanDirectories(targetPath);
+    const directoryResult = flags.dryRun ? ok(undefined) : await ensureScanDirectories(targetPath);
 
     if (!directoryResult.ok) return directoryResult;
 
