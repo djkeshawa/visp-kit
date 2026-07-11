@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["id", "language", "taskClass", "repository", "baseCommit", "request", "container", "failToPass", "passToPass", "forbiddenPaths", "requirementOracles", "referencePatchHash"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^EVAL-[0-9]{3}$" },
+    "language": { "enum": ["typescript", "python", "go"] },
+    "taskClass": { "enum": ["localized_bug", "bounded_feature", "cross_file_change", "regression_test"] },
+    "repository": { "type": "string" },
+    "baseCommit": { "type": "string" },
+    "request": { "type": "string", "minLength": 1 },
+    "container": { "type": "string" },
+    "failToPass": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "passToPass": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "forbiddenPaths": { "type": "array", "items": { "type": "string" } },
+    "requirementOracles": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "referencePatchHash": { "type": "string", "minLength": 64, "maxLength": 64 }
+  },
+  "additionalProperties": false
+}

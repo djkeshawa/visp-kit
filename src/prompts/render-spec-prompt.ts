@@ -23,6 +23,7 @@ Rules:
 - Describe what and why, not how.
 - Do not include implementation details unless explicitly required by the user.
 - Keep requirements testable.
+- Replace every placeholder and set status to "ready" only when the specification is complete.
 - ${editSeededJsonInstruction}
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.

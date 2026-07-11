@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   createClarificationArtifact,
+  createPlanDraftArtifact,
   createSpecArtifact,
   createTaskGraphArtifact,
   createTraceabilitySeed
 } from "../../../src/templates/phase7-templates.js";
 import { validateClarifications } from "../../../src/validators/validate-clarifications.js";
 import { validateSpec } from "../../../src/validators/validate-spec.js";
+import { validatePlan } from "../../../src/validators/validate-plan.js";
 import { validateTaskGraph } from "../../../src/validators/validate-task-graph.js";
 import { type ActiveFeature } from "../../../src/workflows/shared/active-feature.js";
 
@@ -32,13 +34,22 @@ const feature: ActiveFeature = {
 const now = "2026-01-01T00:00:00.000Z";
 
 describe("phase 7 validators", () => {
-  it("accepts generated clarification and spec scaffolds", () => {
+  it("rejects generated scaffolds until an agent replaces placeholders and marks them ready", () => {
     const clarifications = createClarificationArtifact({ feature, now });
     const spec = createSpecArtifact({ feature, now });
+    const plan = createPlanDraftArtifact({ feature, now });
     const traceability = createTraceabilitySeed({ feature, spec, now });
+    const taskGraph = createTaskGraphArtifact({ feature, now });
 
-    expect(validateClarifications(clarifications).passed).toBe(true);
-    expect(validateSpec({ spec, traceability }).passed).toBe(true);
+    expect(validateClarifications(clarifications).passed).toBe(false);
+    expect(validateSpec({ spec, traceability }).passed).toBe(false);
+    expect(validatePlan(plan).passed).toBe(false);
+    expect(validateTaskGraph({ taskGraph, spec, traceability }).passed).toBe(false);
+
+    expect(validateSpec({ spec, traceability }).errors.join("\n")).toContain("placeholder text");
+    expect(validateTaskGraph({ taskGraph, spec, traceability }).errors.join("\n")).toContain(
+      "concrete validation command"
+    );
   });
 
   it("catches missing task dependencies and cycles", () => {

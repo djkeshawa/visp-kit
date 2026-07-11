@@ -63,7 +63,40 @@ export const policyArtifactSchema = z
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema
   })
-  .strict();
+  .strict()
+  .superRefine((policy, ctx) => {
+    // The non-overridable core (VSP019/VSP020) must never be disabled or
+    // exposed as overridable, regardless of strictness mode. These guards live
+    // at the schema level so every load path (policy-loader, policy-validator)
+    // rejects a tampered policy artifact.
+    if (policy.rules.userPromptCannotOverridePolicy !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["rules", "userPromptCannotOverridePolicy"],
+        message:
+          "rules.userPromptCannotOverridePolicy must be true; VSP019 (user prompts cannot override policy) is non-overridable."
+      });
+    }
+
+    if (policy.rules.stopOnFailedGate !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["rules", "stopOnFailedGate"],
+        message:
+          "rules.stopOnFailedGate must be true; VSP020 (agents must stop on failed gates) is non-overridable."
+      });
+    }
+
+    for (const ruleId of ["VSP019", "VSP020"]) {
+      if (!policy.overrides.nonOverridableRules.includes(ruleId)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["overrides", "nonOverridableRules"],
+          message: `overrides.nonOverridableRules must include ${ruleId}; the non-overridable core cannot be removed.`
+        });
+      }
+    }
+  });
 
 export type StrictnessMode = z.infer<typeof strictnessModeSchema>;
 export type PolicyRules = z.infer<typeof policyRulesSchema>;

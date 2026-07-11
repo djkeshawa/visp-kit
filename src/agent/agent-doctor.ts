@@ -233,6 +233,7 @@ async function checkTarget(input: {
           codexSkillPath(input.targetPath, `visp-${workflow}`)
         );
       case "generic":
+      case "opencode":
         return agentWorkflowNames.map((workflow) =>
           genericAgentPromptPath(input.targetPath, workflow)
         );

@@ -35,16 +35,18 @@ import { VispError } from "../core/errors.js";
 import { pathExists, readJsonFile, readTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
+import { loadEffectiveGatePolicy } from "../gates/effective-policy.js";
 import { type FileIndexEntry, type FileSummary } from "../scanner/types.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 import {
   contextBudgetPolicy,
   contextBudgetRecommendation,
+  effectiveMaxInputTokens,
   type ContextBudgetPolicy
 } from "./context-budget.js";
 import { estimateContextPackInputTokens, selectContextPack } from "./context-selector.js";
 import { renderContextMarkdown } from "./context-renderer.js";
-import { estimateTokens, tokenEstimatorName } from "./token-estimator.js";
+import { estimateTokenRange, estimateTokens, tokenEstimatorName } from "./token-estimator.js";
 
 const fileIndexCacheSchema = z.object({
   files: z.array(
@@ -98,6 +100,12 @@ export type ContextCompilationInput = {
   readonly budgetMode?: BudgetMode;
   readonly maxTokens?: number;
   readonly includeFullFiles?: boolean;
+  /**
+   * Over-budget tolerance percent (policy `limits.maxContextOverBudgetPercent`).
+   * When omitted, it is loaded from the target's effective policy. Locked mode
+   * resolves to 0, which keeps the over-budget check a hard cutoff.
+   */
+  readonly overBudgetTolerancePercent?: number;
   readonly now: string;
 };
 
@@ -214,15 +222,45 @@ async function resolveBudgetMode(input: {
   return config?.budgetMode ?? "lean";
 }
 
+async function resolveOverBudgetTolerance(input: {
+  readonly targetPath: string;
+  readonly now: string;
+  readonly override?: number;
+}): Promise<number> {
+  if (input.override !== undefined) {
+    return input.override;
+  }
+
+  // Silent resolution: the effective policy loader is authoritative for the
+  // tolerance. Its own warnings (uninitialized project, missing policy file)
+  // are surfaced by the gate/status workflows, not the context pack, so they
+  // are intentionally not appended here to keep pack warnings stable.
+  const effective = await loadEffectiveGatePolicy({
+    targetPath: input.targetPath,
+    now: input.now
+  });
+
+  return effective.policy.limits.maxContextOverBudgetPercent;
+}
+
 function tokenizedPack(input: {
   readonly pack: ContextPack;
   readonly markdown: string;
   readonly policy: ContextBudgetPolicy;
   readonly includeFullFiles: boolean;
 }): ContextPack {
-  const inputTokens = estimateContextPackInputTokens(input.pack, input.markdown);
-  const overBudget = inputTokens > input.policy.maxInputTokens;
-  const overBudgetBy = Math.max(0, inputTokens - input.policy.maxInputTokens);
+  const legacyEstimate = estimateContextPackInputTokens(input.pack, input.markdown);
+  const markdownRange = estimateTokenRange(input.markdown);
+  const jsonRange = estimateTokenRange(JSON.stringify(input.pack, null, 2));
+  const lowerBound = Math.max(markdownRange.lowerBound, jsonRange.lowerBound);
+  const upperBound = Math.max(markdownRange.upperBound, jsonRange.upperBound, legacyEstimate);
+  const inputTokens = upperBound;
+  // Over-budget honors the policy tolerance: the effective cutoff is
+  // maxInputTokens * (1 + tolerance/100). Locked mode is 0% tolerance, so this
+  // stays a hard cutoff at maxInputTokens (identical to previous behavior).
+  const effectiveMax = effectiveMaxInputTokens(input.policy);
+  const overBudget = inputTokens > effectiveMax;
+  const overBudgetBy = Math.max(0, inputTokens - effectiveMax);
   const recommendation = contextBudgetRecommendation({
     overBudget,
     overBudgetBy,
@@ -240,8 +278,12 @@ function tokenizedPack(input: {
       expectedOutput: input.policy.expectedOutputTokens,
       total: inputTokens + input.policy.expectedOutputTokens,
       maxInput: input.policy.maxInputTokens,
-      mode: input.policy.mode,
-      estimator: tokenEstimatorName
+        mode: input.policy.mode,
+        estimator: tokenEstimatorName,
+        lowerBound,
+        upperBound,
+        profile: markdownRange.profile,
+        uncertainty: markdownRange.uncertainty
     },
     overBudget,
     recommendation,
@@ -334,11 +376,13 @@ function trimOptionalContext(input: {
     };
   }
 
+  const trimTarget = effectiveMaxInputTokens(input.policy);
+
   while (pack.includedSnippets.length > 0) {
     markdown = renderContextMarkdown({ feature: input.feature, pack });
     const estimate = estimateTokens(markdown);
 
-    if (estimate <= input.policy.maxInputTokens) {
+    if (estimate <= trimTarget) {
       break;
     }
 
@@ -453,7 +497,12 @@ export async function compileContext(
     budgetMode: input.budgetMode,
     warnings
   });
-  const policy = contextBudgetPolicy(budgetMode, input.maxTokens);
+  const tolerancePercent = await resolveOverBudgetTolerance({
+    targetPath: input.targetPath,
+    now: input.now,
+    override: input.overBudgetTolerancePercent
+  });
+  const policy = contextBudgetPolicy(budgetMode, input.maxTokens, tolerancePercent);
   const spec = await optionalArtifact({
     path: specArtifactPath(input.targetPath, input.feature.key),
     schema: specArtifactSchema,

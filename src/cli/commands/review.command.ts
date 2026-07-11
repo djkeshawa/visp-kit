@@ -68,7 +68,10 @@ export function createReviewCommand(dependencies: ReviewCommandDependencies = {}
     .option("--prompt-only", "Generate only review prompt files.")
     .option("--checklist-only", "Generate only the review checklist.")
     .option("--skip-verification", "Skip reading verification reports.")
-    .option("--force", "Accepted for generated report overwrite compatibility.")
+    .option(
+      "--force",
+      "Downgrade gate blocks to warnings in relaxed/standard mode only; cannot bypass gate blocks in strict/locked mode."
+    )
     .option("--dry-run", "Show what would be reviewed without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: ReviewCommandOptions) => {

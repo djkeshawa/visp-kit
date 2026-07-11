@@ -28,6 +28,7 @@ Rules:
 - Do not invent codebase facts without evidence.
 - Mark missing codebase evidence as unknown.
 - Avoid broad refactors and unapproved dependencies.
+- Replace every placeholder and set status to "ready" only when the plan has concrete codebase evidence and validation commands.
 - ${editSeededJsonInstruction}
 - ${budgetInstruction(feature.intent.budgetMode)}
 

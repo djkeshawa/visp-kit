@@ -8,10 +8,12 @@ import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type ProjectProfile } from "../artifacts/schemas/project.schema.js";
 import { shouldIgnorePath, isBinaryPath, isLockFile } from "../scanner/ignore-rules.js";
-import { type FileIndexEntry, type FileSummary } from "../scanner/types.js";
+import {
+  type FileIndexEntry,
+  type FileSummary
+} from "../scanner/types.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 import { type ContextBudgetPolicy } from "./context-budget.js";
-import { taskKeywords } from "./context-relevance.js";
 import { extractFileSnippet } from "./file-snippets.js";
 import { estimateJsonTokens, estimateTokens, tokenEstimatorName } from "./token-estimator.js";
 
@@ -43,6 +45,53 @@ function unique(values: readonly string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function taskKeywords(task: Task): readonly string[] {
+  return unique(`${task.title} ${task.description}`.toLowerCase().split(/[^a-z0-9]+/))
+    .filter((word) => word.length >= 4 && word !== "task" && word !== "test");
+}
+
+function lexicalTokens(value: string): readonly string[] {
+  return value.toLowerCase().split(/[^a-z0-9]+/u).filter((token) => token.length >= 3);
+}
+
+function rankSummaries(summaries: readonly FileSummary[], keywords: readonly string[]): readonly string[] {
+  if (keywords.length === 0 || summaries.length === 0) return [];
+  const documents = summaries.map((summary) => ({
+    path: summary.path,
+    tokens: lexicalTokens([
+      summary.path,
+      ...summary.symbols,
+      ...summary.exports,
+      ...summary.imports,
+      ...summary.comments
+    ].join(" "))
+  }));
+  const averageLength = documents.reduce((sum, document) => sum + document.tokens.length, 0) /
+    Math.max(1, documents.length);
+  const documentFrequency = new Map<string, number>();
+  for (const keyword of keywords) {
+    documentFrequency.set(keyword, documents.filter((document) => document.tokens.includes(keyword)).length);
+  }
+
+  return documents
+    .map((document) => {
+      let score = 0;
+      for (const keyword of keywords) {
+        const frequency = document.tokens.filter((token) => token === keyword).length;
+        if (frequency === 0) continue;
+        const df = documentFrequency.get(keyword) ?? 0;
+        const idf = Math.log(1 + (documents.length - df + 0.5) / (df + 0.5));
+        const normalized = frequency + 1.2 * (1 - 0.75 + 0.75 * document.tokens.length / Math.max(1, averageLength));
+        score += idf * (frequency * 2.2) / normalized;
+        if (document.path.toLowerCase().includes(keyword)) score += idf * 2;
+      }
+      return { path: document.path, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
+    .map((entry) => entry.path);
+}
+
 function compactText(text: string | undefined, maxLines: number): string {
   if (text === undefined) return "";
 
@@ -63,10 +112,7 @@ function acceptanceCriteriaForRequirements(
   spec: SpecArtifact | undefined
 ): readonly AcceptanceCriterion[] {
   const topLevel = spec?.acceptanceCriteria ?? [];
-  const all = [
-    ...topLevel,
-    ...requirements.flatMap((requirement) => requirement.acceptanceCriteria)
-  ];
+  const all = [...topLevel, ...requirements.flatMap((requirement) => requirement.acceptanceCriteria)];
   const seen = new Set<string>();
 
   return all.filter((criterion) => {
@@ -207,7 +253,9 @@ function parseCompactRules(text: string | undefined): ContextPack["includedConst
     .filter(Boolean)
     .map((line) => {
       const match = /^([A-Za-z0-9._:-]+):\s*(.+)$/.exec(line);
-      return match === null ? undefined : { id: match[1] ?? "C-UNKNOWN", text: match[2] ?? line };
+      return match === null
+        ? undefined
+        : { id: match[1] ?? "C-UNKNOWN", text: match[2] ?? line };
     })
     .filter((rule): rule is ContextPack["includedConstitutionRules"][number] => rule !== undefined)
     .filter((rule) =>
@@ -227,8 +275,7 @@ function validationCommands(input: {
   const planCommands =
     input.plan?.testingStrategy
       .map((item) => item.validationCommand)
-      .filter((command) => command.trim().length > 0 && command.trim().toUpperCase() !== "TBD") ??
-    [];
+      .filter((command) => command.trim().length > 0 && command.trim().toUpperCase() !== "TBD") ?? [];
   const projectCommands = [
     ...(input.projectProfile?.testCommands ?? []),
     ...(input.projectProfile?.typecheckCommands ?? []),
@@ -250,7 +297,10 @@ function candidateFiles(input: {
   readonly index: readonly FileIndexEntry[];
   readonly warnings: string[];
 }): readonly string[] {
-  const direct = unique([...input.task.allowedFiles, ...(input.task.expectedFiles ?? [])]);
+  const direct = unique([
+    ...input.task.allowedFiles,
+    ...(input.task.expectedFiles ?? [])
+  ]);
   const concreteDirect = direct.filter((filePath) => filePath.toUpperCase() !== "TBD");
 
   if (concreteDirect.length > 0) {
@@ -269,12 +319,10 @@ function candidateFiles(input: {
   }
 
   const keywords = taskKeywords(input.task);
-  const matched = input.summaries
-    .filter((summary) => keywords.some((word) => summary.path.toLowerCase().includes(word)))
-    .map((summary) => summary.path);
+  const matched = rankSummaries(input.summaries, keywords);
 
   if (matched.length > 0) {
-    input.warnings.push("Task has no allowedFiles; used task keywords to select file summaries.");
+    input.warnings.push("Task has no allowedFiles; used ranked lexical symbol and path retrieval.");
     return matched;
   }
 
@@ -374,7 +422,8 @@ async function buildFileContexts(input: {
         ? input.policy.maxFullFileTokens
         : input.policy.maxSnippetTokensPerFile,
       fullFile: input.includeFullFiles,
-      reason: "Task file context."
+      reason: "Task file context.",
+      focusTerms: taskKeywords(input.task)
     });
     let warning: string | undefined;
     let includeMode: FileContext["file"]["includeMode"] = "summary";
@@ -394,7 +443,8 @@ async function buildFileContexts(input: {
           filePath: normalized,
           maxTokens: input.policy.maxSnippetTokensPerFile,
           fullFile: false,
-          reason: "Task file snippet after full-file fallback."
+          reason: "Task file snippet after full-file fallback.",
+          focusTerms: taskKeywords(input.task)
         });
         includeMode = snippet.ok && snippet.value !== undefined ? "snippet" : "summary";
       }
@@ -437,7 +487,9 @@ async function buildFileContexts(input: {
   return contexts;
 }
 
-export async function selectContextPack(input: ContextSelectionInput): Promise<ContextPack> {
+export async function selectContextPack(
+  input: ContextSelectionInput
+): Promise<ContextPack> {
   const warnings = [...input.warnings];
 
   if (input.compactConstitution === undefined) {
@@ -525,9 +577,7 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
     includedFiles: fileContexts.map((context) => context.file),
     includedSnippets: fileContexts
       .map((context) => context.snippet)
-      .filter(
-        (snippet): snippet is ContextPack["includedSnippets"][number] => snippet !== undefined
-      ),
+      .filter((snippet): snippet is ContextPack["includedSnippets"][number] => snippet !== undefined),
     validationCommands: [...validation],
     constraints: [...constraints],
     instructions: [

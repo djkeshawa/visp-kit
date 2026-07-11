@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runAgentInstall } from "../../../src/agent/agent-installer.js";
 import { runAgentRefresh } from "../../../src/agent/agent-refresh.js";
 import { runInitWorkflow } from "../../../src/workflows/init.workflow.js";
+import { removeTempDirWithRetry } from "../../integration/phase8-fixture.js";
 
 function expectOk<T>(result: { ok: true; value: T } | { ok: false }): T {
   expect(result.ok).toBe(true);
@@ -23,7 +24,7 @@ describe("agent refresh", () => {
   });
 
   afterEach(async () => {
-    await rm(tempDir, { recursive: true, force: true });
+    await removeTempDirWithRetry(tempDir);
   });
 
   it("fails clearly when no targets are installed", async () => {

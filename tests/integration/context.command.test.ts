@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -150,6 +150,67 @@ describe("visp context command", () => {
 
     expect(summary.estimatedTokens.maxInput).toBe(100);
     expect(summary.overBudget).toBe(true);
+  });
+
+  it("honors the policy over-budget tolerance from the policy file", async () => {
+    await createPhase8Fixture(tempDir);
+
+    const runContext = async (maxTokens: number) => {
+      const output: string[] = [];
+      const program = createCli({ writeOut: (value) => output.push(value) });
+      await program.parseAsync([
+        "node",
+        "visp",
+        "context",
+        "T001",
+        tempDir,
+        "--max-tokens",
+        String(maxTokens),
+        "--json",
+        "--force"
+      ]);
+      return JSON.parse(output.join("")) as {
+        overBudget: boolean;
+        estimatedTokens: { input: number; maxInput: number };
+      };
+    };
+
+    const policyPath = path.join(tempDir, ".visp", "policy.json");
+    const policy = JSON.parse(await readFile(policyPath, "utf8")) as {
+      limits: { maxContextOverBudgetPercent: number };
+    };
+    const setTolerance = async (percent: number) => {
+      policy.limits.maxContextOverBudgetPercent = percent;
+      await writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`, "utf8");
+    };
+
+    // Measure the untrimmed input for this fixture with a generous budget so
+    // the pack is never trimmed, giving a stable reference point.
+    await setTolerance(0);
+    const measured = await runContext(1_000_000);
+    const inputTokens = measured.estimatedTokens.input;
+    expect(measured.overBudget).toBe(false);
+    expect(inputTokens).toBeGreaterThan(0);
+
+    // Choose a base budget below the measured input but within a 50% tolerance,
+    // so the effective cutoff (base * 1.5) clears the input without triggering
+    // trimming. Keeps the tolerance well within the schema's 0-100. A small
+    // margin absorbs the 1-token render variance from echoing maxInput.
+    const baseBudget = Math.floor(inputTokens / 1.4);
+    expect(baseBudget).toBeLessThan(inputTokens);
+
+    // Locked-equivalent (0%): base budget is a hard cutoff -> over budget.
+    await setTolerance(0);
+    const locked = await runContext(baseBudget);
+    expect(locked.estimatedTokens.maxInput).toBe(baseBudget);
+    expect(locked.overBudget).toBe(true);
+
+    // 50% tolerance lifts the effective cutoff above the input -> within budget,
+    // proving policy.limits.maxContextOverBudgetPercent is read and applied.
+    await setTolerance(50);
+    const tolerated = await runContext(baseBudget);
+    expect(tolerated.estimatedTokens.maxInput).toBe(baseBudget);
+    expect(tolerated.overBudget).toBe(false);
   });
 
   it("dry-run writes nothing", async () => {

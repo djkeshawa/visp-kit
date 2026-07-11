@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { codexTargetFiles } from "../../../../src/agent/targets/codex.js";
-import { toPosixPath } from "../../../../src/core/paths.js";
 
 describe("codex target", () => {
   it("renders AGENTS.md, the rules file, and five Visp skills with strict guidance", () => {
@@ -11,7 +10,8 @@ describe("codex target", () => {
       useFallbackAgentsFile: false
     });
 
-    expect(files.map((file) => toPosixPath(file.path))).toEqual([
+    // Normalize separators so the assertion holds on both POSIX and Windows.
+    expect(files.map((file) => file.path.replace(/\\/g, "/"))).toEqual([
       "/repo/AGENTS.md",
       "/repo/.visp/prompts/visp-rules.md",
       "/repo/.agents/skills/visp-feature/SKILL.md",
@@ -40,6 +40,6 @@ describe("codex target", () => {
       useFallbackAgentsFile: true
     });
 
-    expect(toPosixPath(files[0]?.path ?? "")).toBe("/repo/AGENTS.visp.md");
+    expect(files[0]?.path.replace(/\\/g, "/")).toBe("/repo/AGENTS.visp.md");
   });
 });

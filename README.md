@@ -134,13 +134,13 @@ Observability and evaluation:
 
 Visp Kit is ready for local alpha use and internal pilots.
 
-### 1. Use Node.js 22+
+### 1. Use Node.js 24+
 
 With `nvm`:
 
 ```bash
-nvm install 22
-nvm use 22
+nvm install 24
+nvm use 24
 node --version
 ```
 
@@ -271,7 +271,7 @@ node /path/to/visp-kit/dist/index.js agent bootstrap codex --strictness strict
 
 Requirements:
 
-- Node.js 22+
+- Node.js 24+
 - pnpm 11+
 - Git for diff-based review, reconcile, and PR summaries
 
@@ -386,8 +386,6 @@ Generated files depend on the target:
 - Generic: `AGENTS.md` plus `.visp/prompts/agent-*.prompt.md`
 - Claude: `.claude/commands/visp-*.md`
 - Copilot: `.github/copilot-instructions.md` and `.github/instructions/visp-*.instructions.md`
-- Cursor: `.cursor/rules/visp-*.mdc`
-- Gemini CLI: `GEMINI.md` plus `.gemini/commands/visp-*.toml`
 
 ### Start A Feature
 
@@ -614,8 +612,7 @@ Supported targets:
 - `generic`
 - `claude`
 - `copilot`
-- `cursor`
-- `gemini`
+- `opencode`
 
 Install guidance:
 
@@ -625,8 +622,7 @@ visp agent install codex
 visp agent install generic
 visp agent install claude
 visp agent install copilot
-visp agent install cursor
-visp agent install gemini
+visp agent install opencode
 visp agent doctor
 visp agent refresh
 ```

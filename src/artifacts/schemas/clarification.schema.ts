@@ -55,7 +55,7 @@ export const clarificationArtifactSchema = z
   .object({
     featureId: idSchema,
     featureSlug: nonEmptyStringSchema,
-    status: z.enum(["draft", "ready"]),
+    status: z.enum(["draft_invalid", "draft", "ready"]),
     questions: z.array(clarificationQuestionSchema),
     assumptions: z.array(clarificationAssumptionSchema),
     createdAt: isoDateTimeSchema,

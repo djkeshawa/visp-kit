@@ -29,6 +29,7 @@ export function summarizeGateResult(result: GateResult): PolicyGateSummary {
     appliedOverrides: result.appliedOverrides,
     warnings: result.warnings,
     nextAllowedCommand: result.nextAllowedCommand,
+    nextCommand: result.nextCommand,
     evaluatedAt: result.evaluatedAt
   };
 }
@@ -64,7 +65,11 @@ export function gateBlocksWorkflow(input: {
   readonly force?: boolean;
 }): boolean {
   if (input.gate.allowed) return false;
-  if (input.gate.strictnessMode === "locked") return true;
+  // strict and locked block gate failures unconditionally; --force cannot bypass
+  // them. Only relaxed/standard modes allow --force to downgrade blocks to warnings.
+  if (input.gate.strictnessMode === "locked" || input.gate.strictnessMode === "strict") {
+    return true;
+  }
   return input.force !== true;
 }
 

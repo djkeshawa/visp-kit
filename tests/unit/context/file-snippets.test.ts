@@ -56,4 +56,27 @@ describe("file snippets", () => {
 
     expect(snippet).toBeUndefined();
   });
+
+  it("centers snippets on a matching symbol instead of always taking the file prefix", async () => {
+    await writeFile(
+      path.join(tempDir, "store.ts"),
+      [
+        ...Array.from({ length: 30 }, (_, index) => `const filler${index} = ${index};`),
+        "export function pinNote(id: string) { return id; }",
+        ...Array.from({ length: 10 }, (_, index) => `const tail${index} = ${index};`)
+      ].join("\n"),
+      "utf8"
+    );
+
+    const snippet = expectOk(await extractFileSnippet({
+      rootPath: tempDir,
+      filePath: "store.ts",
+      maxTokens: 50,
+      reason: "task symbol",
+      focusTerms: ["pinNote"]
+    }));
+
+    expect(snippet?.startLine).toBeGreaterThan(1);
+    expect(snippet?.content).toContain("pinNote");
+  });
 });

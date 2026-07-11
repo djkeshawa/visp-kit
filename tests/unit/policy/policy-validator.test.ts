@@ -44,4 +44,73 @@ describe("policy validator", () => {
     expect(validation.errors.join("\n")).toContain("maxChangedFilesPerTask");
     expect(validation.errors.join("\n")).toContain("maxContextOverBudgetPercent");
   });
+
+  it("rejects policies that disable the non-overridable core flags", () => {
+    const policy = createDefaultPolicy({
+      strictnessMode: "locked",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const validation = validatePolicyArtifact({
+      ...policy,
+      rules: {
+        ...policy.rules,
+        userPromptCannotOverridePolicy: false
+      }
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(validation.errors.join("\n")).toContain("userPromptCannotOverridePolicy");
+    expect(validation.errors.join("\n")).toContain("VSP019");
+  });
+
+  it("rejects policies that disable stopOnFailedGate", () => {
+    const policy = createDefaultPolicy({
+      strictnessMode: "strict",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const validation = validatePolicyArtifact({
+      ...policy,
+      rules: {
+        ...policy.rules,
+        stopOnFailedGate: false
+      }
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(validation.errors.join("\n")).toContain("stopOnFailedGate");
+    expect(validation.errors.join("\n")).toContain("VSP020");
+  });
+
+  it("rejects policies whose nonOverridableRules omit VSP019", () => {
+    const policy = createDefaultPolicy({
+      strictnessMode: "strict",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const validation = validatePolicyArtifact({
+      ...policy,
+      overrides: {
+        ...policy.overrides,
+        nonOverridableRules: ["VSP020"]
+      }
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(validation.errors.join("\n")).toContain("nonOverridableRules");
+    expect(validation.errors.join("\n")).toContain("VSP019");
+  });
+
+  it("rejects policies whose nonOverridableRules are emptied", () => {
+    const policy = createDefaultPolicy({ now: "2026-01-01T00:00:00.000Z" });
+    const validation = validatePolicyArtifact({
+      ...policy,
+      overrides: {
+        ...policy.overrides,
+        nonOverridableRules: []
+      }
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(validation.errors.join("\n")).toContain("VSP019");
+    expect(validation.errors.join("\n")).toContain("VSP020");
+  });
 });

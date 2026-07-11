@@ -5,6 +5,7 @@ import { loadProjectState } from "../orchestrator/project-state.js";
 import { recommendNextStep, type NextStep } from "../orchestrator/next-step.js";
 import { evaluatePolicyGate } from "../gates/policy-gate-summary.js";
 import { formatHeader } from "../theme/terminal.js";
+import { buildWorkflowActionV2 } from "../integration/workflow-action.js";
 
 export type NextWorkflowOptions = {
   readonly targetPath?: string;
@@ -89,7 +90,7 @@ export async function runNextWorkflow(
   const implementationAllowed = implementationGate?.ok ? implementationGate.value.allowed : false;
   const prAllowed = prGate?.ok ? prGate.value.allowed : false;
 
-  return ok({
+  const summary: NextStep = {
     ...fallback,
     success: nextGate.value.allowed && fallback.success,
     nextCommand,
@@ -114,6 +115,11 @@ export async function runNextWorkflow(
     agentInstruction: implementationAllowed
       ? "Implementation is allowed only for the selected Visp task and context."
       : `Do not implement code until \`${nextCommand}\` succeeds.`
+  };
+
+  return ok({
+    ...summary,
+    action: await buildWorkflowActionV2({ state: state.value, step: summary })
   });
 }
 

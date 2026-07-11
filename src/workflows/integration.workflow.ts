@@ -23,7 +23,7 @@ export type IntegrationContractOptions = {
 
 export type IntegrationContractSummary = {
   readonly success: true;
-  readonly contractVersion: "1.3";
+  readonly contractVersion: "2.0";
   readonly kit: {
     readonly packageName: "visp-kit";
     readonly cliName: "visp";
@@ -133,7 +133,7 @@ const COMMANDS: Record<string, readonly string[]> = {
   policyValidate: ["policy", "validate", "--json"],
   gateNext: ["gate", "next", "--json"],
   gateImplement: ["gate", "implement", "--task", "<task-id>", "--json"],
-  context: ["context", "--task", "<task-id>", "--json"],
+  context: ["context", "<task-id>", "--json"],
   verify: ["verify", "--task", "<task-id>", "--json"],
   review: ["review", "--task", "<task-id>", "--json"],
   reconcile: ["reconcile", "--task", "<task-id>", "--json"],
@@ -251,7 +251,7 @@ export async function runIntegrationContractWorkflow(
 
   return ok({
     success: true,
-    contractVersion: "1.3",
+    contractVersion: "2.0",
     kit: {
       packageName: "visp-kit",
       cliName: "visp",

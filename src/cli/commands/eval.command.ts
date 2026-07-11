@@ -80,3 +80,11 @@ export function createEvalCommand(dependencies: EvalCommandDependencies = {}): C
       if (!result.value.success) process.exitCode = 1;
     });
 }
+
+export function createAuditCommand(
+  dependencies: EvalCommandDependencies = {}
+): Command {
+  return createEvalCommand(dependencies)
+    .name("audit")
+    .description("Audit Visp workflow artifacts and deterministic evidence.");
+}

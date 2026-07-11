@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
 import { pathExists } from "../../src/core/file-system.js";
-import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
+import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -85,7 +85,7 @@ describe("visp review command", () => {
 
   afterEach(async () => {
     process.exitCode = undefined;
-    await rm(tempDir, { recursive: true, force: true });
+    await removeTempDirWithRetry(tempDir);
   });
 
   it("writes task review markdown, JSON, prompt, and checklist", async () => {

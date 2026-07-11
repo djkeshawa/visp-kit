@@ -9,11 +9,13 @@ import {
   traceabilityArtifactPath,
   traceabilityMarkdownPath
 } from "../artifacts/artifact-paths.js";
+import { readArtifact } from "../artifacts/artifact-reader.js";
+import { clarificationArtifactSchema } from "../artifacts/schemas/clarification.schema.js";
 import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
 import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
-import { err, type Result } from "../core/result.js";
+import { err, ok, type Result } from "../core/result.js";
 import { renderSpecPrompt } from "../prompts/render-spec-prompt.js";
 import {
   createSpecArtifact,
@@ -22,6 +24,7 @@ import {
   renderTraceabilityMarkdown
 } from "../templates/phase7-templates.js";
 import { validateSpec } from "../validators/validate-spec.js";
+import { validateClarifications } from "../validators/validate-clarifications.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import {
   artifactGeneratedFile,
@@ -70,7 +73,12 @@ async function validateExisting(input: {
     spec.value === undefined
       ? { passed: false, errors: [] }
       : validateSpec({ spec: spec.value, traceability: traceability.value });
-  const errors = [...textErrors, ...spec.errors, ...traceability.errors, ...semantic.errors];
+  const errors = [
+    ...textErrors,
+    ...spec.errors,
+    ...traceability.errors,
+    ...semantic.errors
+  ];
 
   return {
     validation: { passed: errors.length === 0, errors },
@@ -140,22 +148,33 @@ export async function runSpecWorkflow(
         }
       ]);
 
-  if (missingClarifications.length > 0 && !force) {
+  if (missingClarifications.length > 0) {
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Clarification artifacts are missing. Run `visp clarify` first or use --force.",
+        "Clarification artifacts are missing. Run `visp clarify` first.",
         { recovery: "visp clarify" }
       )
     );
   }
 
-  const warnings =
-    missingClarifications.length > 0
-      ? [
-          "Clarification artifacts are missing; generated a draft spec because --force was provided."
-        ]
-      : [];
+  if (!promptOnly) {
+    const clarificationPath = clarificationsArtifactPath(targetPath, feature.value.key);
+    const clarifications = await readArtifact(clarificationPath, clarificationArtifactSchema, {
+      artifactName: "clarifications"
+    });
+    if (!clarifications.ok) return clarifications;
+    const readiness = validateClarifications(clarifications.value);
+    if (!readiness.passed) {
+      return err(new VispError(
+        "VALIDATION_FAILED",
+        `Clarifications are incomplete: ${readiness.errors.join(" ")}`,
+        { recovery: "visp clarify --validate" }
+      ));
+    }
+  }
+
+  const warnings: string[] = [];
   const spec = createSpecArtifact({ feature: feature.value, now });
   const traceability = createTraceabilitySeed({
     feature: feature.value,

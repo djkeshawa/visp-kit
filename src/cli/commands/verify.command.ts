@@ -75,7 +75,10 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
     .option("--scope", "Run task scope validation.")
     .option("--dependencies", "Run dependency-change validation.")
     .option("--update-task-status", "Mark selected task verified when verification passes.")
-    .option("--force", "Accepted for generated report overwrite compatibility.")
+    .option(
+      "--force",
+      "Downgrade gate blocks to warnings in relaxed/standard mode only; cannot bypass gate blocks in strict/locked mode."
+    )
     .option("--dry-run", "Show verification plan without running commands or writing reports.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: VerifyCommandOptions) => {

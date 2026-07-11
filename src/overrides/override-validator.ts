@@ -29,9 +29,14 @@ export function isNonOverridableRule(input: {
   readonly ruleId: string;
   readonly policy?: PolicyArtifact;
 }): boolean {
-  const rules: readonly string[] =
-    input.policy?.overrides.nonOverridableRules ?? defaultNonOverridableRules;
-  return rules.includes(input.ruleId);
+  // Union the policy file's list with the protected defaults so the
+  // non-overridable core (VSP019/VSP020) stays protected even if the policy
+  // artifact's array has been tampered with to omit them.
+  const rules = new Set<string>([
+    ...defaultNonOverridableRules,
+    ...(input.policy?.overrides.nonOverridableRules ?? [])
+  ]);
+  return rules.has(input.ruleId);
 }
 
 function scopeErrors(override: OverrideRecord): readonly string[] {

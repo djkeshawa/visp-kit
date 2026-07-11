@@ -8,12 +8,15 @@ import {
   specMarkdownPath
 } from "../artifacts/artifact-paths.js";
 import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
+import { readArtifact } from "../artifacts/artifact-reader.js";
+import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, type Result } from "../core/result.js";
 import { renderPlanPrompt } from "../prompts/render-plan-prompt.js";
 import { createPlanDraftArtifact, renderPlanMarkdown } from "../templates/phase7-templates.js";
 import { validatePlan } from "../validators/validate-plan.js";
+import { validateSpec } from "../validators/validate-spec.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import {
   artifactGeneratedFile,
@@ -116,6 +119,23 @@ export async function runPlanWorkflow(
         { recovery: "visp spec" }
       )
     );
+  }
+
+  if (!promptOnly) {
+    const spec = await readArtifact(
+      specArtifactPath(targetPath, feature.value.key),
+      specArtifactSchema,
+      { artifactName: "spec" }
+    );
+    if (!spec.ok) return spec;
+    const readiness = validateSpec({ spec: spec.value });
+    if (!readiness.passed) {
+      return err(new VispError(
+        "VALIDATION_FAILED",
+        `Specification is incomplete: ${readiness.errors.join(" ")}`,
+        { recovery: "visp spec --validate" }
+      ));
+    }
   }
 
   const artifact = createPlanDraftArtifact({ feature: feature.value, now });

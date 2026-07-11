@@ -41,7 +41,7 @@ export type ClarifyAnswerSummary = {
   readonly questionId: string;
   readonly status: "answered" | "accepted_default";
   readonly answer: string;
-  readonly artifactStatus: "draft" | "ready";
+  readonly artifactStatus: "draft_invalid" | "draft" | "ready";
   readonly dryRun: boolean;
   readonly updatedFiles: readonly string[];
   readonly validation: {

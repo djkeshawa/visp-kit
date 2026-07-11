@@ -2,6 +2,7 @@ import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { duplicateIds, validation } from "./validation-helpers.js";
 import { type WorkflowValidation } from "../workflows/shared/workflow-summary.js";
+import { concreteStrings, concreteText, isPlaceholderText, isTautologicalCriterion, placeholderFindings } from "./semantic-lint.js";
 
 export function validateSpec(input: {
   readonly spec: SpecArtifact;
@@ -15,11 +16,24 @@ export function validateSpec(input: {
     ...duplicateIds(acceptanceCriterionIds, "acceptance criterion")
   ];
 
+  if (input.spec.status !== "ready") {
+    errors.push("Specification must be marked ready before workflow advancement.");
+  }
+  errors.push(...placeholderFindings(input.spec, "spec"));
+
+  errors.push(
+    ...concreteStrings({ values: input.spec.businessRules, label: "businessRules" }),
+    ...concreteStrings({ values: input.spec.edgeCases, label: "edgeCases" }),
+    ...concreteStrings({ values: input.spec.outOfScope, label: "outOfScope" })
+  );
+
   if (input.spec.requirements.length === 0) {
     errors.push("Spec must include at least one requirement.");
   }
 
   for (const requirement of input.spec.requirements) {
+    errors.push(...concreteText({ value: requirement.title, label: `${requirement.id} title` }));
+    errors.push(...concreteText({ value: requirement.description, label: `${requirement.id} description` }));
     if (requirement.description.trim().length === 0) {
       errors.push(`${requirement.id} must have a description.`);
     }
@@ -36,6 +50,19 @@ export function validateSpec(input: {
 
     if (criterion.description.trim().length === 0) {
       errors.push(`${criterion.id} must have a description.`);
+    }
+
+    if (isPlaceholderText(criterion.description)) {
+      errors.push(`${criterion.id} contains placeholder text.`);
+    }
+
+    const requirement = input.spec.requirements.find((item) => item.id === criterion.requirementId);
+    if (requirement !== undefined && isTautologicalCriterion({
+      criterion: criterion.description,
+      requirementTitle: requirement.title,
+      requirementDescription: requirement.description
+    })) {
+      errors.push(`${criterion.id} must state an observable outcome rather than repeat its requirement.`);
     }
   }
 

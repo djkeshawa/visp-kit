@@ -53,11 +53,17 @@ describe("command runner", () => {
 
     if (isErr(result)) {
       expect(result.error.code).toBe("COMMAND_FAILED");
-      expect(result.error.details).toMatchObject({
-        exitCode: 7,
-        stderr: "not ok",
-        timedOut: false
-      });
+      const details = result.error.details as {
+        exitCode: number;
+        stderr: string;
+        timedOut: boolean;
+      };
+      expect(details.exitCode).toBe(7);
+      // The runner preserves captured output verbatim; Windows `cmd.exe echo`
+      // appends a trailing "\r\n", so compare trim-tolerantly rather than
+      // altering the product's raw-output contract.
+      expect(details.stderr.trim()).toBe("not ok");
+      expect(details.timedOut).toBe(false);
     }
   });
 

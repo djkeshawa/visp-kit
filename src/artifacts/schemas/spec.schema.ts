@@ -32,7 +32,7 @@ export const specArtifactSchema = z
     featureId: idSchema,
     featureSlug: nonEmptyStringSchema,
     title: nonEmptyStringSchema,
-    status: z.enum(["draft", "ready"]),
+    status: z.enum(["draft_invalid", "draft", "ready"]),
     userStories: z.array(userStorySchema),
     requirements: z.array(requirementSchema),
     acceptanceCriteria: z.array(acceptanceCriterionSchema),

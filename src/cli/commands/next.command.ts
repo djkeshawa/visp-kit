@@ -21,6 +21,7 @@ type NextCommandOptions = {
   readonly explain?: boolean;
   readonly strict?: boolean;
   readonly json?: boolean;
+  readonly format?: string;
 };
 
 function workflowOptions(
@@ -54,6 +55,7 @@ export function createNextCommand(dependencies: NextCommandDependencies = {}): C
     .option("--explain", "Include reasoning.")
     .option("--strict", "Require all deterministic gates.")
     .option("--json", "Print a machine-readable summary.")
+    .option("--format <format>", "Output format: text or json.")
     .action(async (targetPath: string | undefined, options: NextCommandOptions) => {
       const result = await runNext(workflowOptions(targetPath, options, dependencies.cwd));
 
@@ -68,8 +70,16 @@ export function createNextCommand(dependencies: NextCommandDependencies = {}): C
         return;
       }
 
+      if (options.format !== undefined && options.format !== "text" && options.format !== "json") {
+        writeErr(`${formatError("--format must be text or json.")}\n`);
+        process.exitCode = 1;
+        return;
+      }
+
       writeOut(
-        options.json
+        options.format === "json"
+          ? `${JSON.stringify(result.value.action, null, 2)}\n`
+          : options.json
           ? `${JSON.stringify(result.value, null, 2)}\n`
           : formatNextSummary(result.value, {
               commandOnly: options.commandOnly,

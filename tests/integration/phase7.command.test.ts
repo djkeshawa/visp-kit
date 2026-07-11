@@ -19,6 +19,117 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
+async function updateJson(filePath: string, update: (value: any) => void): Promise<void> {
+  const value = JSON.parse(await readFile(filePath, "utf8"));
+  update(value);
+  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+async function completeClarification(featureDir: string): Promise<void> {
+  await updateJson(path.join(featureDir, "clarifications.json"), (artifact) => {
+    artifact.questions[0].question = "Should pinned notes appear before unpinned notes?";
+    artifact.questions[0].recommendedDefault = "Pinned notes appear first.";
+    artifact.questions[0].reason = "The ordering rule changes observable behavior.";
+  });
+}
+
+async function completeSpec(featureDir: string): Promise<void> {
+  await updateJson(path.join(featureDir, "spec.json"), (spec) => {
+    spec.status = "ready";
+    spec.userStories[0] = {
+      id: "US001",
+      title: "Pin a note",
+      actor: "note user",
+      capability: "pin and unpin a note",
+      outcome: "important notes remain at the top"
+    };
+    const criterion = {
+      id: "AC001",
+      requirementId: "REQ001",
+      description: "Pinning a note places it before unpinned notes while preserving order within each group.",
+      testable: true,
+      validationMethod: "unit"
+    };
+    spec.requirements[0].title = "Persist note pin state";
+    spec.requirements[0].description = "The note store must persist whether each note is pinned.";
+    spec.requirements[0].acceptanceCriteria = [criterion];
+    spec.acceptanceCriteria = [criterion];
+    spec.businessRules = ["Pinned notes sort before unpinned notes."];
+    spec.nonFunctionalRequirements = {
+      performance: ["Sorting remains linearithmic in the number of notes."],
+      security: ["Pinning does not change note authorization."],
+      accessibility: ["Pinned state is available to assistive technology."],
+      reliability: ["Pin state survives a store reload."],
+      maintainability: ["Pin ordering is covered by unit tests."]
+    };
+    spec.edgeCases = ["Unpinning the only pinned note restores normal ordering."];
+    spec.outOfScope = ["Cross-device synchronization of pin state."];
+  });
+}
+
+async function completePlan(featureDir: string): Promise<void> {
+  await updateJson(path.join(featureDir, "plan.json"), (plan) => {
+    plan.status = "ready";
+    plan.evidence.knownFromSpecification = ["REQ001 and AC001 define pin persistence and ordering."];
+    plan.evidence.knownFromCodebase = ["src/notes/store.ts owns note persistence."];
+    plan.evidence.knownFromConstitution = ["Keep changes task-scoped and tested."];
+    plan.evidence.inferred = ["Existing note ordering can be extended without a new dependency."];
+    plan.evidence.assumed = ["The note model can accept a boolean pinned field."];
+    plan.evidence.unknown = ["No migration is needed for existing in-memory fixtures."];
+    plan.affectedModules[0] = {
+      moduleOrFileArea: "src/notes/store.ts",
+      reason: "Persist and sort the pin state.",
+      evidence: "REQ001 and the existing store boundary."
+    };
+    plan.implementationApproach = "Add pin state to the note store and cover grouped ordering with unit tests.";
+    plan.impacts = {
+      dataModel: "Add a default-false pinned field.",
+      api: "Expose pin and unpin store operations.",
+      ui: "No UI change in this task.",
+      securityPrivacy: "No authorization change.",
+      performance: "One grouped sort when listing notes."
+    };
+    plan.testingStrategy[0] = {
+      level: "unit",
+      whatToTest: "Pin persistence, unpin behavior, and stable grouped ordering.",
+      validationCommand: "pnpm test"
+    };
+    plan.rollbackStrategy = "Remove the field and pin operations if validation fails.";
+    plan.alternatives[0] = {
+      option: "Maintain a separate pinned-note index.",
+      decision: "rejected",
+      reason: "It adds state synchronization without a demonstrated need."
+    };
+    plan.risks[0].description = "Existing note fixtures may omit the new field.";
+    plan.risks[0].mitigation = "Default missing pin state to false and add regression tests.";
+    plan.decisions[0] = {
+      id: "PD001",
+      title: "Store pin state on the note",
+      decision: "Use a default-false boolean field.",
+      reason: "It keeps persistence and ordering in one model.",
+      evidence: "REQ001; src/notes/store.ts",
+      impacts: "Note fixtures and store sorting.",
+      requirementIds: ["REQ001"]
+    };
+  });
+}
+
+async function completeTasks(featureDir: string): Promise<void> {
+  await updateJson(path.join(featureDir, "task-graph.json"), (graph) => {
+    graph.status = "ready";
+    graph.tasks[0] = {
+      ...graph.tasks[0],
+      title: "Implement note pin persistence and ordering",
+      description: "Add pin operations and stable grouped ordering with focused unit tests.",
+      allowedFiles: ["src/notes/store.ts", "tests/unit/notes/store.test.ts"],
+      expectedFiles: ["tests/unit/notes/store.test.ts"],
+      validationCommands: ["pnpm test"],
+      status: "ready",
+      riskLevel: "medium"
+    };
+  });
+}
+
 async function initializedFeature(tempDir: string): Promise<void> {
   expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
   expectOk(
@@ -63,20 +174,23 @@ describe("phase 7 template commands", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it("runs the full clarify, spec, plan, and tasks command chain", async () => {
+  it("runs the full clarify, spec, plan, and tasks command chain after semantic completion", async () => {
     await initializedFeature(tempDir);
     const program = createCli({ writeOut: () => undefined });
 
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
-    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate"]);
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    await completeClarification(featureDir);
+    await program.parseAsync(["node", "visp", "clarify", "answer", "CQ001", tempDir, "--accept-default"]);
     await program.parseAsync(["node", "visp", "spec", tempDir]);
+    await completeSpec(featureDir);
     await program.parseAsync(["node", "visp", "spec", tempDir, "--validate"]);
     await program.parseAsync(["node", "visp", "plan", tempDir]);
+    await completePlan(featureDir);
     await program.parseAsync(["node", "visp", "plan", tempDir, "--validate"]);
     await program.parseAsync(["node", "visp", "tasks", tempDir]);
+    await completeTasks(featureDir);
     await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
-
-    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
 
     for (const file of [
       "clarifications.md",
@@ -99,16 +213,20 @@ describe("phase 7 template commands", () => {
       "plan.prompt.md",
       "tasks.prompt.md"
     ]) {
-      expect(await exists(path.join(tempDir, ".visp", "prompts", file))).toBe(true);
+      expect(await exists(path.join(tempDir, ".visp", "prompts", file))).toBe(
+        true
+      );
     }
 
     expect(await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")).toContain(
       "tasks_ready"
     );
-    expect(await readFile(path.join(featureDir, "traceability.json"), "utf8")).toContain("T001");
-    expect(
-      await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8")
-    ).toContain("# Visp Budget Report");
+    expect(await readFile(path.join(featureDir, "traceability.json"), "utf8")).toContain(
+      "T001"
+    );
+    expect(await readFile(path.join(tempDir, ".visp", "reports", "budget-report.md"), "utf8")).toContain(
+      "# Visp Budget Report"
+    );
   });
 
   it("fails clearly when .visp or active feature is missing", async () => {
@@ -131,7 +249,7 @@ describe("phase 7 template commands", () => {
     expect(errors.join("")).toContain("visp feature");
   });
 
-  it("requires clarifications before spec unless force is used", async () => {
+  it("does not let force bypass missing clarifications", async () => {
     await initializedFeature(tempDir);
     const errors: string[] = [];
     const program = createCli({
@@ -164,9 +282,7 @@ describe("phase 7 template commands", () => {
     process.exitCode = undefined;
     await program.parseAsync(["node", "visp", "spec", tempDir, "--force"]);
 
-    expect(
-      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "spec.json"))
-    ).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "spec.json"))).toBe(false);
   });
 
   it("records clarification answers through the CLI", async () => {
@@ -175,6 +291,7 @@ describe("phase 7 template commands", () => {
     const program = createCli({ writeOut: (value) => output.push(value) });
 
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
+    await completeClarification(path.join(tempDir, ".visp", "features", "001-add-note-pinning"));
     output.length = 0;
     await program.parseAsync([
       "node",
@@ -194,7 +311,12 @@ describe("phase 7 template commands", () => {
       questionId: string;
       updatedFiles: string[];
     };
-    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    const featureDir = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning"
+    );
     const artifact = JSON.parse(
       await readFile(path.join(featureDir, "clarifications.json"), "utf8")
     ) as {
@@ -205,9 +327,7 @@ describe("phase 7 template commands", () => {
     expect(summary.success).toBe(true);
     expect(summary.artifactStatus).toBe("ready");
     expect(summary.questionId).toBe("CQ001");
-    expect(summary.updatedFiles).toContain(
-      ".visp/features/001-add-note-pinning/clarifications.json"
-    );
+    expect(summary.updatedFiles).toContain(".visp/features/001-add-note-pinning/clarifications.json");
     expect(artifact.status).toBe("ready");
     expect(artifact.questions[0]?.status).toBe("answered");
     expect(artifact.questions[0]?.answer).toContain("existing note model");
@@ -220,14 +340,23 @@ describe("phase 7 template commands", () => {
     await initializedFeature(tempDir);
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
-    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    const featureDir = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning"
+    );
     const specPath = path.join(featureDir, "spec.json");
 
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
+    await completeClarification(featureDir);
+    await program.parseAsync(["node", "visp", "clarify", "answer", "CQ001", tempDir, "--accept-default"]);
     await program.parseAsync(["node", "visp", "spec", tempDir]);
+    await completeSpec(featureDir);
     await writeNormalizableSpecMistakes(specPath);
 
     output.length = 0;
+    process.exitCode = undefined;
     await program.parseAsync(["node", "visp", "spec", tempDir, "--validate"]);
 
     expect(process.exitCode).toBeUndefined();
@@ -244,7 +373,9 @@ describe("phase 7 template commands", () => {
     };
 
     expect(normalized.requirements[0]?.source).toBe("derived");
-    expect(normalized.requirements[0]?.acceptanceCriteria[0]?.validationMethod).toBe("manual");
+    expect(normalized.requirements[0]?.acceptanceCriteria[0]?.validationMethod).toBe(
+      "manual"
+    );
     expect(normalized.acceptanceCriteria[0]?.validationMethod).toBe("unit");
     expect(normalized.assumptions[0]).toEqual({
       id: "ASM001",
@@ -256,11 +387,17 @@ describe("phase 7 template commands", () => {
     });
 
     await program.parseAsync(["node", "visp", "plan", tempDir]);
+    await completePlan(featureDir);
     await writeNormalizableSpecMistakes(specPath);
     await program.parseAsync(["node", "visp", "tasks", tempDir]);
+    await completeTasks(featureDir);
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
 
     expect(process.exitCode).toBeUndefined();
-    expect(await readFile(path.join(featureDir, "tasks.md"), "utf8")).toContain("# Tasks");
+    expect(await readFile(path.join(featureDir, "tasks.md"), "utf8")).toContain(
+      "# Tasks"
+    );
   });
 
   it("skips existing generated files without force and overwrites with force", async () => {
@@ -289,9 +426,19 @@ describe("phase 7 template commands", () => {
 
     await program.parseAsync(["node", "visp", "plan", tempDir, "--prompt-only"]);
 
-    expect(await exists(path.join(tempDir, ".visp", "prompts", "plan.prompt.md"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "prompts", "plan.prompt.md"))).toBe(
+      true
+    );
     expect(
-      await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "plan.md"))
+      await exists(
+        path.join(
+          tempDir,
+          ".visp",
+          "features",
+          "001-add-note-pinning",
+          "plan.md"
+        )
+      )
     ).toBe(false);
 
     output.length = 0;
@@ -299,19 +446,38 @@ describe("phase 7 template commands", () => {
     expect(output.join("")).toContain("dry run");
     expect(
       await exists(
-        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "clarifications.md")
+        path.join(
+          tempDir,
+          ".visp",
+          "features",
+          "001-add-note-pinning",
+          "clarifications.md"
+        )
       )
     ).toBe(false);
 
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
     await writeFile(
-      path.join(tempDir, ".visp", "features", "001-add-note-pinning", "clarifications.json"),
+      path.join(
+        tempDir,
+        ".visp",
+        "features",
+        "001-add-note-pinning",
+        "clarifications.json"
+      ),
       "{",
       "utf8"
     );
 
     output.length = 0;
-    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate", "--json"]);
+    await program.parseAsync([
+      "node",
+      "visp",
+      "clarify",
+      tempDir,
+      "--validate",
+      "--json"
+    ]);
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
       validation: { passed: boolean; errors: string[] };

@@ -152,18 +152,21 @@ function refreshOptions(
   };
 }
 
-export function createAgentCommand(dependencies: AgentCommandDependencies = {}): Command {
+export function createAgentCommand(
+  dependencies: AgentCommandDependencies = {}
+): Command {
   const runList = dependencies.runAgentList ?? runAgentListWorkflow;
   const runInstall = dependencies.runAgentInstall ?? runAgentInstallWorkflow;
   const runBootstrap = dependencies.runAgentBootstrap ?? runAgentBootstrapWorkflow;
   const runDoctor = dependencies.runAgentDoctor ?? runAgentDoctorWorkflow;
   const runRefresh = dependencies.runAgentRefresh ?? runAgentRefreshWorkflow;
-  const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
-  const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
+  const writeOut =
+    dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
+  const writeErr =
+    dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
-  const agent = new Command("agent").description(
-    "Install and inspect Visp agent-native workflow files."
-  );
+  const agent = new Command("agent")
+    .description("Install and inspect Visp agent-native workflow files.");
 
   agent
     .command("list")
@@ -183,31 +186,34 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
         return;
       }
 
-      writeOut(
-        options.json ? `${JSON.stringify(result.value, null, 2)}\n` : formatAgentList(result.value)
-      );
+      writeOut(options.json
+        ? `${JSON.stringify(result.value, null, 2)}\n`
+        : formatAgentList(result.value));
     });
 
   agent
     .command("install")
     .description("Install agent-native workflow files.")
-    .argument("<target>", "Target: codex, generic, claude, copilot, cursor, or gemini.")
+    .argument("<target>", "Target: codex, generic, claude, copilot, cursor, gemini, or opencode.")
     .argument("[path]", "Target project path.")
     .option("--force", "Overwrite existing generated files.")
     .option("--dry-run", "Show what would be created without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .addOption(
-      new Option("--strictness <mode>", "Policy strictness mode for generated guidance.").choices(
-        strictnessModeSchema.options
-      )
+      new Option("--strictness <mode>", "Policy strictness mode for generated guidance.")
+        .choices(strictnessModeSchema.options)
     )
     .action(
-      async (targetValue: string, targetPath: string | undefined, options: AgentInstallOptions) => {
+      async (
+        targetValue: string,
+        targetPath: string | undefined,
+        options: AgentInstallOptions
+      ) => {
         const target = parseTarget(targetValue);
 
         if (target === undefined) {
           writeError({
-            message: "Agent target must be codex, generic, claude, copilot, cursor, or gemini.",
+            message: "Agent target must be codex, generic, claude, copilot, cursor, gemini, or opencode.",
             json: options.json,
             writeOut,
             writeErr
@@ -229,18 +235,16 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
           return;
         }
 
-        writeOut(
-          options.json
-            ? `${JSON.stringify(result.value, null, 2)}\n`
-            : formatAgentInstall(result.value)
-        );
+        writeOut(options.json
+          ? `${JSON.stringify(result.value, null, 2)}\n`
+          : formatAgentInstall(result.value));
       }
     );
 
   agent
     .command("bootstrap")
     .description("Initialize Visp Kit if needed and install agent-native workflow files.")
-    .argument("<target>", "Target: codex, generic, claude, copilot, cursor, or gemini.")
+    .argument("<target>", "Target: codex, generic, claude, copilot, cursor, gemini, or opencode.")
     .argument("[path]", "Target project path.")
     .option("--force", "Overwrite existing generated files.")
     .option("--dry-run", "Show what would be created without writing files.")
@@ -251,10 +255,8 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
         .default("strict")
     )
     .addOption(
-      new Option(
-        "--preset <preset>",
-        "Project preset to save during init. Omit to auto-detect."
-      ).choices(presetSchema.options)
+      new Option("--preset <preset>", "Project preset to save during init. Omit to auto-detect.")
+        .choices(presetSchema.options)
     )
     .addOption(
       new Option("--budget <budget>", "Budget mode to save during init.")
@@ -271,7 +273,7 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
 
         if (target === undefined) {
           writeError({
-            message: "Agent target must be codex, generic, claude, copilot, cursor, or gemini.",
+            message: "Agent target must be codex, generic, claude, copilot, cursor, gemini, or opencode.",
             json: options.json,
             writeOut,
             writeErr
@@ -293,11 +295,9 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
           return;
         }
 
-        writeOut(
-          options.json
-            ? `${JSON.stringify(result.value, null, 2)}\n`
-            : formatAgentBootstrap(result.value)
-        );
+        writeOut(options.json
+          ? `${JSON.stringify(result.value, null, 2)}\n`
+          : formatAgentBootstrap(result.value));
       }
     );
 
@@ -306,7 +306,8 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
     .description("Diagnose installed Visp agent workflow files.")
     .argument("[path]", "Target project path.")
     .addOption(
-      new Option("--target <target>", "Target to inspect.").choices(agentTargetNameSchema.options)
+      new Option("--target <target>", "Target to inspect.")
+        .choices(agentTargetNameSchema.options)
     )
     .option("--fix", "Create missing generated files when safe.")
     .option("--dry-run", "Show fixes without writing files.")
@@ -324,11 +325,9 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
         return;
       }
 
-      writeOut(
-        options.json
-          ? `${JSON.stringify(result.value, null, 2)}\n`
-          : formatAgentDoctor(result.value)
-      );
+      writeOut(options.json
+        ? `${JSON.stringify(result.value, null, 2)}\n`
+        : formatAgentDoctor(result.value));
 
       if (!result.value.success) process.exitCode = 1;
     });
@@ -338,15 +337,8 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
     .description("Refresh installed Visp agent workflow files.")
     .argument("[path]", "Target project path.")
     .addOption(
-      new Option("--target <target>", "Target to refresh.").choices([
-        "codex",
-        "generic",
-        "claude",
-        "copilot",
-        "cursor",
-        "gemini",
-        "all"
-      ])
+      new Option("--target <target>", "Target to refresh.")
+        .choices(["codex", "generic", "claude", "copilot", "cursor", "gemini", "opencode", "all"])
     )
     .option("--force", "Overwrite generated files.")
     .option("--dry-run", "Show what would be refreshed without writing files.")
@@ -370,9 +362,9 @@ export function createAgentCommand(dependencies: AgentCommandDependencies = {}):
         results: result.value
       };
 
-      writeOut(
-        options.json ? `${JSON.stringify(value, null, 2)}\n` : formatAgentRefresh(result.value)
-      );
+      writeOut(options.json
+        ? `${JSON.stringify(value, null, 2)}\n`
+        : formatAgentRefresh(result.value));
     });
 
   return agent;

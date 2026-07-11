@@ -82,6 +82,9 @@ export const gateResultSchema = z
     overriddenRules: z.array(idSchema),
     appliedOverrides: z.array(appliedPolicyOverrideSchema),
     nextAllowedCommand: nonEmptyStringSchema,
+    // Bare, machine-runnable form of nextAllowedCommand. Optional so artifacts
+    // written before this field existed keep parsing.
+    nextCommand: nonEmptyStringSchema.optional(),
     reportPath: pathStringSchema,
     evaluatedAt: isoDateTimeSchema
   })
@@ -101,6 +104,9 @@ export const policyGateSummarySchema = z
     appliedOverrides: z.array(appliedPolicyOverrideSchema),
     warnings: stringListSchema,
     nextAllowedCommand: nonEmptyStringSchema,
+    // Bare, machine-runnable form of nextAllowedCommand. Optional so summaries
+    // written before this field existed keep parsing.
+    nextCommand: nonEmptyStringSchema.optional(),
     evaluatedAt: isoDateTimeSchema
   })
   .strict();

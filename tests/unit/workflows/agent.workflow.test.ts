@@ -36,7 +36,8 @@ describe("agent workflow", () => {
       "claude",
       "copilot",
       "cursor",
-      "gemini"
+      "gemini",
+      "opencode"
     ]);
   });
 
@@ -51,5 +52,29 @@ describe("agent workflow", () => {
     );
 
     expect(summary.createdFiles).toContain(".visp/prompts/agent-feature.prompt.md");
+  });
+
+  it("installs opencode guidance through workflow reusing the generic renderer output", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+
+    const summary = expectOk(
+      await runAgentInstallWorkflow({
+        targetPath: tempDir,
+        target: "opencode"
+      })
+    );
+
+    expect(summary.target).toBe("opencode");
+    expect(summary.createdFiles).toEqual(
+      expect.arrayContaining([
+        "AGENTS.md",
+        ".visp/prompts/agent-feature.prompt.md",
+        ".visp/prompts/agent-task.prompt.md",
+        ".visp/prompts/agent-fix.prompt.md",
+        ".visp/prompts/agent-review.prompt.md",
+        ".visp/prompts/agent-pr.prompt.md",
+        ".visp/prompts/visp-rules.md"
+      ])
+    );
   });
 });

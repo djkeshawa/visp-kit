@@ -24,6 +24,14 @@ Yes. The prompts are Markdown files and the artifacts are local JSON/Markdown.
 
 Run `visp budget` and split the task, reduce file scope, or use a smaller budget mode.
 
+A context pack is flagged over budget when its estimated input tokens exceed the
+budget-mode limit plus the policy's tolerance. The tolerance is
+`policy.limits.maxContextOverBudgetPercent`, so the effective cutoff is
+`maxInputTokens * (1 + maxContextOverBudgetPercent / 100)`. Defaults are 50%
+(relaxed), 25% (standard), 20% (strict), and 0% (locked) — in locked mode any
+excess over the limit is over budget, and the locked-mode gate blocks
+implementation until the pack fits.
+
 ## What if verification passes but review warns?
 
 Warnings are not always blockers. Read the review report and decide whether to fix, accept, or reconcile with warnings.

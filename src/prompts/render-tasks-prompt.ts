@@ -30,6 +30,7 @@ Rules:
 - Prefer test-first tasks when behavior changes.
 - Avoid broad refactors and unapproved dependencies.
 - Keep each task implementation-sized.
+- Set task-graph status to "ready" only after every placeholder is replaced and every task has concrete scope and validation commands.
 - ${editSeededJsonInstruction}
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement any task.

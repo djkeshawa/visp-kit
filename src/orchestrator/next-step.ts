@@ -1,6 +1,7 @@
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type GateBlockedCommand, type GateRuleFinding } from "../artifacts/schemas/gate.schema.js";
 import { type ProjectState } from "./project-state.js";
+import { type WorkflowActionV2 } from "../integration/workflow-action.js";
 
 export type NextStep = {
   readonly success: boolean;
@@ -28,6 +29,7 @@ export type NextStep = {
   readonly implementationAllowed?: boolean;
   readonly prAllowed?: boolean;
   readonly agentInstruction?: string;
+  readonly action?: WorkflowActionV2;
 };
 
 function sourceChanges(state: ProjectState): boolean {

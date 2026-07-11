@@ -58,6 +58,7 @@ describe("visp agent command", () => {
     expect(output.join("")).toContain("generic");
     expect(output.join("")).toContain("claude");
     expect(output.join("")).toContain("copilot");
+    expect(output.join("")).toContain("opencode");
 
     output.length = 0;
     await program.parseAsync(["node", "visp", "agent", "list", "--json"]);
@@ -72,7 +73,8 @@ describe("visp agent command", () => {
       "claude",
       "copilot",
       "cursor",
-      "gemini"
+      "gemini",
+      "opencode"
     ]);
   });
 
@@ -85,18 +87,10 @@ describe("visp agent command", () => {
 
     expect(output.join("")).toContain("Visp agent installed");
     expect(await exists(path.join(tempDir, "AGENTS.md"))).toBe(true);
-    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-feature", "SKILL.md"))).toBe(
-      true
-    );
-    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md"))).toBe(
-      true
-    );
-    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-fix", "SKILL.md"))).toBe(
-      true
-    );
-    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-review", "SKILL.md"))).toBe(
-      true
-    );
+    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-feature", "SKILL.md"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-fix", "SKILL.md"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-review", "SKILL.md"))).toBe(true);
     expect(await exists(path.join(tempDir, ".agents", "skills", "visp-pr", "SKILL.md"))).toBe(true);
 
     const skill = await readFile(
@@ -108,6 +102,30 @@ describe("visp agent command", () => {
 
     output.length = 0;
     await program.parseAsync(["node", "visp", "agent", "doctor", tempDir, "--target", "codex"]);
+    expect(output.join("")).toContain("Result: passed");
+  });
+
+  it("installs OpenCode guidance and passes doctor", async () => {
+    await initProject(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "agent", "install", "opencode", tempDir]);
+
+    expect(output.join("")).toContain("Visp agent installed");
+    expect(await exists(path.join(tempDir, "AGENTS.md"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "prompts", "agent-feature.prompt.md"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "prompts", "visp-rules.md"))).toBe(true);
+
+    const prompt = await readFile(
+      path.join(tempDir, ".visp", "prompts", "agent-feature.prompt.md"),
+      "utf8"
+    );
+    expect(prompt).toContain("user prompt is raw intent");
+    expect(prompt).toContain("visp gate");
+
+    output.length = 0;
+    await program.parseAsync(["node", "visp", "agent", "doctor", tempDir, "--target", "opencode"]);
     expect(output.join("")).toContain("Result: passed");
   });
 
@@ -133,9 +151,7 @@ describe("visp agent command", () => {
     expect(output.join("")).toContain("Visp agent bootstrapped");
     expect(await exists(path.join(tempDir, ".visp", "project.json"))).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "policy.json"))).toBe(true);
-    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-feature", "SKILL.md"))).toBe(
-      true
-    );
+    expect(await exists(path.join(tempDir, ".agents", "skills", "visp-feature", "SKILL.md"))).toBe(true);
     expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
       "visp agent bootstrap codex"
     );
@@ -201,7 +217,15 @@ describe("visp agent command", () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 
-    await program.parseAsync(["node", "visp", "agent", "install", "generic", tempDir, "--json"]);
+    await program.parseAsync([
+      "node",
+      "visp",
+      "agent",
+      "install",
+      "generic",
+      tempDir,
+      "--json"
+    ]);
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
@@ -230,9 +254,7 @@ describe("visp agent command", () => {
 
     await program.parseAsync(["node", "visp", "agent", "install", "codex", tempDir]);
 
-    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toBe(
-      "# Existing agent guide\n"
-    );
+    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toBe("# Existing agent guide\n");
     expect(await exists(path.join(tempDir, "AGENTS.visp.md"))).toBe(true);
   });
 
@@ -264,10 +286,7 @@ describe("visp agent command", () => {
 
   it("fails clearly when .visp is missing", async () => {
     const errors: string[] = [];
-    const program = createCli({
-      writeOut: () => undefined,
-      writeErr: (value) => errors.push(value)
-    });
+    const program = createCli({ writeOut: () => undefined, writeErr: (value) => errors.push(value) });
 
     await program.parseAsync(["node", "visp", "agent", "install", "codex", tempDir]);
 

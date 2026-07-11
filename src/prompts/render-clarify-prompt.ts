@@ -19,6 +19,7 @@ Rules:
 - Ask only blocking implementation-relevant questions.
 - Provide recommended defaults.
 - Mark safe assumptions.
+- Set status to "ready" only after every blocking question is answered or its recommended default is explicitly accepted.
 - ${editSeededJsonInstruction}
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.

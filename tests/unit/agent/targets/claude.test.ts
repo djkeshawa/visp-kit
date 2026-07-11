@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { claudeTargetFiles } from "../../../../src/agent/targets/claude.js";
-import { toPosixPath } from "../../../../src/core/paths.js";
 
 describe("claude target", () => {
   it("renders the rules file and Claude command files with strict Visp guidance", () => {
@@ -10,7 +9,8 @@ describe("claude target", () => {
       strictness: "strict"
     });
 
-    expect(files.map((file) => toPosixPath(file.path))).toEqual([
+    // Normalize separators so the assertion holds on both POSIX and Windows.
+    expect(files.map((file) => file.path.replace(/\\/g, "/"))).toEqual([
       "/repo/.visp/prompts/visp-rules.md",
       "/repo/.visp/hooks/claude-pretooluse.mjs",
       "/repo/.visp/hooks/README.md",

@@ -32,6 +32,7 @@ export const taskGraphArtifactSchema = z
   .object({
     featureId: idSchema,
     featureSlug: nonEmptyStringSchema.optional(),
+    status: z.enum(["draft_invalid", "draft", "ready"]).optional(),
     tasks: z.array(taskSchema),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema

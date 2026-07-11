@@ -1,13 +1,13 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
-import { createPhase8Fixture } from "./phase8-fixture.js";
+import { createPhase8Fixture, removeTempDirWithRetry } from "./phase8-fixture.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -83,7 +83,9 @@ async function prepareImplementedTask(rootPath: string): Promise<void> {
   }
 }
 
-describe("visp done command", () => {
+// These suites spawn git and run the full post-implementation pipeline, which
+// is slow on Windows CI; raise the per-hook/test timeout above the 5s default.
+describe("visp done command", { timeout: 30000 }, () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -93,7 +95,7 @@ describe("visp done command", () => {
 
   afterEach(async () => {
     process.exitCode = undefined;
-    await rm(tempDir, { recursive: true, force: true });
+    await removeTempDirWithRetry(tempDir);
   });
 
   it("runs the full post-implementation pipeline for one task", async () => {

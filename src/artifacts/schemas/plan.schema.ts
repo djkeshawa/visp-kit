@@ -121,7 +121,7 @@ export const planDraftArtifactSchema = z
   .object({
     featureId: idSchema,
     featureSlug: nonEmptyStringSchema,
-    status: z.enum(["draft", "ready"]),
+    status: z.enum(["draft_invalid", "draft", "ready"]),
     evidence: planEvidenceSchema,
     affectedModules: z.array(affectedModuleSchema),
     implementationApproach: nonEmptyStringSchema,

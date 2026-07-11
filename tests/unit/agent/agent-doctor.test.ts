@@ -45,4 +45,23 @@ describe("agent doctor", () => {
       summary.findings.some((finding) => finding.file?.includes("agent-feature.prompt.md"))
     ).toBe(true);
   });
+
+  it("passes after OpenCode install", async () => {
+    expectOk(await runAgentInstall({ targetPath: tempDir, target: "opencode" }));
+
+    const summary = expectOk(await runAgentDoctor({ targetPath: tempDir, target: "opencode" }));
+
+    expect(summary.result).toBe("passed");
+    expect(summary.warnings).toEqual([]);
+    expect(summary.errors).toEqual([]);
+    // OpenCode reuses the generic renderer, which emits no info-level findings.
+    expect(summary.findings.some((finding) => finding.severity !== "info")).toBe(false);
+  });
+
+  it("detects missing OpenCode prompt files", async () => {
+    const summary = expectOk(await runAgentDoctor({ targetPath: tempDir, target: "opencode" }));
+
+    expect(summary.result).toBe("warnings");
+    expect(summary.findings.some((finding) => finding.file?.includes("agent-feature.prompt.md"))).toBe(true);
+  });
 });

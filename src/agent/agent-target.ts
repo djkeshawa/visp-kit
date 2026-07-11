@@ -1,4 +1,7 @@
-import { agentTargetNameSchema, type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
+import {
+  agentTargetNameSchema,
+  type AgentTargetName
+} from "../artifacts/schemas/agent.schema.js";
 
 export type AgentTarget = {
   readonly name: AgentTargetName;
@@ -29,6 +32,10 @@ export const supportedAgentTargets: readonly AgentTarget[] = [
   {
     name: "gemini",
     description: "Generate GEMINI.md and Gemini CLI custom commands."
+  },
+  {
+    name: "opencode",
+    description: "Generate AGENTS.md and portable prompt files for OpenCode."
   }
 ];
 

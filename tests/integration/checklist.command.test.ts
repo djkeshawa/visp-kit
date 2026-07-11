@@ -1,11 +1,11 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
-import { createPhase8Fixture } from "./phase8-fixture.js";
+import { createPhase8Fixture, removeTempDirWithRetry } from "./phase8-fixture.js";
 
 describe("visp checklist command", () => {
   let tempDir: string;
@@ -17,7 +17,7 @@ describe("visp checklist command", () => {
 
   afterEach(async () => {
     process.exitCode = undefined;
-    await rm(tempDir, { recursive: true, force: true });
+    await removeTempDirWithRetry(tempDir);
   });
 
   it("shows and updates machine-readable implementation checklist status", async () => {

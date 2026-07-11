@@ -16,7 +16,7 @@ export function createClarificationArtifact(input: {
   return {
     featureId: input.feature.id,
     featureSlug: input.feature.slug,
-    status: "draft",
+    status: "draft_invalid",
     questions: [
       {
         id: "CQ001",
@@ -165,7 +165,7 @@ export function createSpecArtifact(input: {
     featureId: input.feature.id,
     featureSlug: input.feature.slug,
     title: input.feature.intent.title,
-    status: "draft",
+    status: "draft_invalid",
     userStories: [
       {
         id: "US001",
@@ -340,7 +340,7 @@ export function createPlanDraftArtifact(input: {
   return {
     featureId: input.feature.id,
     featureSlug: input.feature.slug,
-    status: "draft",
+    status: "draft_invalid",
     evidence: {
       knownFromUser: [request(input.feature)],
       knownFromSpecification: ["TBD"],
@@ -548,6 +548,7 @@ export function createTaskGraphArtifact(input: {
   return {
     featureId: input.feature.id,
     featureSlug: input.feature.slug,
+    status: "draft_invalid",
     tasks: [
       {
         id: "T001",
@@ -562,7 +563,7 @@ export function createTaskGraphArtifact(input: {
           "Dependency manifests and lockfiles unless dependency approval is part of this task"
         ],
         validationCommands: ["TBD"],
-        status: "ready",
+        status: "pending",
         parallelizable: false,
         riskLevel: "medium"
       }

@@ -69,7 +69,10 @@ export function createReconcileCommand(dependencies: ReconcileCommandDependencie
     )
     .option("--update-task-status", "Update selected task status when reconciliation passes.")
     .option("--prompt-only", "Generate only reconcile prompt files.")
-    .option("--force", "Allow safe status updates when reconciliation has warnings.")
+    .option(
+      "--force",
+      "Allow safe status updates when reconciliation has warnings; cannot bypass gate blocks in strict/locked mode."
+    )
     .option("--dry-run", "Show reconciliation results without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: ReconcileCommandOptions) => {

@@ -124,12 +124,40 @@ export async function completeTemplateWorkflow(input: {
   readonly now: string;
 }): Promise<Result<TemplateWorkflowSummary, VispError>> {
   if (input.validateOnly) {
+    const actions: WorkflowFileAction[] = [];
+    if (input.validation.passed && !input.dryRun && !input.promptOnly) {
+      const status = await updateWorkflowStatus({
+        targetPath: input.targetPath,
+        feature: input.feature,
+        state: workflowStateByCommand[input.command],
+        lastCommand: input.command,
+        now: input.now,
+        dryRun: false
+      });
+      if (!status.ok) return status;
+      actions.push({
+        path: relativePath(input.targetPath, projectStatusArtifactPath(input.targetPath)),
+        action: "updated"
+      });
+
+      const timeline = await refreshFeatureTimeline({
+        targetPath: input.targetPath,
+        feature: input.feature.key,
+        dryRun: false,
+        now: input.now
+      });
+      actions.push(...timeline.writtenFiles.map((filePath) => ({
+        path: filePath,
+        action: "updated" as const
+      })));
+    }
+
     return ok(
       createTemplateWorkflowSummary({
         command: input.command,
         targetPath: input.targetPath,
         feature: input.feature,
-        actions: [],
+        actions,
         validated: true,
         validation: input.validation,
         dryRun: input.dryRun,

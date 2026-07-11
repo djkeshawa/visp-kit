@@ -312,6 +312,36 @@ describe("visp gate command", () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it("emits both a nextAllowedCommand sentence and a bare nextCommand", async () => {
+    await createPhase8Fixture(tempDir);
+    expectOk(
+      await runPolicySetStrictnessWorkflow({
+        targetPath: tempDir,
+        strictness: "strict",
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "gate", "pr", tempDir, "--json"]);
+
+    const result = JSON.parse(output.join("")) as {
+      nextAllowedCommand: string;
+      nextCommand: string;
+    };
+
+    // The prose form is a full sentence; the bare form is a runnable command.
+    expect(result.nextAllowedCommand).toMatch(/^Run visp /);
+    expect(result.nextCommand).toBeDefined();
+    expect(result.nextCommand).not.toMatch(/^Run /);
+    expect(result.nextCommand.endsWith(".")).toBe(false);
+    expect(result.nextCommand).toBe(
+      result.nextAllowedCommand.replace(/^Run /, "").replace(/\.$/, "")
+    );
+    expect(result.nextCommand.startsWith("visp ")).toBe(true);
+  });
+
   it("dry-run writes no gate report", async () => {
     await createPhase8Fixture(tempDir);
     expectOk(

@@ -63,7 +63,10 @@ export function createPrCommand(dependencies: PrCommandDependencies = {}): Comma
     .option("--unstaged", "Use unstaged changes only.")
     .option("--title <title>", "Override PR title.")
     .option("--prompt-only", "Generate only .visp/prompts/pr.prompt.md.")
-    .option("--force", "Accepted for generated output compatibility.")
+    .option(
+      "--force",
+      "Downgrade gate blocks to warnings in relaxed/standard mode only; cannot bypass gate blocks in strict/locked mode."
+    )
     .option("--dry-run", "Show what would be generated without writing files.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: PrCommandOptions) => {

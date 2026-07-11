@@ -28,6 +28,21 @@ describe("override validator", () => {
     expect(isNonOverridableRule({ ruleId: "VSP014", policy })).toBe(false);
   });
 
+  it("keeps VSP019/VSP020 protected even when the policy array is tampered", () => {
+    const policy = createDefaultPolicy({ now: "2026-01-01T00:00:00.000Z" });
+    const tampered = {
+      ...policy,
+      overrides: {
+        ...policy.overrides,
+        nonOverridableRules: [] as string[]
+      }
+    } as typeof policy;
+
+    expect(isNonOverridableRule({ ruleId: "VSP019", policy: tampered })).toBe(true);
+    expect(isNonOverridableRule({ ruleId: "VSP020", policy: tampered })).toBe(true);
+    expect(isNonOverridableRule({ ruleId: "VSP014", policy: tampered })).toBe(false);
+  });
+
   it("validates a scoped override artifact", () => {
     const policy = createDefaultPolicy({ now: "2026-01-01T00:00:00.000Z" });
     const artifact: OverrideArtifact = {

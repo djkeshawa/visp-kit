@@ -12,8 +12,12 @@ import {
   traceabilityMarkdownPath
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
-import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
+import {
+  specArtifactSchema,
+  type SpecArtifact
+} from "../artifacts/schemas/spec.schema.js";
 import { taskGraphArtifactSchema } from "../artifacts/schemas/task.schema.js";
+import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
 import {
   traceabilityMatrixSchema,
   type TraceabilityMatrix
@@ -31,7 +35,11 @@ import {
   traceabilityWithTasks
 } from "../templates/phase7-templates.js";
 import { validateTaskGraph } from "../validators/validate-task-graph.js";
-import { resolveActiveFeature, type ActiveFeature } from "./shared/active-feature.js";
+import { validatePlan } from "../validators/validate-plan.js";
+import {
+  resolveActiveFeature,
+  type ActiveFeature
+} from "./shared/active-feature.js";
 import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import {
   artifactGeneratedFile,
@@ -91,7 +99,10 @@ async function validateExisting(input: {
   const taskGraphJson = taskGraphArtifactPath(input.targetPath, input.featureKey);
   const specJson = specArtifactPath(input.targetPath, input.featureKey);
   const traceJson = traceabilityArtifactPath(input.targetPath, input.featureKey);
-  const textErrors = await validateTextExists(tasksMd, relativePath(input.targetPath, tasksMd));
+  const textErrors = await validateTextExists(
+    tasksMd,
+    relativePath(input.targetPath, tasksMd)
+  );
   const taskGraph = await validateArtifactFile(
     taskGraphJson,
     relativePath(input.targetPath, taskGraphJson),
@@ -159,7 +170,7 @@ export async function runTasksWorkflow(
       dryRun
     });
 
-    return completeTemplateWorkflow({
+    const summary = await completeTemplateWorkflow({
       command: "tasks",
       targetPath,
       feature: feature.value,
@@ -178,6 +189,23 @@ export async function runTasksWorkflow(
       warnings: validation.warnings,
       nextCommand: "visp context T001",
       now
+    });
+
+    if (!summary.ok || promptOnly || !summary.value.validation.passed) {
+      return summary;
+    }
+
+    const budgetRefresh = await refreshBudgetReport({
+      targetPath,
+      feature: feature.value.key,
+      dryRun,
+      now
+    });
+
+    return ok({
+      ...summary.value,
+      updatedFiles: [...summary.value.updatedFiles, ...budgetRefresh.writtenFiles],
+      warnings: [...new Set([...summary.value.warnings, ...budgetRefresh.warnings])]
     });
   }
 
@@ -204,15 +232,37 @@ export async function runTasksWorkflow(
 
   if (missing.length > 0) {
     return err(
-      new VispError("VALIDATION_FAILED", "Plan artifacts are missing. Run `visp plan` first.", {
-        recovery: "visp plan"
-      })
+      new VispError(
+        "VALIDATION_FAILED",
+        "Plan artifacts are missing. Run `visp plan` first.",
+        { recovery: "visp plan" }
+      )
     );
+  }
+
+  if (!promptOnly) {
+    const plan = await readArtifact(
+      planArtifactPath(targetPath, feature.value.key),
+      planDraftArtifactSchema,
+      { artifactName: "plan" }
+    );
+    if (!plan.ok) return plan;
+    const readiness = validatePlan(plan.value);
+    if (!readiness.passed) {
+      return err(new VispError(
+        "VALIDATION_FAILED",
+        `Plan is incomplete: ${readiness.errors.join(" ")}`,
+        { recovery: "visp plan --validate" }
+      ));
+    }
   }
 
   const spec = await readSpecArtifactWithNormalization({
     artifactPath: specArtifactPath(targetPath, feature.value.key),
-    displayPath: relativePath(targetPath, specArtifactPath(targetPath, feature.value.key)),
+    displayPath: relativePath(
+      targetPath,
+      specArtifactPath(targetPath, feature.value.key)
+    ),
     dryRun,
     writeNormalized: !promptOnly
   });
@@ -305,7 +355,10 @@ export async function runTasksWorkflow(
 
   return ok({
     ...summary.value,
-    updatedFiles: [...summary.value.updatedFiles, ...budgetRefresh.writtenFiles],
+    updatedFiles: [
+      ...summary.value.updatedFiles,
+      ...budgetRefresh.writtenFiles
+    ],
     warnings: [...new Set([...summary.value.warnings, ...budgetRefresh.warnings])]
   });
 }

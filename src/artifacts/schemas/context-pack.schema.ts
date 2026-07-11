@@ -10,7 +10,10 @@ import {
   riskLevelSchema,
   stringListSchema
 } from "./common.schema.js";
-import { acceptanceCriterionSchema, requirementSchema } from "./requirement.schema.js";
+import {
+  acceptanceCriterionSchema,
+  requirementSchema
+} from "./requirement.schema.js";
 import { taskSchema } from "./task.schema.js";
 import {
   gateBlockedCommandSchema,
@@ -20,7 +23,12 @@ import {
 } from "./gate.schema.js";
 import { strictnessModeSchema } from "./policy.schema.js";
 
-export const contextIncludeModeSchema = z.enum(["summary", "snippet", "full", "new-file"]);
+export const contextIncludeModeSchema = z.enum([
+  "summary",
+  "snippet",
+  "full",
+  "new-file"
+]);
 
 export const contextTokenEstimateSchema = z
   .object({
@@ -29,7 +37,11 @@ export const contextTokenEstimateSchema = z
     total: z.number().int().nonnegative(),
     maxInput: z.number().int().positive(),
     mode: budgetModeSchema,
-    estimator: z.enum(["chars-divided-by-four", "heuristic-v1"])
+    estimator: z.enum(["chars-divided-by-four", "model-profile-conservative", "heuristic-v1"]),
+    lowerBound: z.number().int().nonnegative().optional(),
+    upperBound: z.number().int().nonnegative().optional(),
+    profile: z.string().optional(),
+    uncertainty: z.string().optional()
   })
   .strict();
 
@@ -116,13 +128,11 @@ export const contextSnippetSchema = z
     path: ["endLine"]
   });
 
-export const contextTrimmingSchema = z
-  .object({
-    removedSnippetCount: z.number().int().nonnegative(),
-    removedPatterns: z.boolean(),
-    heavilyTrimmed: z.boolean()
-  })
-  .strict();
+export const contextTrimmingSchema = z.object({
+  removedSnippetCount: z.number().int().nonnegative(),
+  removedPatterns: z.boolean(),
+  heavilyTrimmed: z.boolean()
+}).strict();
 
 export const contextPackSchema = z
   .object({

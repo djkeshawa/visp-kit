@@ -77,7 +77,7 @@ describe("release documentation readiness", () => {
     const targets = read("docs/agent-targets.md");
     const readme = read("README.md");
 
-    for (const target of ["codex", "generic", "claude", "copilot"]) {
+    for (const target of ["codex", "generic", "claude", "copilot", "opencode"]) {
       expect(targets).toContain(`visp agent install ${target}`);
     }
 

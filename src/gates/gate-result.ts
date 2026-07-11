@@ -22,6 +22,9 @@ export type GateEvaluation = {
   readonly checks: readonly GateCheck[];
   readonly warnings: readonly string[];
   readonly nextAllowedCommand: string;
+  // Bare, machine-runnable form of nextAllowedCommand (no "Run " prose, no
+  // trailing period) for downstream consumers that execute the command directly.
+  readonly nextCommand: string;
 };
 
 function commandForStage(stage: GateStage): string {
@@ -100,6 +103,7 @@ export function buildGateResult(input: {
     overriddenRules: [],
     appliedOverrides: [],
     nextAllowedCommand: input.evaluation.nextAllowedCommand,
+    nextCommand: input.evaluation.nextCommand,
     reportPath: input.reportPath,
     evaluatedAt: input.evaluatedAt
   };

@@ -59,11 +59,16 @@ describe("integration contract workflow", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.initialized).toBe(false);
-      expect(result.value.contractVersion).toBe("1.3");
+      expect(result.value.contractVersion).toBe("2.0");
       expect(result.value.commands.gateImplement).toEqual([
         "gate",
         "implement",
         "--task",
+        "<task-id>",
+        "--json"
+      ]);
+      expect(result.value.commands.context).toEqual([
+        "context",
         "<task-id>",
         "--json"
       ]);
@@ -203,7 +208,7 @@ describe("integration contract workflow", () => {
       orchestrator: { requiredArtifacts: Array<{ id: string }> };
     };
     expect(parsed.success).toBe(true);
-    expect(parsed.contractVersion).toBe("1.3");
+    expect(parsed.contractVersion).toBe("2.0");
     expect(parsed.capabilities.governance.failClosedGates).toBe(true);
     expect(parsed.capabilities.contextGrounding.orchestratorReadContract).toBe(true);
     expect(parsed.orchestrator.requiredArtifacts.map((artifact) => artifact.id)).toContain(

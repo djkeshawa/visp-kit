@@ -142,6 +142,19 @@ function capabilityFor(input: {
           "Gemini CLI custom command support depends on the installed Gemini CLI version."
         ]
       };
+    case "opencode":
+      return {
+        target: "opencode",
+        supportsSkillFiles: false,
+        supportsCommandFiles: false,
+        supportsRepositoryInstructions: true,
+        canRunShellExpected: true,
+        canEditFilesExpected: true,
+        tokenUsageVisibility: "manual",
+        recommendedWorkflowTriggers: [".visp/prompts/agent-feature.prompt.md", ".visp/prompts/agent-task.prompt.md"],
+        generatedFiles: [...input.files],
+        limitations: [...baseLimitations(), "OpenCode reads AGENTS.md-compatible guidance; prompts may need to be pasted into the active session."]
+      };
   }
 }
 

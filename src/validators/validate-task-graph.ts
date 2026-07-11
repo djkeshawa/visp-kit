@@ -3,6 +3,7 @@ import { type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { duplicateIds, validation } from "./validation-helpers.js";
 import { type WorkflowValidation } from "../workflows/shared/workflow-summary.js";
+import { concreteText, hasConcreteCommand, hasConcretePath, placeholderFindings } from "./semantic-lint.js";
 
 function hasCycle(graph: Map<string, readonly string[]>): boolean {
   const visiting = new Set<string>();
@@ -38,11 +39,18 @@ export function validateTaskGraph(input: {
   const graph = new Map(input.taskGraph.tasks.map((task) => [task.id, task.dependsOn] as const));
   const errors: string[] = [...duplicateIds(taskIds, "task")];
 
+  if (input.taskGraph.status !== undefined && input.taskGraph.status !== "ready") {
+    errors.push("Task graph must be marked ready before workflow advancement.");
+  }
+  errors.push(...placeholderFindings(input.taskGraph, "taskGraph"));
+
   if (input.taskGraph.tasks.length === 0) {
     errors.push("Task graph must include at least one task.");
   }
 
   for (const task of input.taskGraph.tasks) {
+    errors.push(...concreteText({ value: task.title, label: `${task.id} title` }));
+    errors.push(...concreteText({ value: task.description, label: `${task.id} description` }));
     if (!/^T\d{3}$/.test(task.id)) {
       errors.push(`${task.id} must use T### format.`);
     }
@@ -55,6 +63,14 @@ export function validateTaskGraph(input: {
 
     if (task.requirementIds.length === 0) {
       errors.push(`${task.id} must reference at least one requirement.`);
+    }
+
+    if (!hasConcretePath([...(task.allowedFiles ?? []), ...(task.expectedFiles ?? [])])) {
+      errors.push(`${task.id} must declare at least one concrete allowed or expected file.`);
+    }
+
+    if (!hasConcreteCommand(task.validationCommands)) {
+      errors.push(`${task.id} must declare at least one concrete validation command.`);
     }
 
     for (const requirementId of task.requirementIds) {

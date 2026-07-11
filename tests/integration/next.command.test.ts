@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
 import { runInitWorkflow } from "../../src/workflows/init.workflow.js";
-import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
+import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
 
 describe("visp next command", () => {
   let tempDir: string;
@@ -18,7 +18,7 @@ describe("visp next command", () => {
 
   afterEach(async () => {
     process.exitCode = undefined;
-    await rm(tempDir, { recursive: true, force: true });
+    await removeTempDirWithRetry(tempDir);
   });
 
   it("recommends init when .visp is missing", async () => {
@@ -76,5 +76,28 @@ describe("visp next command", () => {
     expect(summary.strictnessMode).toBe("standard");
     expect(summary.implementationAllowed).toBe(false);
     expect(summary.blockedCommands.some((item) => item.ruleId === "VSP007")).toBe(true);
+  });
+
+  it("returns the compact WorkflowActionV2 contract with --format json", async () => {
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "next", tempDir, "--format", "json"]);
+
+    const action = JSON.parse(output.join("")) as {
+      protocolVersion: string;
+      phase: string;
+      verdict: string;
+      assuranceLevel: string;
+      requiredReads: Array<{ path: string; sha256: string }>;
+      nextCommand: string;
+    };
+    expect(action.protocolVersion).toBe("2.0");
+    expect(action.phase).toBe("task");
+    expect(action.verdict).toBe("ready");
+    expect(action.assuranceLevel).toBe("advisory");
+    expect(action.requiredReads.every((item) => item.sha256.length === 64)).toBe(true);
+    expect(action.nextCommand).toBe("visp context --next");
   });
 });

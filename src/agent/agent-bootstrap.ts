@@ -1,9 +1,12 @@
 import path from "node:path";
 
 import { type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
-import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
+import {
+  type BudgetMode,
+  type Preset
+} from "../artifacts/schemas/common.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
-import { type VispError } from "../core/errors.js";
+import { VispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
 import { relativePath, vispDir } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
@@ -16,13 +19,17 @@ import {
   installedTargetsPath,
   workflowMapPath
 } from "./agent-paths.js";
-import { runAgentInstall, type AgentInstallSummary } from "./agent-installer.js";
+import {
+  runAgentInstall,
+  type AgentInstallSummary
+} from "./agent-installer.js";
 import { claudeTargetFiles } from "./targets/claude.js";
 import { codexTargetFiles } from "./targets/codex.js";
 import { copilotTargetFiles } from "./targets/copilot.js";
 import { cursorTargetFiles } from "./targets/cursor.js";
 import { geminiTargetFiles } from "./targets/gemini.js";
 import { genericTargetFiles } from "./targets/generic.js";
+import { opencodeTargetFiles } from "./targets/opencode.js";
 
 export type AgentBootstrapOptions = {
   readonly targetPath?: string;
@@ -60,15 +67,15 @@ async function dryRunInstallSummary(input: {
   readonly strictness: StrictnessMode;
   readonly force: boolean;
 }): Promise<Result<AgentInstallSummary, VispError>> {
-  const guidanceExists = ["codex", "generic", "copilot"].includes(input.target)
+  const agentsExists = ["codex", "generic", "copilot", "opencode"].includes(input.target)
     ? await pathExists(agentsMarkdownPath(input.targetPath))
     : input.target === "gemini"
       ? await pathExists(geminiMarkdownPath(input.targetPath))
       : ok(false);
 
-  if (!guidanceExists.ok) return guidanceExists;
+  if (!agentsExists.ok) return agentsExists;
 
-  const useFallbackAgentsFile = guidanceExists.value && !input.force;
+  const useFallbackAgentsFile = agentsExists.value && !input.force;
   const targetFiles = (() => {
     switch (input.target) {
       case "codex":
@@ -94,11 +101,14 @@ async function dryRunInstallSummary(input: {
           strictness: input.strictness,
           useFallbackAgentsFile
         });
-      case "cursor":
-        return cursorTargetFiles({
+      case "opencode":
+        return opencodeTargetFiles({
           targetPath: input.targetPath,
-          strictness: input.strictness
+          strictness: input.strictness,
+          useFallbackAgentsFile
         });
+      case "cursor":
+        return cursorTargetFiles({ targetPath: input.targetPath, strictness: input.strictness });
       case "gemini":
         return geminiTargetFiles({
           targetPath: input.targetPath,
@@ -141,6 +151,7 @@ function nextInstructions(target: AgentTargetName): string {
     case "copilot":
       return "Use the repository instructions, or paste:\nUse Visp Kit workflow for this feature:\n<your feature request>\nFollow .github/instructions/visp-feature.instructions.md.";
     case "generic":
+    case "opencode":
       return "Paste .visp/prompts/agent-feature.prompt.md into your AI coding tool with your feature request.";
     case "cursor":
       return "Open Cursor and mention the rule in chat:\n@visp-feature Add note pinning";
@@ -176,22 +187,21 @@ export async function runAgentBootstrap(
 
   if (init !== undefined && !init.ok) return init;
 
-  const install =
-    !initialized.value && dryRun
-      ? await dryRunInstallSummary({
-          targetPath,
-          target: options.target,
-          strictness,
-          force
-        })
-      : await runAgentInstall({
-          targetPath,
-          target: options.target,
-          strictness: initialized.value ? strictness : undefined,
-          force,
-          dryRun,
-          now
-        });
+  const install = !initialized.value && dryRun
+    ? await dryRunInstallSummary({
+        targetPath,
+        target: options.target,
+        strictness,
+        force
+      })
+    : await runAgentInstall({
+        targetPath,
+        target: options.target,
+        strictness: initialized.value ? strictness : undefined,
+        force,
+        dryRun,
+        now
+      });
 
   if (!install.ok) return install;
 
@@ -204,7 +214,10 @@ export async function runAgentBootstrap(
     dryRun,
     init: init?.value,
     install: install.value,
-    warnings: [...(init?.value.warnings ?? []), ...install.value.warnings],
+    warnings: [
+      ...(init?.value.warnings ?? []),
+      ...install.value.warnings
+    ],
     nextCommand: "visp gate next",
     nextInstructions: install.value.nextInstructions
   });
