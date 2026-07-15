@@ -10,7 +10,19 @@ import { ok, type Result } from "../core/result.js";
 import { evaluateGate } from "./gate-engine.js";
 
 function policyStatusFromGate(result: GateResult): PolicyStatus {
-  if (result.warnings.some((warning) => warning.includes("Policy file is missing"))) {
+  const hasPolicyFailure = (message: string): boolean =>
+    result.failedRules.some((rule) => rule.ruleId === "VSP018" && rule.message === message);
+
+  if (hasPolicyFailure("Policy validation failed.")) {
+    return "invalid";
+  }
+
+  if (
+    hasPolicyFailure("Policy file is missing.") ||
+    result.warnings.some(
+      (warning) => warning === "Policy file is missing. Run `visp policy init` to persist it."
+    )
+  ) {
     return "missing";
   }
 
@@ -64,6 +76,7 @@ export function gateBlocksWorkflow(input: {
   readonly gate: PolicyGateSummary;
   readonly force?: boolean;
 }): boolean {
+  if (input.gate.policyStatus === "invalid") return true;
   if (input.gate.allowed) return false;
   // strict and locked block gate failures unconditionally; --force cannot bypass
   // them. Only relaxed/standard modes allow --force to downgrade blocks to warnings.

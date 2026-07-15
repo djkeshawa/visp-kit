@@ -53,18 +53,42 @@ describe("visp status command", () => {
 
     const summary = JSON.parse(output.join("")) as {
       success: boolean;
-      activeFeature: { slug: string };
+      initialized: boolean;
+      activeFeature: { id: string; slug: string; key: string };
+      activeTask: { id: string; title: string; status: string };
+      featureState: string;
       nextCommand: string;
       strictnessMode: string;
       policyStatus: string;
       nextAllowedCommand: string;
+      implementationAllowed: boolean;
+      prAllowed: boolean;
+      blockedCommands: Array<{ command: string; reason: string; ruleId: string }>;
     };
 
     expect(errors.join("")).toBe("");
     expect(summary.success).toBe(true);
-    expect(summary.activeFeature.slug).toBe("add-note-pinning");
+    expect(summary.initialized).toBe(true);
+    expect(summary.activeFeature).toEqual({
+      id: "001",
+      slug: "add-note-pinning",
+      key: "001-add-note-pinning"
+    });
+    expect(summary.activeTask).toEqual({
+      id: "T001",
+      title: "Implement note pinning helper",
+      status: "ready"
+    });
+    expect(summary.featureState).toBe("tasks_ready");
     expect(summary.nextCommand).toBe("visp context --next");
     expect(summary.nextAllowedCommand).toBe("visp context --next");
+    expect(summary.implementationAllowed).toBe(false);
+    expect(summary.prAllowed).toBe(false);
+    expect(summary.blockedCommands).toContainEqual({
+      command: "implementation",
+      reason: "Implementation requires a context pack.",
+      ruleId: "VSP007"
+    });
     expect(summary.strictnessMode).toBe("standard");
     expect(summary.policyStatus).toBe("valid");
   });

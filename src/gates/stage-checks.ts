@@ -6,10 +6,7 @@ import { type GateContext } from "./gate-context.js";
 import { nextAllowedCommand } from "./next-command.js";
 import { ruleById, type GateRuleId } from "./gate-rules.js";
 import { type GateCheck, type GateEvaluation } from "./gate-result.js";
-import {
-  isBehaviorTask,
-  taskScopeChecks
-} from "./task-gate-checks.js";
+import { isBehaviorTask, taskScopeChecks } from "./task-gate-checks.js";
 
 function enabled(rules: PolicyRules, ruleId: GateRuleId): boolean {
   const rule = ruleById(ruleId);
@@ -20,52 +17,63 @@ function check(input: GateCheck): GateCheck {
   return input;
 }
 
-function policyChecks(context: GateContext, missingPolicySeverity: "warning" | "error"): readonly GateCheck[] {
+function policyChecks(
+  context: GateContext,
+  missingPolicySeverity: "warning" | "error"
+): readonly GateCheck[] {
   const checks: GateCheck[] = [];
 
   if (!context.policy.initialized) {
-    checks.push(check({
-      ruleId: "VSP018",
-      passed: false,
-      severity: "error",
-      message: "Visp Kit is not initialized.",
-      recommendation: "Run visp init.",
-      evidence: ".visp/ was not found."
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP018",
+        passed: false,
+        severity: "error",
+        message: "Visp Kit is not initialized.",
+        recommendation: "Run visp init.",
+        evidence: ".visp/ was not found."
+      })
+    );
     return checks;
   }
 
   if (!context.policy.policyValid) {
-    checks.push(check({
-      ruleId: "VSP018",
-      passed: false,
-      severity: "error",
-      message: "Policy validation failed.",
-      recommendation: "Run visp policy validate and fix .visp/policy.json.",
-      evidence: context.policy.errors.join(" ")
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP018",
+        passed: false,
+        severity: "error",
+        message: "Policy validation failed.",
+        recommendation: "Run visp policy validate and fix .visp/policy.json.",
+        evidence: context.policy.errors.join(" ")
+      })
+    );
     return checks;
   }
 
   if (!context.policy.policyExists) {
-    checks.push(check({
-      ruleId: "VSP018",
-      passed: false,
-      severity: missingPolicySeverity,
-      message: "Policy file is missing.",
-      recommendation: "Run visp policy init --strictness strict.",
-      evidence: ".visp/policy.json was not found; default policy was used in memory."
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP018",
+        passed: false,
+        severity: missingPolicySeverity,
+        message: "Policy file is missing.",
+        recommendation: "Run visp policy init --strictness strict.",
+        evidence: ".visp/policy.json was not found; default policy was used in memory."
+      })
+    );
     return checks;
   }
 
-  checks.push(check({
-    ruleId: "VSP018",
-    passed: true,
-    message: "Policy is valid.",
-    recommendation: "Continue.",
-    evidence: ".visp/policy.json was loaded successfully."
-  }));
+  checks.push(
+    check({
+      ruleId: "VSP018",
+      passed: true,
+      message: "Policy is valid.",
+      recommendation: "Continue.",
+      evidence: ".visp/policy.json was loaded successfully."
+    })
+  );
 
   return checks;
 }
@@ -122,71 +130,76 @@ function taskMappingChecks(context: GateContext): readonly GateCheck[] {
   const acceptanceCriterionIds = new Set(
     context.state.spec?.acceptanceCriteria.map((criterion) => criterion.id) ?? []
   );
-  const missingRequirements = task.requirementIds.filter((id) =>
-    requirementIds.size > 0 && !requirementIds.has(id)
+  const missingRequirements = task.requirementIds.filter(
+    (id) => requirementIds.size > 0 && !requirementIds.has(id)
   );
-  const missingCriteria = task.acceptanceCriterionIds.filter((id) =>
-    acceptanceCriterionIds.size > 0 && !acceptanceCriterionIds.has(id)
+  const missingCriteria = task.acceptanceCriterionIds.filter(
+    (id) => acceptanceCriterionIds.size > 0 && !acceptanceCriterionIds.has(id)
   );
 
-  checks.push(task.requirementIds.length === 0
-    ? check({
-        ruleId: "VSP008",
-        passed: false,
-        severity: "error",
-        message: "Task has no requirement mapping.",
-        recommendation: "Update task-graph.json, then run visp tasks --validate.",
-        evidence: `${task.id}.requirementIds is empty.`
-      })
-    : missingRequirements.length > 0
+  checks.push(
+    task.requirementIds.length === 0
       ? check({
           ruleId: "VSP008",
           passed: false,
           severity: "error",
-          message: "Task references missing requirements.",
-          recommendation: "Update task requirementIds or regenerate the spec/task graph.",
-          evidence: missingRequirements.join(", ")
+          message: "Task has no requirement mapping.",
+          recommendation: "Update task-graph.json, then run visp tasks --validate.",
+          evidence: `${task.id}.requirementIds is empty.`
         })
-      : check({
-          ruleId: "VSP008",
-          passed: true,
-          message: "Task requirement mapping exists.",
-          recommendation: "Continue.",
-          evidence: task.requirementIds.join(", ")
-        }));
+      : missingRequirements.length > 0
+        ? check({
+            ruleId: "VSP008",
+            passed: false,
+            severity: "error",
+            message: "Task references missing requirements.",
+            recommendation: "Update task requirementIds or regenerate the spec/task graph.",
+            evidence: missingRequirements.join(", ")
+          })
+        : check({
+            ruleId: "VSP008",
+            passed: true,
+            message: "Task requirement mapping exists.",
+            recommendation: "Continue.",
+            evidence: task.requirementIds.join(", ")
+          })
+  );
 
-  checks.push(isBehaviorTask(task) && task.acceptanceCriterionIds.length === 0
-    ? check({
-        ruleId: "VSP009",
-        passed: false,
-        severity: "error",
-        message: "Behavior task has no acceptance criterion mapping.",
-        recommendation: "Update task-graph.json with acceptanceCriterionIds.",
-        evidence: `${task.id}.acceptanceCriterionIds is empty.`
-      })
-    : missingCriteria.length > 0
+  checks.push(
+    isBehaviorTask(task) && task.acceptanceCriterionIds.length === 0
       ? check({
           ruleId: "VSP009",
           passed: false,
           severity: "error",
-          message: "Task references missing acceptance criteria.",
-          recommendation: "Update task acceptanceCriterionIds or regenerate the spec/task graph.",
-          evidence: missingCriteria.join(", ")
+          message: "Behavior task has no acceptance criterion mapping.",
+          recommendation: "Update task-graph.json with acceptanceCriterionIds.",
+          evidence: `${task.id}.acceptanceCriterionIds is empty.`
         })
-      : check({
-          ruleId: "VSP009",
-          passed: true,
-          message: "Task acceptance criteria mapping is acceptable.",
-          recommendation: "Continue.",
-          evidence: task.acceptanceCriterionIds.join(", ") || "Task is not behavior-sensitive."
-        }));
+      : missingCriteria.length > 0
+        ? check({
+            ruleId: "VSP009",
+            passed: false,
+            severity: "error",
+            message: "Task references missing acceptance criteria.",
+            recommendation: "Update task acceptanceCriterionIds or regenerate the spec/task graph.",
+            evidence: missingCriteria.join(", ")
+          })
+        : check({
+            ruleId: "VSP009",
+            passed: true,
+            message: "Task acceptance criteria mapping is acceptable.",
+            recommendation: "Continue.",
+            evidence: task.acceptanceCriterionIds.join(", ") || "Task is not behavior-sensitive."
+          })
+  );
 
   return checks;
 }
 
 function validationCommandCheck(context: GateContext): GateCheck {
   const task = context.state.selectedTask;
-  const hasCommands = (task?.validationCommands.length ?? 0) > 0 ||
+  const hasCommands =
+    (task?.validationCommands.length ?? 0) > 0 ||
     (context.state.contextPack?.validationCommands.length ?? 0) > 0 ||
     hasValidationFallback(context.state);
 
@@ -223,8 +236,8 @@ function implementationChecklistCheck(context: GateContext): GateCheck {
     });
   }
 
-  const incomplete = checklist.items.filter((item) =>
-    item.required && (item.status === "pending" || item.status === "blocked")
+  const incomplete = checklist.items.filter(
+    (item) => item.required && (item.status === "pending" || item.status === "blocked")
   );
 
   return incomplete.length === 0
@@ -273,7 +286,8 @@ function readyCommand(stage: GateStage, task: Task | undefined): string {
   if (stage === "implement") {
     return "Read .visp/prompts/current-task.prompt.md and implement only the selected task.";
   }
-  if (stage === "context") return task === undefined ? "visp context --next" : `visp context ${task.id}`;
+  if (stage === "context")
+    return task === undefined ? "visp context --next" : `visp context ${task.id}`;
   if (["verify", "review", "reconcile"].includes(stage)) {
     const taskFlag = task === undefined ? "" : ` --task ${task.id}`;
     return stage === "reconcile"
@@ -299,7 +313,11 @@ export function bareCommandFromRecommendation(recommendation: string): string | 
   return match?.[1];
 }
 
-function output(context: GateContext, checks: readonly GateCheck[], stage: GateStage): GateEvaluation {
+function output(
+  context: GateContext,
+  checks: readonly GateCheck[],
+  stage: GateStage
+): GateEvaluation {
   const nextFailure = checks.find((item) => !item.passed);
   const readyBare = readyCommandBare(stage, context.state.selectedTask);
 
@@ -309,10 +327,12 @@ function output(context: GateContext, checks: readonly GateCheck[], stage: GateS
       ...context.policy.warnings,
       ...context.policy.errors.map((error) => `Policy error: ${error}`)
     ],
-    nextAllowedCommand: nextFailure?.recommendation ?? readyCommand(stage, context.state.selectedTask),
-    nextCommand: nextFailure === undefined
-      ? readyBare
-      : bareCommandFromRecommendation(nextFailure.recommendation) ?? readyBare
+    nextAllowedCommand:
+      nextFailure?.recommendation ?? readyCommand(stage, context.state.selectedTask),
+    nextCommand:
+      nextFailure === undefined
+        ? readyBare
+        : (bareCommandFromRecommendation(nextFailure.recommendation) ?? readyBare)
   };
 }
 
@@ -327,22 +347,24 @@ export function evaluateSetupGate(context: GateContext): GateEvaluation {
       state.status === undefined ? ".visp/status.json" : undefined
     ].filter((item): item is string => item !== undefined);
 
-    checks.push(missing.length === 0
-      ? check({
-          ruleId: "VSP018",
-          passed: true,
-          message: "Project setup artifacts exist.",
-          recommendation: "Continue.",
-          evidence: ".visp/project.json, .visp/config.json, and .visp/status.json are present."
-        })
-      : check({
-          ruleId: "VSP018",
-          passed: false,
-          severity: "error",
-          message: "Required setup artifacts are missing.",
-          recommendation: "Run visp init --force only if you intend to regenerate setup files.",
-          evidence: missing.join(", ")
-        }));
+    checks.push(
+      missing.length === 0
+        ? check({
+            ruleId: "VSP018",
+            passed: true,
+            message: "Project setup artifacts exist.",
+            recommendation: "Continue.",
+            evidence: ".visp/project.json, .visp/config.json, and .visp/status.json are present."
+          })
+        : check({
+            ruleId: "VSP018",
+            passed: false,
+            severity: "error",
+            message: "Required setup artifacts are missing.",
+            recommendation: "Run visp init --force only if you intend to regenerate setup files.",
+            evidence: missing.join(", ")
+          })
+    );
   }
 
   return output(context, checks, "setup");
@@ -381,7 +403,9 @@ export function evaluateFeatureGate(context: GateContext): GateEvaluation {
           passed: true,
           message: "Constitution requirement is satisfied.",
           recommendation: "Continue.",
-          evidence: context.state.constitution ? "Compact constitution exists." : "Rule is not enabled."
+          evidence: context.state.constitution
+            ? "Compact constitution exists."
+            : "Rule is not enabled."
         })
   ];
 
@@ -513,17 +537,19 @@ export function evaluateImplementGate(context: GateContext): GateEvaluation {
         recommendation: "Run visp context --next.",
         evidence: "Task context JSON was not found."
       });
-  const budgetCheck = context.state.contextPack?.overBudget &&
-    context.policy.policy.strictnessMode === "locked"
-    ? [check({
-        ruleId: "VSP007",
-        passed: false,
-        severity: "warning",
-        message: "Context pack is over budget in locked mode.",
-        recommendation: "Split the task or regenerate leaner context.",
-        evidence: context.state.contextPack.recommendation
-      })]
-    : [];
+  const budgetCheck =
+    context.state.contextPack?.overBudget && context.policy.policy.strictnessMode === "locked"
+      ? [
+          check({
+            ruleId: "VSP007",
+            passed: false,
+            severity: "warning",
+            message: "Context pack is over budget in locked mode.",
+            recommendation: "Split the task or regenerate leaner context.",
+            evidence: context.state.contextPack.recommendation
+          })
+        ]
+      : [];
   const reportChecks = [
     context.state.verification?.success === false
       ? check({
@@ -584,31 +610,42 @@ function concurrentAuthorizationChecks(context: GateContext): readonly GateCheck
   if (task === undefined) return [];
   const otherMarkers = context.activeMarkers.filter((marker) => marker.taskId !== task.id);
   if (otherMarkers.length === 0) return [];
-  const strictModes = context.policy.policy.strictnessMode === "strict" || context.policy.policy.strictnessMode === "locked";
-  const taskScope = new Set(concreteScopePaths([...task.allowedFiles, ...(task.expectedFiles ?? [])]));
+  const strictModes =
+    context.policy.policy.strictnessMode === "strict" ||
+    context.policy.policy.strictnessMode === "locked";
+  const taskScope = new Set(
+    concreteScopePaths([...task.allowedFiles, ...(task.expectedFiles ?? [])])
+  );
   const checks: GateCheck[] = [];
   for (const marker of otherMarkers) {
-    const overlap = concreteScopePaths([...marker.allowedFiles, ...marker.expectedFiles]).filter((path) => taskScope.has(path));
+    const overlap = concreteScopePaths([...marker.allowedFiles, ...marker.expectedFiles]).filter(
+      (path) => taskScope.has(path)
+    );
     if (overlap.length > 0) {
-      checks.push(check({
-        ruleId: "VSP012",
-        passed: false,
-        severity: strictModes ? "error" : "warning",
-        message: `Task ${task.id} overlaps the active authorization for ${marker.taskId}.`,
-        recommendation: `Run visp done --task ${marker.taskId} first, or adjust the task scopes so they do not share files.`,
-        evidence: `Shared files: ${overlap.join(", ")}.`
-      }));
+      checks.push(
+        check({
+          ruleId: "VSP012",
+          passed: false,
+          severity: strictModes ? "error" : "warning",
+          message: `Task ${task.id} overlaps the active authorization for ${marker.taskId}.`,
+          recommendation: `Run visp done --task ${marker.taskId} first, or adjust the task scopes so they do not share files.`,
+          evidence: `Shared files: ${overlap.join(", ")}.`
+        })
+      );
     }
   }
   if (checks.length === 0 && !task.parallelizable) {
-    checks.push(check({
-      ruleId: "VSP012",
-      passed: false,
-      severity: "warning",
-      message: `Task ${task.id} is not marked parallelizable but other tasks are authorized (${otherMarkers.map((marker) => marker.taskId).join(", ")}).`,
-      recommendation: "Finish the other tasks first, or mark this task parallelizable in the task graph if concurrent work is intended.",
-      evidence: "Concurrent implement authorizations exist."
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP012",
+        passed: false,
+        severity: "warning",
+        message: `Task ${task.id} is not marked parallelizable but other tasks are authorized (${otherMarkers.map((marker) => marker.taskId).join(", ")}).`,
+        recommendation:
+          "Finish the other tasks first, or mark this task parallelizable in the task graph if concurrent work is intended.",
+        evidence: "Concurrent implement authorizations exist."
+      })
+    );
   }
   return checks;
 }
@@ -650,7 +687,9 @@ export function evaluateVerifyGate(context: GateContext): GateEvaluation {
           passed: true,
           message: "Verification can proceed.",
           recommendation: "Continue.",
-          evidence: context.state.git.isRepo ? "Source changes were detected or Git is unavailable." : "Git is unavailable."
+          evidence: context.state.git.isRepo
+            ? "Source changes were detected or Git is unavailable."
+            : "Git is unavailable."
         })
   ];
 
@@ -730,7 +769,10 @@ export function evaluateReconcileGate(context: GateContext): GateEvaluation {
           severity: context.policy.policy.strictnessMode === "relaxed" ? "warning" : "error",
           message: "Passing verification evidence is missing.",
           recommendation: `Run visp verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
-          evidence: context.state.verification === undefined ? "verification.json missing." : "verification failed."
+          evidence:
+            context.state.verification === undefined
+              ? "verification.json missing."
+              : "verification failed."
         })
       : check({
           ruleId: "VSP014",
@@ -791,7 +833,10 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
           severity: verificationSeverity,
           message: "Passing verification evidence is missing.",
           recommendation: `Run visp verify --task ${taskId}.`,
-          evidence: context.state.verification === undefined ? "verification.json missing." : "verification failed."
+          evidence:
+            context.state.verification === undefined
+              ? "verification.json missing."
+              : "verification failed."
         }),
     context.state.review !== undefined && context.state.review.result !== "failed"
       ? check({
@@ -823,7 +868,10 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
           severity: reconcileSeverity,
           message: "Passing reconciliation evidence is missing.",
           recommendation: `Run visp reconcile --task ${taskId} --update-traceability.`,
-          evidence: context.state.reconcile === undefined ? "reconcile report missing." : "reconcile failed."
+          evidence:
+            context.state.reconcile === undefined
+              ? "reconcile report missing."
+              : "reconcile failed."
         }),
     context.state.reconcile?.traceabilityUpdate.performed === true
       ? check({
@@ -851,28 +899,36 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
 
 function driftChecks(context: GateContext): readonly GateCheck[] {
   if (context.state.contextPack === undefined) return [];
-  const strictModes = context.policy.policy.strictnessMode === "strict" || context.policy.policy.strictnessMode === "locked";
+  const strictModes =
+    context.policy.policy.strictnessMode === "strict" ||
+    context.policy.policy.strictnessMode === "locked";
   const ruleEnabled = context.policy.policy.rules.blockOnUnresolvedDrift ?? strictModes;
   if (!ruleEnabled) return [];
   if (context.staleContextArtifacts.length === 0) {
-    return [check({
-      ruleId: "VSP021",
-      passed: true,
-      message: "Context pack provenance matches current artifacts.",
-      recommendation: "Continue.",
-      evidence: "All provenance hashes match current artifact content."
-    })];
+    return [
+      check({
+        ruleId: "VSP021",
+        passed: true,
+        message: "Context pack provenance matches current artifacts.",
+        recommendation: "Continue.",
+        evidence: "All provenance hashes match current artifact content."
+      })
+    ];
   }
   const taskId = context.state.contextPack.taskId;
-  const staleList = context.staleContextArtifacts.map((artifact) => `${artifact.label} (${artifact.path})`).join(", ");
-  return [check({
-    ruleId: "VSP021",
-    passed: false,
-    severity: strictModes ? "error" : "warning",
-    message: "Context pack was grounded on artifacts that changed afterwards.",
-    recommendation: `Run visp drift, then regenerate the context pack: visp context ${taskId}.`,
-    evidence: `Stale provenance: ${staleList}.`
-  })];
+  const staleList = context.staleContextArtifacts
+    .map((artifact) => `${artifact.label} (${artifact.path})`)
+    .join(", ");
+  return [
+    check({
+      ruleId: "VSP021",
+      passed: false,
+      severity: strictModes ? "error" : "warning",
+      message: "Context pack was grounded on artifacts that changed afterwards.",
+      recommendation: `Run visp drift, then regenerate the context pack: visp context ${taskId}.`,
+      evidence: `Stale provenance: ${staleList}.`
+    })
+  ];
 }
 
 export function evaluateNextGate(context: GateContext): GateEvaluation {
@@ -880,55 +936,83 @@ export function evaluateNextGate(context: GateContext): GateEvaluation {
   const checks: GateCheck[] = [];
 
   if (!context.state.initialized) {
-    checks.push(check({
-      ruleId: "VSP018",
-      passed: false,
-      severity: "error",
-      message: "Visp Kit is not initialized.",
-      recommendation: "Run visp init.",
-      evidence: ".visp/ was not found."
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP018",
+        passed: false,
+        severity: "error",
+        message: "Visp Kit is not initialized.",
+        recommendation: "Run visp init.",
+        evidence: ".visp/ was not found."
+      })
+    );
+  } else if (!context.policy.policyValid) {
+    checks.push(
+      check({
+        ruleId: "VSP018",
+        passed: false,
+        severity: "error",
+        message: "Policy validation failed.",
+        recommendation: "Run visp policy validate.",
+        evidence: context.policy.errors.join(" ")
+      })
+    );
   } else if (!context.policy.policyExists) {
-    checks.push(check({
-      ruleId: "VSP018",
-      passed: false,
-      severity: "error",
-      message: "Policy file is missing.",
-      recommendation: "Run visp policy init --strictness strict.",
-      evidence: ".visp/policy.json was not found."
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP018",
+        passed: false,
+        severity: "error",
+        message: "Policy file is missing.",
+        recommendation: "Run visp policy init --strictness strict.",
+        evidence: ".visp/policy.json was not found."
+      })
+    );
   } else if (context.policy.policy.rules.requireScanBeforeFeature && !context.state.scanned) {
-    checks.push(check({
-      ruleId: "VSP001",
-      passed: false,
-      severity: "error",
-      message: "Project scan is required.",
-      recommendation: "Run visp scan.",
-      evidence: "Strict policy requires scan before feature workflow."
-    }));
-  } else if (context.policy.policy.rules.requireConstitutionBeforeFeature && !context.state.constitution) {
-    checks.push(check({
-      ruleId: "VSP002",
-      passed: false,
-      severity: "error",
-      message: "Project constitution is required.",
-      recommendation: "Run visp constitution.",
-      evidence: "Strict policy requires constitution before feature workflow."
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP001",
+        passed: false,
+        severity: "error",
+        message: "Project scan is required.",
+        recommendation: "Run visp scan.",
+        evidence: "Strict policy requires scan before feature workflow."
+      })
+    );
+  } else if (
+    context.policy.policy.rules.requireConstitutionBeforeFeature &&
+    !context.state.constitution
+  ) {
+    checks.push(
+      check({
+        ruleId: "VSP002",
+        passed: false,
+        severity: "error",
+        message: "Project constitution is required.",
+        recommendation: "Run visp constitution.",
+        evidence: "Strict policy requires constitution before feature workflow."
+      })
+    );
   } else {
-    checks.push(check({
-      ruleId: "VSP020",
-      passed: true,
-      message: "Next command was determined.",
-      recommendation: next,
-      evidence: next
-    }));
+    checks.push(
+      check({
+        ruleId: "VSP020",
+        passed: true,
+        message: "Next command was determined.",
+        recommendation: next,
+        evidence: next
+      })
+    );
   }
+
+  const selectedRecommendation = checks.find((item) => !item.passed)?.recommendation ?? next;
+  const selectedNextCommand =
+    bareCommandFromRecommendation(selectedRecommendation) ?? selectedRecommendation;
 
   return {
     checks,
     warnings: [...context.policy.warnings],
-    nextAllowedCommand: next,
-    nextCommand: bareCommandFromRecommendation(next) ?? next
+    nextAllowedCommand: selectedNextCommand,
+    nextCommand: selectedNextCommand
   };
 }

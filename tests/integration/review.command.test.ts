@@ -75,6 +75,10 @@ export function unpinNote(note: Note): Note {
   );
 }
 
+async function corruptOverrideStore(rootPath: string): Promise<void> {
+  await writeFile(path.join(rootPath, ".visp", "overrides.json"), "{ malformed overrides", "utf8");
+}
+
 describe("visp review command", () => {
   let tempDir: string;
 
@@ -390,5 +394,52 @@ describe("visp review command", () => {
       lastCommand: "review",
       activeTaskId: "T001"
     });
+  });
+
+  it("fails closed instead of advancing review when policy gate evaluation is unavailable", async () => {
+    await createPhase8Fixture(tempDir);
+    await initGitBaseline(tempDir);
+    await modifySource(tempDir);
+    await corruptOverrideStore(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "review",
+      tempDir,
+      "--task",
+      "T001",
+      "--skip-verification",
+      "--force",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      success: boolean;
+      result: string;
+      findings: Array<{ severity: string; title: string }>;
+      nextCommand: string;
+    };
+
+    expect(summary.success).toBe(false);
+    expect(process.exitCode).toBe(1);
+    expect(summary.result).toBe("failed");
+    expect(
+      summary.findings.some(
+        (finding) =>
+          finding.severity === "error" &&
+          /(gate|policy)/i.test(finding.title) &&
+          /(unavailable|evaluat)/i.test(finding.title)
+      )
+    ).toBe(true);
+    expect(summary.nextCommand).not.toBe("visp reconcile --task T001");
+
+    const status = JSON.parse(
+      await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")
+    ) as { currentState: string };
+
+    expect(status.currentState).not.toBe("review_ready");
   });
 });

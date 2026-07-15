@@ -55,6 +55,10 @@ export function unpinNote(note: Note): Note {
   );
 }
 
+async function corruptOverrideStore(rootPath: string): Promise<void> {
+  await writeFile(path.join(rootPath, ".visp", "overrides.json"), "{ malformed overrides", "utf8");
+}
+
 async function prepareChecklist(rootPath: string): Promise<void> {
   const program = createCli({ writeOut: () => undefined });
   const doneItems = [
@@ -231,5 +235,36 @@ describe("visp pr command", { timeout: 30000 }, () => {
     expect(
       await exists(path.join(tempDir, ".visp", "features", "001-add-note-pinning", "pr.json"))
     ).toBe(false);
+  });
+
+  it("fails closed without PR-ready advancement when gate evaluation is unavailable", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareChecklist(tempDir);
+    await corruptOverrideStore(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "pr", tempDir, "--force", "--json"]);
+
+    const summary = JSON.parse(output.join("")) as {
+      success: boolean;
+      errors: string[];
+      nextCommand: string;
+    };
+
+    expect(summary.success).toBe(false);
+    expect(process.exitCode).toBe(1);
+    expect(
+      summary.errors.some(
+        (error) => /override/i.test(error) && /(unavailable|evaluat)/i.test(error)
+      )
+    ).toBe(true);
+    expect(summary.nextCommand).not.toBe("Review pr.md and use it in your pull request.");
+
+    const status = JSON.parse(
+      await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")
+    ) as { currentState: string };
+
+    expect(status.currentState).not.toBe("pr_ready");
   });
 });

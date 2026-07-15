@@ -75,6 +75,10 @@ export function unpinNote(note: Note): Note {
   );
 }
 
+async function corruptOverrideStore(rootPath: string): Promise<void> {
+  await writeFile(path.join(rootPath, ".visp", "overrides.json"), "{ malformed overrides", "utf8");
+}
+
 async function prepareReconcileFixture(rootPath: string): Promise<void> {
   await createPhase8Fixture(rootPath);
   const setupProgram = createCli({ writeOut: () => undefined });
@@ -362,5 +366,65 @@ describe("visp reconcile command", { timeout: 30000 }, () => {
 
     expect(process.exitCode).toBe(1);
     expect(output.join("")).toContain("Unapproved dependency change");
+  });
+
+  it("fails closed without traceability or task advancement when gate evaluation is unavailable", async () => {
+    await prepareReconcileFixture(tempDir);
+    const featurePath = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    const traceabilityPath = path.join(featurePath, "traceability.json");
+    const originalTraceability = await readFile(traceabilityPath, "utf8");
+    await corruptOverrideStore(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "reconcile",
+      tempDir,
+      "--task",
+      "T001",
+      "--update-traceability",
+      "--update-task-status",
+      "--force",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      success: boolean;
+      result: string;
+      findings: Array<{ severity: string; title: string }>;
+      traceabilityUpdate: { performed: boolean };
+      nextCommand: string;
+    };
+
+    expect(summary.success).toBe(false);
+    expect(process.exitCode).toBe(1);
+    expect(summary.result).toBe("failed");
+    expect(
+      summary.findings.some(
+        (finding) =>
+          finding.severity === "error" &&
+          /(gate|policy)/i.test(finding.title) &&
+          /(unavailable|evaluat)/i.test(finding.title)
+      )
+    ).toBe(true);
+    expect(summary.traceabilityUpdate.performed).toBe(false);
+    expect(summary.nextCommand).not.toBe("visp next");
+    expect(await readFile(traceabilityPath, "utf8")).toBe(originalTraceability);
+
+    const taskGraph = JSON.parse(
+      await readFile(path.join(featurePath, "task-graph.json"), "utf8")
+    ) as {
+      tasks: Array<{ id: string; status: string }>;
+    };
+    const status = JSON.parse(
+      await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")
+    ) as {
+      currentState: string;
+    };
+
+    expect(taskGraph.tasks[0]).toMatchObject({ id: "T001", status: "ready" });
+    expect(status.currentState).not.toMatch(/^(reconciled|reconcile_ready)$/);
   });
 });

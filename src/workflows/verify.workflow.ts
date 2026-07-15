@@ -292,6 +292,7 @@ function collectWarnings(report: Omit<VerificationReport, "summary">): readonly 
 
 function collectErrors(report: Omit<VerificationReport, "summary">): readonly string[] {
   return [
+    ...report.errors,
     ...report.artifactValidation.errors,
     ...report.traceabilityValidation.errors,
     ...report.commandValidation.errors,
@@ -414,10 +415,9 @@ export async function runVerifyWorkflow(
     now: startedAt
   });
   const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
-
-  if (!policyGateResult.ok) {
-    warnings.push(`Verification gate could not be evaluated: ${policyGateResult.error.message}`);
-  }
+  const policyGateUnavailable = policyGateResult.ok
+    ? undefined
+    : `Verification gate evaluation unavailable: ${policyGateResult.error.message}`;
   if (selectedTask !== undefined) {
     const checklistSummary = await getImplementationChecklistSummary({
       targetPath,
@@ -556,12 +556,12 @@ export async function runVerifyWorkflow(
     dependencyValidation,
     policyGate,
     warnings,
-    errors: [],
+    errors: policyGateUnavailable === undefined ? [] : [policyGateUnavailable],
     nextCommand: "pending"
   };
   const gateBlocks =
     policyGate === undefined
-      ? false
+      ? policyGateUnavailable !== undefined
       : gateBlocksWorkflow({ gate: policyGate, force: options.force });
   const gateMessages = policyGate === undefined ? [] : gateFailureMessages(policyGate);
   const gateWarnings =

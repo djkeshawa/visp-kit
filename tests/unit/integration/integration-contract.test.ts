@@ -67,11 +67,7 @@ describe("integration contract workflow", () => {
         "<task-id>",
         "--json"
       ]);
-      expect(result.value.commands.context).toEqual([
-        "context",
-        "<task-id>",
-        "--json"
-      ]);
+      expect(result.value.commands.context).toEqual(["context", "<task-id>", "--json"]);
       expect(result.value.commands.hooksGit).toEqual(["hooks", "git", "--json"]);
       expect(result.value.capabilities).toMatchObject({
         deterministic: { noLlmCalls: true, localArtifacts: true, jsonOutput: true },
@@ -178,6 +174,151 @@ describe("integration contract workflow", () => {
           path: ".visp/features/001-note-pinning/context/T001.implementation-checklist.json"
         })
       );
+    }
+  });
+
+  it("locks the bounded contract 2.0 command, read-role, freshness, and fail-closed surface", async () => {
+    const targetPath = await mkdtemp(join(tmpdir(), "visp-contract-bounded-"));
+
+    const result = await runIntegrationContractWorkflow({ targetPath });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.contractVersion).toBe("2.0");
+      const { reconcile, ...stableCommands } = result.value.commands;
+      expect(stableCommands).toEqual({
+        status: ["status", "--json"],
+        policyValidate: ["policy", "validate", "--json"],
+        gateNext: ["gate", "next", "--json"],
+        gateImplement: ["gate", "implement", "--task", "<task-id>", "--json"],
+        context: ["context", "<task-id>", "--json"],
+        verify: ["verify", "--task", "<task-id>", "--json"],
+        review: ["review", "--task", "<task-id>", "--json"],
+        budgetRecordUsage: ["budget", "--task", "<task-id>", "--record-usage", "--json"],
+        done: ["done", "--task", "<task-id>", "--json"],
+        hooksClaude: ["hooks", "claude", "--json"],
+        hooksGit: ["hooks", "git", "--json"],
+        hooksCi: ["hooks", "ci", "--json"]
+      });
+      expect(reconcile).toEqual(
+        expect.arrayContaining(["reconcile", "--task", "<task-id>", "--json"])
+      );
+      expect(result.value.capabilities.governance).toEqual({
+        policyAsCode: true,
+        failClosedGates: true,
+        overrideAuditTrail: true,
+        sourceEditsRequireImplementGate: true,
+        contextPackRequiredForImplementation: true
+      });
+      expect(result.value.workflow).toEqual({
+        strictSequence: [
+          "status",
+          "policyValidate",
+          "gateNext",
+          "context",
+          "gateImplement",
+          "verify",
+          "review",
+          "reconcile"
+        ],
+        implementationReadSet: [
+          ".visp/features/<feature>/context/<task-id>.context.json",
+          ".visp/prompts/current-task.prompt.md",
+          ".visp/policy.json"
+        ],
+        checkpointSequence: ["verify", "review", "reconcile"],
+        failClosedOn: [
+          "policyValidate",
+          "gateNext",
+          "gateImplement",
+          "verify",
+          "review",
+          "reconcile"
+        ],
+        freshnessChecks: [
+          ".visp/features/<feature>/context/<task-id>.context.json",
+          "contextPack.artifactProvenance[]"
+        ],
+        humanOverride: {
+          requiresReason: true,
+          command: ["override", "create", "<rule-id>", "--reason", "<reason>", "--json"],
+          artifact: ".visp/overrides.json"
+        }
+      });
+      expect(result.value.orchestrator).toEqual({
+        readContractVersion: "0.1",
+        requiredArtifacts: [
+          {
+            id: "project-status",
+            path: ".visp/status.json",
+            role: "state",
+            mimeType: "application/json",
+            requiredFor: ["handoff", "gate-evaluation"],
+            freshness: "read-latest"
+          },
+          {
+            id: "project-policy",
+            path: ".visp/policy.json",
+            role: "policy",
+            mimeType: "application/json",
+            requiredFor: ["handoff", "implementation", "verification"],
+            freshness: "gate-validated"
+          },
+          {
+            id: "project-profile",
+            path: ".visp/project.json",
+            role: "profile",
+            mimeType: "application/json",
+            requiredFor: ["handoff", "implementation"],
+            freshness: "read-latest"
+          },
+          {
+            id: "task-graph",
+            path: ".visp/features/<feature>/task-graph.json",
+            role: "task-graph",
+            mimeType: "application/json",
+            requiredFor: ["handoff", "implementation", "checkpoint"],
+            freshness: "hash-pinned"
+          },
+          {
+            id: "context-pack",
+            path: ".visp/features/<feature>/context/<task-id>.context.json",
+            role: "context-pack",
+            mimeType: "application/json",
+            requiredFor: ["handoff", "implementation", "checkpoint"],
+            freshness: "hash-pinned"
+          },
+          {
+            id: "context-prompt",
+            path: ".visp/features/<feature>/context/<task-id>.prompt.md",
+            role: "prompt",
+            mimeType: "text/markdown",
+            requiredFor: ["implementation"],
+            freshness: "read-latest"
+          },
+          {
+            id: "current-task-prompt",
+            path: ".visp/prompts/current-task.prompt.md",
+            role: "prompt",
+            mimeType: "text/markdown",
+            requiredFor: ["implementation"],
+            freshness: "read-latest"
+          },
+          {
+            id: "implementation-checklist",
+            path: ".visp/features/<feature>/context/<task-id>.implementation-checklist.json",
+            role: "checklist",
+            mimeType: "application/json",
+            requiredFor: ["implementation", "pr"],
+            freshness: "gate-validated"
+          }
+        ],
+        freshnessPolicy: {
+          contextPackHashPinned: true,
+          provenanceArtifactsHashPinned: true,
+          staleContextBlocks: ["implementation", "checkpoint", "pr"]
+        }
+      });
     }
   });
 

@@ -5,7 +5,7 @@ import { loadProjectState } from "../orchestrator/project-state.js";
 import { recommendNextStep, type NextStep } from "../orchestrator/next-step.js";
 import { evaluatePolicyGate } from "../gates/policy-gate-summary.js";
 import { formatHeader } from "../theme/terminal.js";
-import { buildWorkflowActionV2 } from "../integration/workflow-action.js";
+import { buildWorkflowActionV2, workflowActionV2Schema } from "../integration/workflow-action.js";
 
 export type NextWorkflowOptions = {
   readonly targetPath?: string;
@@ -56,9 +56,47 @@ export async function runNextWorkflow(
           taskId: options.taskId ?? state.value.selectedTask?.id
         });
 
-  if (!nextGate.ok) {
-    return ok(fallback);
+  const gateEvaluationError = !nextGate.ok
+    ? nextGate.error
+    : implementationGate !== undefined && !implementationGate.ok
+      ? implementationGate.error
+      : prGate !== undefined && !prGate.ok
+        ? prGate.error
+        : undefined;
+
+  if (gateEvaluationError !== undefined) {
+    const nextCommand = "visp override validate";
+    const finding = `Override or gate evaluation is unavailable: ${gateEvaluationError.message}`;
+    const summary: NextStep = {
+      ...fallback,
+      success: false,
+      nextCommand,
+      reason: "Authoritative policy gates could not be evaluated.",
+      blockers: [finding],
+      warnings: [],
+      confidence: "low",
+      nextAllowedCommand: nextCommand,
+      allowed: false,
+      blockedCommands: [],
+      failedRules: [],
+      implementationAllowed: false,
+      prAllowed: false,
+      agentInstruction: `Do not implement code until \`${nextCommand}\` succeeds.`
+    };
+    const baseAction = await buildWorkflowActionV2({ state: state.value, step: summary });
+
+    return ok({
+      ...summary,
+      action: workflowActionV2Schema.parse({
+        ...baseAction,
+        verdict: "inconclusive",
+        findings: [finding],
+        nextCommand
+      })
+    });
   }
+
+  if (!nextGate.ok) return nextGate;
 
   const gateWarnings = [
     ...nextGate.value.warnings,

@@ -69,6 +69,34 @@ describe("visp gate command", () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it("rejects an existing malformed policy without inferring workflow permission", async () => {
+    await createPhase8Fixture(tempDir);
+    await writeFile(policyArtifactPath(tempDir), "{ malformed policy", "utf8");
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "gate", "next", tempDir, "--json"]);
+
+    const result = JSON.parse(output.join("")) as {
+      allowed: boolean;
+      failedRules: Array<{ ruleId: string; message: string }>;
+      nextCommand: string;
+      blockedCommands: Array<{ command: string; ruleId: string }>;
+    };
+
+    expect(result.allowed).toBe(false);
+    expect(process.exitCode).toBe(1);
+    expect(result.failedRules).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ruleId: "VSP018", message: "Policy validation failed." })
+      ])
+    );
+    expect(result.nextCommand).toBe("visp policy validate");
+    expect(result.blockedCommands).toEqual([
+      expect.objectContaining({ command: "workflow progression", ruleId: "VSP018" })
+    ]);
+  });
+
   it("recommends scan when strict policy requires scan", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     expectOk(

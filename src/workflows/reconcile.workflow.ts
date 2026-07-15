@@ -480,12 +480,9 @@ export async function runReconcileWorkflow(
     now: startedAt
   });
   const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
-
-  if (!policyGateResult.ok) {
-    optionalWarnings.push(
-      `Reconcile gate could not be evaluated: ${policyGateResult.error.message}`
-    );
-  }
+  const policyGateUnavailable = policyGateResult.ok
+    ? undefined
+    : `Reconcile policy gate evaluation unavailable: ${policyGateResult.error.message}`;
   if (selectedTask !== undefined) {
     const checklistSummary = await getImplementationChecklistSummary({
       targetPath,
@@ -602,11 +599,26 @@ export async function runReconcileWorkflow(
     plan: plan as PlanDraftArtifact | undefined
   });
   const gateBlocks =
-    policyGate === undefined ? false : gateBlocksWorkflow({ gate: policyGate, force });
+    policyGate === undefined
+      ? policyGateUnavailable !== undefined
+      : gateBlocksWorkflow({ gate: policyGate, force });
   const gateFindingSeverity = gateBlocks ? "error" : "warning";
   const gateFindings: ReconcileFindingDraft[] =
     policyGate === undefined
-      ? []
+      ? policyGateUnavailable === undefined
+        ? []
+        : [
+            reconcileFinding({
+              category: "review",
+              severity: "error",
+              driftType: "manual_review_needed",
+              title: "Policy gate evaluation unavailable",
+              description: policyGateUnavailable,
+              evidence: policyGateUnavailable,
+              recommendation: "Run visp override validate.",
+              relatedTaskId: selectedTask?.id ?? null
+            })
+          ]
       : policyGate.failedRules.map((rule) =>
           reconcileFinding({
             category: "review",
@@ -664,7 +676,16 @@ export async function runReconcileWorkflow(
     alignment.taskAlignment,
     coverage.requirementCoverage,
     dependencies.dependencyEvidence,
-    { errors: policyGate === undefined || !gateBlocks ? [] : gateFailureMessages(policyGate) }
+    {
+      errors:
+        policyGate === undefined
+          ? policyGateUnavailable === undefined
+            ? []
+            : [policyGateUnavailable]
+          : gateBlocks
+            ? gateFailureMessages(policyGate)
+            : []
+    }
   );
   const baseReport = {
     id: `REC-${feature.value.id}-${selectedTask?.id ?? "feature"}`,
@@ -795,7 +816,7 @@ export async function runReconcileWorkflow(
       if (!update.ok) return update;
     }
 
-    if (!options.promptOnly) {
+    if (!options.promptOnly && parsed.data.success) {
       const status = await updateStatus({
         targetPath,
         featureId: feature.value.id,

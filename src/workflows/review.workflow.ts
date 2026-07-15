@@ -363,10 +363,9 @@ export async function runReviewWorkflow(
     now: startedAt
   });
   const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
-
-  if (!policyGateResult.ok) {
-    optionalWarnings.push(`Review gate could not be evaluated: ${policyGateResult.error.message}`);
-  }
+  const policyGateUnavailable = policyGateResult.ok
+    ? undefined
+    : `Review policy gate evaluation unavailable: ${policyGateResult.error.message}`;
   if (selectedTask !== undefined) {
     const checklistSummary = await getImplementationChecklistSummary({
       targetPath,
@@ -479,12 +478,24 @@ export async function runReviewWorkflow(
   });
   const gateBlocks =
     policyGate === undefined
-      ? false
+      ? policyGateUnavailable !== undefined
       : gateBlocksWorkflow({ gate: policyGate, force: options.force });
   const gateFindingSeverity = gateBlocks ? "error" : "warning";
   const gateFindings: ReviewFindingDraft[] =
     policyGate === undefined
-      ? []
+      ? policyGateUnavailable === undefined
+        ? []
+        : [
+            finding({
+              category: "verification",
+              severity: "error",
+              title: "Policy gate evaluation unavailable",
+              description: policyGateUnavailable,
+              evidence: policyGateUnavailable,
+              recommendation: "Run visp override validate.",
+              relatedTaskId: selectedTask?.id ?? null
+            })
+          ]
       : policyGate.failedRules.map((rule) =>
           finding({
             category: "verification",
@@ -517,7 +528,14 @@ export async function runReviewWorkflow(
       dependency.dependencyReview,
       {
         warnings: policyGate === undefined || gateBlocks ? [] : gateWarningMessages(policyGate),
-        errors: policyGate === undefined || !gateBlocks ? [] : gateFailureMessages(policyGate)
+        errors:
+          policyGate === undefined
+            ? policyGateUnavailable === undefined
+              ? []
+              : [policyGateUnavailable]
+            : gateBlocks
+              ? gateFailureMessages(policyGate)
+              : []
       }
     ]
   });
@@ -626,16 +644,18 @@ export async function runReviewWorkflow(
       if (!writeChecklist.ok) return writeChecklist;
     }
 
-    const statusUpdate = await updateReviewStatus({
-      targetPath,
-      featureId: feature.value.id,
-      featureSlug: feature.value.slug,
-      featurePath: feature.value.relativePath,
-      task: selectedTask,
-      now: endedAt
-    });
+    if (parsed.data.success) {
+      const statusUpdate = await updateReviewStatus({
+        targetPath,
+        featureId: feature.value.id,
+        featureSlug: feature.value.slug,
+        featurePath: feature.value.relativePath,
+        task: selectedTask,
+        now: endedAt
+      });
 
-    if (!statusUpdate.ok) return statusUpdate;
+      if (!statusUpdate.ok) return statusUpdate;
+    }
   }
 
   const extraWarnings: string[] = [];

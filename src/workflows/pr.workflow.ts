@@ -74,6 +74,7 @@ export type PrSummary = {
 async function updateStatus(input: {
   readonly targetPath: string;
   readonly now: string;
+  readonly ready: boolean;
 }): Promise<Result<void, VispError>> {
   const status = await readArtifact(
     projectStatusArtifactPath(input.targetPath),
@@ -87,7 +88,7 @@ async function updateStatus(input: {
 
   const nextStatus: ProjectStatus = {
     ...status.value,
-    currentState: "pr_ready",
+    currentState: input.ready ? "pr_ready" : status.value.currentState,
     lastCommand: "pr",
     updatedAt: input.now
   };
@@ -156,14 +157,13 @@ export async function runPrWorkflow(
     now
   });
   const policyGate = policyGateResult.ok ? policyGateResult.value : undefined;
-
-  if (!policyGateResult.ok) {
-    warnings.push(`PR gate could not be evaluated: ${policyGateResult.error.message}`);
-  }
+  const policyGateUnavailable = policyGateResult.ok
+    ? undefined
+    : `PR gate evaluation unavailable: ${policyGateResult.error.message}`;
 
   const gateBlocks =
     policyGate === undefined
-      ? false
+      ? policyGateUnavailable !== undefined
       : gateBlocksWorkflow({ gate: policyGate, force: options.force });
   const pr = buildPrArtifact({
     state: state.value,
@@ -186,7 +186,13 @@ export async function runPrWorkflow(
     errors: [
       ...new Set([
         ...pr.errors,
-        ...(policyGate === undefined || !gateBlocks ? [] : gateFailureMessages(policyGate))
+        ...(policyGate === undefined
+          ? policyGateUnavailable === undefined
+            ? []
+            : [policyGateUnavailable]
+          : gateBlocks
+            ? gateFailureMessages(policyGate)
+            : [])
       ])
     ]
   };
@@ -224,7 +230,8 @@ export async function runPrWorkflow(
 
       const status = await updateStatus({
         targetPath: state.value.targetPath,
-        now
+        now,
+        ready: parsed.data.success
       });
 
       if (!status.ok) return status;

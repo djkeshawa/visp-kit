@@ -42,6 +42,10 @@ async function useFastPassingCommand(rootPath: string): Promise<void> {
   });
 }
 
+async function corruptOverrideStore(rootPath: string): Promise<void> {
+  await writeFile(path.join(rootPath, ".visp", "overrides.json"), "{ malformed overrides", "utf8");
+}
+
 async function initGitBaseline(rootPath: string): Promise<void> {
   await execFileAsync("git", ["init"], { cwd: rootPath });
   await execFileAsync("git", ["add", "."], { cwd: rootPath });
@@ -252,6 +256,53 @@ describe("visp verify command", () => {
     ) as { tasks: Array<{ id: string; status: string }> };
 
     expect(taskGraph.tasks[0]).toMatchObject({ id: "T001", status: "verified" });
+  });
+
+  it("fails closed when policy gate evaluation is unavailable even with force", async () => {
+    await createPhase8Fixture(tempDir);
+    await useFastPassingCommand(tempDir);
+    const contextProgram = createCli({ writeOut: () => undefined });
+    await contextProgram.parseAsync(["node", "visp", "context", "T001", tempDir, "--force"]);
+    await corruptOverrideStore(tempDir);
+    process.exitCode = undefined;
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "verify",
+      tempDir,
+      "--task",
+      "T001",
+      "--update-task-status",
+      "--force",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      success: boolean;
+      errors: string[];
+      nextCommand: string;
+    };
+
+    expect(summary.success).toBe(false);
+    expect(process.exitCode).toBe(1);
+    expect(
+      summary.errors.some(
+        (error) => /override/i.test(error) && /(unavailable|evaluat)/i.test(error)
+      )
+    ).toBe(true);
+    expect(summary.nextCommand).not.toBe("visp review --diff-only");
+
+    const taskGraph = JSON.parse(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "task-graph.json"),
+        "utf8"
+      )
+    ) as { tasks: Array<{ id: string; status: string }> };
+
+    expect(taskGraph.tasks[0]).toMatchObject({ id: "T001", status: "ready" });
   });
 
   it("fails clearly when .visp is missing", async () => {
