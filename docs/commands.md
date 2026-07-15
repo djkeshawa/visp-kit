@@ -404,7 +404,18 @@ Common flags:
 - `--command-only`
 - `--explain`
 - `--strict`
+- `--format <text|json>`
 - `--json`
+
+`--format json` emits the current WorkflowAction 2.0 action. Its tested schema
+contains `protocolVersion`, `phase`, `taskId`, `goal`, hash-pinned
+`requiredReads`, `writablePaths`, `forbiddenPaths`, `acceptanceOracles`,
+`validationCommands`, `assuranceLevel`, `verdict`, `findings`, and one exact
+`nextCommand`. It does not advertise or negotiate a later protocol.
+
+`--json` instead emits the `visp next` command/workflow summary, which includes
+the action alongside the command decision. Without `--json`, `--format text`
+uses the normal human-readable summary.
 
 ## `visp doctor [path]`
 
@@ -426,7 +437,25 @@ Subcommands:
 
 - `visp integration contract [path]`
 
-The contract includes the Kit package/version, active feature and task, canonical command arguments, backend capabilities, strict workflow expectations, artifact paths for status, policy, task graph, context packs, and prompts, plus the provenance/freshness checks an orchestrator should pin after handoff. Contract `1.3` also includes an `orchestrator.readContractVersion` block that labels required artifacts by role, MIME type, stage, and freshness policy so weaker agents and MCP hosts do not need to infer meaning from paths. Orchestrators should treat failed policy, gate, verify, review, reconcile, context-pack freshness, and provenance freshness steps as fail-closed.
+The current integration contract is `2.0`. It includes Kit identity and version,
+target and active-work state, canonical argument arrays for the supported
+orchestrator commands, current capability declarations, strict workflow
+metadata, artifact paths, and warnings. The command map covers status, policy
+validation, next and implement gates, context, verification, review,
+reconciliation, usage recording, the combined done workflow, and the three
+enforcement-hook installers.
+
+`orchestrator.readContractVersion` is `0.1`. Its required artifacts use the
+current tested roles `state`, `policy`, `profile`, `task-graph`, `context-pack`,
+`prompt`, and `checklist`, with MIME type, required stage, and a freshness rule
+of `read-latest`, `hash-pinned`, or `gate-validated`. The contract declares
+hash-pinned context/provenance checks and fail-closed policy, gate, verify,
+review, and reconcile steps. Stale context blocks implementation, checkpoint,
+and PR use.
+
+Compatibility is established only for exact tested Kit/consumer pairs. Contract
+2.0 does not currently advertise WorkflowAction v3, schema hashes, a supported
+semver range, or protocol negotiation.
 
 Common flags:
 
