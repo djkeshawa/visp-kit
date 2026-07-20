@@ -453,10 +453,13 @@ Subcommands:
 The current integration contract is `2.0`. It includes Kit identity and version,
 target and active-work state, canonical argument arrays for the supported
 orchestrator commands, current capability declarations, strict workflow
-metadata, artifact paths, and warnings. The command map covers status, policy
-validation, next and implement gates, context, verification, review,
-reconciliation, usage recording, the combined done workflow, and the three
-enforcement-hook installers.
+metadata, artifact paths, warnings, and WorkflowAction protocol compatibility
+metadata. `protocols.workflowAction` advertises exact supported versions
+`["2.0", "3.0"]`, the unchanged default `"2.0"`, and the accepted canonical
+schema hash for each version. The command map covers status, policy validation,
+next and implement gates, context, verification, review, reconciliation, usage
+recording, the combined done workflow, and the three enforcement-hook
+installers.
 
 `orchestrator.readContractVersion` is `0.1`. Its required artifacts use the
 current tested roles `state`, `policy`, `profile`, `task-graph`, `context-pack`,
@@ -466,9 +469,12 @@ hash-pinned context/provenance checks and fail-closed policy, gate, verify,
 review, and reconcile steps. Stale context blocks implementation, checkpoint,
 and PR use.
 
-Compatibility is established only for exact tested Kit/consumer pairs. Contract
-2.0 does not currently advertise WorkflowAction v3, schema hashes, a supported
-semver range, or protocol negotiation.
+Compatibility is established only for exact tested Kit/consumer pairs. The
+advertisement reports Kit capabilities; it is not a preference order,
+negotiated selection, supported package-semver range, or claim that a consumer
+supports v3. Omitting `--protocol` still selects v2. Consumers must validate
+advertised metadata and request an exact mutually supported version rather than
+infer compatibility from package versions.
 
 Common flags:
 

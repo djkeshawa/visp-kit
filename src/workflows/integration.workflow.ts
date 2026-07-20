@@ -14,6 +14,11 @@ import { packageVersion } from "../core/package-version.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
 import { type VispError } from "../core/errors.js";
+import {
+  DEFAULT_WORKFLOW_ACTION_PROTOCOL,
+  SUPPORTED_WORKFLOW_ACTION_PROTOCOLS,
+  WORKFLOW_ACTION_SCHEMA_HASHES
+} from "../integration/workflow-action-schema.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
 
 export type IntegrationContractOptions = {
@@ -24,6 +29,13 @@ export type IntegrationContractOptions = {
 export type IntegrationContractSummary = {
   readonly success: true;
   readonly contractVersion: "2.0";
+  readonly protocols: {
+    readonly workflowAction: {
+      readonly supported: typeof SUPPORTED_WORKFLOW_ACTION_PROTOCOLS;
+      readonly default: typeof DEFAULT_WORKFLOW_ACTION_PROTOCOL;
+      readonly schemaHashes: typeof WORKFLOW_ACTION_SCHEMA_HASHES;
+    };
+  };
   readonly kit: {
     readonly packageName: "visp-kit";
     readonly cliName: "visp";
@@ -144,6 +156,16 @@ const COMMANDS: Record<string, readonly string[]> = {
   hooksCi: ["hooks", "ci", "--json"]
 };
 
+const WORKFLOW_ACTION_PROTOCOL_CONTRACT = Object.freeze({
+  supported: SUPPORTED_WORKFLOW_ACTION_PROTOCOLS,
+  default: DEFAULT_WORKFLOW_ACTION_PROTOCOL,
+  schemaHashes: WORKFLOW_ACTION_SCHEMA_HASHES
+});
+
+const PROTOCOLS: IntegrationContractSummary["protocols"] = Object.freeze({
+  workflowAction: WORKFLOW_ACTION_PROTOCOL_CONTRACT
+});
+
 const CAPABILITIES: IntegrationContractSummary["capabilities"] = {
   deterministic: {
     noLlmCalls: true,
@@ -252,6 +274,7 @@ export async function runIntegrationContractWorkflow(
   return ok({
     success: true,
     contractVersion: "2.0",
+    protocols: PROTOCOLS,
     kit: {
       packageName: "visp-kit",
       cliName: "visp",

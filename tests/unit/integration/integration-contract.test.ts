@@ -12,7 +12,15 @@ import {
   taskGraphArtifactPath
 } from "../../../src/artifacts/artifact-paths.js";
 import { createCli } from "../../../src/cli/main.js";
-import { runIntegrationContractWorkflow } from "../../../src/workflows/integration.workflow.js";
+import {
+  DEFAULT_WORKFLOW_ACTION_PROTOCOL,
+  SUPPORTED_WORKFLOW_ACTION_PROTOCOLS,
+  WORKFLOW_ACTION_SCHEMA_HASHES
+} from "../../../src/integration/workflow-action-schema.js";
+import {
+  formatIntegrationContractSummary,
+  runIntegrationContractWorkflow
+} from "../../../src/workflows/integration.workflow.js";
 import {
   timestamp,
   validContextPack,
@@ -50,6 +58,15 @@ async function createKitProject(): Promise<string> {
   return targetPath;
 }
 
+const EXPECTED_WORKFLOW_ACTION_PROTOCOLS = {
+  supported: ["2.0", "3.0"],
+  default: "2.0",
+  schemaHashes: {
+    "2.0": "sha256:c63b279b1ce89f047b2be696a47e845a57adda7f8437892e211e3a4cfad39ed6",
+    "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7"
+  }
+} as const;
+
 describe("integration contract workflow", () => {
   it("returns a read-only contract for an uninitialized project", async () => {
     const targetPath = await mkdtemp(join(tmpdir(), "visp-contract-empty-"));
@@ -60,6 +77,7 @@ describe("integration contract workflow", () => {
     if (result.ok) {
       expect(result.value.initialized).toBe(false);
       expect(result.value.contractVersion).toBe("2.0");
+      expect(result.value.protocols.workflowAction).toEqual(EXPECTED_WORKFLOW_ACTION_PROTOCOLS);
       expect(result.value.commands.gateImplement).toEqual([
         "gate",
         "implement",
@@ -156,6 +174,7 @@ describe("integration contract workflow", () => {
       expect(result.value.kit.version).toMatch(/^\d+\.\d+\.\d+/);
       expect(result.value.activeFeature?.key).toBe("001-note-pinning");
       expect(result.value.activeTask?.id).toBe("T001");
+      expect(result.value.protocols.workflowAction).toEqual(EXPECTED_WORKFLOW_ACTION_PROTOCOLS);
       expect(result.value.artifacts.taskGraph).toBe(
         ".visp/features/001-note-pinning/task-graph.json"
       );
@@ -177,16 +196,79 @@ describe("integration contract workflow", () => {
     }
   });
 
+  it("advertises one immutable and coherent WorkflowAction compatibility contract", async () => {
+    const targetPath = await mkdtemp(join(tmpdir(), "visp-contract-protocols-"));
+
+    const first = await runIntegrationContractWorkflow({ targetPath });
+    const second = await runIntegrationContractWorkflow({ targetPath });
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (first.ok && second.ok) {
+      const advertised = first.value.protocols.workflowAction;
+      expect(advertised).toEqual(EXPECTED_WORKFLOW_ACTION_PROTOCOLS);
+      expect(advertised.supported).toBe(SUPPORTED_WORKFLOW_ACTION_PROTOCOLS);
+      expect(advertised.default).toBe(DEFAULT_WORKFLOW_ACTION_PROTOCOL);
+      expect(advertised.schemaHashes).toBe(WORKFLOW_ACTION_SCHEMA_HASHES);
+      expect(Object.keys(first.value.protocols)).toEqual(["workflowAction"]);
+      expect(Object.keys(advertised)).toEqual(["supported", "default", "schemaHashes"]);
+      expect(new Set(advertised.supported).size).toBe(advertised.supported.length);
+      expect(advertised.supported).toContain(advertised.default);
+      expect(Object.keys(advertised.schemaHashes)).toEqual([...advertised.supported]);
+      expect(Object.values(advertised.schemaHashes)).toEqual([
+        expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+        expect.stringMatching(/^sha256:[a-f0-9]{64}$/u)
+      ]);
+      expect(Object.isFrozen(first.value.protocols)).toBe(true);
+      expect(Object.isFrozen(advertised)).toBe(true);
+      expect(Object.isFrozen(advertised.supported)).toBe(true);
+      expect(Object.isFrozen(advertised.schemaHashes)).toBe(true);
+      expect(second.value.protocols).toEqual(first.value.protocols);
+      expect(first.value.contractVersion).toBe("2.0");
+      expect(first.value.orchestrator.readContractVersion).toBe("0.1");
+    }
+  });
+
   it("locks the bounded contract 2.0 command, read-role, freshness, and fail-closed surface", async () => {
     const targetPath = await mkdtemp(join(tmpdir(), "visp-contract-bounded-"));
+    const pkg = JSON.parse(await readFile(join(process.cwd(), "package.json"), "utf8")) as {
+      version: string;
+    };
 
     const result = await runIntegrationContractWorkflow({ targetPath });
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.contractVersion).toBe("2.0");
-      const { reconcile, ...stableCommands } = result.value.commands;
-      expect(stableCommands).toEqual({
+      const { protocols, ...legacyContract } = result.value;
+      expect(protocols.workflowAction).toEqual(EXPECTED_WORKFLOW_ACTION_PROTOCOLS);
+      expect(Object.keys(legacyContract)).toEqual([
+        "success",
+        "contractVersion",
+        "kit",
+        "targetPath",
+        "initialized",
+        "activeFeature",
+        "activeTask",
+        "commands",
+        "capabilities",
+        "workflow",
+        "artifacts",
+        "orchestrator",
+        "warnings"
+      ]);
+      expect(legacyContract.success).toBe(true);
+      expect(legacyContract.contractVersion).toBe("2.0");
+      expect(legacyContract.kit).toEqual({
+        packageName: "visp-kit",
+        cliName: "visp",
+        version: pkg.version
+      });
+      expect(legacyContract.kit.version).toMatch(/^\d+\.\d+\.\d+/u);
+      expect(legacyContract.targetPath).toBe(targetPath);
+      expect(legacyContract.initialized).toBe(false);
+      expect(legacyContract.activeFeature).toBeNull();
+      expect(legacyContract.activeTask).toBeNull();
+      expect(legacyContract.commands).toEqual({
         status: ["status", "--json"],
         policyValidate: ["policy", "validate", "--json"],
         gateNext: ["gate", "next", "--json"],
@@ -194,23 +276,49 @@ describe("integration contract workflow", () => {
         context: ["context", "<task-id>", "--json"],
         verify: ["verify", "--task", "<task-id>", "--json"],
         review: ["review", "--task", "<task-id>", "--json"],
+        reconcile: ["reconcile", "--task", "<task-id>", "--json"],
         budgetRecordUsage: ["budget", "--task", "<task-id>", "--record-usage", "--json"],
         done: ["done", "--task", "<task-id>", "--json"],
         hooksClaude: ["hooks", "claude", "--json"],
         hooksGit: ["hooks", "git", "--json"],
         hooksCi: ["hooks", "ci", "--json"]
       });
-      expect(reconcile).toEqual(
-        expect.arrayContaining(["reconcile", "--task", "<task-id>", "--json"])
-      );
-      expect(result.value.capabilities.governance).toEqual({
-        policyAsCode: true,
-        failClosedGates: true,
-        overrideAuditTrail: true,
-        sourceEditsRequireImplementGate: true,
-        contextPackRequiredForImplementation: true
+      expect(legacyContract.capabilities).toEqual({
+        deterministic: {
+          noLlmCalls: true,
+          localArtifacts: true,
+          jsonOutput: true
+        },
+        governance: {
+          policyAsCode: true,
+          failClosedGates: true,
+          overrideAuditTrail: true,
+          sourceEditsRequireImplementGate: true,
+          contextPackRequiredForImplementation: true
+        },
+        contextGrounding: {
+          phaseLevelArtifacts: true,
+          taskScopedContextPacks: true,
+          artifactProvenance: true,
+          currentTaskPrompt: true,
+          implementationChecklist: true,
+          orchestratorReadContract: true
+        },
+        evidence: {
+          verification: true,
+          review: true,
+          reconciliation: true,
+          traceability: true,
+          budgetTelemetry: true,
+          prReadiness: true
+        },
+        enforcementSurfaces: {
+          claudePreToolUseHook: true,
+          gitPreCommitHook: true,
+          ciPolicyGate: true
+        }
       });
-      expect(result.value.workflow).toEqual({
+      expect(legacyContract.workflow).toEqual({
         strictSequence: [
           "status",
           "policyValidate",
@@ -245,7 +353,17 @@ describe("integration contract workflow", () => {
           artifact: ".visp/overrides.json"
         }
       });
-      expect(result.value.orchestrator).toEqual({
+      expect(legacyContract.artifacts).toEqual({
+        kitSignals: [".visp/policy.json", ".visp/project.json"],
+        projectStatus: ".visp/status.json",
+        projectProfile: ".visp/project.json",
+        featureRoot: ".visp/features",
+        featureDir: ".visp/features/<feature>",
+        taskGraph: ".visp/features/<feature>/task-graph.json",
+        contextPack: ".visp/features/<feature>/context/<task-id>.context.json",
+        contextPrompt: ".visp/features/<feature>/context/<task-id>.prompt.md"
+      });
+      expect(legacyContract.orchestrator).toEqual({
         readContractVersion: "0.1",
         requiredArtifacts: [
           {
@@ -319,6 +437,42 @@ describe("integration contract workflow", () => {
           staleContextBlocks: ["implementation", "checkpoint", "pr"]
         }
       });
+      expect(legacyContract.warnings).toEqual([
+        "Visp Kit is not initialized.",
+        "Git repository unavailable."
+      ]);
+    }
+  });
+
+  it("preserves the exact human integration summary", async () => {
+    const targetPath = await mkdtemp(join(tmpdir(), "visp-contract-summary-"));
+
+    const result = await runIntegrationContractWorkflow({ targetPath });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(formatIntegrationContractSummary(result.value)).toBe(
+        [
+          "Visp integration contract",
+          "",
+          "Contract: 2.0",
+          `Kit: visp-kit ${result.value.kit.version}`,
+          "Initialized: no",
+          "Active feature: none",
+          "Active task: none",
+          "Fail-closed gates: yes",
+          "",
+          "Artifacts:",
+          "  Task graph: .visp/features/<feature>/task-graph.json",
+          "  Context pack: .visp/features/<feature>/context/<task-id>.context.json",
+          "  Orchestrator read contract: 8 artifacts",
+          "",
+          "Warnings:",
+          "  Visp Kit is not initialized.",
+          "  Git repository unavailable.",
+          ""
+        ].join("\n")
+      );
     }
   });
 
@@ -342,6 +496,7 @@ describe("integration contract workflow", () => {
     const parsed = JSON.parse(output.join("")) as {
       success: boolean;
       contractVersion: string;
+      protocols: { workflowAction: typeof EXPECTED_WORKFLOW_ACTION_PROTOCOLS };
       capabilities: {
         governance: { failClosedGates: boolean };
         contextGrounding: { orchestratorReadContract: boolean };
@@ -350,6 +505,21 @@ describe("integration contract workflow", () => {
     };
     expect(parsed.success).toBe(true);
     expect(parsed.contractVersion).toBe("2.0");
+    expect(parsed.protocols.workflowAction).toEqual(EXPECTED_WORKFLOW_ACTION_PROTOCOLS);
+    expect(Object.keys(parsed).slice(0, 4)).toEqual([
+      "success",
+      "contractVersion",
+      "protocols",
+      "kit"
+    ]);
+    expect(Object.keys(parsed.protocols)).toEqual(["workflowAction"]);
+    expect(Object.keys(parsed.protocols.workflowAction)).toEqual([
+      "supported",
+      "default",
+      "schemaHashes"
+    ]);
+    expect(Object.keys(parsed.protocols.workflowAction.schemaHashes)).toEqual(["2.0", "3.0"]);
+    expect(output.join("")).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
     expect(parsed.capabilities.governance.failClosedGates).toBe(true);
     expect(parsed.capabilities.contextGrounding.orchestratorReadContract).toBe(true);
     expect(parsed.orchestrator.requiredArtifacts.map((artifact) => artifact.id)).toContain(

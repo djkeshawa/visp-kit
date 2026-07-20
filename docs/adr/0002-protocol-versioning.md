@@ -16,8 +16,9 @@ protocol-independent canonical workflow action at canonical version `1.0`.
 P1-03 routes the existing WorkflowAction 2.0 CLI result through that canonical
 meaning without publicly exporting the canonical action from the package root.
 P1-04 adds WorkflowAction 3.0 as an explicit projection, while preserving v2
-as the omitted-protocol default. The integration contract still does not
-advertise supported action protocols; that remains a separate change.
+as the omitted-protocol default. P1-05 adds exact supported-version, default,
+and schema-hash advertisement to integration contract 2.0 without changing the
+default or claiming consumer support.
 
 ## Decision
 
@@ -38,8 +39,8 @@ Rules:
    deprecation cycle or supported semver window is promised until it is defined
    and proven with packed compatibility-matrix evidence.
 7. Both public runtime-derived schemas and their canonical parsed-JSON hashes
-   exist in Kit. Advertising them through the integration contract remains a
-   separately authorized unit.
+   exist in Kit. Integration contract 2.0 advertises those accepted immutable
+   hashes together with the exact implemented protocol set and default.
 8. A future v3 default requires a separate recorded decision after the relevant
    pilot and compatibility gates pass.
 9. The internal canonical action is the shared source of meaning for versioned
@@ -48,12 +49,10 @@ Rules:
    ID order, and structured-finding references after validation against the
    canonical action; it cannot supply or override semantic content.
 
-## Illustrative future advertisement metadata
+## Implemented advertisement metadata
 
-The following JSON is a future target for the integration contract. It is not
-an object currently emitted by Kit:
-
-That later advertisement is expected to use a shape such as:
+Integration contract 2.0 emits this required top-level metadata after
+`contractVersion`:
 
 ```json
 {
@@ -62,13 +61,21 @@ That later advertisement is expected to use a shape such as:
       "supported": ["2.0", "3.0"],
       "default": "2.0",
       "schemaHashes": {
-        "2.0": "...",
-        "3.0": "..."
+        "2.0": "sha256:c63b279b1ce89f047b2be696a47e845a57adda7f8437892e211e3a4cfad39ed6",
+        "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7"
       }
     }
   }
 }
 ```
+
+The supported array is a stable set presentation, not preference order.
+Default describes omitted-protocol Kit behavior. Schema-hash keys correspond
+exactly to supported versions and use canonical parsed-JSON hashes, not raw
+file hashes. This metadata does not select or negotiate a protocol, establish
+a package-semver range, or prove that a consumer supports v3. A legacy exact
+contract 2.0 without this top-level property can imply only the documented v2
+path; consumer-side validation and negotiation remain separate responsibilities.
 
 ## Implemented canonical action identity
 
