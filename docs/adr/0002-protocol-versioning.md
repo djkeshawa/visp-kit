@@ -11,9 +11,12 @@ Visp Kit already exposes machine-readable workflow and integration data consumed
 The next assurance design requires richer fields, but changing existing output in place would risk breaking users and external consumers.
 
 The current implemented boundary is WorkflowAction 2.0 and integration contract
-2.0, including orchestrator read contract 0.1. WorkflowAction v3 is design
-context for a later authorized phase; it is not currently implemented or
-emitted by Kit.
+2.0, including orchestrator read contract 0.1. Kit also has an internal,
+protocol-independent canonical workflow action at canonical version `1.0`.
+That canonical action is not publicly exported from the package root or
+connected to the public CLI in P1-02. WorkflowAction v3 remains design context
+for a later authorized phase; it is not currently implemented or emitted by
+Kit.
 
 ## Decision
 
@@ -37,6 +40,9 @@ Rules:
    authorized implementation and its contract tests.
 8. A future v3 default requires a separate recorded decision after the relevant
    pilot and compatibility gates pass.
+9. The internal canonical action is the shared source of meaning for later
+   projections. P1-02 does not route the existing v2 projection through it;
+   that compatibility-sensitive change belongs to P1-03.
 
 ## Illustrative future contract metadata
 
@@ -60,19 +66,36 @@ That later contract design is expected to use a shape such as:
 }
 ```
 
-## Future deterministic action identity
+## Implemented canonical action identity
 
-A future v3 `actionId` should be derived from canonical action inputs rather than generated randomly.
+Canonical workflow action version `1.0` uses dependency-free
+`canonical-json-v1` serialization. It accepts strict JSON values, orders object
+keys by ascending UTF-16 code units, preserves array order, uses ECMAScript
+string and finite-number encoding, and emits compact UTF-8 without a BOM or
+trailing newline. Unsupported values, sparse arrays, cycles, accessors, symbol
+keys, and non-plain containers are rejected instead of coerced.
 
-Material inputs should include:
+The canonical builder normalizes schema-defined sets before serialization and
+preserves declared order where order is semantic. Its `actionId` is:
 
-- protocol version;
-- phase;
-- task ID;
-- policy hash;
-- specification/task/oracle hashes;
-- baseline or base-commit identity;
-- exact next command.
+```text
+"sha256:" + lowercaseHex(SHA-256(
+  UTF8("visp.workflow-action\0canonical-1.0\0")
+  || canonical-json-v1(action without actionId)
+))
+```
+
+The identity includes every supplied canonical semantic field other than
+`actionId`, including canonical version, availability reason codes, exact
+artifact hashes and text, findings, verdict, and `nextCommand`. It excludes
+wire protocol version, wire schema hash, package version, CLI formatting,
+timestamps, and Hyper/session/presentation metadata. Selecting v2 or a future
+v3 representation therefore cannot create a different identity for the same
+canonical action.
+
+Fields without a current authoritative source remain explicitly unavailable;
+P1-02 does not infer task class, risk factors, assurance profile, base commit,
+operation limits, required evidence, or applied policy overrides.
 
 ## Future compatibility testing
 
@@ -88,4 +111,7 @@ A protocol release is not complete until:
 
 The projects may release independently, but current support claims remain
 limited to exact tested pairs. A wider compatibility window requires packed
-Kit/Hyper matrix evidence.
+Kit/Hyper matrix evidence. The P1-02 canonical builder is internal and does not
+change current v2 output, CLI behavior, protocol advertisement, or supported
+wire versions. Its bounded duplication of current read collection is removed
+when P1-03 makes v2 a projection of canonical meaning.
