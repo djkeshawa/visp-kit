@@ -73,7 +73,8 @@ Canonical workflow action version `1.0` uses dependency-free
 keys by ascending UTF-16 code units, preserves array order, uses ECMAScript
 string and finite-number encoding, and emits compact UTF-8 without a BOM or
 trailing newline. Unsupported values, sparse arrays, cycles, accessors, symbol
-keys, and non-plain containers are rejected instead of coerced.
+keys, proxy containers, and non-plain containers are rejected instead of
+coerced.
 
 The canonical builder normalizes schema-defined sets before serialization and
 preserves declared order where order is semantic. Its `actionId` is:
@@ -96,6 +97,12 @@ canonical action.
 Fields without a current authoritative source remain explicitly unavailable;
 P1-02 does not infer task class, risk factors, assurance profile, base commit,
 operation limits, required evidence, or applied policy overrides.
+
+Canonical task identity remains the selected ProjectState task. The exact
+`next-task-needed` transition may name the deterministic next graph task as a
+transition hint when the selected task is terminal; it does not replace the
+canonical task. Other target, task, command, or source-identity contradictions
+remain inconclusive.
 
 ## Future compatibility testing
 

@@ -79,6 +79,8 @@ describe("canonical-json-v1", () => {
     Object.defineProperty(nonEnumerable, "hidden", { value: 2, enumerable: false });
     const customArray = [1, 2] as number[] & { extra?: string };
     customArray.extra = "unsupported";
+    const proxyArray = new Proxy([1, 2], {});
+    const proxyRecord = new Proxy({ value: 1 }, {});
     class RecordLike {
       readonly value = 1;
     }
@@ -99,6 +101,8 @@ describe("canonical-json-v1", () => {
       accessor,
       nonEnumerable,
       customArray,
+      proxyArray,
+      proxyRecord,
       new Date("2026-01-01T00:00:00.000Z"),
       new Map([["value", 1]]),
       new Set([1]),

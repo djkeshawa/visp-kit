@@ -11,8 +11,9 @@ import {
   canonicalWorkflowActionJson
 } from "../../../src/integration/canonical-workflow-action.js";
 import { type Task } from "../../../src/artifacts/schemas/task.schema.js";
-import { type NextStep } from "../../../src/orchestrator/next-step.js";
+import { recommendNextStep, type NextStep } from "../../../src/orchestrator/next-step.js";
 import { type ProjectState } from "../../../src/orchestrator/project-state.js";
+import { createPlanDraftArtifact } from "../../../src/templates/phase7-templates.js";
 import {
   timestamp,
   validContextPack,
@@ -376,6 +377,38 @@ describe("CanonicalWorkflowAction 1.0", () => {
     expect(canonicalWorkflowActionJson(first)).not.toContain("local_checked");
   });
 
+  it("keeps the returned action immutable when source command arrays change", async () => {
+    await writeReadFixtures(tempDir);
+    const mutableContext = contextPack();
+    const action = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir, { contextPack: mutableContext }),
+      step: actionStep(tempDir)
+    });
+    const canonicalBeforeMutation = canonicalWorkflowActionJson(action);
+
+    mutableContext.validationCommands.push("pnpm lint");
+
+    expect(action.validationCommands).toEqual(["pnpm test", "pnpm typecheck"]);
+    expect(canonicalWorkflowActionJson(action)).toBe(canonicalBeforeMutation);
+  });
+
+  it("keeps identity stable when input object properties use another insertion order", async () => {
+    await writeReadFixtures(tempDir);
+    const state = projectState(tempDir);
+    const step = actionStep(tempDir);
+    const reorderedState = Object.fromEntries(Object.entries(state).reverse()) as ProjectState;
+    const reorderedStep = Object.fromEntries(Object.entries(step).reverse()) as NextStep;
+
+    const baseline = await buildCanonicalWorkflowAction({ state, step });
+    const reordered = await buildCanonicalWorkflowAction({
+      state: reorderedState,
+      step: reorderedStep
+    });
+
+    expect(reordered.actionId).toBe(baseline.actionId);
+    expect(canonicalWorkflowActionJson(reordered)).toBe(canonicalWorkflowActionJson(baseline));
+  });
+
   it.each([
     ["not-initialized", "setup"],
     ["scan-needed", "setup"],
@@ -665,6 +698,20 @@ describe("CanonicalWorkflowAction 1.0", () => {
         ]
       })
     });
+    const sameIdDrift = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir),
+      step: actionStep(tempDir, {
+        task: { id: task.id, title: "Stale title", status: "blocked" }
+      })
+    });
+    const targetPathMismatch = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir),
+      step: actionStep(join(tempDir, "other-project"))
+    });
+    const commandMismatch = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir),
+      step: actionStep(tempDir, { nextAllowedCommand: "visp context T001" })
+    });
 
     expect(action.findings).toEqual(
       expect.arrayContaining([
@@ -676,10 +723,108 @@ describe("CanonicalWorkflowAction 1.0", () => {
       ])
     );
     expect(action.verdict).toBe("inconclusive");
+    expect(sameIdDrift.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "VISP.CONTRACT.TASK_IDENTITY_MISMATCH" })
+      ])
+    );
+    expect(sameIdDrift.verdict).toBe("inconclusive");
+    expect(targetPathMismatch.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "VISP.CONTRACT.TARGET_PATH_MISMATCH" })
+      ])
+    );
+    expect(targetPathMismatch.verdict).toBe("inconclusive");
+    expect(commandMismatch.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "VISP.CONTRACT.NEXT_COMMAND_MISMATCH" })
+      ])
+    );
+    expect(commandMismatch.verdict).toBe("inconclusive");
+  });
+
+  it("accepts only the orchestrator's exact completed-to-next-task transition", async () => {
+    await writeReadFixtures(tempDir);
+    const completedTask = { ...task, status: "verified" as const };
+    const nextTask = {
+      ...task,
+      id: "T002",
+      title: "Add note pin controls",
+      description: "Add the controls required to pin and unpin notes.",
+      dependsOn: ["T001"],
+      validationCommands: ["pnpm test -- note-controls"],
+      status: "ready" as const
+    };
+    const transitionState = projectState(tempDir, {
+      selectedTask: completedTask,
+      taskGraph: { ...validTaskGraph, tasks: [completedTask, nextTask] }
+    });
+    const transition = {
+      ...recommendNextStep({ state: transitionState }),
+      strictnessMode: "strict",
+      allowed: true,
+      failedRules: []
+    } satisfies NextStep;
+
+    expect(transition).toMatchObject({
+      state: "next-task-needed",
+      task: { id: "T002", title: nextTask.title, status: "ready" },
+      nextCommand: "visp context T002"
+    });
+
+    const valid = await buildCanonicalWorkflowAction({
+      state: transitionState,
+      step: transition
+    });
+    const staleTitle = await buildCanonicalWorkflowAction({
+      state: transitionState,
+      step: {
+        ...transition,
+        task: { ...transition.task!, title: "Stale title" }
+      }
+    });
+    const wrongState = await buildCanonicalWorkflowAction({
+      state: transitionState,
+      step: { ...transition, state: "context-needed" }
+    });
+    const nonTerminalTask = { ...completedTask, status: "in_progress" as const };
+    const nonTerminalState = {
+      ...transitionState,
+      selectedTask: nonTerminalTask,
+      taskGraph: { ...validTaskGraph, tasks: [nonTerminalTask, nextTask] }
+    };
+    const nonTerminal = await buildCanonicalWorkflowAction({
+      state: nonTerminalState,
+      step: transition
+    });
+
+    expect(valid.findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "VISP.CONTRACT.TASK_IDENTITY_MISMATCH" })
+      ])
+    );
+    expect(valid.task).toMatchObject({ id: "T001", status: "verified" });
+    expect(valid.requiredReads.map((read) => read.path)).toContain(
+      `${featurePath}/context/T001.context.json`
+    );
+    expect(valid.validationCommands).toEqual(["pnpm test", "pnpm typecheck"]);
+    expect(valid.goal).toBe(completedTask.description);
+    expect(valid.nextCommand).toBe("visp context T002");
+    expect(valid.verdict).toBe("ready");
+    for (const invalid of [staleTitle, wrongState, nonTerminal]) {
+      expect(invalid.findings).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: "VISP.CONTRACT.TASK_IDENTITY_MISMATCH" })
+        ])
+      );
+      expect(invalid.verdict).toBe("inconclusive");
+    }
   });
 
   it("fails closed on feature and task-graph identity contradictions", async () => {
     await writeReadFixtures(tempDir);
+    const baseState = projectState(tempDir);
+    const baseFeature = baseState.selectedFeature!;
     const graphTask = { ...task, id: "T999" };
     const graphMismatchState = projectState(tempDir, {
       selectedTask: graphTask,
@@ -702,6 +847,36 @@ describe("CanonicalWorkflowAction 1.0", () => {
         task: { id: graphTask.id, title: graphTask.title, status: graphTask.status }
       })
     });
+    const intentMismatch = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir, {
+        selectedFeature: {
+          ...baseFeature,
+          intent: { ...baseFeature.intent!, id: "999" }
+        }
+      }),
+      step: actionStep(tempDir)
+    });
+    const plan = createPlanDraftArtifact({
+      feature: {
+        ...baseFeature,
+        path: join(tempDir, baseFeature.relativePath),
+        intent: baseFeature.intent!
+      },
+      now: timestamp
+    });
+    const planMismatch = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir, { plan: { ...plan, featureId: "999" } }),
+      step: actionStep(tempDir)
+    });
+    const staleContextTask = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir, {
+        contextPack: {
+          ...contextPack(),
+          selectedTask: { ...task, allowedFiles: ["src/notes/stale.ts"] }
+        }
+      }),
+      step: actionStep(tempDir)
+    });
 
     expect(featureMismatch.findings).toEqual(
       expect.arrayContaining([
@@ -718,6 +893,33 @@ describe("CanonicalWorkflowAction 1.0", () => {
       ])
     );
     expect(graphMismatch.verdict).toBe("inconclusive");
+    expect(intentMismatch.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "VISP.CONTRACT.SOURCE_IDENTITY_MISMATCH",
+          evidence: ["intent:999"]
+        })
+      ])
+    );
+    expect(intentMismatch.verdict).toBe("inconclusive");
+    expect(planMismatch.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "VISP.CONTRACT.SOURCE_IDENTITY_MISMATCH",
+          evidence: ["plan:999"]
+        })
+      ])
+    );
+    expect(planMismatch.verdict).toBe("inconclusive");
+    expect(staleContextTask.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "VISP.CONTRACT.SOURCE_IDENTITY_MISMATCH",
+          evidence: ["context-selected-task:stale:T001"]
+        })
+      ])
+    );
+    expect(staleContextTask.verdict).toBe("inconclusive");
   });
 
   it("fails closed when a required feature intent is readable but invalid", async () => {
@@ -825,6 +1027,51 @@ describe("CanonicalWorkflowAction 1.0", () => {
       ])
     );
     expect(action.verdict).toBe("inconclusive");
+  });
+
+  it("rejects duplicate or cross-feature claim mappings", async () => {
+    await writeReadFixtures(tempDir);
+    const duplicateMappings = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir, {
+        contextPack: {
+          ...contextPack(),
+          includedRequirements: [
+            requirement,
+            { ...requirement, description: "Conflicting duplicate requirement." }
+          ],
+          includedAcceptanceCriteria: [
+            criterion,
+            { ...criterion, description: "Conflicting duplicate criterion." }
+          ]
+        }
+      }),
+      step: actionStep(tempDir)
+    });
+    const crossFeatureMapping = await buildCanonicalWorkflowAction({
+      state: projectState(tempDir, {
+        contextPack: {
+          ...contextPack(),
+          includedRequirements: [{ ...requirement, featureId: "999" }]
+        }
+      }),
+      step: actionStep(tempDir)
+    });
+
+    for (const action of [duplicateMappings, crossFeatureMapping]) {
+      expect(action.claims).toEqual({ state: "unavailable", reasonCode: "source_invalid" });
+      expect(action.validationOracles).toEqual([]);
+      expect(action.verdict).toBe("inconclusive");
+    }
+    expect(duplicateMappings.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "VISP.CONTRACT.CLAIM_MAPPING_DUPLICATE" })
+      ])
+    );
+    expect(crossFeatureMapping.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "VISP.CONTRACT.REQUIREMENT_FEATURE_MISMATCH" })
+      ])
+    );
   });
 
   it("changes identity for semantic mutations but not set ordering or duplicates", async () => {

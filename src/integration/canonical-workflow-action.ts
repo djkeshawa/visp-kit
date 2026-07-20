@@ -232,6 +232,16 @@ function sortUnique(values: readonly string[]): string[] {
   return [...new Set(values)].sort(compareUtf16CodeUnits);
 }
 
+function duplicateValues(values: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value)) duplicates.add(value);
+    seen.add(value);
+  }
+  return [...duplicates].sort(compareUtf16CodeUnits);
+}
+
 function normalizeEvidence(evidence: readonly string[]): string[] {
   return sortUnique(evidence);
 }
@@ -336,6 +346,64 @@ function phaseFromState(state: string): CanonicalWorkflowPhase {
   return "next";
 }
 
+function taskIdentityMatches(
+  task: Task | undefined,
+  stepTask: NonNullable<NextStep["task"]>
+): boolean {
+  return (
+    task !== undefined &&
+    task.id === stepTask.id &&
+    task.title === stepTask.title &&
+    task.status === stepTask.status
+  );
+}
+
+function isExactNextTaskTransition(state: ProjectState, step: NextStep): boolean {
+  const selectedTask = state.selectedTask;
+  const stepTask = step.task;
+  if (
+    step.state !== "next-task-needed" ||
+    selectedTask === undefined ||
+    stepTask === null ||
+    (selectedTask.status !== "done" && selectedTask.status !== "verified")
+  ) {
+    return false;
+  }
+
+  const graphTasks = state.taskGraph?.tasks ?? [];
+  const nextTask = graphTasks.find((task) => task.status !== "done" && task.status !== "verified");
+  const matchingTasks = graphTasks.filter((task) => task.id === stepTask.id);
+
+  return (
+    nextTask !== undefined &&
+    nextTask.id !== selectedTask.id &&
+    nextTask.id === stepTask.id &&
+    matchingTasks.length === 1 &&
+    nextTask.title === stepTask.title &&
+    nextTask.status === stepTask.status
+  );
+}
+
+function stableTaskSource(task: Task): object {
+  const normalizedPaths = (values: readonly string[] | undefined): readonly string[] | null =>
+    values === undefined ? null : sortUnique(values.map((value) => value.replaceAll("\\", "/")));
+
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    requirementIds: sortUnique(task.requirementIds),
+    acceptanceCriterionIds: sortUnique(task.acceptanceCriterionIds),
+    dependsOn: sortUnique(task.dependsOn),
+    allowedFiles: normalizedPaths(task.allowedFiles),
+    expectedFiles: normalizedPaths(task.expectedFiles),
+    forbiddenFiles: normalizedPaths(task.forbiddenFiles),
+    validationCommands: [...task.validationCommands],
+    parallelizable: task.parallelizable,
+    riskLevel: task.riskLevel
+  };
+}
+
 function strictnessContext(
   strictness: string | undefined,
   addFinding: AddFinding
@@ -370,6 +438,21 @@ function strictnessContext(
 }
 
 function identityFindings(state: ProjectState, step: NextStep, addFinding: AddFinding): void {
+  if (path.resolve(state.targetPath) !== path.resolve(step.targetPath)) {
+    addFinding(
+      {
+        code: "VISP.CONTRACT.TARGET_PATH_MISMATCH",
+        source: "contract",
+        severity: "error",
+        effect: "uncertain",
+        message: "Project state and next-step target paths disagree.",
+        recommendation: "Reload project state and recompute the next action for one project root.",
+        evidence: ["target-paths-differ"]
+      },
+      true
+    );
+  }
+
   const feature = state.selectedFeature;
   if (
     step.feature !== null &&
@@ -390,7 +473,11 @@ function identityFindings(state: ProjectState, step: NextStep, addFinding: AddFi
   }
 
   const task = state.selectedTask;
-  if (step.task !== null && (task === undefined || step.task.id !== task.id)) {
+  if (
+    step.task !== null &&
+    !taskIdentityMatches(task, step.task) &&
+    !isExactNextTaskTransition(state, step)
+  ) {
     addFinding(
       {
         code: "VISP.CONTRACT.TASK_IDENTITY_MISMATCH",
@@ -411,6 +498,11 @@ function sourceIdentityFindings(state: ProjectState, addFinding: AddFinding): vo
   const task = state.selectedTask;
   const mismatches: string[] = [];
 
+  if (feature !== undefined && feature.intent !== undefined) {
+    if (feature.intent.id !== feature.id) mismatches.push(`intent:${feature.intent.id}`);
+    if (feature.intent.slug !== feature.slug) mismatches.push(`intent:${feature.intent.slug}`);
+  }
+
   if (feature !== undefined && state.spec !== undefined) {
     if (state.spec.featureId !== feature.id) mismatches.push(`spec:${state.spec.featureId}`);
     if (state.spec.featureSlug !== feature.slug) mismatches.push(`spec:${state.spec.featureSlug}`);
@@ -422,6 +514,10 @@ function sourceIdentityFindings(state: ProjectState, addFinding: AddFinding): vo
     if (state.taskGraph.featureSlug !== undefined && state.taskGraph.featureSlug !== feature.slug) {
       mismatches.push(`task-graph:${state.taskGraph.featureSlug}`);
     }
+  }
+  if (feature !== undefined && state.plan !== undefined) {
+    if (state.plan.featureId !== feature.id) mismatches.push(`plan:${state.plan.featureId}`);
+    if (state.plan.featureSlug !== feature.slug) mismatches.push(`plan:${state.plan.featureSlug}`);
   }
   if (task !== undefined) {
     const graphMatches =
@@ -448,6 +544,11 @@ function sourceIdentityFindings(state: ProjectState, addFinding: AddFinding): vo
     }
     if (task === undefined || state.contextPack.selectedTask.id !== task.id) {
       mismatches.push(`context-selected-task:${state.contextPack.selectedTask.id}`);
+    } else if (
+      canonicalJsonV1(stableTaskSource(state.contextPack.selectedTask)) !==
+      canonicalJsonV1(stableTaskSource(task))
+    ) {
+      mismatches.push(`context-selected-task:stale:${task.id}`);
     }
   }
 
@@ -707,11 +808,45 @@ function claimContext(
   ).filter((criterion) => task.acceptanceCriterionIds.includes(criterion.id));
   const requirementIds = new Set(requirements.map((requirement) => requirement.id));
   const criterionIds = new Set(criteria.map((criterion) => criterion.id));
+  const duplicateRequirements = duplicateValues(requirements.map((requirement) => requirement.id));
+  const duplicateCriteria = duplicateValues(criteria.map((criterion) => criterion.id));
   const missingRequirements = task.requirementIds.filter((id) => !requirementIds.has(id));
   const missingCriteria = task.acceptanceCriterionIds.filter((id) => !criterionIds.has(id));
   const invalidCriteria = criteria.filter(
     (criterion) => !requirementIds.has(criterion.requirementId)
   );
+  const crossFeatureRequirements = requirements.filter(
+    (requirement) =>
+      state.selectedFeature !== undefined && requirement.featureId !== state.selectedFeature.id
+  );
+
+  if (duplicateRequirements.length > 0 || duplicateCriteria.length > 0) {
+    addFinding({
+      code: "VISP.CONTRACT.CLAIM_MAPPING_DUPLICATE",
+      source: "contract",
+      severity: "error",
+      effect: "uncertain",
+      message: "Task claim sources contain duplicate stable IDs.",
+      recommendation: "Regenerate the task claim source with one record per stable ID.",
+      evidence: [
+        ...duplicateRequirements.map((id) => `requirement:${id}`),
+        ...duplicateCriteria.map((id) => `criterion:${id}`)
+      ]
+    });
+  }
+  if (crossFeatureRequirements.length > 0) {
+    addFinding({
+      code: "VISP.CONTRACT.REQUIREMENT_FEATURE_MISMATCH",
+      source: "contract",
+      severity: "error",
+      effect: "uncertain",
+      message: "One or more mapped requirements belong to another feature.",
+      recommendation: "Regenerate task mappings from the active feature specification.",
+      evidence: crossFeatureRequirements.map(
+        (requirement) => `${requirement.id}:${requirement.featureId}`
+      )
+    });
+  }
 
   if (missingRequirements.length > 0) {
     addFinding({
@@ -740,7 +875,12 @@ function claimContext(
   }
 
   const sourceInvalid =
-    missingRequirements.length > 0 || missingCriteria.length > 0 || invalidCriteria.length > 0;
+    duplicateRequirements.length > 0 ||
+    duplicateCriteria.length > 0 ||
+    crossFeatureRequirements.length > 0 ||
+    missingRequirements.length > 0 ||
+    missingCriteria.length > 0 ||
+    invalidCriteria.length > 0;
   if (sourceInvalid) return { claims: unavailable("source_invalid"), oracles: [] };
 
   const claims: RequirementClaim[] = requirements.map((requirement) => ({
@@ -793,6 +933,21 @@ function policyStatus(state: ProjectState, addFinding: AddFinding): DeclaredValu
 function stepFindings(step: NextStep, addFinding: AddFinding): void {
   const failedRules = step.failedRules ?? [];
   const hasBlockingRule = failedRules.some((rule) => rule.severity === "error");
+
+  if (step.nextAllowedCommand !== undefined && step.nextAllowedCommand !== step.nextCommand) {
+    addFinding(
+      {
+        code: "VISP.CONTRACT.NEXT_COMMAND_MISMATCH",
+        source: "contract",
+        severity: "error",
+        effect: "uncertain",
+        message: "The evaluated next command disagrees with the authoritative allowed command.",
+        recommendation: "Re-evaluate the authoritative Kit gate for the exact next action.",
+        evidence: [step.nextCommand, step.nextAllowedCommand]
+      },
+      true
+    );
+  }
 
   for (const rule of failedRules) {
     addFinding({
@@ -948,8 +1103,9 @@ export async function buildCanonicalWorkflowAction(input: {
     scope,
     claims: claimSelection.claims,
     validationOracles: claimSelection.oracles,
-    validationCommands:
-      input.state.contextPack?.validationCommands ?? task?.validationCommands ?? [],
+    validationCommands: [
+      ...(input.state.contextPack?.validationCommands ?? task?.validationCommands ?? [])
+    ],
     requiredEvidence: unavailable("not_in_source_artifact"),
     policy: {
       status: policyStatus(input.state, addFinding),

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isProxy } from "node:util/types";
 
 export type Sha256Hash = `sha256:${string}`;
 
@@ -66,8 +67,9 @@ function serializeArray(value: unknown[], path: string, ancestors: WeakSet<objec
   for (let index = 0; index < value.length; index += 1) {
     const itemPath = `${path}[${index}]`;
     if (!Object.hasOwn(value, index)) serializationError("sparse arrays are unsupported", itemPath);
-    assertDataProperty(Object.getOwnPropertyDescriptor(value, String(index)), itemPath);
-    items.push(serializeJsonValue(value[index], itemPath, ancestors));
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    assertDataProperty(descriptor, itemPath);
+    items.push(serializeJsonValue(descriptor.value, itemPath, ancestors));
   }
 
   return `[${items.join(",")}]`;
@@ -110,6 +112,7 @@ function serializeJsonValue(value: unknown, path: string, ancestors: WeakSet<obj
       if (!Number.isFinite(value)) return serializationError("numbers must be finite", path);
       return primitiveJson(value);
     case "object": {
+      if (isProxy(value)) return serializationError("proxy containers are unsupported", path);
       if (ancestors.has(value))
         return serializationError("cyclic references are unsupported", path);
       ancestors.add(value);
