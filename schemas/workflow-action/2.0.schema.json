@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:visp:schema:workflow-action:2.0",
+  "title": "Visp WorkflowAction 2.0",
+  "type": "object",
+  "properties": {
+    "protocolVersion": {
+      "type": "string",
+      "const": "2.0"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["clarify", "specify", "plan", "task", "implement", "verify"]
+    },
+    "taskId": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "goal": {
+      "type": "string"
+    },
+    "requiredReads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": ["path", "role", "sha256"],
+        "additionalProperties": false
+      }
+    },
+    "writablePaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbiddenPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptanceOracles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "expectedBehavior": {
+            "type": "string"
+          },
+          "validation": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "expectedBehavior", "validation"],
+        "additionalProperties": false
+      }
+    },
+    "validationCommands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assuranceLevel": {
+      "type": "string",
+      "enum": ["kit_strict", "local_checked", "advisory"]
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["ready", "blocked", "inconclusive"]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nextCommand": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "phase",
+    "taskId",
+    "goal",
+    "requiredReads",
+    "writablePaths",
+    "forbiddenPaths",
+    "acceptanceOracles",
+    "validationCommands",
+    "assuranceLevel",
+    "verdict",
+    "findings",
+    "nextCommand"
+  ],
+  "additionalProperties": false
+}

@@ -31,6 +31,7 @@
     "dist",
     "docs",
     "examples",
+    "schemas",
     "scripts",
     "README.md",
     "AGENTS.md",
@@ -38,13 +39,15 @@
   ],
   "scripts": {
     "build": "tsup",
+    "schema:generate": "node scripts/generate-workflow-action-schemas.mjs",
+    "schema:check": "node scripts/generate-workflow-action-schemas.mjs --check",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "install:global": "pnpm build && npm install -g .",
-    "prepack": "pnpm build"
+    "prepack": "pnpm schema:check && pnpm build"
   },
   "engines": {
     "node": ">=22.0.0",

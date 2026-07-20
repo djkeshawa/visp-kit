@@ -5,7 +5,11 @@ import { loadProjectState } from "../orchestrator/project-state.js";
 import { recommendNextStep, type NextStep } from "../orchestrator/next-step.js";
 import { evaluatePolicyGate } from "../gates/policy-gate-summary.js";
 import { formatHeader } from "../theme/terminal.js";
-import { buildWorkflowActionV2 } from "../integration/workflow-action.js";
+import { buildWorkflowAction } from "../integration/workflow-action.js";
+import {
+  type WorkflowAction,
+  type WorkflowActionProtocol
+} from "../integration/workflow-action-schema.js";
 
 export type NextWorkflowOptions = {
   readonly targetPath?: string;
@@ -16,12 +20,17 @@ export type NextWorkflowOptions = {
   readonly explain?: boolean;
   readonly strict?: boolean;
   readonly json?: boolean;
+  readonly protocol?: WorkflowActionProtocol;
   readonly commandRunner?: CommandRunner;
+};
+
+export type NextWorkflowResult = NextStep & {
+  readonly action: WorkflowAction;
 };
 
 export async function runNextWorkflow(
   options: NextWorkflowOptions = {}
-): Promise<Result<NextStep, VispError>> {
+): Promise<Result<NextWorkflowResult, VispError>> {
   const state = await loadProjectState(options);
 
   if (!state.ok) return state;
@@ -85,7 +94,11 @@ export async function runNextWorkflow(
     };
     return ok({
       ...summary,
-      action: await buildWorkflowActionV2({ state: state.value, step: summary })
+      action: await buildWorkflowAction({
+        state: state.value,
+        step: summary,
+        protocol: options.protocol
+      })
     });
   }
 
@@ -150,7 +163,11 @@ export async function runNextWorkflow(
 
   return ok({
     ...summary,
-    action: await buildWorkflowActionV2({ state: state.value, step: summary })
+    action: await buildWorkflowAction({
+      state: state.value,
+      step: summary,
+      protocol: options.protocol
+    })
   });
 }
 

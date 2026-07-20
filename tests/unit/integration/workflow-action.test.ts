@@ -6,13 +6,16 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createWorkflowActionId } from "../../../src/integration/canonical-json.js";
 import {
+  buildWorkflowAction,
   buildWorkflowActionV2,
   projectWorkflowActionV2,
+  projectWorkflowActionV3,
   workflowActionV2Schema
 } from "../../../src/integration/workflow-action.js";
 import {
   buildCanonicalWorkflowActionEnvelope,
-  canonicalFindingReference
+  canonicalFindingReference,
+  type CanonicalWorkflowAction
 } from "../../../src/integration/canonical-workflow-action.js";
 import { type NextStep } from "../../../src/orchestrator/next-step.js";
 import { type ProjectState } from "../../../src/orchestrator/project-state.js";
@@ -713,5 +716,157 @@ describe("WorkflowAction 2.0", () => {
     expect(action.requiredReads.map(({ path: readPath }) => readPath)).toContain(
       `${featurePath}/context/T001.context.json`
     );
+  });
+
+  it("projects the complete canonical action into the flat v3 contract", async () => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    const action = projectWorkflowActionV3(envelope);
+
+    expect(action).toEqual({ protocolVersion: "3.0", ...envelope.action });
+    expect(Object.keys(action)).toEqual([
+      "protocolVersion",
+      "canonicalVersion",
+      "actionId",
+      "phase",
+      "feature",
+      "task",
+      "taskClass",
+      "risk",
+      "assurance",
+      "goal",
+      "baseCommit",
+      "requiredReads",
+      "scope",
+      "claims",
+      "validationOracles",
+      "validationCommands",
+      "requiredEvidence",
+      "policy",
+      "findings",
+      "verdict",
+      "nextCommand"
+    ]);
+  });
+
+  it.each([
+    "next",
+    "setup",
+    "feature",
+    "clarify",
+    "spec",
+    "plan",
+    "tasks",
+    "context",
+    "implement",
+    "verify",
+    "review",
+    "reconcile",
+    "pr"
+  ] as const)("preserves canonical phase %s in v3", async (phase) => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+    const { actionId: _actionId, ...identityInput } = envelope.action;
+    const changed = { ...identityInput, phase };
+
+    expect(
+      projectWorkflowActionV3({
+        ...envelope,
+        action: { ...changed, actionId: createWorkflowActionId(changed) }
+      }).phase
+    ).toBe(phase);
+  });
+
+  it("rejects a tampered canonical identity in v3", async () => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    expect(() =>
+      projectWorkflowActionV3({
+        ...envelope,
+        action: { ...envelope.action, actionId: `sha256:${"0".repeat(64)}` }
+      })
+    ).toThrow("workflow-action-v3: canonical action identity is invalid");
+  });
+
+  it.each([
+    [
+      "next command",
+      (action: CanonicalWorkflowAction) => ({ ...action, nextCommand: "visp verify" })
+    ],
+    [
+      "scope",
+      (action: CanonicalWorkflowAction) => ({
+        ...action,
+        scope: { ...action.scope, writablePaths: ["src/tampered.ts"] }
+      })
+    ]
+  ])("rejects semantic %s tampering that retains the old actionId", async (_field, tamper) => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    expect(() => projectWorkflowActionV3({ ...envelope, action: tamper(envelope.action) })).toThrow(
+      "workflow-action-v3: canonical action identity is invalid"
+    );
+  });
+
+  it("does not let v2 presentation metadata affect v3", async () => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    expect(
+      projectWorkflowActionV3({
+        ...envelope,
+        v2Presentation: {
+          writablePaths: ["../unsafe"],
+          forbiddenPaths: [],
+          oracleOrder: ["UNKNOWN"],
+          findingOrder: []
+        }
+      })
+    ).toEqual({ protocolVersion: "3.0", ...envelope.action });
+  });
+
+  it("selects one projection from one canonical build and keeps v2 default", async () => {
+    await writeReadFixtures(tempDir);
+    const input = { state: projectState(tempDir), step: actionStep(tempDir) };
+
+    const omitted = await buildWorkflowAction(input);
+    const explicitV2 = await buildWorkflowAction({ ...input, protocol: "2.0" });
+    const explicitV3 = await buildWorkflowAction({ ...input, protocol: "3.0" });
+
+    expect(omitted).toEqual(explicitV2);
+    expect(omitted.protocolVersion).toBe("2.0");
+    expect(explicitV3.protocolVersion).toBe("3.0");
+  });
+
+  it.each([
+    ["unknown string", "4.0", '"4.0"'],
+    ["null", null, "null"],
+    ["non-string", 3, "3"]
+  ] as const)("rejects an unsupported runtime protocol (%s)", async (_label, protocol, rendered) => {
+    await expect(
+      buildWorkflowAction({
+        state: projectState(tempDir),
+        step: actionStep(tempDir),
+        protocol: protocol as never
+      })
+    ).rejects.toThrow(`Unsupported workflow-action protocol: ${rendered}.`);
   });
 });

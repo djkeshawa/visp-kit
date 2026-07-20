@@ -10,34 +10,36 @@ Visp Kit already exposes machine-readable workflow and integration data consumed
 
 The next assurance design requires richer fields, but changing existing output in place would risk breaking users and external consumers.
 
-The current implemented boundary is WorkflowAction 2.0 and integration contract
-2.0, including orchestrator read contract 0.1. Kit also has an internal,
+The current implemented boundary includes WorkflowAction 2.0 and 3.0 plus
+integration contract 2.0, including orchestrator read contract 0.1. Kit also has an internal,
 protocol-independent canonical workflow action at canonical version `1.0`.
 P1-03 routes the existing WorkflowAction 2.0 CLI result through that canonical
 meaning without publicly exporting the canonical action from the package root.
-WorkflowAction v3 remains design context for a later authorized phase; it is
-not currently implemented or emitted by Kit.
+P1-04 adds WorkflowAction 3.0 as an explicit projection, while preserving v2
+as the omitted-protocol default. The integration contract still does not
+advertise supported action protocols; that remains a separate change.
 
 ## Decision
 
-Use additive, explicitly selected protocol evolution when a later phase
-authorizes a new workflow protocol.
+Use additive, explicitly selected workflow-action protocols derived from one
+canonical action.
 
 Rules:
 
 1. WorkflowAction 2.0 remains the current and initial default until a later
    recorded decision and compatibility evidence authorize a change.
-2. Any future v3 introduction must be additive and explicitly requested or
-   negotiated; it must not silently replace v2 output.
-3. Future v2 and v3 representations must be derived from one shared canonical
+2. WorkflowAction 3.0 is additive and explicitly requested; it does not
+   silently replace v2 output.
+3. V2 and v3 representations are derived from one shared canonical
    meaning so their authoritative semantics cannot drift.
 4. An unknown or malformed selected strict protocol fails closed.
 5. Existing projects retain their configured behavior until explicitly upgraded.
 6. Current compatibility claims cover exact tested Kit/consumer pairs only. No
    deprecation cycle or supported semver window is promised until it is defined
    and proven with packed compatibility-matrix evidence.
-7. Protocol advertisement and schema hashes may be added only with the later
-   authorized implementation and its contract tests.
+7. Both public runtime-derived schemas and their canonical parsed-JSON hashes
+   exist in Kit. Advertising them through the integration contract remains a
+   separately authorized unit.
 8. A future v3 default requires a separate recorded decision after the relevant
    pilot and compatibility gates pass.
 9. The internal canonical action is the shared source of meaning for versioned
@@ -46,12 +48,12 @@ Rules:
    ID order, and structured-finding references after validation against the
    canonical action; it cannot supply or override semantic content.
 
-## Illustrative future contract metadata
+## Illustrative future advertisement metadata
 
-The following JSON is a future target for an authorized v3 implementation. It
-is not an object currently emitted by Kit:
+The following JSON is a future target for the integration contract. It is not
+an object currently emitted by Kit:
 
-That later contract design is expected to use a shape such as:
+That later advertisement is expected to use a shape such as:
 
 ```json
 {
@@ -92,8 +94,8 @@ The identity includes every supplied canonical semantic field other than
 `actionId`, including canonical version, availability reason codes, exact
 artifact hashes and text, findings, verdict, and `nextCommand`. It excludes
 wire protocol version, wire schema hash, package version, CLI formatting,
-timestamps, and Hyper/session/presentation metadata. Selecting v2 or a future
-v3 representation therefore cannot create a different identity for the same
+timestamps, and Hyper/session/presentation metadata. Selecting the v2 or v3
+wire representation therefore cannot create a different identity for the same
 canonical action.
 
 Fields without a current authoritative source remain explicitly unavailable;
@@ -140,6 +142,39 @@ These exact scope-narrowing corrections are locked by state-level regressions;
 they do not change the v2 schema or default and do not authorize other output
 drift.
 
+## Implemented WorkflowAction 3.0 projection
+
+WorkflowAction 3.0 is a flat `protocolVersion` field followed by the complete
+canonical action in canonical field order. It retains `canonicalVersion` and
+the canonical `actionId`; it does not contain a wrapper, v2 presentation
+metadata, or a wire schema hash. The projector recomputes and verifies the
+canonical identity before strict parsing. Selecting v2 or v3 never changes
+identity.
+
+V3 uses strict closed objects, exact enums, safe normalized project paths,
+prefixed lowercase SHA-256 hashes, structured findings, and the frozen
+availability union. Available empty values remain distinct from unavailable
+and not-applicable values. Top-level feature/task absence may be null;
+existing nullable fields inside an applied override remain nested record
+values. Kit does not infer currently unavailable Phase 2 evidence.
+
+## Implemented schemas and CLI selection
+
+The single runtime Zod source generates committed draft 2020-12 schemas with
+stable IDs:
+
+- `urn:visp:schema:workflow-action:2.0`; and
+- `urn:visp:schema:workflow-action:3.0`.
+
+Artifacts are included in the package and checked before packing. Schema
+hashes use dependency-free canonical-json-v1 over the parsed document, so
+formatting changes do not alter the schema hash.
+
+Kit accepts exact `visp next --format json --protocol 2.0` or `3.0`. Omitting
+the protocol preserves v2 bytes. Kit rejects `auto`, shorthand, unknown
+versions, and protocol use without `--format json` before workflow evaluation.
+The legacy `--json` flag remains the larger NextStep summary.
+
 ## Future compatibility testing
 
 A protocol release is not complete until:
@@ -154,8 +189,7 @@ A protocol release is not complete until:
 
 The projects may release independently, but current support claims remain
 limited to exact tested pairs. A wider compatibility window requires packed
-Kit/Hyper matrix evidence. The canonical builder remains internal; P1-03
-removes the duplicate v2 read/decision builder while preserving the public v2
-schema, default, CLI formatting, protocol advertisement, and supported wire
-versions. V3, protocol selection, and advertisement changes remain separate
-later work.
+Kit/Hyper matrix evidence. The canonical builder remains internal. V2 remains
+the default and unchanged projection; v3 is explicit and additive. Kit now
+packages both schemas and can compute their stable hashes, but protocol
+advertisement and Hyper negotiation remain separate later work.

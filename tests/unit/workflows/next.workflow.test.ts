@@ -68,4 +68,28 @@ describe("runNextWorkflow", () => {
     expect(next.nextCommand).toBe("visp scan");
     expect(formatNextSummary(next, { commandOnly: true })).toBe("visp scan\n");
   });
+
+  it("forwards the selected workflow-action protocol while retaining v2 by default", async () => {
+    const defaultNext = expectOk(
+      await runNextWorkflow({ targetPath: tempDir, commandRunner: runner() })
+    );
+    const explicitV2 = expectOk(
+      await runNextWorkflow({
+        targetPath: tempDir,
+        commandRunner: runner(),
+        protocol: "2.0"
+      })
+    );
+    const explicitV3 = expectOk(
+      await runNextWorkflow({
+        targetPath: tempDir,
+        commandRunner: runner(),
+        protocol: "3.0"
+      })
+    );
+
+    expect(defaultNext.action).toEqual(explicitV2.action);
+    expect(defaultNext.action?.protocolVersion).toBe("2.0");
+    expect(explicitV3.action?.protocolVersion).toBe("3.0");
+  });
 });

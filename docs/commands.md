@@ -405,13 +405,26 @@ Common flags:
 - `--explain`
 - `--strict`
 - `--format <text|json>`
+- `--protocol <2.0|3.0>`
 - `--json`
 
-`--format json` emits the current WorkflowAction 2.0 action. Its tested schema
+`--format json` emits WorkflowAction 2.0 by default. Its tested schema
 contains `protocolVersion`, `phase`, `taskId`, `goal`, hash-pinned
 `requiredReads`, `writablePaths`, `forbiddenPaths`, `acceptanceOracles`,
 `validationCommands`, `assuranceLevel`, `verdict`, `findings`, and one exact
-`nextCommand`. It does not advertise or negotiate a later protocol.
+`nextCommand`. `--format json --protocol 2.0` is byte-identical to the
+default. `--format json --protocol 3.0` emits the flat canonical action with
+`protocolVersion: "3.0"`, deterministic `actionId`, expanded phase, structured
+availability, claims, scope, policy, findings, and the same exact next command.
+
+Protocol values are exact: Kit accepts only `2.0` and `3.0`, never `auto`, and
+does not silently downgrade. `--protocol` requires `--format json`.
+Unsupported JSON protocol requests return a stable
+`UNSUPPORTED_WORKFLOW_ACTION_PROTOCOL` object and exit nonzero before project
+evaluation. Public schemas are packaged at
+`schemas/workflow-action/2.0.schema.json` and
+`schemas/workflow-action/3.0.schema.json`. Protocol advertisement remains a
+separate integration-contract change.
 
 `--json` instead emits the `visp next` command/workflow summary, which includes
 the action alongside the command decision. Without `--json`, `--format text`

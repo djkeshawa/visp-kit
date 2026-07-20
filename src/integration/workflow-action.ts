@@ -1,5 +1,3 @@
-import { z } from "zod";
-
 import { type ProjectState } from "../orchestrator/project-state.js";
 import { type NextStep } from "../orchestrator/next-step.js";
 import { compareUtf16CodeUnits, createWorkflowActionId } from "./canonical-json.js";
@@ -12,30 +10,30 @@ import {
   type Finding,
   type HashedReadRole
 } from "./canonical-workflow-action.js";
+import {
+  DEFAULT_WORKFLOW_ACTION_PROTOCOL,
+  type WorkflowAction,
+  type WorkflowActionProtocol,
+  type WorkflowActionV2,
+  type WorkflowActionV3,
+  isWorkflowActionProtocol,
+  workflowActionV2Schema,
+  workflowActionV3Schema
+} from "./workflow-action-schema.js";
 
-export const workflowActionV2Schema = z
-  .object({
-    protocolVersion: z.literal("2.0"),
-    phase: z.enum(["clarify", "specify", "plan", "task", "implement", "verify"]),
-    taskId: z.string().nullable(),
-    goal: z.string(),
-    requiredReads: z.array(
-      z.object({ path: z.string(), role: z.string(), sha256: z.string() }).strict()
-    ),
-    writablePaths: z.array(z.string()),
-    forbiddenPaths: z.array(z.string()),
-    acceptanceOracles: z.array(
-      z.object({ id: z.string(), expectedBehavior: z.string(), validation: z.string() }).strict()
-    ),
-    validationCommands: z.array(z.string()),
-    assuranceLevel: z.enum(["kit_strict", "local_checked", "advisory"]),
-    verdict: z.enum(["ready", "blocked", "inconclusive"]),
-    findings: z.array(z.string()),
-    nextCommand: z.string()
-  })
-  .strict();
-
-export type WorkflowActionV2 = z.infer<typeof workflowActionV2Schema>;
+export {
+  DEFAULT_WORKFLOW_ACTION_PROTOCOL,
+  SUPPORTED_WORKFLOW_ACTION_PROTOCOLS,
+  WORKFLOW_ACTION_SCHEMA_HASHES,
+  type WorkflowAction,
+  type WorkflowActionProtocol,
+  type WorkflowActionV2,
+  type WorkflowActionV3,
+  isWorkflowActionProtocol,
+  workflowActionSchemaHash,
+  workflowActionV2Schema,
+  workflowActionV3Schema
+} from "./workflow-action-schema.js";
 
 const v2Phase: Record<CanonicalWorkflowPhase, WorkflowActionV2["phase"]> = {
   next: "implement",
@@ -241,6 +239,39 @@ export function projectWorkflowActionV2(
     findings: legacyFindings(envelope),
     nextCommand: action.nextCommand
   });
+}
+
+export function projectWorkflowActionV3(
+  envelope: CanonicalWorkflowActionEnvelope
+): WorkflowActionV3 {
+  const { actionId, ...identityInput } = envelope.action;
+  if (createWorkflowActionId(identityInput) !== actionId) {
+    throw new TypeError("workflow-action-v3: canonical action identity is invalid");
+  }
+
+  return workflowActionV3Schema.parse({
+    protocolVersion: "3.0",
+    ...envelope.action
+  });
+}
+
+export async function buildWorkflowAction(input: {
+  readonly state: ProjectState;
+  readonly step: NextStep;
+  readonly protocol?: WorkflowActionProtocol;
+}): Promise<WorkflowAction> {
+  const protocol = input.protocol === undefined ? DEFAULT_WORKFLOW_ACTION_PROTOCOL : input.protocol;
+  if (!isWorkflowActionProtocol(protocol)) {
+    throw new TypeError(`Unsupported workflow-action protocol: ${JSON.stringify(protocol)}.`);
+  }
+  const envelope = await buildCanonicalWorkflowActionEnvelope(input);
+
+  switch (protocol) {
+    case "2.0":
+      return projectWorkflowActionV2(envelope);
+    case "3.0":
+      return projectWorkflowActionV3(envelope);
+  }
 }
 
 export async function buildWorkflowActionV2(input: {

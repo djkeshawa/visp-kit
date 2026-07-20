@@ -1,0 +1,1338 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:visp:schema:workflow-action:3.0",
+  "title": "Visp WorkflowAction 3.0",
+  "type": "object",
+  "properties": {
+    "protocolVersion": {
+      "type": "string",
+      "const": "3.0"
+    },
+    "canonicalVersion": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "actionId": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "next",
+        "setup",
+        "feature",
+        "clarify",
+        "spec",
+        "plan",
+        "tasks",
+        "context",
+        "implement",
+        "verify",
+        "review",
+        "reconcile",
+        "pr"
+      ]
+    },
+    "feature": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["id", "slug"],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "task": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "ready", "in_progress", "blocked", "done", "verified"]
+            },
+            "dependsOn": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+              }
+            },
+            "parallelizable": {
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "title", "status", "dependsOn", "parallelizable"],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "taskClass": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "available"
+            },
+            "value": {
+              "type": "string",
+              "enum": [
+                "localized_bug",
+                "bounded_feature",
+                "cross_file_change",
+                "regression_test",
+                "refactor",
+                "migration",
+                "security",
+                "documentation"
+              ]
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": [
+                "not_in_source_artifact",
+                "not_in_protocol",
+                "source_missing",
+                "source_invalid",
+                "not_captured",
+                "unsupported"
+              ]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "not_applicable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "risk": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "string",
+                  "enum": ["low", "medium", "high"]
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "factors": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "version": {
+                        "type": "string",
+                        "const": "1.0"
+                      },
+                      "code": {
+                        "type": "string",
+                        "enum": [
+                          "authentication",
+                          "authorization",
+                          "cryptography",
+                          "public_api",
+                          "schema",
+                          "dependency",
+                          "concurrency",
+                          "permissions",
+                          "deployment",
+                          "data_migration"
+                        ]
+                      }
+                    },
+                    "required": ["version", "code"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["level", "factors"],
+      "additionalProperties": false
+    },
+    "assurance": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["kit_strict", "advisory"]
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "string",
+                  "enum": ["routine", "behavioral", "critical"]
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "workflowStrictness": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "string",
+                  "enum": ["relaxed", "standard", "strict", "locked"]
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["level", "profile", "workflowStrictness"],
+      "additionalProperties": false
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseCommit": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "available"
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": [
+                "not_in_source_artifact",
+                "not_in_protocol",
+                "source_missing",
+                "source_invalid",
+                "not_captured",
+                "unsupported"
+              ]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "not_applicable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "requiredReads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "policy",
+              "intent",
+              "specification",
+              "plan",
+              "task_graph",
+              "context_pack",
+              "implementation_prompt",
+              "oracle_plan"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\/)(?![A-Za-z]:\\/)(?!.*[\\\\\\x00])(?!\\.{1,2}(?:\\/|$))(?!.+\\/\\.{1,2}(?:\\/|$))(?!.*[/][/])(?!.+\\/$).+$"
+          },
+          "contentHash": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "freshness": {
+            "type": "string",
+            "const": "content_hash"
+          }
+        },
+        "required": ["id", "role", "path", "contentHash", "freshness"],
+        "additionalProperties": false
+      }
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "writablePaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\/)(?![A-Za-z]:\\/)(?!.*[\\\\\\x00])(?!\\.{1,2}(?:\\/|$))(?!.+\\/\\.{1,2}(?:\\/|$))(?!.*[/][/])(?!.+\\/$).+$"
+          }
+        },
+        "expectedPaths": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!\\/)(?![A-Za-z]:\\/)(?!.*[\\\\\\x00])(?!\\.{1,2}(?:\\/|$))(?!.+\\/\\.{1,2}(?:\\/|$))(?!.*[/][/])(?!.+\\/$).+$"
+                  }
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "forbiddenPaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\/)(?![A-Za-z]:\\/)(?!.*[\\\\\\x00])(?!\\.{1,2}(?:\\/|$))(?!.+\\/\\.{1,2}(?:\\/|$))(?!.*[/][/])(?!.+\\/$).+$"
+          }
+        },
+        "operationLimits": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "object",
+                  "properties": {
+                    "version": {
+                      "type": "string",
+                      "const": "1.0"
+                    },
+                    "maxChangedFiles": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "dependencyChangesAllowed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["version", "maxChangedFiles", "dependencyChangesAllowed"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["writablePaths", "expectedPaths", "forbiddenPaths", "operationLimits"],
+      "additionalProperties": false
+    },
+    "claims": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "available"
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                  },
+                  "statement": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["must", "should", "could"]
+                  },
+                  "acceptanceCriterionIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                    }
+                  },
+                  "accountableOwner": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "state": {
+                            "type": "string",
+                            "const": "available"
+                          },
+                          "value": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["state", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "state": {
+                            "type": "string",
+                            "const": "unavailable"
+                          },
+                          "reasonCode": {
+                            "type": "string",
+                            "enum": [
+                              "not_in_source_artifact",
+                              "not_in_protocol",
+                              "source_missing",
+                              "source_invalid",
+                              "not_captured",
+                              "unsupported"
+                            ]
+                          }
+                        },
+                        "required": ["state", "reasonCode"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "state": {
+                            "type": "string",
+                            "const": "not_applicable"
+                          },
+                          "reasonCode": {
+                            "type": "string",
+                            "enum": [
+                              "no_active_feature",
+                              "no_active_task",
+                              "stage_does_not_require_value"
+                            ]
+                          }
+                        },
+                        "required": ["state", "reasonCode"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "statement",
+                  "priority",
+                  "acceptanceCriterionIds",
+                  "accountableOwner"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": [
+                "not_in_source_artifact",
+                "not_in_protocol",
+                "source_missing",
+                "source_invalid",
+                "not_captured",
+                "unsupported"
+              ]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "not_applicable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "validationOracles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "claimId": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "testable": {
+            "type": "boolean"
+          },
+          "validationMethod": {
+            "type": "string",
+            "enum": ["unit", "integration", "e2e", "manual", "static"]
+          }
+        },
+        "required": ["id", "claimId", "statement", "testable", "validationMethod"],
+        "additionalProperties": false
+      }
+    },
+    "validationCommands": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "requiredEvidence": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "available"
+            },
+            "value": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "version": {
+                    "type": "string",
+                    "const": "1.0"
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                  },
+                  "providerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                  },
+                  "target": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "command"
+                          },
+                          "command": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": ["kind", "command"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "validation_oracle"
+                          },
+                          "oracleId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                          }
+                        },
+                        "required": ["kind", "oracleId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "static_check"
+                          },
+                          "checkId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                          }
+                        },
+                        "required": ["kind", "checkId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "security_check"
+                          },
+                          "checkId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                          }
+                        },
+                        "required": ["kind", "checkId"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "human_review"
+                          },
+                          "reviewId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                          }
+                        },
+                        "required": ["kind", "reviewId"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "freshnessRule": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "independenceRule": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "requiredVerdict": {
+                    "type": "string",
+                    "const": "passed"
+                  }
+                },
+                "required": [
+                  "version",
+                  "id",
+                  "providerId",
+                  "target",
+                  "freshnessRule",
+                  "independenceRule",
+                  "requiredVerdict"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["state", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "unavailable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": [
+                "not_in_source_artifact",
+                "not_in_protocol",
+                "source_missing",
+                "source_invalid",
+                "not_captured",
+                "unsupported"
+              ]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "not_applicable"
+            },
+            "reasonCode": {
+              "type": "string",
+              "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+            }
+          },
+          "required": ["state", "reasonCode"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "string",
+                  "enum": ["valid", "missing", "invalid", "default"]
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "appliedOverrides": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "available"
+                },
+                "value": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "overrideId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                      },
+                      "ruleId": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                      },
+                      "scope": {
+                        "type": "string",
+                        "enum": ["project", "feature", "task", "stage"]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "expiresAt": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "appliedToStage": {
+                        "type": "string",
+                        "enum": [
+                          "next",
+                          "setup",
+                          "feature",
+                          "clarify",
+                          "spec",
+                          "plan",
+                          "tasks",
+                          "context",
+                          "implement",
+                          "verify",
+                          "review",
+                          "reconcile",
+                          "pr"
+                        ]
+                      },
+                      "appliedToFeatureId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "appliedToTaskId": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "overrideId",
+                      "ruleId",
+                      "scope",
+                      "reason",
+                      "expiresAt",
+                      "appliedToStage",
+                      "appliedToFeatureId",
+                      "appliedToTaskId"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["state", "value"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "unavailable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": [
+                    "not_in_source_artifact",
+                    "not_in_protocol",
+                    "source_missing",
+                    "source_invalid",
+                    "not_captured",
+                    "unsupported"
+                  ]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "state": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "enum": ["no_active_feature", "no_active_task", "stage_does_not_require_value"]
+                }
+              },
+              "required": ["state", "reasonCode"],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": ["status", "appliedOverrides"],
+      "additionalProperties": false
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "enum": ["policy", "workflow", "contract", "freshness"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "warning", "error"]
+          },
+          "effect": {
+            "type": "string",
+            "enum": ["none", "blocks", "uncertain"]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "recommendation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "source",
+          "severity",
+          "effect",
+          "message",
+          "recommendation",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["ready", "blocked", "inconclusive"]
+    },
+    "nextCommand": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "canonicalVersion",
+    "actionId",
+    "phase",
+    "feature",
+    "task",
+    "taskClass",
+    "risk",
+    "assurance",
+    "goal",
+    "baseCommit",
+    "requiredReads",
+    "scope",
+    "claims",
+    "validationOracles",
+    "validationCommands",
+    "requiredEvidence",
+    "policy",
+    "findings",
+    "verdict",
+    "nextCommand"
+  ],
+  "additionalProperties": false
+}

@@ -3,12 +3,15 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
+import { type CanonicalWorkflowActionIdentityInput } from "../../src/integration/canonical-workflow-action.js";
 import {
   type WorkflowActionV2,
-  workflowActionV2Schema
+  type WorkflowActionV3,
+  workflowActionV2Schema,
+  workflowActionV3Schema
 } from "../../src/integration/workflow-action.js";
 import { runInitWorkflow } from "../../src/workflows/init.workflow.js";
 import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
@@ -23,10 +26,46 @@ function expectExactWorkflowActionJson(
   return action;
 }
 
+function expectExactWorkflowActionV3Json(
+  rawOutput: string,
+  expected: WorkflowActionV3
+): WorkflowActionV3 {
+  const action = workflowActionV3Schema.parse(JSON.parse(rawOutput));
+  expect(action).toEqual(expected);
+  expect(rawOutput).toBe(`${JSON.stringify(expected, null, 2)}\n`);
+  return action;
+}
+
 async function sha256File(filePath: string): Promise<string> {
   return createHash("sha256")
     .update(await readFile(filePath))
     .digest("hex");
+}
+
+const expectedWorkflowActionIdentityDomain = "visp.workflow-action\0canonical-1.0\0";
+
+function expectedCanonicalJson(value: unknown): string {
+  if (value === null) return "null";
+  if (typeof value === "string" || typeof value === "boolean") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError("Expected a finite canonical number.");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(expectedCanonicalJson).join(",")}]`;
+  }
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).sort((left, right) =>
+      left < right ? -1 : left > right ? 1 : 0
+    );
+    return `{${keys
+      .map((key) => `${JSON.stringify(key)}:${expectedCanonicalJson(record[key])}`)
+      .join(",")}}`;
+  }
+  throw new TypeError(`Unsupported expected canonical value: ${typeof value}`);
 }
 
 async function expectedPhase8Action(
@@ -76,6 +115,295 @@ async function expectedPhase8Action(
     nextCommand: "visp context --next",
     ...overrides
   };
+}
+
+type Phase8V3Scenario = "ready" | "blocked" | "inconclusive";
+
+function expectedPhase8Findings(
+  scenario: Phase8V3Scenario,
+  nextCommand: string,
+  inconclusiveFinding?: string
+): WorkflowActionV3["findings"] {
+  const workflowFinding = (
+    code: "VISP.WORKFLOW.STATE_BLOCKER" | "VISP.WORKFLOW.WARNING",
+    message: string
+  ): WorkflowActionV3["findings"][number] => ({
+    code,
+    source: "workflow",
+    severity: "warning",
+    effect: "none",
+    message,
+    recommendation: nextCommand,
+    evidence: [message]
+  });
+
+  if (scenario === "ready") {
+    return [
+      workflowFinding(
+        "VISP.WORKFLOW.STATE_BLOCKER",
+        "VSP007: Implementation requires a context pack."
+      ),
+      workflowFinding(
+        "VISP.WORKFLOW.STATE_BLOCKER",
+        "VSP020: Implementation checklist evidence is missing."
+      ),
+      workflowFinding("VISP.WORKFLOW.WARNING", "Git repository unavailable."),
+      {
+        code: "VSP007",
+        source: "policy",
+        severity: "error",
+        effect: "none",
+        message: "Implementation requires a context pack.",
+        recommendation: "Run visp context --next.",
+        evidence: ["Task context JSON was not found."]
+      },
+      {
+        code: "VSP020",
+        source: "policy",
+        severity: "error",
+        effect: "none",
+        message: "Implementation checklist evidence is missing.",
+        recommendation: "Run visp context T001.",
+        evidence: [
+          ".visp/features/<feature>/context/T001.implementation-checklist.json was not found."
+        ]
+      }
+    ];
+  }
+
+  if (scenario === "blocked") {
+    return [
+      {
+        code: "VISP.FRESHNESS.REQUIRED_READ_UNAVAILABLE",
+        source: "freshness",
+        severity: "error",
+        effect: "uncertain",
+        message: "Required read is unavailable: .visp/policy.json.",
+        recommendation: "Restore or regenerate the required read before using this action.",
+        evidence: [".visp/policy.json"]
+      },
+      workflowFinding(
+        "VISP.WORKFLOW.STATE_BLOCKER",
+        "VSP007: Implementation requires a context pack."
+      ),
+      workflowFinding("VISP.WORKFLOW.STATE_BLOCKER", "VSP018: Policy file is missing."),
+      workflowFinding(
+        "VISP.WORKFLOW.STATE_BLOCKER",
+        "VSP020: Implementation checklist evidence is missing."
+      ),
+      workflowFinding("VISP.WORKFLOW.WARNING", "Git repository unavailable."),
+      workflowFinding(
+        "VISP.WORKFLOW.WARNING",
+        "Policy file is missing. Run `visp policy init` to persist it."
+      ),
+      {
+        code: "VSP007",
+        source: "policy",
+        severity: "error",
+        effect: "blocks",
+        message: "Implementation requires a context pack.",
+        recommendation: "Run visp context --next.",
+        evidence: ["Task context JSON was not found."]
+      },
+      {
+        code: "VSP018",
+        source: "policy",
+        severity: "error",
+        effect: "blocks",
+        message: "Policy file is missing.",
+        recommendation: "Run visp policy init --strictness strict.",
+        evidence: [".visp/policy.json was not found."]
+      },
+      {
+        code: "VSP018",
+        source: "policy",
+        severity: "warning",
+        effect: "none",
+        message: "Policy file is missing.",
+        recommendation: "Run visp policy init --strictness strict.",
+        evidence: [".visp/policy.json was not found; default policy was used in memory."]
+      },
+      {
+        code: "VSP020",
+        source: "policy",
+        severity: "error",
+        effect: "blocks",
+        message: "Implementation checklist evidence is missing.",
+        recommendation: "Run visp context T001.",
+        evidence: [
+          ".visp/features/<feature>/context/T001.implementation-checklist.json was not found."
+        ]
+      }
+    ];
+  }
+
+  if (inconclusiveFinding === undefined) {
+    throw new TypeError("The inconclusive v3 expectation requires its dynamic finding.");
+  }
+
+  return [
+    {
+      code: "VISP.CONTRACT.AUTHORITY_UNAVAILABLE",
+      source: "contract",
+      severity: "error",
+      effect: "uncertain",
+      message: "The next-step input does not contain a coherent permission decision.",
+      recommendation: "Re-evaluate the authoritative Kit gate for the exact next action.",
+      evidence: ["visp override validate"]
+    },
+    workflowFinding("VISP.WORKFLOW.STATE_BLOCKER", inconclusiveFinding),
+    workflowFinding("VISP.WORKFLOW.WARNING", "Git repository unavailable.")
+  ];
+}
+
+async function expectedPhase8ActionV3(
+  targetPath: string,
+  scenario: Phase8V3Scenario,
+  inconclusiveFinding?: string
+): Promise<WorkflowActionV3> {
+  const featurePath = ".visp/features/001-add-note-pinning";
+  const readDefinitions = [
+    { id: "project-policy", role: "policy", path: ".visp/policy.json" },
+    { id: "feature-intent", role: "intent", path: `${featurePath}/intent.json` },
+    {
+      id: "feature-specification",
+      role: "specification",
+      path: `${featurePath}/spec.json`
+    },
+    { id: "feature-plan", role: "plan", path: `${featurePath}/plan.json` },
+    { id: "task-graph", role: "task_graph", path: `${featurePath}/task-graph.json` }
+  ] as const;
+  const requiredReads: CanonicalWorkflowActionIdentityInput["requiredReads"] = await Promise.all(
+    readDefinitions
+      .filter(({ role }) => role !== "policy" || scenario !== "blocked")
+      .map(async ({ id, role, path: readPath }) => ({
+        id,
+        role,
+        path: readPath,
+        contentHash: `sha256:${await sha256File(path.join(targetPath, readPath))}` as const,
+        freshness: "content_hash" as const
+      }))
+  );
+  const nextCommand =
+    scenario === "ready"
+      ? "visp context --next"
+      : scenario === "blocked"
+        ? "visp policy init --strictness strict"
+        : "visp override validate";
+  const findings = expectedPhase8Findings(scenario, nextCommand, inconclusiveFinding);
+  const writablePaths = [`${featurePath}/task-graph.json`, `${featurePath}/traceability.json`];
+  const identityInput = {
+    canonicalVersion: "1.0",
+    phase: "context",
+    feature: { id: "001", slug: "add-note-pinning" },
+    task: {
+      id: "T001",
+      title: "Implement note pinning helper",
+      status: "ready",
+      dependsOn: [],
+      parallelizable: false
+    },
+    taskClass: { state: "unavailable", reasonCode: "not_in_source_artifact" },
+    risk: {
+      level: { state: "available", value: "medium" },
+      factors: { state: "unavailable", reasonCode: "not_in_source_artifact" }
+    },
+    assurance: {
+      level: "advisory",
+      profile: { state: "unavailable", reasonCode: "not_in_source_artifact" },
+      workflowStrictness:
+        scenario === "inconclusive"
+          ? { state: "unavailable" as const, reasonCode: "not_captured" as const }
+          : { state: "available" as const, value: "standard" as const }
+    },
+    goal: "Update the note helper and test coverage for pinning.",
+    baseCommit: { state: "unavailable", reasonCode: "not_captured" },
+    requiredReads,
+    scope: {
+      writablePaths,
+      expectedPaths: { state: "available", value: writablePaths },
+      forbiddenPaths: [
+        "Dependency manifests and lockfiles unless dependency approval is part of this task"
+      ],
+      operationLimits: { state: "unavailable", reasonCode: "not_captured" }
+    },
+    claims: {
+      state: "available",
+      value: [
+        {
+          id: "REQ001",
+          statement: "The note helper must preserve explicit pin state.",
+          priority: "must",
+          acceptanceCriterionIds: ["AC001"],
+          accountableOwner: {
+            state: "unavailable",
+            reasonCode: "not_in_source_artifact"
+          }
+        }
+      ]
+    },
+    validationOracles: [
+      {
+        id: "AC001",
+        claimId: "REQ001",
+        statement:
+          "Pinning a note places it before unpinned notes and unpinning restores ordinary ordering.",
+        testable: true,
+        validationMethod: "unit"
+      }
+    ],
+    validationCommands: ["pnpm test"],
+    requiredEvidence: { state: "unavailable", reasonCode: "not_in_source_artifact" },
+    policy: {
+      status: { state: "unavailable", reasonCode: "not_captured" },
+      appliedOverrides: { state: "unavailable", reasonCode: "not_captured" }
+    },
+    findings,
+    verdict: scenario,
+    nextCommand
+  } satisfies CanonicalWorkflowActionIdentityInput;
+  const actionId = `sha256:${createHash("sha256")
+    .update(expectedWorkflowActionIdentityDomain, "utf8")
+    .update(expectedCanonicalJson(identityInput), "utf8")
+    .digest("hex")}`;
+
+  return {
+    protocolVersion: "3.0",
+    canonicalVersion: identityInput.canonicalVersion,
+    actionId,
+    phase: identityInput.phase,
+    feature: identityInput.feature,
+    task: identityInput.task,
+    taskClass: identityInput.taskClass,
+    risk: identityInput.risk,
+    assurance: identityInput.assurance,
+    goal: identityInput.goal,
+    baseCommit: identityInput.baseCommit,
+    requiredReads: [...identityInput.requiredReads],
+    scope: identityInput.scope,
+    claims: identityInput.claims,
+    validationOracles: identityInput.validationOracles,
+    validationCommands: identityInput.validationCommands,
+    requiredEvidence: identityInput.requiredEvidence,
+    policy: identityInput.policy,
+    findings: identityInput.findings,
+    verdict: identityInput.verdict,
+    nextCommand: identityInput.nextCommand
+  };
+}
+
+async function captureNextAction(
+  targetPath: string,
+  args: readonly string[]
+): Promise<{ stdout: string; stderr: string; exitCode: string | number | undefined }> {
+  const output: string[] = [];
+  const errors: string[] = [];
+  process.exitCode = undefined;
+  await createCli({
+    writeOut: (value) => output.push(value),
+    writeErr: (value) => errors.push(value)
+  }).parseAsync(["node", "visp", "next", targetPath, ...args]);
+  return { stdout: output.join(""), stderr: errors.join(""), exitCode: process.exitCode };
 }
 
 describe("visp next command", () => {
@@ -167,13 +495,162 @@ describe("visp next command", () => {
     expect(action.nextCommand).toBe("visp context --next");
   });
 
+  it("keeps omitted, explicit v2, and Hyper-shaped v2 output byte-identical", async () => {
+    await createPhase8Fixture(tempDir);
+    const outputs: string[] = [];
+
+    for (const args of [
+      ["--format", "json"],
+      ["--format", "json", "--protocol", "2.0"],
+      ["--format", "json", "--json"]
+    ]) {
+      const result = await captureNextAction(tempDir, args);
+      expect(result.stderr).toBe("");
+      expect(result.exitCode).toBeUndefined();
+      outputs.push(result.stdout);
+    }
+
+    expect(outputs[0]).toBe(outputs[1]);
+    expect(outputs[0]).toBe(outputs[2]);
+    expectExactWorkflowActionJson(outputs[0]!, await expectedPhase8Action(tempDir));
+  });
+
+  it("returns the flat strict WorkflowActionV3 contract when explicitly selected", async () => {
+    await createPhase8Fixture(tempDir);
+    const result = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
+
+    expectExactWorkflowActionV3Json(result.stdout, await expectedPhase8ActionV3(tempDir, "ready"));
+    expect(result.stderr).toBe("");
+    expect(result.exitCode).toBeUndefined();
+  });
+
+  it.each([
+    "auto",
+    "4.0",
+    "3",
+    "03.0",
+    " 3.0"
+  ])("rejects unsupported protocol %s with stable JSON before workflow evaluation", async (requested) => {
+    const output: string[] = [];
+    const errors: string[] = [];
+    const runNext = vi.fn(async () => {
+      throw new Error("workflow must not run");
+    });
+    const program = createCli({
+      runNext: runNext as never,
+      writeOut: (value) => output.push(value),
+      writeErr: (value) => errors.push(value)
+    });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "next",
+      tempDir,
+      "--format",
+      "json",
+      "--protocol",
+      requested
+    ]);
+
+    expect(runNext).not.toHaveBeenCalled();
+    expect(errors.join("")).toBe("");
+    expect(output.join("")).toBe(
+      `${JSON.stringify(
+        {
+          success: false,
+          error: {
+            code: "UNSUPPORTED_WORKFLOW_ACTION_PROTOCOL",
+            requested,
+            supported: ["2.0", "3.0"],
+            default: "2.0"
+          }
+        },
+        null,
+        2
+      )}\n`
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it.each([
+    ["without a format", "3.0", []],
+    ["unsupported without a format", "4.0", []],
+    ["with legacy JSON", "3.0", ["--json"]],
+    ["with text format", "3.0", ["--format", "text"]],
+    ["before invalid-format handling", "4.0", ["--format", "yaml"]]
+  ] as const)("rejects protocol %s before workflow evaluation", async (_label, requested, extraArgs) => {
+    const output: string[] = [];
+    const errors: string[] = [];
+    const runNext = vi.fn(async () => {
+      throw new Error("workflow must not run");
+    });
+    const program = createCli({
+      runNext: runNext as never,
+      writeOut: (value) => output.push(value),
+      writeErr: (value) => errors.push(value)
+    });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "next",
+      tempDir,
+      ...extraArgs,
+      "--protocol",
+      requested
+    ]);
+
+    expect(runNext).not.toHaveBeenCalled();
+    expect(output.join("")).toBe("");
+    expect(errors.join("")).toBe("[error] --protocol requires --format json.\n");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("keeps the protocol-format error uncolored on a TTY", async () => {
+    const output: string[] = [];
+    const errors: string[] = [];
+    const runNext = vi.fn(async () => {
+      throw new Error("workflow must not run");
+    });
+    const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+
+    try {
+      Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+      await createCli({
+        runNext: runNext as never,
+        writeOut: (value) => output.push(value),
+        writeErr: (value) => errors.push(value)
+      }).parseAsync(["node", "visp", "next", tempDir, "--protocol", "3.0"]);
+    } finally {
+      if (ttyDescriptor === undefined) {
+        Reflect.deleteProperty(process.stdout, "isTTY");
+      } else {
+        Object.defineProperty(process.stdout, "isTTY", ttyDescriptor);
+      }
+    }
+
+    expect(runNext).not.toHaveBeenCalled();
+    expect(output.join("")).toBe("");
+    expect(errors.join("")).toBe("[error] --protocol requires --format json.\n");
+  });
+
   it("returns a blocked WorkflowAction when the authoritative next gate blocks", async () => {
     await createPhase8Fixture(tempDir);
     await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
-    const output: string[] = [];
-    const program = createCli({ writeOut: (value) => output.push(value) });
-
-    await program.parseAsync(["node", "visp", "next", tempDir, "--format", "json"]);
+    const v2Outputs: string[] = [];
+    for (const args of [
+      ["--format", "json"],
+      ["--format", "json", "--protocol", "2.0"],
+      ["--format", "json", "--json"]
+    ]) {
+      const result = await captureNextAction(tempDir, args);
+      expect(result.stderr).toBe("");
+      expect(result.exitCode).toBe(1);
+      v2Outputs.push(result.stdout);
+    }
+    expect(v2Outputs[1]).toBe(v2Outputs[0]);
+    expect(v2Outputs[2]).toBe(v2Outputs[0]);
 
     const findings = [
       "Required read is unavailable: .visp/policy.json.",
@@ -182,14 +659,20 @@ describe("visp next command", () => {
       "VSP020: Implementation checklist evidence is missing."
     ];
     const action = expectExactWorkflowActionJson(
-      output.join(""),
+      v2Outputs[0]!,
       await expectedPhase8Action(tempDir, {
         verdict: "blocked",
         findings,
         nextCommand: "visp policy init --strictness strict"
       })
     );
-    expect(process.exitCode).toBe(1);
+    const v3Result = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
+    expectExactWorkflowActionV3Json(
+      v3Result.stdout,
+      await expectedPhase8ActionV3(tempDir, "blocked")
+    );
+    expect(v3Result.stderr).toBe("");
+    expect(v3Result.exitCode).toBe(1);
     expect(action).toMatchObject({
       protocolVersion: "2.0",
       verdict: "blocked",
@@ -222,28 +705,40 @@ describe("visp next command", () => {
   it("returns an inconclusive WorkflowAction when override evaluation is unavailable", async () => {
     await createPhase8Fixture(tempDir);
     await writeFile(path.join(tempDir, ".visp", "overrides.json"), "{ malformed overrides", "utf8");
-    const output: string[] = [];
-    const program = createCli({ writeOut: (value) => output.push(value) });
-
-    await program.parseAsync(["node", "visp", "next", tempDir, "--format", "json"]);
-
-    const rawOutput = output.join("");
-    expect(rawOutput.trim()).not.toBe("undefined");
     const finding = `Override or gate evaluation is unavailable: Invalid JSON in ${path.join(
       tempDir,
       ".visp",
       "overrides.json"
     )}: Expected property name or '}' in JSON at position 2 (line 1 column 3)`;
+    const v2Outputs: string[] = [];
+    for (const args of [
+      ["--format", "json"],
+      ["--format", "json", "--protocol", "2.0"],
+      ["--format", "json", "--json"]
+    ]) {
+      const result = await captureNextAction(tempDir, args);
+      expect(result.stderr).toBe("");
+      expect(result.exitCode).toBe(1);
+      v2Outputs.push(result.stdout);
+    }
+    expect(v2Outputs[1]).toBe(v2Outputs[0]);
+    expect(v2Outputs[2]).toBe(v2Outputs[0]);
+    expect(v2Outputs[0]!.trim()).not.toBe("undefined");
     const action = expectExactWorkflowActionJson(
-      rawOutput,
+      v2Outputs[0]!,
       await expectedPhase8Action(tempDir, {
         verdict: "inconclusive",
         findings: [finding],
         nextCommand: "visp override validate"
       })
     );
-
-    expect(process.exitCode).toBe(1);
+    const v3Result = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
+    expectExactWorkflowActionV3Json(
+      v3Result.stdout,
+      await expectedPhase8ActionV3(tempDir, "inconclusive", finding)
+    );
+    expect(v3Result.stderr).toBe("");
+    expect(v3Result.exitCode).toBe(1);
     expect(action.verdict).toBe("inconclusive");
     expect(action.findings).toHaveLength(1);
     expect(action.findings[0]).toMatch(/^Override or gate evaluation is unavailable:/u);

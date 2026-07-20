@@ -1,5 +1,11 @@
 import { Command } from "commander";
 
+import {
+  DEFAULT_WORKFLOW_ACTION_PROTOCOL,
+  SUPPORTED_WORKFLOW_ACTION_PROTOCOLS,
+  type WorkflowActionProtocol,
+  isWorkflowActionProtocol
+} from "../../integration/workflow-action-schema.js";
 import { formatError } from "../../theme/terminal.js";
 import {
   formatNextSummary,
@@ -22,12 +28,14 @@ type NextCommandOptions = {
   readonly strict?: boolean;
   readonly json?: boolean;
   readonly format?: string;
+  readonly protocol?: string;
 };
 
 function workflowOptions(
   targetPath: string | undefined,
   options: NextCommandOptions,
-  cwd: string | undefined
+  cwd: string | undefined,
+  protocol: WorkflowActionProtocol | undefined
 ): NextWorkflowOptions {
   return {
     targetPath,
@@ -37,7 +45,8 @@ function workflowOptions(
     commandOnly: options.commandOnly ?? false,
     explain: options.explain ?? false,
     strict: options.strict ?? false,
-    json: options.json ?? false
+    json: options.json ?? false,
+    protocol
   };
 }
 
@@ -56,8 +65,41 @@ export function createNextCommand(dependencies: NextCommandDependencies = {}): C
     .option("--strict", "Require all deterministic gates.")
     .option("--json", "Print a machine-readable summary.")
     .option("--format <format>", "Output format: text or json.")
+    .option("--protocol <version>", "WorkflowAction protocol: 2.0 or 3.0.")
     .action(async (targetPath: string | undefined, options: NextCommandOptions) => {
-      const result = await runNext(workflowOptions(targetPath, options, dependencies.cwd));
+      if (options.protocol !== undefined && options.format !== "json") {
+        writeErr(`${formatError("--protocol requires --format json.", { color: false })}\n`);
+        process.exitCode = 1;
+        return;
+      }
+
+      let protocol: WorkflowActionProtocol | undefined;
+      if (options.protocol !== undefined) {
+        if (!isWorkflowActionProtocol(options.protocol)) {
+          writeOut(
+            `${JSON.stringify(
+              {
+                success: false,
+                error: {
+                  code: "UNSUPPORTED_WORKFLOW_ACTION_PROTOCOL",
+                  requested: options.protocol,
+                  supported: SUPPORTED_WORKFLOW_ACTION_PROTOCOLS,
+                  default: DEFAULT_WORKFLOW_ACTION_PROTOCOL
+                }
+              },
+              null,
+              2
+            )}\n`
+          );
+          process.exitCode = 1;
+          return;
+        }
+        protocol = options.protocol;
+      }
+
+      const result = await runNext(
+        workflowOptions(targetPath, options, dependencies.cwd, protocol)
+      );
 
       if (!result.ok) {
         if (options.json) {
@@ -80,11 +122,11 @@ export function createNextCommand(dependencies: NextCommandDependencies = {}): C
         options.format === "json"
           ? `${JSON.stringify(result.value.action, null, 2)}\n`
           : options.json
-          ? `${JSON.stringify(result.value, null, 2)}\n`
-          : formatNextSummary(result.value, {
-              commandOnly: options.commandOnly,
-              explain: options.explain
-            })
+            ? `${JSON.stringify(result.value, null, 2)}\n`
+            : formatNextSummary(result.value, {
+                commandOnly: options.commandOnly,
+                explain: options.explain
+              })
       );
 
       if (!result.value.success) process.exitCode = 1;
