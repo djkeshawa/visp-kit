@@ -1,13 +1,82 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
-import { workflowActionV2Schema } from "../../src/integration/workflow-action.js";
+import {
+  type WorkflowActionV2,
+  workflowActionV2Schema
+} from "../../src/integration/workflow-action.js";
 import { runInitWorkflow } from "../../src/workflows/init.workflow.js";
 import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
+
+function expectExactWorkflowActionJson(
+  rawOutput: string,
+  expected: WorkflowActionV2
+): WorkflowActionV2 {
+  const action = workflowActionV2Schema.parse(JSON.parse(rawOutput));
+  expect(action).toEqual(expected);
+  expect(rawOutput).toBe(`${JSON.stringify(expected, null, 2)}\n`);
+  return action;
+}
+
+async function sha256File(filePath: string): Promise<string> {
+  return createHash("sha256")
+    .update(await readFile(filePath))
+    .digest("hex");
+}
+
+async function expectedPhase8Action(
+  targetPath: string,
+  overrides: Partial<WorkflowActionV2> = {}
+): Promise<WorkflowActionV2> {
+  const featurePath = ".visp/features/001-add-note-pinning";
+  const readDefinitions = [
+    { path: ".visp/policy.json", role: "policy" },
+    { path: `${featurePath}/intent.json`, role: "intent" },
+    { path: `${featurePath}/spec.json`, role: "specification" },
+    { path: `${featurePath}/plan.json`, role: "plan" },
+    { path: `${featurePath}/task-graph.json`, role: "task-graph" }
+  ].filter(
+    ({ path: readPath }) => readPath !== ".visp/policy.json" || overrides.verdict !== "blocked"
+  );
+  const requiredReads = await Promise.all(
+    readDefinitions.map(async ({ path: readPath, role }) => ({
+      path: readPath,
+      role,
+      sha256: await sha256File(path.join(targetPath, readPath))
+    }))
+  );
+
+  return {
+    protocolVersion: "2.0",
+    phase: "task",
+    taskId: "T001",
+    goal: "Update the note helper and test coverage for pinning.",
+    requiredReads,
+    writablePaths: [`${featurePath}/task-graph.json`, `${featurePath}/traceability.json`],
+    forbiddenPaths: [
+      "Dependency manifests and lockfiles unless dependency approval is part of this task"
+    ],
+    acceptanceOracles: [
+      {
+        id: "AC001",
+        expectedBehavior:
+          "Pinning a note places it before unpinned notes and unpinning restores ordinary ordering.",
+        validation: "unit"
+      }
+    ],
+    validationCommands: ["pnpm test"],
+    assuranceLevel: "advisory",
+    verdict: "ready",
+    findings: [],
+    nextCommand: "visp context --next",
+    ...overrides
+  };
+}
 
 describe("visp next command", () => {
   let tempDir: string;
@@ -86,7 +155,10 @@ describe("visp next command", () => {
 
     await program.parseAsync(["node", "visp", "next", tempDir, "--format", "json"]);
 
-    const action = workflowActionV2Schema.parse(JSON.parse(output.join("")));
+    const action = expectExactWorkflowActionJson(
+      output.join(""),
+      await expectedPhase8Action(tempDir)
+    );
     expect(action.protocolVersion).toBe("2.0");
     expect(action.phase).toBe("task");
     expect(action.verdict).toBe("ready");
@@ -103,7 +175,20 @@ describe("visp next command", () => {
 
     await program.parseAsync(["node", "visp", "next", tempDir, "--format", "json"]);
 
-    const action = workflowActionV2Schema.parse(JSON.parse(output.join("")));
+    const findings = [
+      "Required read is unavailable: .visp/policy.json.",
+      "VSP018: Policy file is missing.",
+      "VSP007: Implementation requires a context pack.",
+      "VSP020: Implementation checklist evidence is missing."
+    ];
+    const action = expectExactWorkflowActionJson(
+      output.join(""),
+      await expectedPhase8Action(tempDir, {
+        verdict: "blocked",
+        findings,
+        nextCommand: "visp policy init --strictness strict"
+      })
+    );
     expect(process.exitCode).toBe(1);
     expect(action).toMatchObject({
       protocolVersion: "2.0",
@@ -144,10 +229,24 @@ describe("visp next command", () => {
 
     const rawOutput = output.join("");
     expect(rawOutput.trim()).not.toBe("undefined");
-    const action = workflowActionV2Schema.parse(JSON.parse(rawOutput));
+    const finding = `Override or gate evaluation is unavailable: Invalid JSON in ${path.join(
+      tempDir,
+      ".visp",
+      "overrides.json"
+    )}: Expected property name or '}' in JSON at position 2 (line 1 column 3)`;
+    const action = expectExactWorkflowActionJson(
+      rawOutput,
+      await expectedPhase8Action(tempDir, {
+        verdict: "inconclusive",
+        findings: [finding],
+        nextCommand: "visp override validate"
+      })
+    );
 
     expect(process.exitCode).toBe(1);
     expect(action.verdict).toBe("inconclusive");
+    expect(action.findings).toHaveLength(1);
+    expect(action.findings[0]).toMatch(/^Override or gate evaluation is unavailable:/u);
     expect(
       action.findings.some(
         (finding) => /override/i.test(finding) && /(unavailable|evaluat)/i.test(finding)

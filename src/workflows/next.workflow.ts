@@ -5,7 +5,7 @@ import { loadProjectState } from "../orchestrator/project-state.js";
 import { recommendNextStep, type NextStep } from "../orchestrator/next-step.js";
 import { evaluatePolicyGate } from "../gates/policy-gate-summary.js";
 import { formatHeader } from "../theme/terminal.js";
-import { buildWorkflowActionV2, workflowActionV2Schema } from "../integration/workflow-action.js";
+import { buildWorkflowActionV2 } from "../integration/workflow-action.js";
 
 export type NextWorkflowOptions = {
   readonly targetPath?: string;
@@ -83,16 +83,9 @@ export async function runNextWorkflow(
       prAllowed: false,
       agentInstruction: `Do not implement code until \`${nextCommand}\` succeeds.`
     };
-    const baseAction = await buildWorkflowActionV2({ state: state.value, step: summary });
-
     return ok({
       ...summary,
-      action: workflowActionV2Schema.parse({
-        ...baseAction,
-        verdict: "inconclusive",
-        findings: [finding],
-        nextCommand
-      })
+      action: await buildWorkflowActionV2({ state: state.value, step: summary })
     });
   }
 

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createWorkflowActionId } from "../../../src/integration/canonical-json.js";
 import {
+  buildCanonicalWorkflowActionEnvelope,
   buildCanonicalWorkflowAction,
   canonicalWorkflowActionJson
 } from "../../../src/integration/canonical-workflow-action.js";
@@ -608,6 +609,116 @@ describe("CanonicalWorkflowAction 1.0", () => {
       state: "not_applicable",
       reasonCode: "no_active_task"
     });
+  });
+
+  it("keeps taskless specification oracles canonical while preserving source presentation order", async () => {
+    await writeReadFixtures(tempDir);
+    const secondRequirement = {
+      ...validRequirement,
+      id: "REQ-002",
+      title: "Second requirement",
+      description: "A second taskless requirement.",
+      acceptanceCriteria: [
+        {
+          ...validRequirement.acceptanceCriteria[0]!,
+          id: "AC-002",
+          requirementId: "REQ-002",
+          description: "Second criterion."
+        }
+      ]
+    };
+    const firstRequirement = {
+      ...validRequirement,
+      id: "REQ-010",
+      title: "First requirement",
+      description: "The first presented taskless requirement.",
+      acceptanceCriteria: [
+        {
+          ...validRequirement.acceptanceCriteria[0]!,
+          id: "AC-010",
+          requirementId: "REQ-010",
+          description: "First presented criterion."
+        }
+      ]
+    };
+    const baseSpec = specArtifact();
+    const state = projectState(tempDir, {
+      selectedTask: undefined,
+      taskGraph: undefined,
+      contextPack: undefined,
+      spec: {
+        ...baseSpec,
+        requirements: [firstRequirement, secondRequirement],
+        acceptanceCriteria: [
+          ...firstRequirement.acceptanceCriteria,
+          ...secondRequirement.acceptanceCriteria
+        ]
+      },
+      artifactSummary: {
+        ...projectState(tempDir).artifactSummary,
+        taskGraph: false,
+        context: false
+      }
+    });
+
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state,
+      step: actionStep(tempDir, {
+        task: null,
+        state: "tasks-needed",
+        nextCommand: "visp tasks",
+        nextAllowedCommand: "visp tasks"
+      })
+    });
+
+    expect(envelope.action.claims).toEqual({
+      state: "not_applicable",
+      reasonCode: "no_active_task"
+    });
+    expect(envelope.action.validationOracles.map((oracle) => oracle.id)).toEqual([
+      "AC-002",
+      "AC-010"
+    ]);
+    expect(envelope.v2Presentation.oracleOrder).toEqual(["AC-010", "AC-002"]);
+    expect(canonicalWorkflowActionJson(envelope.action)).not.toContain("v2Presentation");
+  });
+
+  it("fails closed on duplicate taskless specification oracles", async () => {
+    await writeReadFixtures(tempDir);
+    const baseSpec = specArtifact();
+    const duplicateCriterion = { ...baseSpec.acceptanceCriteria[0]! };
+    const state = projectState(tempDir, {
+      selectedTask: undefined,
+      taskGraph: undefined,
+      contextPack: undefined,
+      spec: {
+        ...baseSpec,
+        acceptanceCriteria: [duplicateCriterion, { ...duplicateCriterion }]
+      },
+      artifactSummary: {
+        ...projectState(tempDir).artifactSummary,
+        taskGraph: false,
+        context: false
+      }
+    });
+
+    const action = await buildCanonicalWorkflowAction({
+      state,
+      step: actionStep(tempDir, {
+        task: null,
+        state: "tasks-needed",
+        nextCommand: "visp tasks",
+        nextAllowedCommand: "visp tasks"
+      })
+    });
+
+    expect(action.verdict).toBe("inconclusive");
+    expect(action.validationOracles).toEqual([]);
+    expect(action.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "VISP.CONTRACT.CLAIM_MAPPING_DUPLICATE" })
+      ])
+    );
   });
 
   it("preserves context and PR scope needed by the unchanged v2 projection", async () => {

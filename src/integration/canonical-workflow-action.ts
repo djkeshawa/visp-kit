@@ -195,6 +195,18 @@ export type CanonicalWorkflowAction = CanonicalWorkflowActionIdentityInput & {
   readonly actionId: Sha256Hash;
 };
 
+export type CanonicalWorkflowActionV2Presentation = {
+  readonly writablePaths: readonly string[];
+  readonly forbiddenPaths: readonly string[];
+  readonly oracleOrder: readonly string[];
+  readonly findingOrder: readonly Sha256Hash[];
+};
+
+export type CanonicalWorkflowActionEnvelope = {
+  readonly action: CanonicalWorkflowAction;
+  readonly v2Presentation: CanonicalWorkflowActionV2Presentation;
+};
+
 type AddFinding = (finding: Finding, invalidatesDecision?: boolean) => void;
 
 type ReadCandidate = {
@@ -275,6 +287,11 @@ function normalizedFindings(findings: readonly Finding[]): Finding[] {
   return [...unique.values()].sort(findingComparator);
 }
 
+export function canonicalFindingReference(finding: Finding): Sha256Hash {
+  const normalized = { ...finding, evidence: normalizeEvidence(finding.evidence) };
+  return `sha256:${createHash("sha256").update(canonicalJsonV1(normalized)).digest("hex")}`;
+}
+
 function invalidPathFinding(input: string): Finding {
   return {
     code: "VISP.CONTRACT.INVALID_PROJECT_PATH",
@@ -311,13 +328,19 @@ function normalizeProjectPath(input: string, addFinding: AddFinding): string | u
   return compact;
 }
 
-function normalizePathSet(paths: readonly string[], addFinding: AddFinding): string[] {
+function normalizePathSetWithPresentation(
+  paths: readonly string[],
+  addFinding: AddFinding
+): { readonly values: string[]; readonly presentation: string[] } {
   const normalized: string[] = [];
+  const presentation: string[] = [];
   for (const input of paths) {
     const result = normalizeProjectPath(input, addFinding);
-    if (result !== undefined) normalized.push(result);
+    if (result === undefined) continue;
+    normalized.push(result);
+    presentation.push(input);
   }
-  return sortUnique(normalized);
+  return { values: sortUnique(normalized), presentation };
 }
 
 function phaseFromState(state: string): CanonicalWorkflowPhase {
@@ -665,7 +688,8 @@ function readCandidates(state: ProjectState, featurePath: string | undefined): R
 async function collectRequiredReads(
   state: ProjectState,
   candidates: readonly ReadCandidate[],
-  addFinding: AddFinding
+  addFinding: AddFinding,
+  v2FindingOrder: Sha256Hash[]
 ): Promise<HashedRead[]> {
   const reads: HashedRead[] = [];
 
@@ -682,7 +706,7 @@ async function collectRequiredReads(
         freshness: "content_hash"
       });
     } catch {
-      addFinding({
+      const finding: Finding = {
         code: "VISP.FRESHNESS.REQUIRED_READ_UNAVAILABLE",
         source: "freshness",
         severity: "error",
@@ -690,7 +714,9 @@ async function collectRequiredReads(
         message: `Required read is unavailable: ${safePath}.`,
         recommendation: "Restore or regenerate the required read before using this action.",
         evidence: [safePath]
-      });
+      };
+      addFinding(finding);
+      v2FindingOrder.push(canonicalFindingReference(finding));
     }
   }
 
@@ -723,48 +749,81 @@ function actionScope(input: {
   readonly featurePath?: string;
   readonly task?: Task;
   readonly addFinding: AddFinding;
-}): CanonicalWorkflowActionIdentityInput["scope"] {
+}): {
+  readonly scope: CanonicalWorkflowActionIdentityInput["scope"];
+  readonly presentation: Pick<
+    CanonicalWorkflowActionV2Presentation,
+    "writablePaths" | "forbiddenPaths"
+  >;
+} {
   const featurePaths = featureStagePaths(input.phase, input.featurePath);
   if (featurePaths !== undefined) {
-    const normalized = normalizePathSet(featurePaths, input.addFinding);
+    const writable = normalizePathSetWithPresentation(featurePaths, input.addFinding);
+    const forbidden = normalizePathSetWithPresentation(
+      input.task?.forbiddenFiles ?? [],
+      input.addFinding
+    );
     return {
-      writablePaths: normalized,
-      expectedPaths: available(normalized),
-      forbiddenPaths: normalizePathSet(input.task?.forbiddenFiles ?? [], input.addFinding),
-      operationLimits: unavailable("not_captured")
+      scope: {
+        writablePaths: writable.values,
+        expectedPaths: available(writable.values),
+        forbiddenPaths: forbidden.values,
+        operationLimits: unavailable("not_captured")
+      },
+      presentation: {
+        writablePaths: writable.presentation,
+        forbiddenPaths: forbidden.presentation
+      }
     };
   }
 
-  const forbiddenPaths = normalizePathSet(input.task?.forbiddenFiles ?? [], input.addFinding);
+  const forbidden = normalizePathSetWithPresentation(
+    input.task?.forbiddenFiles ?? [],
+    input.addFinding
+  );
   const usesTaskScope = input.phase === "implement" || input.phase === "pr";
   if (usesTaskScope && input.task !== undefined) {
-    const expected =
+    const expectedResult =
       input.task.expectedFiles === undefined
+        ? undefined
+        : normalizePathSetWithPresentation(input.task.expectedFiles, input.addFinding);
+    const expected =
+      expectedResult === undefined
         ? unavailable<readonly string[]>("not_in_source_artifact")
-        : available<readonly string[]>(
-            normalizePathSet(input.task.expectedFiles, input.addFinding)
-          );
-    const expectedValues = expected.state === "available" ? expected.value : [];
+        : available<readonly string[]>(expectedResult.values);
+    const writable = normalizePathSetWithPresentation(
+      [...new Set([...input.task.allowedFiles, ...(input.task.expectedFiles ?? [])])],
+      input.addFinding
+    );
     return {
-      writablePaths: normalizePathSet(
-        [...input.task.allowedFiles, ...expectedValues],
-        input.addFinding
-      ),
-      expectedPaths: expected,
-      forbiddenPaths,
-      operationLimits: unavailable("not_captured")
+      scope: {
+        writablePaths: writable.values,
+        expectedPaths: expected,
+        forbiddenPaths: forbidden.values,
+        operationLimits: unavailable("not_captured")
+      },
+      presentation: {
+        writablePaths: writable.presentation,
+        forbiddenPaths: forbidden.presentation
+      }
     };
   }
 
   return {
-    writablePaths: [],
-    expectedPaths: usesTaskScope
-      ? notApplicable("no_active_task")
-      : input.featurePath === undefined && input.phase === "feature"
-        ? notApplicable("no_active_feature")
-        : notApplicable("stage_does_not_require_value"),
-    forbiddenPaths,
-    operationLimits: unavailable("not_captured")
+    scope: {
+      writablePaths: [],
+      expectedPaths: usesTaskScope
+        ? notApplicable("no_active_task")
+        : input.featurePath === undefined && input.phase === "feature"
+          ? notApplicable("no_active_feature")
+          : notApplicable("stage_does_not_require_value"),
+      forbiddenPaths: forbidden.values,
+      operationLimits: unavailable("not_captured")
+    },
+    presentation: {
+      writablePaths: [],
+      forbiddenPaths: forbidden.presentation
+    }
   };
 }
 
@@ -774,14 +833,96 @@ function claimContext(
 ): {
   readonly claims: DeclaredValue<readonly RequirementClaim[]>;
   readonly oracles: readonly ValidationOracle[];
+  readonly oracleOrder: readonly string[];
 } {
   const task = state.selectedTask;
   if (task === undefined) {
-    return { claims: notApplicable("no_active_task"), oracles: [] };
+    const source = state.spec;
+    if (source === undefined) {
+      return {
+        claims: notApplicable("no_active_task"),
+        oracles: [],
+        oracleOrder: []
+      };
+    }
+    const duplicateRequirements = duplicateValues(source.requirements.map(({ id }) => id));
+    const duplicateCriteria = duplicateValues(source.acceptanceCriteria.map(({ id }) => id));
+    const requirementIds = new Set(source.requirements.map(({ id }) => id));
+    const invalidCriteria = source.acceptanceCriteria.filter(
+      (criterion) => !requirementIds.has(criterion.requirementId)
+    );
+    const crossFeatureRequirements = source.requirements.filter(
+      (requirement) =>
+        state.selectedFeature !== undefined && requirement.featureId !== state.selectedFeature.id
+    );
+    if (duplicateRequirements.length > 0 || duplicateCriteria.length > 0) {
+      addFinding({
+        code: "VISP.CONTRACT.CLAIM_MAPPING_DUPLICATE",
+        source: "contract",
+        severity: "error",
+        effect: "uncertain",
+        message: "Task claim sources contain duplicate stable IDs.",
+        recommendation: "Regenerate the task claim source with one record per stable ID.",
+        evidence: [
+          ...duplicateRequirements.map((id) => `requirement:${id}`),
+          ...duplicateCriteria.map((id) => `criterion:${id}`)
+        ]
+      });
+    }
+    if (crossFeatureRequirements.length > 0) {
+      addFinding({
+        code: "VISP.CONTRACT.REQUIREMENT_FEATURE_MISMATCH",
+        source: "contract",
+        severity: "error",
+        effect: "uncertain",
+        message: "One or more mapped requirements belong to another feature.",
+        recommendation: "Regenerate task mappings from the active feature specification.",
+        evidence: crossFeatureRequirements.map(
+          (requirement) => `${requirement.id}:${requirement.featureId}`
+        )
+      });
+    }
+    if (invalidCriteria.length > 0) {
+      addFinding({
+        code: "VISP.CONTRACT.CRITERION_MAPPING_MISSING",
+        source: "contract",
+        severity: "error",
+        effect: "uncertain",
+        message: "One or more task criterion mappings are absent or contradict their claim.",
+        recommendation: "Regenerate criterion bindings without inventing replacement oracles.",
+        evidence: invalidCriteria.map((criterion) => `${criterion.id}:${criterion.requirementId}`)
+      });
+    }
+    if (
+      duplicateRequirements.length > 0 ||
+      duplicateCriteria.length > 0 ||
+      crossFeatureRequirements.length > 0 ||
+      invalidCriteria.length > 0
+    ) {
+      return {
+        claims: notApplicable("no_active_task"),
+        oracles: [],
+        oracleOrder: []
+      };
+    }
+    const oracles: ValidationOracle[] = source.acceptanceCriteria.map((criterion) => ({
+      id: criterion.id,
+      claimId: criterion.requirementId,
+      statement: criterion.description,
+      testable: criterion.testable,
+      validationMethod: criterion.validationMethod
+    }));
+    const oracleOrder = oracles.map(({ id }) => id);
+    oracles.sort((left, right) => compareUtf16CodeUnits(left.id, right.id));
+    return {
+      claims: notApplicable("no_active_task"),
+      oracles,
+      oracleOrder
+    };
   }
 
   if (task.requirementIds.length === 0 && task.acceptanceCriterionIds.length === 0) {
-    return { claims: available([]), oracles: [] };
+    return { claims: available([]), oracles: [], oracleOrder: [] };
   }
 
   const source = state.contextPack ?? state.spec;
@@ -795,7 +936,7 @@ function claimContext(
       recommendation: "Generate or restore the selected task context and specification.",
       evidence: [...task.requirementIds, ...task.acceptanceCriterionIds]
     });
-    return { claims: unavailable("source_missing"), oracles: [] };
+    return { claims: unavailable("source_missing"), oracles: [], oracleOrder: [] };
   }
 
   const requirements = (
@@ -881,7 +1022,9 @@ function claimContext(
     missingRequirements.length > 0 ||
     missingCriteria.length > 0 ||
     invalidCriteria.length > 0;
-  if (sourceInvalid) return { claims: unavailable("source_invalid"), oracles: [] };
+  if (sourceInvalid) {
+    return { claims: unavailable("source_invalid"), oracles: [], oracleOrder: [] };
+  }
 
   const claims: RequirementClaim[] = requirements.map((requirement) => ({
     id: requirement.id,
@@ -903,9 +1046,10 @@ function claimContext(
     testable: criterion.testable,
     validationMethod: criterion.validationMethod
   }));
+  const oracleOrder = oracles.map(({ id }) => id);
   oracles.sort((left, right) => compareUtf16CodeUnits(left.id, right.id));
 
-  return { claims: available(claims), oracles };
+  return { claims: available(claims), oracles, oracleOrder };
 }
 
 function policyStatus(state: ProjectState, addFinding: AddFinding): DeclaredValue<PolicyStatus> {
@@ -930,7 +1074,7 @@ function policyStatus(state: ProjectState, addFinding: AddFinding): DeclaredValu
   return value === undefined ? unavailable("not_captured") : available(value);
 }
 
-function stepFindings(step: NextStep, addFinding: AddFinding): void {
+function stepFindings(step: NextStep, addFinding: AddFinding, v2FindingOrder: Sha256Hash[]): void {
   const failedRules = step.failedRules ?? [];
   const hasBlockingRule = failedRules.some((rule) => rule.severity === "error");
 
@@ -977,7 +1121,7 @@ function stepFindings(step: NextStep, addFinding: AddFinding): void {
   }
 
   for (const blocker of step.blockers) {
-    addFinding({
+    const finding: Finding = {
       code: "VISP.WORKFLOW.STATE_BLOCKER",
       source: "workflow",
       severity: "warning",
@@ -985,7 +1129,11 @@ function stepFindings(step: NextStep, addFinding: AddFinding): void {
       message: blocker,
       recommendation: step.nextCommand,
       evidence: [blocker]
-    });
+    };
+    addFinding(finding);
+    if (step.allowed === false) {
+      v2FindingOrder.push(canonicalFindingReference(finding));
+    }
   }
   for (const warning of step.warnings) {
     addFinding({
@@ -1007,11 +1155,13 @@ function verdict(findings: readonly Finding[], decisionContradiction: boolean): 
   return "ready";
 }
 
-export async function buildCanonicalWorkflowAction(input: {
+export async function buildCanonicalWorkflowActionEnvelope(input: {
   readonly state: ProjectState;
   readonly step: NextStep;
-}): Promise<CanonicalWorkflowAction> {
+}): Promise<CanonicalWorkflowActionEnvelope> {
   const pendingFindings: Finding[] = [];
+  const v2ReadFindingOrder: Sha256Hash[] = [];
+  const v2BlockerFindingOrder: Sha256Hash[] = [];
   let decisionContradiction = false;
   const addFinding: AddFinding = (finding, invalidatesDecision = false) => {
     pendingFindings.push(finding);
@@ -1036,7 +1186,7 @@ export async function buildCanonicalWorkflowAction(input: {
   projectStateFindings(input.state, input.step.nextCommand, addFinding);
   identityFindings(input.state, input.step, addFinding);
   sourceIdentityFindings(input.state, addFinding);
-  stepFindings(input.step, addFinding);
+  stepFindings(input.step, addFinding, v2BlockerFindingOrder);
 
   const featurePath =
     input.state.selectedFeature === undefined
@@ -1045,9 +1195,10 @@ export async function buildCanonicalWorkflowAction(input: {
   const reads = await collectRequiredReads(
     input.state,
     readCandidates(input.state, featurePath),
-    addFinding
+    addFinding,
+    v2ReadFindingOrder
   );
-  const scope = actionScope({
+  const scopeSelection = actionScope({
     phase,
     featurePath,
     task: input.state.selectedTask,
@@ -1100,7 +1251,7 @@ export async function buildCanonicalWorkflowAction(input: {
     goal,
     baseCommit: unavailable("not_captured"),
     requiredReads: reads,
-    scope,
+    scope: scopeSelection.scope,
     claims: claimSelection.claims,
     validationOracles: claimSelection.oracles,
     validationCommands: [
@@ -1125,11 +1276,27 @@ export async function buildCanonicalWorkflowAction(input: {
   const actionId = createWorkflowActionId(finalIdentityInput);
   const { canonicalVersion, ...actionBody } = finalIdentityInput;
 
-  return {
+  const action: CanonicalWorkflowAction = {
     canonicalVersion,
     actionId,
     ...actionBody
   };
+  return {
+    action,
+    v2Presentation: {
+      writablePaths: scopeSelection.presentation.writablePaths,
+      forbiddenPaths: scopeSelection.presentation.forbiddenPaths,
+      oracleOrder: claimSelection.oracleOrder,
+      findingOrder: [...v2ReadFindingOrder, ...v2BlockerFindingOrder]
+    }
+  };
+}
+
+export async function buildCanonicalWorkflowAction(input: {
+  readonly state: ProjectState;
+  readonly step: NextStep;
+}): Promise<CanonicalWorkflowAction> {
+  return (await buildCanonicalWorkflowActionEnvelope(input)).action;
 }
 
 export function canonicalWorkflowActionJson(action: CanonicalWorkflowAction): string {

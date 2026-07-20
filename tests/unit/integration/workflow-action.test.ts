@@ -4,13 +4,25 @@ import { dirname, join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { createWorkflowActionId } from "../../../src/integration/canonical-json.js";
 import {
   buildWorkflowActionV2,
+  projectWorkflowActionV2,
   workflowActionV2Schema
 } from "../../../src/integration/workflow-action.js";
+import {
+  buildCanonicalWorkflowActionEnvelope,
+  canonicalFindingReference
+} from "../../../src/integration/canonical-workflow-action.js";
 import { type NextStep } from "../../../src/orchestrator/next-step.js";
 import { type ProjectState } from "../../../src/orchestrator/project-state.js";
-import { validContextPack, validTaskGraph } from "../artifacts/fixtures.js";
+import {
+  timestamp,
+  validContextPack,
+  validFeature,
+  validRequirement,
+  validTaskGraph
+} from "../artifacts/fixtures.js";
 
 const featurePath = ".visp/features/001-note-pinning";
 const task = {
@@ -84,7 +96,11 @@ function projectState(targetPath: string): ProjectState {
       id: "001",
       slug: "note-pinning",
       key: "001-note-pinning",
-      relativePath: featurePath
+      relativePath: featurePath,
+      intent: {
+        ...validFeature,
+        rawUserRequest: "Pin notes"
+      }
     },
     selectedTask: task,
     taskGraph: {
@@ -147,6 +163,7 @@ function actionStep(targetPath: string, overrides: Partial<NextStep> = {}): Next
     strictnessMode: "strict",
     nextAllowedCommand: nextCommand,
     allowed: true,
+    failedRules: [],
     implementationAllowed: true,
     prAllowed: false,
     ...overrides
@@ -211,12 +228,35 @@ describe("WorkflowAction 2.0", () => {
         blockers: ["VSP007: Implementation requires a context pack."],
         strictnessMode: "locked",
         allowed: false,
+        failedRules: [
+          {
+            ruleId: "VSP007",
+            severity: "error",
+            message: "Implementation requires a context pack.",
+            recommendation: "Generate the selected task context pack.",
+            evidence: "context pack missing"
+          }
+        ],
         implementationAllowed: false
       })
     });
 
-    expect(action).toMatchObject({
+    expect(action).toEqual({
       protocolVersion: "2.0",
+      phase: "task",
+      taskId: "T001",
+      goal: "Implement pinned-first sorting in the note module.",
+      requiredReads: readFixtures.map(({ path, role, sha256 }) => ({ path, role, sha256 })),
+      writablePaths: [`${featurePath}/task-graph.json`, `${featurePath}/traceability.json`],
+      forbiddenPaths: ["package.json"],
+      acceptanceOracles: [
+        {
+          id: "AC-001",
+          expectedBehavior: "Pinned notes are sorted before unpinned notes.",
+          validation: "unit"
+        }
+      ],
+      validationCommands: ["pnpm test"],
       assuranceLevel: "kit_strict",
       verdict: "blocked",
       findings: ["VSP007: Implementation requires a context pack."],
@@ -239,7 +279,24 @@ describe("WorkflowAction 2.0", () => {
         .filter((fixture) => fixture.path !== missingPath)
         .map(({ path, role, sha256 }) => ({ path, role, sha256 }))
     );
-    expect(action).toMatchObject({
+    expect(action).toEqual({
+      protocolVersion: "2.0",
+      phase: "implement",
+      taskId: "T001",
+      goal: "Implement pinned-first sorting in the note module.",
+      requiredReads: readFixtures
+        .filter((fixture) => fixture.path !== missingPath)
+        .map(({ path, role, sha256 }) => ({ path, role, sha256 })),
+      writablePaths: ["src/notes/sort.ts", "tests/notes/sort.test.ts"],
+      forbiddenPaths: ["package.json"],
+      acceptanceOracles: [
+        {
+          id: "AC-001",
+          expectedBehavior: "Pinned notes are sorted before unpinned notes.",
+          validation: "unit"
+        }
+      ],
+      validationCommands: ["pnpm test"],
       assuranceLevel: "advisory",
       verdict: "inconclusive",
       findings: [`Required read is unavailable: ${missingPath}.`],
@@ -263,5 +320,398 @@ describe("WorkflowAction 2.0", () => {
 
     expect(action.assuranceLevel).toBe(assuranceLevel);
     expect(action.assuranceLevel).not.toBe("local_checked");
+  });
+
+  it.each([
+    ["clarify", "clarify"],
+    ["spec", "specify"],
+    ["plan", "plan"],
+    ["tasks", "task"],
+    ["context", "task"],
+    ["verify", "verify"],
+    ["review", "verify"],
+    ["reconcile", "verify"],
+    ["next", "implement"],
+    ["setup", "implement"],
+    ["feature", "implement"],
+    ["implement", "implement"],
+    ["pr", "implement"]
+  ] as const)("projects canonical %s to legacy %s", async (canonicalPhase, legacyPhase) => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    const { actionId: _actionId, ...identityInput } = envelope.action;
+    const projectedIdentity = { ...identityInput, phase: canonicalPhase };
+    const action = projectWorkflowActionV2({
+      ...envelope,
+      action: {
+        ...projectedIdentity,
+        actionId: createWorkflowActionId(projectedIdentity)
+      }
+    });
+
+    expect(action.phase).toBe(legacyPhase);
+  });
+
+  it.each([
+    ["scan-needed", "implement", []],
+    ["constitution-needed", "implement", []],
+    [
+      "checklist-needed",
+      "task",
+      [`${featurePath}/task-graph.json`, `${featurePath}/traceability.json`]
+    ],
+    ["verification-failed", "verify", []],
+    ["traceability-update-needed", "verify", []]
+  ] as const)("uses the frozen canonical phase and scope for legacy %s", async (stateName, phase, writablePaths) => {
+    await writeReadFixtures(tempDir);
+
+    const action = await buildWorkflowActionV2({
+      state: projectState(tempDir),
+      step: actionStep(tempDir, { state: stateName })
+    });
+
+    expect(action.phase).toBe(phase);
+    expect(action.writablePaths).toEqual(writablePaths);
+  });
+
+  it("preserves safe legacy path presentation while validating canonical scope", async () => {
+    await writeReadFixtures(tempDir);
+    const base = projectState(tempDir);
+    const presentedTask = {
+      ...task,
+      allowedFiles: ["src\\z.ts", "src/a file.ts", "src/z.ts", "src\\z.ts"],
+      expectedFiles: ["tests\\b.test.ts", "src/a file.ts"],
+      forbiddenFiles: ["secrets\\key", "package.json", "secrets/key"]
+    };
+    const state: ProjectState = {
+      ...base,
+      selectedTask: presentedTask,
+      taskGraph: { ...base.taskGraph!, tasks: [presentedTask] },
+      contextPack: { ...base.contextPack!, selectedTask: presentedTask }
+    };
+
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state,
+      step: actionStep(tempDir)
+    });
+    const action = projectWorkflowActionV2(envelope);
+
+    expect(envelope.action.scope.writablePaths).toEqual([
+      "src/a file.ts",
+      "src/z.ts",
+      "tests/b.test.ts"
+    ]);
+    expect(action.writablePaths).toEqual([
+      "src\\z.ts",
+      "src/a file.ts",
+      "src/z.ts",
+      "tests\\b.test.ts"
+    ]);
+    expect(action.forbiddenPaths).toEqual(["secrets\\key", "package.json", "secrets/key"]);
+  });
+
+  it("projects taskless specification oracles in legacy source order", async () => {
+    await writeReadFixtures(tempDir);
+    const firstCriterion = {
+      ...validRequirement.acceptanceCriteria[0]!,
+      id: "AC-010",
+      description: "First presented criterion."
+    };
+    const secondCriterion = {
+      ...validRequirement.acceptanceCriteria[0]!,
+      id: "AC-002",
+      description: "Second presented criterion."
+    };
+    const state: ProjectState = {
+      ...projectState(tempDir),
+      selectedTask: undefined,
+      taskGraph: undefined,
+      contextPack: undefined,
+      spec: {
+        featureId: "001",
+        featureSlug: "note-pinning",
+        title: "Add note pinning",
+        status: "ready",
+        userStories: [],
+        requirements: [
+          {
+            ...validRequirement,
+            acceptanceCriteria: [firstCriterion, secondCriterion]
+          }
+        ],
+        acceptanceCriteria: [firstCriterion, secondCriterion],
+        businessRules: [],
+        nonFunctionalRequirements: {
+          performance: [],
+          security: [],
+          accessibility: [],
+          reliability: [],
+          maintainability: []
+        },
+        edgeCases: [],
+        assumptions: [],
+        outOfScope: [],
+        createdAt: timestamp,
+        updatedAt: timestamp
+      },
+      artifactSummary: {
+        ...projectState(tempDir).artifactSummary,
+        taskGraph: false,
+        context: false
+      }
+    };
+
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state,
+      step: actionStep(tempDir, {
+        task: null,
+        state: "tasks-needed",
+        nextCommand: "visp tasks",
+        nextAllowedCommand: "visp tasks"
+      })
+    });
+    const action = projectWorkflowActionV2(envelope);
+
+    expect(envelope.action.validationOracles.map((oracle) => oracle.id)).toEqual([
+      "AC-002",
+      "AC-010"
+    ]);
+    expect(action).toEqual({
+      protocolVersion: "2.0",
+      phase: "task",
+      taskId: null,
+      goal: "Pin notes",
+      requiredReads: readFixtures
+        .filter(({ role }) => ["policy", "intent", "specification", "plan"].includes(role))
+        .map(({ path: readPath, role, sha256 }) => ({ path: readPath, role, sha256 })),
+      writablePaths: [`${featurePath}/task-graph.json`, `${featurePath}/traceability.json`],
+      forbiddenPaths: [],
+      acceptanceOracles: [
+        {
+          id: "AC-010",
+          expectedBehavior: "First presented criterion.",
+          validation: "unit"
+        },
+        {
+          id: "AC-002",
+          expectedBehavior: "Second presented criterion.",
+          validation: "unit"
+        }
+      ],
+      validationCommands: [],
+      assuranceLevel: "kit_strict",
+      verdict: "ready",
+      findings: [],
+      nextCommand: "visp tasks"
+    });
+  });
+
+  it("rejects presentation scope that does not match canonical scope", async () => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    expect(() =>
+      projectWorkflowActionV2({
+        ...envelope,
+        v2Presentation: {
+          ...envelope.v2Presentation,
+          writablePaths: [...envelope.v2Presentation.writablePaths, "src/not-authorized.ts"]
+        }
+      })
+    ).toThrow(/presentation.*scope/i);
+  });
+
+  it("rejects tampered oracle, finding, and action identity presentation", async () => {
+    await writeReadFixtures(tempDir);
+    const envelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    expect(() =>
+      projectWorkflowActionV2({
+        ...envelope,
+        v2Presentation: { ...envelope.v2Presentation, oracleOrder: [] }
+      })
+    ).toThrow(/oracle set/i);
+    expect(() =>
+      projectWorkflowActionV2({
+        ...envelope,
+        v2Presentation: {
+          ...envelope.v2Presentation,
+          findingOrder: [`sha256:${"0".repeat(64)}`]
+        }
+      })
+    ).toThrow(/finding set/i);
+    expect(() =>
+      projectWorkflowActionV2({
+        ...envelope,
+        action: { ...envelope.action, actionId: `sha256:${"0".repeat(64)}` }
+      })
+    ).toThrow(/identity is invalid/i);
+  });
+
+  it("rejects omitted legacy findings and injected ready-state blockers", async () => {
+    const missingPath = ".visp/prompts/current-task.prompt.md";
+    await writeReadFixtures(tempDir, new Set([missingPath]));
+    const missingEnvelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir)
+    });
+
+    expect(() =>
+      projectWorkflowActionV2({
+        ...missingEnvelope,
+        v2Presentation: { ...missingEnvelope.v2Presentation, findingOrder: [] }
+      })
+    ).toThrow(/finding set/i);
+
+    await writeReadFixtures(tempDir);
+    const readyEnvelope = await buildCanonicalWorkflowActionEnvelope({
+      state: projectState(tempDir),
+      step: actionStep(tempDir, { blockers: ["Non-authoritative workflow note."] })
+    });
+    const blocker = readyEnvelope.action.findings.find(
+      (finding) => finding.code === "VISP.WORKFLOW.STATE_BLOCKER"
+    )!;
+    expect(readyEnvelope.action.verdict).toBe("ready");
+    expect(() =>
+      projectWorkflowActionV2({
+        ...readyEnvelope,
+        v2Presentation: {
+          ...readyEnvelope.v2Presentation,
+          findingOrder: [canonicalFindingReference(blocker)]
+        }
+      })
+    ).toThrow(/finding set/i);
+  });
+
+  it("preserves missing-read then blocker order with first-occurrence deduplication", async () => {
+    const missingPolicy = ".visp/policy.json";
+    const missingPrompt = ".visp/prompts/current-task.prompt.md";
+    await writeReadFixtures(tempDir, new Set([missingPolicy, missingPrompt]));
+    const policyBlock = "VSP007: Implementation requires a context pack.";
+
+    const action = await buildWorkflowActionV2({
+      state: projectState(tempDir),
+      step: actionStep(tempDir, {
+        success: false,
+        allowed: false,
+        implementationAllowed: false,
+        blockers: [policyBlock, "Later blocker.", policyBlock],
+        failedRules: [
+          {
+            ruleId: "VSP007",
+            severity: "error",
+            message: "Implementation requires a context pack.",
+            recommendation: "Generate the selected task context pack.",
+            evidence: "context pack missing"
+          }
+        ]
+      })
+    });
+
+    expect(action.verdict).toBe("blocked");
+    expect(action.findings).toEqual([
+      `Required read is unavailable: ${missingPolicy}.`,
+      `Required read is unavailable: ${missingPrompt}.`,
+      policyBlock,
+      "Later blocker."
+    ]);
+  });
+
+  it("fails closed when canonical identity contradicts the workflow input", async () => {
+    await writeReadFixtures(tempDir);
+
+    const action = await buildWorkflowActionV2({
+      state: projectState(tempDir),
+      step: actionStep(tempDir, { targetPath: join(tempDir, "other") })
+    });
+
+    expect(action.verdict).toBe("inconclusive");
+    expect(action.findings).toContain("Project state and next-step target paths disagree.");
+  });
+
+  it.each([
+    [
+      "task identity",
+      { task: { id: "T999", title: "Stale task", status: "ready" } },
+      "Project state and next-step task identity disagree."
+    ],
+    [
+      "next command",
+      { nextAllowedCommand: "visp context T001" },
+      "The evaluated next command disagrees with the authoritative allowed command."
+    ],
+    [
+      "workflow state",
+      { state: "future-needed" },
+      'Workflow state is not mapped by canonical version 1.0: "future-needed".'
+    ]
+  ] as const)("projects a %s contradiction as inconclusive", async (_label, overrides, finding) => {
+    await writeReadFixtures(tempDir);
+
+    const action = await buildWorkflowActionV2({
+      state: projectState(tempDir),
+      step: actionStep(tempDir, overrides)
+    });
+
+    expect(action.verdict).toBe("inconclusive");
+    expect(action.findings).toContain(finding);
+    expect(action.verdict).not.toBe("ready");
+  });
+
+  it("keeps the selected terminal task in a valid next-task projection", async () => {
+    await writeReadFixtures(tempDir);
+    const base = projectState(tempDir);
+    const completedTask = { ...task, status: "done" as const };
+    const nextTask = {
+      ...task,
+      id: "T002",
+      title: "Implement the next note task",
+      status: "ready" as const,
+      dependsOn: ["T001"]
+    };
+    const state: ProjectState = {
+      ...base,
+      selectedTask: completedTask,
+      taskGraph: { ...base.taskGraph!, tasks: [completedTask, nextTask] },
+      contextPack: {
+        ...base.contextPack!,
+        taskId: "T001",
+        selectedTask: completedTask
+      }
+    };
+
+    const action = await buildWorkflowActionV2({
+      state,
+      step: actionStep(tempDir, {
+        task: { id: nextTask.id, title: nextTask.title, status: nextTask.status },
+        state: "next-task-needed",
+        nextCommand: "visp context T002",
+        nextAllowedCommand: "visp context T002"
+      })
+    });
+
+    expect(action).toMatchObject({
+      phase: "task",
+      taskId: "T001",
+      goal: completedTask.description,
+      writablePaths: [`${featurePath}/task-graph.json`, `${featurePath}/traceability.json`],
+      validationCommands: ["pnpm test"],
+      verdict: "ready",
+      findings: [],
+      nextCommand: "visp context T002"
+    });
+    expect(action.requiredReads.map(({ path: readPath }) => readPath)).toContain(
+      `${featurePath}/context/T001.context.json`
+    );
   });
 });
