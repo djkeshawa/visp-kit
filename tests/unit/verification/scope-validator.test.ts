@@ -49,4 +49,60 @@ describe("scope validator", () => {
     expect(result.changedFiles).toEqual([]);
     expect(result.status).toBe("passed");
   });
+
+  it("normalizes declared scope while preserving raw changed filename identity", () => {
+    const changedFiles = [
+      "src/notes/sort.ts",
+      " src/notes/sort.ts",
+      "src/notes/sort.ts ",
+      "src/notes/sort.ts\t",
+      "src/notes/sort.ts\n",
+      "src\\notes\\sort.ts"
+    ];
+    const result = validateScope({
+      changedFiles,
+      task: {
+        ...validTaskGraph.tasks[0]!,
+        allowedFiles: [" src\\notes\\sort.ts "]
+      },
+      explicit: true,
+      gitWarnings: []
+    });
+
+    expect(result.allowedFiles).toEqual(["src/notes/sort.ts"]);
+    expect(result.changedFiles).toEqual([...changedFiles].sort());
+    expect(result.outOfScopeFiles).toEqual(changedFiles.slice(1).sort());
+    expect(result.status).toBe("failed");
+  });
+
+  it("continues to promote Git warnings when explicit scope is requested", () => {
+    const warning = "Git untracked file enumeration failed: unavailable";
+    const result = validateScope({
+      changedFiles: ["src/notes/sort.ts"],
+      task: validTaskGraph.tasks[0],
+      explicit: true,
+      gitWarnings: [warning]
+    });
+
+    expect(result.errors).toContain(warning);
+    expect(result.status).toBe("failed");
+  });
+
+  it("excludes only valid raw generated paths from explicit verification scope", () => {
+    const invalidMarker = ".visp/state/implement-allowed/bad id.json";
+    const result = validateScope({
+      changedFiles: [
+        ".visp/state/implement-allowed.json",
+        ".visp/state/implement-allowed/T001.json",
+        invalidMarker
+      ],
+      task: validTaskGraph.tasks[0],
+      explicit: true,
+      gitWarnings: []
+    });
+
+    expect(result.changedFiles).toEqual([invalidMarker]);
+    expect(result.outOfScopeFiles).toEqual([invalidMarker]);
+    expect(result.status).toBe("failed");
+  });
 });

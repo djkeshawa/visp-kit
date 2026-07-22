@@ -78,6 +78,7 @@ import {
 import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 import { VispError, toVispError } from "../core/errors.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
+import { listGitUntrackedFiles } from "../core/git-untracked.js";
 import { relativePath, vispDir } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
 import { parseFeatureNumber } from "../features/feature-id.js";
@@ -272,22 +273,35 @@ async function gitState(targetPath: string, runner: CommandRunner): Promise<GitS
   }
 
   const branch = await runner.run("git", ["branch", "--show-current"], { cwd: targetPath });
-  const staged = await runner.run("git", ["diff", "--cached", "--name-only"], { cwd: targetPath });
-  const unstaged = await runner.run("git", ["diff", "--name-only"], { cwd: targetPath });
+  const staged = await runner.run("git", ["diff", "--cached", "--name-only", "-z", "--"], {
+    cwd: targetPath
+  });
+  const unstaged = await runner.run("git", ["diff", "--name-only", "-z", "--"], {
+    cwd: targetPath
+  });
+  const untracked = await listGitUntrackedFiles({ targetPath, commandRunner: runner });
 
   if (!branch.ok) warnings.push("Unable to read current Git branch.");
   if (!staged.ok) warnings.push("Unable to read staged Git changes.");
   if (!unstaged.ok) warnings.push("Unable to read unstaged Git changes.");
+  if (!untracked.ok) warnings.push("Unable to read untracked Git changes.");
 
-  const stagedFiles = staged.ok ? staged.value.stdout.split(/\r?\n/).filter(Boolean) : [];
-  const unstagedFiles = unstaged.ok ? unstaged.value.stdout.split(/\r?\n/).filter(Boolean) : [];
+  const stagedFiles = staged.ok
+    ? staged.value.stdout.split("\0").filter((filePath) => filePath.length > 0)
+    : [];
+  const unstagedFiles = unstaged.ok
+    ? unstaged.value.stdout.split("\0").filter((filePath) => filePath.length > 0)
+    : [];
+  const unstagedAndUntracked = [
+    ...new Set([...unstagedFiles, ...(untracked.ok ? untracked.value : [])])
+  ];
 
   return {
     isRepo: true,
     branch: branch.ok ? branch.value.stdout.trim() || null : null,
     stagedCount: stagedFiles.length,
-    unstagedCount: unstagedFiles.length,
-    changedFiles: [...new Set([...stagedFiles, ...unstagedFiles])].sort(),
+    unstagedCount: unstagedAndUntracked.length,
+    changedFiles: [...new Set([...stagedFiles, ...unstagedAndUntracked])].sort(),
     warnings
   };
 }

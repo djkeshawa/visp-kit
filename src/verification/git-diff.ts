@@ -1,4 +1,5 @@
 import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
+import { listGitUntrackedFiles } from "../core/git-untracked.js";
 
 export type GitDiffResult = {
   readonly changedFiles: readonly string[];
@@ -7,10 +8,7 @@ export type GitDiffResult = {
 };
 
 function parseFiles(stdout: string): readonly string[] {
-  return stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  return stdout.split("\0").filter((filePath) => filePath.length > 0);
 }
 
 async function diffNames(input: {
@@ -44,18 +42,32 @@ export async function getGitChangedFiles(input: {
   const runner = input.commandRunner ?? defaultCommandRunner;
   const unstaged = await diffNames({
     targetPath: input.targetPath,
-    args: ["diff", "--name-only"],
+    args: ["diff", "--name-only", "-z", "--"],
     runner
   });
   const staged = await diffNames({
     targetPath: input.targetPath,
-    args: ["diff", "--cached", "--name-only"],
+    args: ["diff", "--cached", "--name-only", "-z", "--"],
     runner
+  });
+  const untracked = await listGitUntrackedFiles({
+    targetPath: input.targetPath,
+    commandRunner: runner
   });
 
   return {
-    changedFiles: [...new Set([...unstaged.changedFiles, ...staged.changedFiles])].sort(),
-    warnings: [...unstaged.warnings, ...staged.warnings],
+    changedFiles: [
+      ...new Set([
+        ...unstaged.changedFiles,
+        ...staged.changedFiles,
+        ...(untracked.ok ? untracked.value : [])
+      ])
+    ].sort(),
+    warnings: [
+      ...unstaged.warnings,
+      ...staged.warnings,
+      ...(untracked.ok ? [] : [`Git untracked file enumeration failed: ${untracked.error.message}`])
+    ],
     errors: [...unstaged.errors, ...staged.errors]
   };
 }

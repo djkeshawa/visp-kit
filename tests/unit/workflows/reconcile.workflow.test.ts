@@ -8,6 +8,7 @@ import {
   contextPackArtifactPath,
   featureReconcileMarkdownPath,
   featureIntentArtifactPath,
+  planArtifactPath,
   projectProfileArtifactPath,
   specArtifactPath,
   taskGraphArtifactPath,
@@ -21,6 +22,7 @@ import {
 import { writeArtifact } from "../../../src/artifacts/artifact-writer.js";
 import { contextPackSchema } from "../../../src/artifacts/schemas/context-pack.schema.js";
 import { featureIntentSchema } from "../../../src/artifacts/schemas/feature.schema.js";
+import { planDraftArtifactSchema } from "../../../src/artifacts/schemas/plan.schema.js";
 import { projectProfileSchema } from "../../../src/artifacts/schemas/project.schema.js";
 import { reviewReportSchema } from "../../../src/artifacts/schemas/review.schema.js";
 import { specArtifactSchema } from "../../../src/artifacts/schemas/spec.schema.js";
@@ -54,7 +56,12 @@ function expectOk<T>(result: { ok: true; value: T } | { ok: false }): T {
   return result.value;
 }
 
-function gitRunner(filePath = "src/notes/sort.ts"): CommandRunner {
+function gitRunner(
+  filePath: string | readonly string[] = "src/notes/sort.ts",
+  untrackedFiles: readonly string[] = []
+): CommandRunner {
+  const trackedFiles = typeof filePath === "string" ? [filePath] : filePath;
+
   return {
     async run(command, args, options) {
       const joined = (args ?? []).join(" ");
@@ -62,12 +69,15 @@ function gitRunner(filePath = "src/notes/sort.ts"): CommandRunner {
 
       if (joined === "rev-parse --is-inside-work-tree") {
         stdout = "true\n";
+      } else if (joined === "ls-files --others --exclude-standard -z --") {
+        stdout = untrackedFiles.length > 0 ? `${untrackedFiles.join("\0")}\0` : "";
       } else if (joined.includes("--name-status")) {
-        stdout = `M\t${filePath}\n`;
+        stdout = trackedFiles.map((trackedFile) => `M\0${trackedFile}\0`).join("");
       } else if (joined.includes("--numstat")) {
-        stdout = `4\t1\t${filePath}\n`;
+        stdout = trackedFiles.map((trackedFile) => `4\t1\t${trackedFile}\0`).join("");
       } else {
-        stdout = `diff --git a/${filePath} b/${filePath}\n+changed\n`;
+        const displayPath = trackedFiles[0] ?? "unknown";
+        stdout = `diff --git a/${displayPath} b/${displayPath}\n+changed\n`;
       }
 
       return ok({
@@ -196,6 +206,85 @@ async function createReconcileFixture(rootPath: string): Promise<void> {
       warnings: []
     },
     { artifactName: "review report" }
+  );
+}
+
+async function writeApprovedDependencyPlan(rootPath: string): Promise<void> {
+  await writeArtifact(
+    planArtifactPath(rootPath, "001-add-note-pinning"),
+    planDraftArtifactSchema,
+    {
+      featureId: "001",
+      featureSlug: "add-note-pinning",
+      status: "ready",
+      evidence: {
+        knownFromUser: ["Dependency change requested."],
+        knownFromSpecification: ["REQ-001"],
+        knownFromCodebase: ["package.json"],
+        knownFromConstitution: ["Human approval required."],
+        inferred: [],
+        assumed: [],
+        unknown: []
+      },
+      affectedModules: [
+        {
+          moduleOrFileArea: "package.json",
+          reason: "Approve the canonical dependency change.",
+          evidence: "Plan dependency decision."
+        }
+      ],
+      implementationApproach: "Update the canonical dependency manifest after approval.",
+      impacts: {
+        dataModel: "None.",
+        api: "None.",
+        ui: "None.",
+        securityPrivacy: "Dependency review required.",
+        performance: "None."
+      },
+      testingStrategy: [
+        {
+          level: "unit",
+          whatToTest: "Dependency behavior.",
+          validationCommand: "pnpm test"
+        }
+      ],
+      rollbackStrategy: "Revert the canonical dependency change.",
+      alternatives: [
+        {
+          option: "Do not add the dependency.",
+          decision: "rejected",
+          reason: "The plan explicitly approves it."
+        }
+      ],
+      dependencies: {
+        newDependenciesRequired: true,
+        notes: "The canonical package.json dependency change requires approval.",
+        requiresApproval: true
+      },
+      risks: [
+        {
+          id: "RISK001",
+          description: "Dependency compatibility risk.",
+          level: "medium",
+          mitigation: "Run the documented checks.",
+          requirementIds: ["REQ-001"]
+        }
+      ],
+      decisions: [
+        {
+          id: "PD001",
+          title: "Approve canonical dependency",
+          decision: "Approve package.json only.",
+          reason: "The canonical dependency is required.",
+          evidence: "Plan dependency decision.",
+          impacts: "Dependency manifest only.",
+          requirementIds: ["REQ-001"]
+        }
+      ],
+      createdAt: timestamp,
+      updatedAt: timestamp
+    },
+    { artifactName: "plan" }
   );
 }
 
@@ -334,5 +423,88 @@ describe("runReconcileWorkflow", () => {
     await expect(
       readFile(taskReconcileArtifactPath(tempDir, "001-add-note-pinning", "T001"), "utf8")
     ).rejects.toThrow();
+  });
+
+  it("inventories a literal-backslash untracked lookalike and fails reconciliation", async () => {
+    await createReconcileFixture(tempDir);
+    const lookalike = "src\\notes\\sort.ts";
+    await writeFile(path.join(tempDir, lookalike), "export const lookalike = true;\n");
+
+    const summary = expectOk(
+      await runReconcileWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        dryRun: true,
+        commandRunner: gitRunner("src/notes/sort.ts", [lookalike]),
+        now: timestamp
+      })
+    );
+
+    expect(summary.changedFiles.map((file) => file.path)).toContain(lookalike);
+    expect(summary.result).toBe("failed");
+  });
+
+  it("preserves unstaged tracked lookalikes and controls as failing identities", async () => {
+    await createReconcileFixture(tempDir);
+    const trackedPaths = [
+      " src/notes/sort.ts",
+      "src/notes/sort.ts ",
+      "src\\notes\\sort.ts",
+      "src/notes/tab\tname.ts",
+      "src/notes/line\nname.ts",
+      "src/notes/control\u0001name.ts",
+      ".visp\\state\\implement-allowed\\T001.json"
+    ];
+
+    const summary = expectOk(
+      await runReconcileWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        unstaged: true,
+        dryRun: true,
+        commandRunner: gitRunner(trackedPaths),
+        now: timestamp
+      })
+    );
+
+    expect(summary.changedFiles.map((file) => file.path)).toEqual([...trackedPaths].sort());
+    expect(summary.result).toBe("failed");
+  });
+
+  it("keeps approved canonical dependency lookalikes unmapped and blocking", async () => {
+    await createReconcileFixture(tempDir);
+    await writeApprovedDependencyPlan(tempDir);
+    const lookalikes = [
+      " package.json",
+      "package.json ",
+      "\tpackage.json",
+      "package.json\t",
+      "package.json\n"
+    ];
+
+    const summary = expectOk(
+      await runReconcileWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        unstaged: true,
+        dryRun: true,
+        commandRunner: gitRunner(lookalikes),
+        now: timestamp
+      })
+    );
+
+    expect(summary.changedFiles).toEqual(
+      [...lookalikes]
+        .sort()
+        .map((filePath) => expect.objectContaining({ path: filePath, mappingStatus: "unmapped" }))
+    );
+    expect(summary.findings.filter((finding) => finding.category === "dependencies")).toEqual([]);
+    expect(
+      summary.findings.filter(
+        (finding) =>
+          finding.category === "file-mapping" && finding.driftType === "unmapped_file_change"
+      )
+    ).toHaveLength(lookalikes.length);
+    expect(summary.result).toBe("failed");
   });
 });

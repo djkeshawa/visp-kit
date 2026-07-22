@@ -1,5 +1,11 @@
+import { constants, type BigIntStats } from "node:fs";
+import { lstat, open, readlink } from "node:fs/promises";
+import path from "node:path";
+import { TextDecoder } from "node:util";
+
 import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 import { VispError } from "../core/errors.js";
+import { listGitUntrackedFiles } from "../core/git-untracked.js";
 import { err, ok, type Result } from "../core/result.js";
 import {
   isDependencyFile,
@@ -43,6 +49,7 @@ type PartialFile = {
   additions: number;
   deletions: number;
   isBinary: boolean;
+  sourceTruncated: boolean;
   diff: string;
 };
 
@@ -54,6 +61,12 @@ type RawDiff = {
 
 function cleanPath(value: string): string {
   return normalizeReviewPath(value).replace(/^"|"$/g, "");
+}
+
+function nulFields(stdout: string): string[] {
+  const fields = stdout.split("\0");
+  if (fields.at(-1) === "") fields.pop();
+  return fields;
 }
 
 function changeTypeFromStatus(status: string): LoadedDiffFile["changeType"] {
@@ -69,17 +82,20 @@ function changeTypeFromStatus(status: string): LoadedDiffFile["changeType"] {
 
 function parseNameStatus(stdout: string): Map<string, LoadedDiffFile["changeType"]> {
   const entries = new Map<string, LoadedDiffFile["changeType"]>();
+  const fields = nulFields(stdout);
 
-  for (const line of stdout.split(/\r?\n/)) {
-    const parts = line.split("\t").filter((part) => part.length > 0);
-    const status = parts[0];
+  for (let index = 0; index < fields.length; ) {
+    const status = fields[index];
+    index += 1;
 
-    if (status === undefined) continue;
+    if (status === undefined || status.length === 0) continue;
 
-    const filePath = status.startsWith("R") || status.startsWith("C") ? parts[2] : parts[1];
+    if (status.startsWith("R") || status.startsWith("C")) index += 1;
+    const filePath = fields[index];
+    index += 1;
 
-    if (filePath !== undefined) {
-      entries.set(cleanPath(filePath), changeTypeFromStatus(status));
+    if (filePath !== undefined && filePath.length > 0) {
+      entries.set(filePath, changeTypeFromStatus(status));
     }
   }
 
@@ -102,20 +118,34 @@ function parseNumstat(stdout: string): Map<
       readonly isBinary: boolean;
     }
   >();
+  const fields = nulFields(stdout);
 
-  for (const line of stdout.split(/\r?\n/)) {
-    const parts = line.split("\t");
-    const additions = parts[0];
-    const deletions = parts[1];
-    const filePath = parts.at(-1);
+  for (let index = 0; index < fields.length; ) {
+    const record = fields[index];
+    index += 1;
 
-    if (additions === undefined || deletions === undefined || filePath === undefined) {
-      continue;
+    if (record === undefined || record.length === 0) continue;
+
+    const firstTab = record.indexOf("\t");
+    const secondTab = firstTab < 0 ? -1 : record.indexOf("\t", firstTab + 1);
+
+    if (firstTab < 0 || secondTab < 0) continue;
+
+    const additions = record.slice(0, firstTab);
+    const deletions = record.slice(firstTab + 1, secondTab);
+    let filePath = record.slice(secondTab + 1);
+
+    if (filePath.length === 0) {
+      index += 1;
+      filePath = fields[index] ?? "";
+      index += 1;
     }
+
+    if (filePath.length === 0) continue;
 
     const isBinary = additions === "-" || deletions === "-";
 
-    entries.set(cleanPath(filePath), {
+    entries.set(filePath, {
       additions: isBinary ? 0 : Number.parseInt(additions, 10) || 0,
       deletions: isBinary ? 0 : Number.parseInt(deletions, 10) || 0,
       isBinary
@@ -161,7 +191,7 @@ function mergeRaw(raw: RawDiff, files: Map<string, PartialFile>): void {
   const status = parseNameStatus(raw.nameStatus);
   const stats = parseNumstat(raw.numstat);
   const chunks = parseDiffChunks(raw.diff);
-  const paths = new Set([...status.keys(), ...stats.keys(), ...chunks.keys()]);
+  const paths = new Set([...status.keys(), ...stats.keys()]);
 
   for (const filePath of paths) {
     const existing = files.get(filePath);
@@ -174,6 +204,7 @@ function mergeRaw(raw: RawDiff, files: Map<string, PartialFile>): void {
       additions: (existing?.additions ?? 0) + (nextStats?.additions ?? 0),
       deletions: (existing?.deletions ?? 0) + (nextStats?.deletions ?? 0),
       isBinary: Boolean(existing?.isBinary || nextStats?.isBinary),
+      sourceTruncated: existing?.sourceTruncated ?? false,
       diff: [existing?.diff, nextDiff].filter(Boolean).join("\n")
     });
   }
@@ -202,10 +233,246 @@ function truncateFiles(input: {
       isTestFile: isTestFile(file.path),
       isGeneratedVispFile: isGeneratedVispReviewFile(file.path),
       isBinary: file.isBinary,
-      diffTruncated: truncated || file.diff.length > diff.length,
+      diffTruncated: file.sourceTruncated || truncated || file.diff.length > diff.length,
       diff
     };
   });
+}
+
+function comparePaths(left: PartialFile, right: PartialFile): number {
+  if (left.path < right.path) return -1;
+  if (left.path > right.path) return 1;
+  return 0;
+}
+
+function diffPath(prefix: "a" | "b", filePath: string): string {
+  const value = `${prefix}/${filePath}`;
+  const requiresQuoting = [...value].some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127 || character === '"' || character === "\\";
+  });
+
+  return requiresQuoting ? JSON.stringify(value) : value;
+}
+
+function textLines(content: string): readonly string[] {
+  if (content.length === 0) return [];
+
+  const lines = content.split("\n");
+  if (content.endsWith("\n")) lines.pop();
+  return lines;
+}
+
+function syntheticTextDiff(input: {
+  readonly filePath: string;
+  readonly content: string;
+  readonly mode: "100644" | "120000";
+}): { readonly additions: number; readonly diff: string } {
+  const oldPath = diffPath("a", input.filePath);
+  const newPath = diffPath("b", input.filePath);
+  const lines = textLines(input.content);
+  const header = [
+    `diff --git ${oldPath} ${newPath}`,
+    `new file mode ${input.mode}`,
+    "--- /dev/null",
+    `+++ ${newPath}`
+  ];
+
+  if (lines.length === 0) {
+    return { additions: 0, diff: header.join("\n") };
+  }
+
+  return {
+    additions: lines.length,
+    diff: [...header, `@@ -0,0 +1,${lines.length} @@`, ...lines.map((line) => `+${line}`)].join(
+      "\n"
+    )
+  };
+}
+
+function syntheticBinaryDiff(filePath: string): string {
+  const oldPath = diffPath("a", filePath);
+  const newPath = diffPath("b", filePath);
+
+  return [
+    `diff --git ${oldPath} ${newPath}`,
+    "new file mode 100644",
+    `Binary files /dev/null and ${newPath} differ`
+  ].join("\n");
+}
+
+async function readRegularFile(input: {
+  readonly absolutePath: string;
+  readonly maxBytes: number;
+  readonly beforeOpen: BigIntStats;
+}): Promise<{ readonly content: Buffer; readonly truncated: boolean }> {
+  const noFollow = constants.O_NOFOLLOW as number | undefined;
+  const flags = typeof noFollow === "number" ? constants.O_RDONLY | noFollow : constants.O_RDONLY;
+  const handle = await open(input.absolutePath, flags);
+
+  try {
+    const current = await handle.stat({ bigint: true });
+    const afterOpen = await lstat(input.absolutePath, { bigint: true });
+
+    if (
+      !input.beforeOpen.isFile() ||
+      input.beforeOpen.isSymbolicLink() ||
+      !current.isFile() ||
+      current.isSymbolicLink() ||
+      !afterOpen.isFile() ||
+      afterOpen.isSymbolicLink() ||
+      typeof input.beforeOpen.dev !== "bigint" ||
+      typeof input.beforeOpen.ino !== "bigint" ||
+      typeof current.dev !== "bigint" ||
+      typeof current.ino !== "bigint" ||
+      typeof afterOpen.dev !== "bigint" ||
+      typeof afterOpen.ino !== "bigint" ||
+      input.beforeOpen.dev !== current.dev ||
+      input.beforeOpen.ino !== current.ino ||
+      input.beforeOpen.dev !== afterOpen.dev ||
+      input.beforeOpen.ino !== afterOpen.ino
+    ) {
+      throw new VispError(
+        "FILE_SYSTEM_ERROR",
+        `Unable to load untracked Git file ${input.absolutePath}: file changed while opening.`
+      );
+    }
+
+    const readLimit = Math.max(1, input.maxBytes + 1);
+    const contentLength =
+      current.size > BigInt(readLimit) ? readLimit : Math.max(1, Number(current.size));
+    const content = Buffer.allocUnsafe(contentLength);
+    const { bytesRead } = await handle.read(content, 0, content.length, 0);
+
+    return {
+      content: content.subarray(0, bytesRead),
+      truncated: current.size > BigInt(bytesRead)
+    };
+  } finally {
+    await handle.close();
+  }
+}
+
+function decodeUtf8(content: Buffer, truncated: boolean): string | null {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(content, { stream: truncated });
+  } catch {
+    return null;
+  }
+}
+
+async function loadUntrackedFile(input: {
+  readonly targetPath: string;
+  readonly filePath: string;
+  readonly maxBytes: number;
+}): Promise<Result<PartialFile, VispError>> {
+  const absolutePath = path.join(input.targetPath, input.filePath);
+
+  try {
+    const stats = await lstat(absolutePath, { bigint: true });
+
+    if (stats.isSymbolicLink()) {
+      const target = await readlink(absolutePath);
+      const synthetic = syntheticTextDiff({
+        filePath: input.filePath,
+        content: target,
+        mode: "120000"
+      });
+
+      return ok({
+        path: input.filePath,
+        changeType: "added",
+        additions: synthetic.additions,
+        deletions: 0,
+        isBinary: false,
+        sourceTruncated: false,
+        diff: synthetic.diff
+      });
+    }
+
+    if (!stats.isFile()) {
+      return err(
+        new VispError(
+          "FILE_SYSTEM_ERROR",
+          `Unable to load untracked Git file ${input.filePath}: unsupported file type.`
+        )
+      );
+    }
+
+    const read = await readRegularFile({
+      absolutePath,
+      maxBytes: input.maxBytes,
+      beforeOpen: stats
+    });
+    const decoded = read.content.includes(0) ? null : decodeUtf8(read.content, read.truncated);
+
+    if (decoded === null) {
+      return ok({
+        path: input.filePath,
+        changeType: "added",
+        additions: 0,
+        deletions: 0,
+        isBinary: true,
+        sourceTruncated: read.truncated,
+        diff: syntheticBinaryDiff(input.filePath)
+      });
+    }
+
+    const synthetic = syntheticTextDiff({
+      filePath: input.filePath,
+      content: decoded,
+      mode: "100644"
+    });
+
+    return ok({
+      path: input.filePath,
+      changeType: "added",
+      additions: synthetic.additions,
+      deletions: 0,
+      isBinary: false,
+      sourceTruncated: read.truncated,
+      diff: synthetic.diff
+    });
+  } catch (cause) {
+    return err(
+      new VispError("FILE_SYSTEM_ERROR", `Unable to load untracked Git file ${input.filePath}.`, {
+        cause
+      })
+    );
+  }
+}
+
+async function loadUntrackedFiles(input: {
+  readonly targetPath: string;
+  readonly runner: CommandRunner;
+  readonly maxDiffCharsPerFile: number;
+  readonly maxTotalDiffChars: number;
+}): Promise<Result<readonly PartialFile[], VispError>> {
+  const paths = await listGitUntrackedFiles({
+    targetPath: input.targetPath,
+    commandRunner: input.runner
+  });
+
+  if (!paths.ok) return paths;
+
+  const files: PartialFile[] = [];
+  let remainingBytes = Math.max(0, input.maxTotalDiffChars);
+
+  for (const filePath of paths.value) {
+    const maxBytes = Math.min(Math.max(0, input.maxDiffCharsPerFile), remainingBytes);
+    const file = await loadUntrackedFile({
+      targetPath: input.targetPath,
+      filePath,
+      maxBytes
+    });
+
+    if (!file.ok) return file;
+
+    files.push(file.value);
+    remainingBytes = Math.max(0, remainingBytes - Math.min(maxBytes, file.value.diff.length));
+  }
+
+  return ok(files);
 }
 
 async function runGit(input: {
@@ -229,7 +496,7 @@ async function loadRaw(input: {
   const nameStatus = await runGit({
     targetPath: input.targetPath,
     runner: input.runner,
-    args: [...input.diffArgs, "--name-status"]
+    args: [...input.diffArgs, "--name-status", "-z", "--"]
   });
 
   if (!nameStatus.ok) return nameStatus;
@@ -237,7 +504,7 @@ async function loadRaw(input: {
   const numstat = await runGit({
     targetPath: input.targetPath,
     runner: input.runner,
-    args: [...input.diffArgs, "--numstat"]
+    args: [...input.diffArgs, "--numstat", "-z", "--"]
   });
 
   if (!numstat.ok) return numstat;
@@ -300,6 +567,11 @@ function requestedSources(options: DiffLoadOptions): Array<{
   ];
 }
 
+function includesUntracked(options: DiffLoadOptions): boolean {
+  if (options.base !== undefined || (options.staged && !options.unstaged)) return false;
+  return options.unstaged === true || options.staged !== true;
+}
+
 export async function loadGitDiff(
   options: DiffLoadOptions
 ): Promise<Result<LoadedDiff, VispError>> {
@@ -313,6 +585,8 @@ export async function loadGitDiff(
 
   const files = new Map<string, PartialFile>();
   const sources = requestedSources(options);
+  const maxDiffCharsPerFile = options.maxDiffCharsPerFile ?? 12_000;
+  const maxTotalDiffChars = options.maxTotalDiffChars ?? 40_000;
 
   for (const source of sources) {
     let raw = await loadRaw({
@@ -343,15 +617,40 @@ export async function loadGitDiff(
     mergeRaw(raw.value, files);
   }
 
+  if (includesUntracked(options)) {
+    const untracked = await loadUntrackedFiles({
+      targetPath: options.targetPath,
+      runner,
+      maxDiffCharsPerFile,
+      maxTotalDiffChars
+    });
+
+    if (!untracked.ok) {
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Unable to load untracked Git diff: ${untracked.error.message}`
+        )
+      );
+    }
+
+    for (const file of untracked.value) {
+      if (!files.has(file.path)) files.set(file.path, file);
+    }
+  }
+
   const loadedFiles = truncateFiles({
-    files: [...files.values()].sort((a, b) => a.path.localeCompare(b.path)),
-    maxDiffCharsPerFile: options.maxDiffCharsPerFile ?? 12_000,
-    maxTotalDiffChars: options.maxTotalDiffChars ?? 40_000
+    files: [...files.values()].sort(comparePaths),
+    maxDiffCharsPerFile,
+    maxTotalDiffChars
   });
 
   return ok({
     files: loadedFiles,
-    diffSource: sources.map((source) => source.label).join("+"),
+    diffSource: [
+      ...sources.map((source) => source.label),
+      ...(includesUntracked(options) ? ["untracked"] : [])
+    ].join("+"),
     baseRef: options.base ?? null
   });
 }

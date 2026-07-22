@@ -41,7 +41,12 @@ function expectOk<T>(result: { ok: true; value: T } | { ok: false }): T {
   return result.value;
 }
 
-function gitRunner(filePath = "src/notes/sort.ts"): CommandRunner {
+function gitRunner(
+  filePath: string | readonly string[] = "src/notes/sort.ts",
+  untrackedFiles: readonly string[] = []
+): CommandRunner {
+  const trackedFiles = typeof filePath === "string" ? [filePath] : filePath;
+
   return {
     async run(command, args, options) {
       const joined = (args ?? []).join(" ");
@@ -49,12 +54,15 @@ function gitRunner(filePath = "src/notes/sort.ts"): CommandRunner {
 
       if (joined === "rev-parse --is-inside-work-tree") {
         stdout = "true\n";
+      } else if (joined === "ls-files --others --exclude-standard -z --") {
+        stdout = untrackedFiles.length > 0 ? `${untrackedFiles.join("\0")}\0` : "";
       } else if (joined.includes("--name-status")) {
-        stdout = `M\t${filePath}\n`;
+        stdout = trackedFiles.map((trackedFile) => `M\0${trackedFile}\0`).join("");
       } else if (joined.includes("--numstat")) {
-        stdout = `4\t1\t${filePath}\n`;
+        stdout = trackedFiles.map((trackedFile) => `4\t1\t${trackedFile}\0`).join("");
       } else {
-        stdout = `diff --git a/${filePath} b/${filePath}\n+changed\n`;
+        const displayPath = trackedFiles[0] ?? "unknown";
+        stdout = `diff --git a/${displayPath} b/${displayPath}\n+changed\n`;
       }
 
       return ok({
@@ -203,5 +211,53 @@ describe("runReviewWorkflow", () => {
         "utf8"
       )
     ).rejects.toThrow();
+  });
+
+  it("inventories a literal-backslash untracked lookalike and fails scope review", async () => {
+    await createReviewFixture(tempDir);
+    const lookalike = "src\\notes\\sort.ts";
+    await writeFile(path.join(tempDir, lookalike), "export const lookalike = true;\n");
+
+    const summary = expectOk(
+      await runReviewWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        dryRun: true,
+        skipVerification: true,
+        commandRunner: gitRunner("src/notes/sort.ts", [lookalike]),
+        now: timestamp
+      })
+    );
+
+    expect(summary.changedFiles.map((file) => file.path)).toContain(lookalike);
+    expect(summary.result).toBe("failed");
+  });
+
+  it("preserves staged tracked lookalikes and controls as failing scope identities", async () => {
+    await createReviewFixture(tempDir);
+    const trackedPaths = [
+      " src/notes/sort.ts",
+      "src/notes/sort.ts ",
+      "src\\notes\\sort.ts",
+      "src/notes/tab\tname.ts",
+      "src/notes/line\nname.ts",
+      "src/notes/control\u0001name.ts",
+      " .visp/state/implement-allowed.json"
+    ];
+
+    const summary = expectOk(
+      await runReviewWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        staged: true,
+        dryRun: true,
+        skipVerification: true,
+        commandRunner: gitRunner(trackedPaths),
+        now: timestamp
+      })
+    );
+
+    expect(summary.changedFiles.map((file) => file.path)).toEqual([...trackedPaths].sort());
+    expect(summary.result).toBe("failed");
   });
 });

@@ -88,7 +88,7 @@ export function reconcileDiff(input: {
   const warnings: string[] = [];
   const errors: string[] = [];
   const changedFiles = input.files.map((file) => {
-    const path = normalizeReviewPath(file.path);
+    const path = file.path;
     const trace = relatedFromTraceability({ filePath: path, traceability: input.traceability });
     const isAllowedByTask = scope.allowed.includes(path);
     const isExpectedByTask = scope.expected.includes(path);

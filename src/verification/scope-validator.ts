@@ -1,5 +1,6 @@
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type ScopeValidationSection } from "../artifacts/schemas/verification.schema.js";
+import { isGeneratedVispReviewFile } from "../review/diff-summary.js";
 
 function normalize(values: readonly string[] | undefined): string[] {
   return [
@@ -11,8 +12,12 @@ function normalize(values: readonly string[] | undefined): string[] {
   ].sort();
 }
 
+function preserveRawPaths(values: readonly string[] | undefined): string[] {
+  return [...new Set((values ?? []).filter((value) => value.length > 0))].sort();
+}
+
 function implementationFiles(files: readonly string[]): string[] {
-  return files.filter((file) => !file.startsWith(".visp/"));
+  return files.filter((file) => !isGeneratedVispReviewFile(file));
 }
 
 export function validateScope(input: {
@@ -24,7 +29,7 @@ export function validateScope(input: {
 }): ScopeValidationSection {
   const warnings = [...input.gitWarnings];
   const errors: string[] = [];
-  const changedFiles = implementationFiles(normalize(input.changedFiles));
+  const changedFiles = implementationFiles(preserveRawPaths(input.changedFiles));
   const allowedFiles = normalize(
     input.task === undefined
       ? input.taskGraph?.tasks.flatMap((task) => task.allowedFiles)
