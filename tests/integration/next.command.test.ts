@@ -310,7 +310,10 @@ async function expectedPhase8ActionV3(
     },
     assurance: {
       level: "advisory",
-      profile: { state: "unavailable", reasonCode: "not_in_source_artifact" },
+      profile:
+        scenario === "inconclusive"
+          ? { state: "unavailable", reasonCode: "not_captured" }
+          : { state: "available", value: "behavioral" },
       workflowStrictness:
         scenario === "inconclusive"
           ? { state: "unavailable" as const, reasonCode: "not_captured" as const }
@@ -769,5 +772,60 @@ describe("visp next command", () => {
     expect(action.findings).toEqual([`Required read is unavailable: ${missingPath}.`]);
     expect(action.requiredReads.map((item) => item.path)).not.toContain(missingPath);
     expect(action.nextCommand).toBe("Use .visp/prompts/current-task.prompt.md with your agent");
+  });
+
+  it("raises assurance through project policy", async () => {
+    await createPhase8Fixture(tempDir);
+    const policyPath = path.join(tempDir, ".visp", "policy.json");
+    const policy = JSON.parse(await readFile(policyPath, "utf8")) as Record<string, unknown>;
+    policy.assurance = { profile: "critical" };
+    await writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`, "utf8");
+
+    const result = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
+    const action = workflowActionV3Schema.parse(JSON.parse(result.stdout));
+
+    expect(action.assurance.profile).toEqual({ state: "available", value: "critical" });
+  });
+
+  it("requires an auditable VSP022 override to lower assurance", async () => {
+    await createPhase8Fixture(tempDir);
+    const policyPath = path.join(tempDir, ".visp", "policy.json");
+    const policy = JSON.parse(await readFile(policyPath, "utf8")) as Record<string, unknown>;
+    policy.assurance = { profile: "routine" };
+    await writeFile(policyPath, `${JSON.stringify(policy, null, 2)}\n`, "utf8");
+
+    const blocked = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
+    const blockedAction = workflowActionV3Schema.parse(JSON.parse(blocked.stdout));
+    expect(blockedAction.assurance.profile).toEqual({
+      state: "available",
+      value: "behavioral"
+    });
+    expect(blockedAction.findings.some((finding) => finding.code === "VSP022")).toBe(true);
+
+    await createCli({ writeOut: () => undefined }).parseAsync([
+      "node",
+      "visp",
+      "override",
+      "create",
+      "VSP022",
+      tempDir,
+      "--scope",
+      "task",
+      "--feature",
+      "001",
+      "--task",
+      "T001",
+      "--reason",
+      "A human accepted routine assurance for this bounded fixture task.",
+      "--json"
+    ]);
+
+    const allowed = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
+    const allowedAction = workflowActionV3Schema.parse(JSON.parse(allowed.stdout));
+    expect(allowedAction.assurance.profile).toEqual({ state: "available", value: "routine" });
+    expect(allowedAction.findings.some((finding) => finding.code === "VSP022")).toBe(true);
+    expect(allowedAction.findings.find((finding) => finding.code === "VSP022")?.severity).toBe(
+      "warning"
+    );
   });
 });

@@ -8,6 +8,7 @@ import {
   stringListSchema
 } from "./common.schema.js";
 import { strictnessModeSchema } from "./policy.schema.js";
+import { assuranceProfileSchema } from "./evidence.schema.js";
 
 export const gateStageSchema = z.enum([
   "next",
@@ -71,6 +72,7 @@ export const gateResultSchema = z
     targetPath: pathStringSchema,
     stage: gateStageSchema,
     strictnessMode: strictnessModeSchema,
+    policyAssuranceProfile: assuranceProfileSchema.nullable().optional(),
     allowed: z.boolean(),
     dryRun: z.boolean(),
     feature: gateFeatureSchema.nullable(),
@@ -95,6 +97,7 @@ export const policyStatusSchema = z.enum(["valid", "missing", "invalid", "defaul
 export const policyGateSummarySchema = z
   .object({
     strictnessMode: strictnessModeSchema,
+    policyAssuranceProfile: assuranceProfileSchema.nullable().optional(),
     policyStatus: policyStatusSchema,
     stage: gateStageSchema,
     allowed: z.boolean(),

@@ -5,10 +5,11 @@ import {
   type GateStage
 } from "../artifacts/schemas/gate.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
+import { selectAssuranceProfile } from "../assurance/assurance-profile.js";
 import { VispError, toVispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import { buildGateResult } from "./gate-result.js";
+import { buildGateResult, type GateEvaluation } from "./gate-result.js";
 import { loadGateContext, type GateContext } from "./gate-context.js";
 import { findApplicableOverride } from "../overrides/override-matcher.js";
 import { readOverrideStore } from "../overrides/override-store.js";
@@ -67,6 +68,44 @@ function evaluateStage(context: GateContext, stage: GateStage) {
     case "pr":
       return evaluatePrGate(context);
   }
+}
+
+function assuranceChecks(context: GateContext): GateEvaluation["checks"] {
+  const task = context.state.selectedTask;
+  const policyProfile = context.policy.policy.assurance?.profile;
+
+  if (
+    task === undefined ||
+    task.taskClass === undefined ||
+    task.riskFactors === undefined ||
+    policyProfile === undefined
+  ) {
+    return [];
+  }
+
+  const selection = selectAssuranceProfile({
+    taskClass: task.taskClass,
+    riskLevel: task.riskLevel,
+    riskFactors: task.riskFactors,
+    changedPaths: [...task.allowedFiles, ...(task.expectedFiles ?? [])],
+    policyProfile
+  });
+  const loweringRequiresOverride =
+    selection.selectedProfile !== policyProfile &&
+    selection.reasons.some((reason) => reason.code === "policy_lowering_requires_override");
+
+  return [
+    {
+      ruleId: "VSP022",
+      passed: !loweringRequiresOverride,
+      message: loweringRequiresOverride
+        ? `Project policy requests ${policyProfile} assurance below the calculated ${selection.calculatedProfile} minimum.`
+        : `Project policy does not lower the calculated ${selection.calculatedProfile} assurance minimum.`,
+      recommendation:
+        "Raise or remove policy.assurance.profile, or record a scoped VSP022 override with a human reason.",
+      evidence: `calculated=${selection.calculatedProfile}; policy=${policyProfile}`
+    }
+  ];
 }
 
 async function applyPolicyOverrides(input: {
@@ -167,12 +206,17 @@ export async function evaluateGate(
       );
     }
 
-    const evaluation = evaluateStage(context, options.stage);
+    const stageEvaluation = evaluateStage(context, options.stage);
+    const evaluation = {
+      ...stageEvaluation,
+      checks: [...stageEvaluation.checks, ...assuranceChecks(context)]
+    };
 
     const baseResult = buildGateResult({
       targetPath: options.targetPath,
       stage: options.stage,
       strictnessMode: context.policy.policy.strictnessMode,
+      policyAssuranceProfile: context.policy.policy.assurance?.profile,
       dryRun: options.dryRun,
       state: context.state,
       evaluation,

@@ -101,6 +101,11 @@ visp override validate
 
 Overrides require meaningful reasons. `VSP019` and `VSP020` are non-overridable.
 
+Project policy may set `assurance.profile` to `routine`, `behavioral`, or
+`critical`. The setting can raise Kit's calculated task profile. A lower value
+does not silently weaken assurance: create a scoped `VSP022` override with a
+human reason if the exception is intentional.
+
 ## Feature And Task Selection
 
 Most commands use the active feature from `.visp/status.json`.

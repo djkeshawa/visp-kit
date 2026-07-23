@@ -139,6 +139,12 @@ export const policyRuleDefinitions: readonly PolicyRuleDefinition[] = [
     key: "blockOnUnresolvedDrift",
     name: "block_on_unresolved_drift",
     description: "PR readiness requires context packs grounded on current artifacts."
+  },
+  {
+    id: "VSP022",
+    key: "preventAssuranceProfileLowering",
+    name: "prevent_assurance_profile_lowering",
+    description: "Calculated assurance cannot be lowered without an auditable override."
   }
 ];
 
@@ -165,7 +171,8 @@ const allRulesOff: PolicyRules = {
   requirePolicyValidation: false,
   userPromptCannotOverridePolicy: false,
   stopOnFailedGate: false,
-  blockOnUnresolvedDrift: false
+  blockOnUnresolvedDrift: false,
+  preventAssuranceProfileLowering: true
 };
 
 const strictRules: PolicyRules = {
@@ -189,7 +196,8 @@ const strictRules: PolicyRules = {
   requirePolicyValidation: true,
   userPromptCannotOverridePolicy: true,
   stopOnFailedGate: true,
-  blockOnUnresolvedDrift: true
+  blockOnUnresolvedDrift: true,
+  preventAssuranceProfileLowering: true
 };
 
 const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {

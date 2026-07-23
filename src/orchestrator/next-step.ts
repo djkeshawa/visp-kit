@@ -2,6 +2,7 @@ import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type GateBlockedCommand, type GateRuleFinding } from "../artifacts/schemas/gate.schema.js";
 import { type ProjectState } from "./project-state.js";
 import { type WorkflowAction } from "../integration/workflow-action-schema.js";
+import { type AssuranceProfile } from "../artifacts/schemas/evidence.schema.js";
 
 export type NextStep = {
   readonly success: boolean;
@@ -28,6 +29,7 @@ export type NextStep = {
   readonly failedRules?: readonly GateRuleFinding[];
   readonly implementationAllowed?: boolean;
   readonly prAllowed?: boolean;
+  readonly assuranceProfile?: AssuranceProfile;
   readonly agentInstruction?: string;
   readonly action?: WorkflowAction;
 };

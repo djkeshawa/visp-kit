@@ -10,6 +10,7 @@ import {
   type WorkflowAction,
   type WorkflowActionProtocol
 } from "../integration/workflow-action-schema.js";
+import { selectAssuranceProfile } from "../assurance/assurance-profile.js";
 
 export type NextWorkflowOptions = {
   readonly targetPath?: string;
@@ -104,6 +105,32 @@ export async function runNextWorkflow(
 
   if (!nextGate.ok) return nextGate;
 
+  const selectedTask = state.value.selectedTask;
+  const appliedOverrides = [
+    ...nextGate.value.appliedOverrides,
+    ...(implementationGate?.ok ? implementationGate.value.appliedOverrides : []),
+    ...(prGate?.ok ? prGate.value.appliedOverrides : [])
+  ];
+  const loweringOverride = appliedOverrides.find((override) => override.ruleId === "VSP022");
+  const assuranceSelection =
+    selectedTask?.taskClass === undefined || selectedTask.riskFactors === undefined
+      ? undefined
+      : selectAssuranceProfile({
+          taskClass: selectedTask.taskClass,
+          riskLevel: selectedTask.riskLevel,
+          riskFactors: selectedTask.riskFactors,
+          changedPaths: [...selectedTask.allowedFiles, ...(selectedTask.expectedFiles ?? [])],
+          policyProfile: nextGate.value.policyAssuranceProfile ?? undefined,
+          loweringOverride:
+            loweringOverride === undefined
+              ? undefined
+              : {
+                  overrideId: loweringOverride.overrideId,
+                  ruleId: loweringOverride.ruleId,
+                  reason: loweringOverride.reason
+                }
+        });
+
   const gateWarnings = [
     ...nextGate.value.warnings,
     ...(implementationGate?.ok === false
@@ -156,6 +183,7 @@ export async function runNextWorkflow(
     failedRules,
     implementationAllowed,
     prAllowed,
+    assuranceProfile: assuranceSelection?.selectedProfile,
     agentInstruction: implementationAllowed
       ? "Implementation is allowed only for the selected Visp task and context."
       : `Do not implement code until \`${nextCommand}\` succeeds.`

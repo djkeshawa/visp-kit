@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isoDateTimeSchema, nonEmptyStringSchema } from "./common.schema.js";
+import { assuranceProfileSchema } from "./evidence.schema.js";
 
 export const strictnessModeSchema = z.enum(["relaxed", "standard", "strict", "locked"]);
 
@@ -28,7 +29,8 @@ export const policyRulesSchema = z
     stopOnFailedGate: z.boolean(),
     // Optional so policy files written before this rule existed keep
     // validating; gates fall back to the strictness default when absent.
-    blockOnUnresolvedDrift: z.boolean().optional()
+    blockOnUnresolvedDrift: z.boolean().optional(),
+    preventAssuranceProfileLowering: z.boolean().optional()
   })
   .strict();
 
@@ -60,6 +62,12 @@ export const policyArtifactSchema = z
     rules: policyRulesSchema,
     limits: policyLimitsSchema,
     overrides: policyOverridesSchema,
+    assurance: z
+      .object({
+        profile: assuranceProfileSchema
+      })
+      .strict()
+      .optional(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema
   })
@@ -84,6 +92,15 @@ export const policyArtifactSchema = z
         path: ["rules", "stopOnFailedGate"],
         message:
           "rules.stopOnFailedGate must be true; VSP020 (agents must stop on failed gates) is non-overridable."
+      });
+    }
+
+    if (policy.rules.preventAssuranceProfileLowering === false) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["rules", "preventAssuranceProfileLowering"],
+        message:
+          "rules.preventAssuranceProfileLowering cannot be false; use an auditable VSP022 override to lower assurance."
       });
     }
 

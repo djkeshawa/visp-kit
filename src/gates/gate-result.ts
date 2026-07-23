@@ -6,6 +6,7 @@ import {
   type GateStage
 } from "../artifacts/schemas/gate.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
+import { type AssuranceProfile } from "../artifacts/schemas/evidence.schema.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
 import { type GateRuleId } from "./gate-rules.js";
 
@@ -58,6 +59,7 @@ export function buildGateResult(input: {
   readonly targetPath: string;
   readonly stage: GateStage;
   readonly strictnessMode: StrictnessMode;
+  readonly policyAssuranceProfile?: AssuranceProfile;
   readonly dryRun: boolean;
   readonly state: ProjectState;
   readonly evaluation: GateEvaluation;
@@ -84,6 +86,7 @@ export function buildGateResult(input: {
     targetPath: input.targetPath,
     stage: input.stage,
     strictnessMode: input.strictnessMode,
+    policyAssuranceProfile: input.policyAssuranceProfile ?? null,
     allowed,
     dryRun: input.dryRun,
     feature:

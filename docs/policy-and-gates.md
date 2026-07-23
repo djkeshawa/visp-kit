@@ -86,6 +86,7 @@ Supported stages:
 | VSP019 | user_prompt_cannot_override_policy | all stages | no |
 | VSP020 | stop_on_failed_gate | all stages | no |
 | VSP021 | block_on_unresolved_drift | pr | yes |
+| VSP022 | prevent_assurance_profile_lowering | task-aware gates | yes, with an auditable reason |
 
 Non-overridable rules cannot be bypassed by `.visp/overrides.json`.
 
@@ -95,6 +96,37 @@ strictness default (enforced in `strict` and `locked`). It fails the PR gate
 when the active context pack was grounded on artifacts (spec, plan, task
 graph, policy) that changed after the pack was compiled. Run `visp drift` for
 the full deterministic drift report.
+
+## Assurance Profile Selection
+
+For classified tasks, Kit calculates the minimum assurance profile before
+implementation:
+
+- `routine` for low-risk documentation, regression-test, and refactor tasks;
+- `behavioral` for localized bugs, bounded features, cross-file changes, and
+  medium risk; and
+- `critical` for security or migration tasks, high risk, declared risk factors,
+  dependency manifests/lockfiles, deployment workflows, and critical code
+  areas such as authentication, authorization, cryptography, schemas,
+  permissions, and migrations.
+
+The calculation uses the task's allowed and expected paths, so it is stable
+before implementation. Documentation paths do not become critical merely
+because they describe a critical subsystem.
+
+A project may raise the selected profile with:
+
+```json
+{
+  "assurance": {
+    "profile": "critical"
+  }
+}
+```
+
+A configured profile below Kit's calculated minimum is blocked by `VSP022`.
+Lowering requires a scoped, active override with a human reason; the canonical
+v3 action retains the calculated profile until that override applies.
 
 ## Gates In Reports
 

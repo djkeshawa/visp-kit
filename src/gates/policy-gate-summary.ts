@@ -32,6 +32,7 @@ function policyStatusFromGate(result: GateResult): PolicyStatus {
 export function summarizeGateResult(result: GateResult): PolicyGateSummary {
   return {
     strictnessMode: result.strictnessMode,
+    policyAssuranceProfile: result.policyAssuranceProfile ?? null,
     policyStatus: policyStatusFromGate(result),
     stage: result.stage,
     allowed: result.allowed,

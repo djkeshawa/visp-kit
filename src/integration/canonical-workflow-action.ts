@@ -1242,7 +1242,14 @@ export async function buildCanonicalWorkflowActionEnvelope(input: {
     },
     assurance: {
       level: strictness.level,
-      profile: unavailable("not_in_source_artifact"),
+      profile:
+        task === undefined
+          ? notApplicable("no_active_task")
+          : task.taskClass === undefined || task.riskFactors === undefined
+            ? unavailable("not_in_source_artifact")
+            : input.step.assuranceProfile === undefined
+              ? unavailable("not_captured")
+              : available(input.step.assuranceProfile),
       workflowStrictness: strictness.workflowStrictness
     },
     goal,
