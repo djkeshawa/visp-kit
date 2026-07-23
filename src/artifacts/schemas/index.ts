@@ -5,6 +5,7 @@ export * from "./common.schema.js";
 export * from "./constitution.schema.js";
 export * from "./context-pack.schema.js";
 export * from "./evaluation.schema.js";
+export * from "./evidence.schema.js";
 export * from "./feature.schema.js";
 export * from "./gate.schema.js";
 export * from "./implementation-checklist.schema.js";

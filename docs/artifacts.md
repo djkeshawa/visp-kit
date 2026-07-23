@@ -107,6 +107,22 @@ which local artifacts grounded the handoff.
 .visp/reports/evaluation-report.json
 ```
 
+Phase 2 evidence contracts distinguish requirements from results:
+
+- a requirement binds a versioned provider to a command, validation oracle,
+  static check, security check, or human review and accepts only `passed`;
+- a result records the provider version, command or inspection, input hashes,
+  timestamps, captured/referenced output, freshness, independence, and outcome;
+- outcomes are `passed`, `failed`, `inconclusive`, or `not_applicable`;
+- `failed` and `inconclusive` require a reason, while `not_applicable` also
+  requires an auditable rule or override; and
+- missing, mismatched, stale, or freshness-unknown results never satisfy a
+  strict evidence requirement.
+
+The stable assurance-profile vocabulary is `routine`, `behavioral`, and
+`critical`. Profile selection and provider execution are introduced by later
+Phase 2 tasks; defining these schemas does not infer a profile or run a tool.
+
 ## Run Traces
 
 ```text

@@ -10,6 +10,10 @@ import {
   type TaskClass,
   type ValidationMethod
 } from "../artifacts/schemas/common.schema.js";
+import {
+  type AssuranceProfile,
+  type EvidenceRequirement
+} from "../artifacts/schemas/evidence.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type NextStep } from "../orchestrator/next-step.js";
@@ -26,6 +30,10 @@ export type {
   RiskFactorCode,
   TaskClass
 } from "../artifacts/schemas/common.schema.js";
+export type {
+  AssuranceProfile,
+  EvidenceRequirement
+} from "../artifacts/schemas/evidence.schema.js";
 
 export type DeclaredUnavailableReason =
   | "not_in_source_artifact"
@@ -60,27 +68,10 @@ export type CanonicalWorkflowPhase =
   | "reconcile"
   | "pr";
 
-export type AssuranceProfile = "routine" | "behavioral" | "critical";
-
 export type OperationLimits = {
   readonly version: "1.0";
   readonly maxChangedFiles: number;
   readonly dependencyChangesAllowed: boolean;
-};
-
-export type EvidenceRequirement = {
-  readonly version: "1.0";
-  readonly id: string;
-  readonly providerId: string;
-  readonly target:
-    | { readonly kind: "command"; readonly command: string }
-    | { readonly kind: "validation_oracle"; readonly oracleId: string }
-    | { readonly kind: "static_check"; readonly checkId: string }
-    | { readonly kind: "security_check"; readonly checkId: string }
-    | { readonly kind: "human_review"; readonly reviewId: string };
-  readonly freshnessRule: string;
-  readonly independenceRule: string;
-  readonly requiredVerdict: "passed";
 };
 
 export type HashedReadRole =

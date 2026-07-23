@@ -7,6 +7,10 @@ import {
   riskLevelSchemaV4,
   taskClassSchemaV4
 } from "../artifacts/schemas/common.schema.js";
+import {
+  assuranceProfileSchemaV4,
+  evidenceRequirementSchemaV4
+} from "../artifacts/schemas/evidence.schema.js";
 import { canonicalJsonV1, type Sha256Hash } from "./canonical-json.js";
 import { type CanonicalWorkflowAction } from "./canonical-workflow-action.js";
 
@@ -143,24 +147,6 @@ const validationOracleSchema = z
     validationMethod: z.enum(["unit", "integration", "e2e", "manual", "static"])
   })
   .strict();
-const evidenceTargetSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("command"), command: nonEmptyStringSchema }).strict(),
-  z.object({ kind: z.literal("validation_oracle"), oracleId: idSchema }).strict(),
-  z.object({ kind: z.literal("static_check"), checkId: idSchema }).strict(),
-  z.object({ kind: z.literal("security_check"), checkId: idSchema }).strict(),
-  z.object({ kind: z.literal("human_review"), reviewId: idSchema }).strict()
-]);
-const evidenceRequirementSchema = z
-  .object({
-    version: z.literal("1.0"),
-    id: idSchema,
-    providerId: idSchema,
-    target: evidenceTargetSchema,
-    freshnessRule: nonEmptyStringSchema,
-    independenceRule: nonEmptyStringSchema,
-    requiredVerdict: z.literal("passed")
-  })
-  .strict();
 const appliedPolicyOverrideSchema = z
   .object({
     overrideId: idSchema,
@@ -203,7 +189,7 @@ export const workflowActionV3Schema = z
     assurance: z
       .object({
         level: z.enum(["kit_strict", "advisory"]),
-        profile: declaredValueSchema(z.enum(["routine", "behavioral", "critical"])),
+        profile: declaredValueSchema(assuranceProfileSchemaV4),
         workflowStrictness: declaredValueSchema(z.enum(["relaxed", "standard", "strict", "locked"]))
       })
       .strict(),
@@ -221,7 +207,7 @@ export const workflowActionV3Schema = z
     claims: declaredValueSchema(z.array(requirementClaimSchema)),
     validationOracles: z.array(validationOracleSchema),
     validationCommands: z.array(nonEmptyStringSchema),
-    requiredEvidence: declaredValueSchema(z.array(evidenceRequirementSchema)),
+    requiredEvidence: declaredValueSchema(z.array(evidenceRequirementSchemaV4)),
     policy: z
       .object({
         status: declaredValueSchema(z.enum(["valid", "missing", "invalid", "default"])),
