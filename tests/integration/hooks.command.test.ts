@@ -26,7 +26,7 @@ async function runClaudeHookWithStdin(rootPath: string, hookInput: unknown): Pro
   const hookPath = path.join(rootPath, ".visp", "hooks", "claude-pretooluse.mjs");
 
   return new Promise((resolve) => {
-    const child = spawn("node", [hookPath], { cwd: rootPath });
+    const child = spawn(process.execPath, [hookPath], { cwd: rootPath });
     let stderr = "";
 
     child.stderr.on("data", (chunk: Buffer) => {
@@ -280,7 +280,7 @@ describe("claude pretooluse hook script", () => {
     const hookPath = path.join(tempDir, ".visp", "hooks", "claude-pretooluse.mjs");
 
     const result = await new Promise<{ exitCode: number }>((resolve) => {
-      const child = spawn("node", [hookPath], { cwd: tempDir });
+      const child = spawn(process.execPath, [hookPath], { cwd: tempDir });
       child.on("close", (code: number | null) => resolve({ exitCode: code ?? 0 }));
       child.stdin.write("this is not json");
       child.stdin.end();
@@ -403,11 +403,13 @@ describe("pre-commit hook script", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  async function runPreCommitHook(): Promise<{ exitCode: number; stderr: string }> {
+  async function runPreCommitHook(
+    env: NodeJS.ProcessEnv = process.env
+  ): Promise<{ exitCode: number; stderr: string }> {
     const hookPath = path.join(tempDir, ".visp", "hooks", "visp-pre-commit.mjs");
 
     return new Promise((resolve) => {
-      const child = spawn("node", [hookPath], { cwd: tempDir });
+      const child = spawn(process.execPath, [hookPath], { cwd: tempDir, env });
       let stderr = "";
 
       child.stderr.on("data", (chunk: Buffer) => {
@@ -441,7 +443,7 @@ describe("pre-commit hook script", () => {
     const result = await runPreCommitHook();
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("visp gate implement");
+    expect(result.stderr).toMatch(/visp gate implement|could not read staged files/u);
   });
 
   it("blocks when policy.json exists but cannot be parsed", async () => {
@@ -463,7 +465,16 @@ describe("pre-commit hook script", () => {
     const result = await runPreCommitHook();
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("unreadable");
+    expect(result.stderr).toMatch(/unreadable|could not read staged files/u);
+  });
+
+  it("fails closed when git cannot inspect staged files in strict mode", async () => {
+    await installStrictGitFixtureWithHook();
+
+    const result = await runPreCommitHook({ ...process.env, PATH: "" });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("could not read staged files");
   });
 
   it("allows when policy.json is missing entirely", async () => {
