@@ -71,4 +71,19 @@ describe("artifact examples", () => {
     expect(specFieldValuesSection()).toContain('"requirementId": "REQ001"');
     expect(tasksFieldValuesSection()).toContain('"id": "T001"');
   });
+
+  it("lists task class, risk level, and risk factors as separate exact fields", () => {
+    const section = tasksFieldValuesSection();
+
+    expect(section).toContain(
+      "- taskClass: localized_bug | bounded_feature | cross_file_change | regression_test | refactor | migration | security | documentation"
+    );
+    expect(section).toContain("- riskLevel: low | medium | high");
+    expect(section).toContain(
+      "- riskFactors[].code: authentication | authorization | cryptography | public_api | schema | dependency | concurrency | permissions | deployment | data_migration"
+    );
+    expect(section).toContain("- riskFactors[].version: 1.0");
+    expect(section).toContain('"taskClass": "bounded_feature"');
+    expect(section).toContain('"riskFactors": [');
+  });
 });

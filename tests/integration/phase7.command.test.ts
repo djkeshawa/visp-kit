@@ -125,6 +125,8 @@ async function completeTasks(featureDir: string): Promise<void> {
       expectedFiles: ["tests/unit/notes/store.test.ts"],
       validationCommands: ["pnpm test"],
       status: "ready",
+      taskClass: "bounded_feature",
+      riskFactors: [],
       riskLevel: "medium"
     };
   });

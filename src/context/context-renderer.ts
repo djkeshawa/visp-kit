@@ -177,6 +177,12 @@ function implementationChecklist(taskId: string): string {
   ].join("\n");
 }
 
+function taskRiskFactors(factors: ContextPack["selectedTask"]["riskFactors"]): string {
+  if (factors === undefined) return "unknown";
+  if (factors.length === 0) return "none";
+  return factors.map((factor) => factor.code).join(", ");
+}
+
 export function renderContextMarkdown(input: {
   readonly feature: ActiveFeature;
   readonly pack: ContextPack;
@@ -199,7 +205,9 @@ ${policyGate(input.pack)}
 - ID: ${task.id}
 - Title: ${task.title}
 - Status: ${task.status}
-- Risk: ${task.riskLevel}
+- Task class: ${task.taskClass ?? "unknown"}
+- Risk level: ${task.riskLevel}
+- Risk factors: ${taskRiskFactors(task.riskFactors)}
 
 Description:
 ${task.description}

@@ -33,6 +33,27 @@ const feature: ActiveFeature = {
 };
 const now = "2026-01-01T00:00:00.000Z";
 
+function readyTaskGraph() {
+  const taskGraph = createTaskGraphArtifact({ feature, now });
+
+  return {
+    ...taskGraph,
+    status: "ready" as const,
+    tasks: [
+      {
+        ...taskGraph.tasks[0]!,
+        title: "Implement note pinning",
+        description: "Add deterministic note pinning behavior.",
+        allowedFiles: ["src/notes/store.ts"],
+        expectedFiles: ["tests/unit/notes/store.test.ts"],
+        validationCommands: ["pnpm test"],
+        taskClass: "bounded_feature" as const,
+        riskFactors: [{ version: "1.0" as const, code: "public_api" as const }]
+      }
+    ]
+  };
+}
+
 describe("phase 7 validators", () => {
   it("rejects generated scaffolds until an agent replaces placeholders and marks them ready", () => {
     const clarifications = createClarificationArtifact({ feature, now });
@@ -70,5 +91,43 @@ describe("phase 7 validators", () => {
     expect(validateTaskGraph({ taskGraph: circular, spec }).errors.join("\n")).toContain(
       "circular dependency"
     );
+  });
+
+  it("requires task class and risk factors before a task graph is ready", () => {
+    const spec = createSpecArtifact({ feature, now });
+    const classified = readyTaskGraph();
+    const { taskClass: _taskClass, ...withoutTaskClass } = classified.tasks[0]!;
+    const { riskFactors: _riskFactors, ...withoutRiskFactors } = classified.tasks[0]!;
+
+    const missingTaskClass = validateTaskGraph({
+      taskGraph: { ...classified, tasks: [withoutTaskClass] },
+      spec
+    });
+    const missingRiskFactors = validateTaskGraph({
+      taskGraph: { ...classified, tasks: [withoutRiskFactors] },
+      spec
+    });
+
+    expect(missingTaskClass.errors).toContain(
+      "T001 must declare taskClass before the task graph is ready."
+    );
+    expect(missingRiskFactors.errors).toContain(
+      "T001 must declare riskFactors before the task graph is ready."
+    );
+  });
+
+  it("accepts a ready graph with explicit independent classification metadata", () => {
+    const spec = createSpecArtifact({ feature, now });
+
+    expect(validateTaskGraph({ taskGraph: readyTaskGraph(), spec })).toEqual({
+      passed: true,
+      errors: []
+    });
+  });
+
+  it("does not invent a task class in the draft task-graph template", () => {
+    const taskGraph = createTaskGraphArtifact({ feature, now });
+
+    expect(taskGraph.tasks[0]).not.toHaveProperty("taskClass");
   });
 });

@@ -627,8 +627,14 @@ Validation Commands:
 Parallelizable:
 false
 
-Risk:
+Task Class:
+unknown
+
+Risk Level:
 medium
+
+Risk Factors:
+unknown
 
 ## Suggested Implementation Order
 

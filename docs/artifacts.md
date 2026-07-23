@@ -68,6 +68,18 @@ The compact constitution is used in context packs. The full constitution is not 
   timeline.md
 ```
 
+Each task in `task-graph.json` keeps three independent classification fields:
+
+- `taskClass`: `localized_bug`, `bounded_feature`, `cross_file_change`,
+  `regression_test`, `refactor`, `migration`, `security`, or `documentation`;
+- `riskLevel`: `low`, `medium`, or `high`; and
+- `riskFactors`: versioned factor records such as `public_api`, `schema`,
+  `dependency`, `concurrency`, or `data_migration`.
+
+Legacy task graphs without class or factors remain readable. A graph cannot be
+marked ready until both are explicit. An empty `riskFactors` array means no
+factors apply; an omitted field means the legacy source did not declare them.
+
 ## Context
 
 ```text

@@ -6,7 +6,9 @@ import {
   isoDateTimeSchema,
   nonEmptyStringSchema,
   pathStringSchema,
+  riskFactorsSchema,
   riskLevelSchema,
+  taskClassSchema,
   taskStatusSchema
 } from "./common.schema.js";
 
@@ -24,7 +26,9 @@ export const taskSchema = z
     validationCommands: z.array(commandStringSchema),
     status: taskStatusSchema,
     parallelizable: z.boolean(),
-    riskLevel: riskLevelSchema
+    riskLevel: riskLevelSchema,
+    taskClass: taskClassSchema.optional(),
+    riskFactors: riskFactorsSchema.optional()
   })
   .strict();
 

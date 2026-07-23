@@ -4,8 +4,10 @@ import path from "node:path";
 
 import { type AppliedPolicyOverride, type PolicyStatus } from "../artifacts/schemas/gate.schema.js";
 import {
+  type RiskFactor,
   type RequirementPriority,
   type RiskLevel,
+  type TaskClass,
   type ValidationMethod
 } from "../artifacts/schemas/common.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
@@ -18,6 +20,12 @@ import {
   createWorkflowActionId,
   type Sha256Hash
 } from "./canonical-json.js";
+
+export type {
+  RiskFactor,
+  RiskFactorCode,
+  TaskClass
+} from "../artifacts/schemas/common.schema.js";
 
 export type DeclaredUnavailableReason =
   | "not_in_source_artifact"
@@ -51,33 +59,6 @@ export type CanonicalWorkflowPhase =
   | "review"
   | "reconcile"
   | "pr";
-
-export type TaskClass =
-  | "localized_bug"
-  | "bounded_feature"
-  | "cross_file_change"
-  | "regression_test"
-  | "refactor"
-  | "migration"
-  | "security"
-  | "documentation";
-
-export type RiskFactorCode =
-  | "authentication"
-  | "authorization"
-  | "cryptography"
-  | "public_api"
-  | "schema"
-  | "dependency"
-  | "concurrency"
-  | "permissions"
-  | "deployment"
-  | "data_migration";
-
-export type RiskFactor = {
-  readonly version: "1.0";
-  readonly code: RiskFactorCode;
-};
 
 export type AssuranceProfile = "routine" | "behavioral" | "critical";
 
@@ -254,6 +235,19 @@ function duplicateValues(values: readonly string[]): string[] {
   return [...duplicates].sort(compareUtf16CodeUnits);
 }
 
+function normalizeRiskFactors(factors: readonly RiskFactor[]): RiskFactor[] {
+  const duplicates = duplicateValues(factors.map((factor) => factor.code));
+  if (duplicates.length > 0) {
+    throw new TypeError(
+      `canonical-workflow-action: duplicate risk factor codes: ${duplicates.join(", ")}`
+    );
+  }
+
+  return factors
+    .map((factor) => ({ ...factor }))
+    .sort((left, right) => compareUtf16CodeUnits(left.code, right.code));
+}
+
 function normalizeEvidence(evidence: readonly string[]): string[] {
   return sortUnique(evidence);
 }
@@ -423,7 +417,11 @@ function stableTaskSource(task: Task): object {
     forbiddenFiles: normalizedPaths(task.forbiddenFiles),
     validationCommands: [...task.validationCommands],
     parallelizable: task.parallelizable,
-    riskLevel: task.riskLevel
+    riskLevel: task.riskLevel,
+    ...(task.taskClass === undefined ? {} : { taskClass: task.taskClass }),
+    ...(task.riskFactors === undefined
+      ? {}
+      : { riskFactors: normalizeRiskFactors(task.riskFactors) })
   };
 }
 
@@ -1237,11 +1235,19 @@ export async function buildCanonicalWorkflowActionEnvelope(input: {
             parallelizable: task.parallelizable
           },
     taskClass:
-      task === undefined ? notApplicable("no_active_task") : unavailable("not_in_source_artifact"),
+      task === undefined
+        ? notApplicable("no_active_task")
+        : task.taskClass === undefined
+          ? unavailable("not_in_source_artifact")
+          : available(task.taskClass),
     risk: {
       level: task === undefined ? notApplicable("no_active_task") : available(task.riskLevel),
       factors:
-        task === undefined ? notApplicable("no_active_task") : unavailable("not_in_source_artifact")
+        task === undefined
+          ? notApplicable("no_active_task")
+          : task.riskFactors === undefined
+            ? unavailable("not_in_source_artifact")
+            : available(normalizeRiskFactors(task.riskFactors))
     },
     assurance: {
       level: strictness.level,

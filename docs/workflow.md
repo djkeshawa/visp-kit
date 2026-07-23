@@ -195,8 +195,11 @@ Outputs:
 - `tasks.md`
 - task IDs such as `T001`
 - allowed, expected, and forbidden file scopes when available
+- independent task class, risk level, and versioned risk factors
 
-Strict gates check requirement mappings and acceptance criteria before implementation.
+Strict gates check requirement mappings, acceptance criteria, and explicit task
+classification before implementation. Risk level is never used as a substitute
+for task class.
 
 ## 11. Context
 

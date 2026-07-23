@@ -378,6 +378,97 @@ describe("CanonicalWorkflowAction 1.0", () => {
     expect(canonicalWorkflowActionJson(first)).not.toContain("local_checked");
   });
 
+  it("keeps legacy task classification unavailable instead of inferring it from risk", async () => {
+    await writeReadFixtures(tempDir);
+    const legacyHighRiskTask = { ...task, riskLevel: "high" as const };
+
+    const action = await buildCanonicalWorkflowAction({
+      state: projectStateWithTask(tempDir, legacyHighRiskTask),
+      step: actionStep(tempDir)
+    });
+
+    expect(action.risk.level).toEqual({ state: "available", value: "high" });
+    expect(action.taskClass).toEqual({
+      state: "unavailable",
+      reasonCode: "not_in_source_artifact"
+    });
+    expect(action.risk.factors).toEqual({
+      state: "unavailable",
+      reasonCode: "not_in_source_artifact"
+    });
+  });
+
+  it("emits explicit task class and risk factors as available canonical values", async () => {
+    await writeReadFixtures(tempDir);
+    const classifiedTask = {
+      ...task,
+      taskClass: "bounded_feature",
+      riskFactors: [
+        { version: "1.0", code: "public_api" },
+        { version: "1.0", code: "schema" }
+      ]
+    } as Task;
+
+    const action = await buildCanonicalWorkflowAction({
+      state: projectStateWithTask(tempDir, classifiedTask),
+      step: actionStep(tempDir)
+    });
+
+    expect(action.taskClass).toEqual({
+      state: "available",
+      value: "bounded_feature"
+    });
+    expect(action.risk).toEqual({
+      level: { state: "available", value: "medium" },
+      factors: {
+        state: "available",
+        value: [
+          { version: "1.0", code: "public_api" },
+          { version: "1.0", code: "schema" }
+        ]
+      }
+    });
+  });
+
+  it("allows the same risk level to use different explicit task classes", async () => {
+    await writeReadFixtures(tempDir);
+    const localizedBug = {
+      ...task,
+      riskLevel: "medium",
+      taskClass: "localized_bug",
+      riskFactors: []
+    } as Task;
+    const documentation = {
+      ...task,
+      riskLevel: "medium",
+      taskClass: "documentation",
+      riskFactors: []
+    } as Task;
+
+    const localizedBugAction = await buildCanonicalWorkflowAction({
+      state: projectStateWithTask(tempDir, localizedBug),
+      step: actionStep(tempDir)
+    });
+    const documentationAction = await buildCanonicalWorkflowAction({
+      state: projectStateWithTask(tempDir, documentation),
+      step: actionStep(tempDir)
+    });
+
+    expect(localizedBugAction.risk.level).toEqual({
+      state: "available",
+      value: "medium"
+    });
+    expect(documentationAction.risk.level).toEqual(localizedBugAction.risk.level);
+    expect(localizedBugAction.taskClass).toEqual({
+      state: "available",
+      value: "localized_bug"
+    });
+    expect(documentationAction.taskClass).toEqual({
+      state: "available",
+      value: "documentation"
+    });
+  });
+
   it("keeps the returned action immutable when source command arrays change", async () => {
     await writeReadFixtures(tempDir);
     const mutableContext = contextPack();

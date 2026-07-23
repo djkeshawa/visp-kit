@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod/v4";
 
+import {
+  riskFactorSchemaV4,
+  riskLevelSchemaV4,
+  taskClassSchemaV4
+} from "../artifacts/schemas/common.schema.js";
 import { canonicalJsonV1, type Sha256Hash } from "./canonical-json.js";
 import { type CanonicalWorkflowAction } from "./canonical-workflow-action.js";
 
@@ -93,33 +98,6 @@ const taskSchema = z
     status: z.enum(["pending", "ready", "in_progress", "blocked", "done", "verified"]),
     dependsOn: z.array(idSchema),
     parallelizable: z.boolean()
-  })
-  .strict();
-const taskClassSchema = z.enum([
-  "localized_bug",
-  "bounded_feature",
-  "cross_file_change",
-  "regression_test",
-  "refactor",
-  "migration",
-  "security",
-  "documentation"
-]);
-const riskFactorSchema = z
-  .object({
-    version: z.literal("1.0"),
-    code: z.enum([
-      "authentication",
-      "authorization",
-      "cryptography",
-      "public_api",
-      "schema",
-      "dependency",
-      "concurrency",
-      "permissions",
-      "deployment",
-      "data_migration"
-    ])
   })
   .strict();
 const hashedReadSchema = z
@@ -215,11 +193,11 @@ export const workflowActionV3Schema = z
     phase: workflowPhaseSchema,
     feature: featureSchema.nullable(),
     task: taskSchema.nullable(),
-    taskClass: declaredValueSchema(taskClassSchema),
+    taskClass: declaredValueSchema(taskClassSchemaV4),
     risk: z
       .object({
-        level: declaredValueSchema(z.enum(["low", "medium", "high"])),
-        factors: declaredValueSchema(z.array(riskFactorSchema))
+        level: declaredValueSchema(riskLevelSchemaV4),
+        factors: declaredValueSchema(z.array(riskFactorSchemaV4))
       })
       .strict(),
     assurance: z

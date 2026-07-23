@@ -68,6 +68,12 @@ describe("phase 7 prompt renderers", () => {
     expect(renderTasksPrompt(feature)).toContain(
       "- status: pending | ready | in_progress | blocked | done | verified"
     );
+    expect(renderTasksPrompt(feature)).toContain(
+      "- taskClass: localized_bug | bounded_feature | cross_file_change | regression_test | refactor | migration | security | documentation"
+    );
+    expect(renderTasksPrompt(feature)).toContain(
+      "- riskFactors[].code: authentication | authorization | cryptography | public_api | schema | dependency | concurrency | permissions | deployment | data_migration"
+    );
     expect(renderPlanPrompt(feature)).toContain("Example decision entry in plan.json:");
     expect(renderClarifyPrompt(feature)).toContain(
       "Example question entry in clarifications.json:"

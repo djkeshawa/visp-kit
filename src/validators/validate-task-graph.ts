@@ -3,7 +3,12 @@ import { type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { duplicateIds, validation } from "./validation-helpers.js";
 import { type WorkflowValidation } from "../workflows/shared/workflow-summary.js";
-import { concreteText, hasConcreteCommand, hasConcretePath, placeholderFindings } from "./semantic-lint.js";
+import {
+  concreteText,
+  hasConcreteCommand,
+  hasConcretePath,
+  placeholderFindings
+} from "./semantic-lint.js";
 
 function hasCycle(graph: Map<string, readonly string[]>): boolean {
   const visiting = new Set<string>();
@@ -71,6 +76,14 @@ export function validateTaskGraph(input: {
 
     if (!hasConcreteCommand(task.validationCommands)) {
       errors.push(`${task.id} must declare at least one concrete validation command.`);
+    }
+
+    if (task.taskClass === undefined) {
+      errors.push(`${task.id} must declare taskClass before the task graph is ready.`);
+    }
+
+    if (task.riskFactors === undefined) {
+      errors.push(`${task.id} must declare riskFactors before the task graph is ready.`);
     }
 
     for (const requirementId of task.requirementIds) {

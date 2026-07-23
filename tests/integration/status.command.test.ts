@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -10,6 +10,28 @@ import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
 
 async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
+}
+
+async function classifyReadyTask(tempDir: string): Promise<void> {
+  const taskGraphPath = path.join(
+    tempDir,
+    ".visp",
+    "features",
+    "001-add-note-pinning",
+    "task-graph.json"
+  );
+  const taskGraph = JSON.parse(await readFile(taskGraphPath, "utf8")) as {
+    tasks: Array<Record<string, unknown>>;
+  };
+  taskGraph.tasks[0] = {
+    ...taskGraph.tasks[0],
+    taskClass: "bounded_feature",
+    riskFactors: []
+  };
+  await writeFile(taskGraphPath, `${JSON.stringify(taskGraph, null, 2)}\n`, "utf8");
+
+  const program = createCli({ writeOut: () => undefined });
+  await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
 }
 
 describe("visp status command", () => {
@@ -42,6 +64,7 @@ describe("visp status command", () => {
 
   it("returns JSON only", async () => {
     await createPhase8Fixture(tempDir);
+    await classifyReadyTask(tempDir);
     const output: string[] = [];
     const errors: string[] = [];
     const program = createCli({

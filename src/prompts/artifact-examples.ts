@@ -1,7 +1,9 @@
 import {
   requirementPrioritySchema,
   requirementSourceSchema,
+  riskFactorCodeSchema,
   riskLevelSchema,
+  taskClassSchema,
   taskStatusSchema,
   validationMethodSchema
 } from "../artifacts/schemas/common.schema.js";
@@ -66,7 +68,9 @@ export const taskExample = {
   validationCommands: ["pnpm test"],
   status: "pending",
   parallelizable: false,
-  riskLevel: "low"
+  riskLevel: "low",
+  taskClass: "bounded_feature",
+  riskFactors: [{ version: "1.0", code: "public_api" }]
 } satisfies Task;
 
 export const clarificationQuestionExample = {
@@ -127,7 +131,12 @@ export function tasksFieldValuesSection(): string {
   return [
     "Field values (exact, no other values are valid):",
     enumLine("status", taskStatusSchema),
+    enumLine("taskClass", taskClassSchema),
     enumLine("riskLevel", riskLevelSchema),
+    enumLine("riskFactors[].code", riskFactorCodeSchema),
+    "- riskFactors[].version: 1.0",
+    "- taskClass, riskLevel, and riskFactors are independent. Classify each from task evidence; do not derive taskClass from riskLevel.",
+    "- Add taskClass and riskFactors before marking the graph ready. Use riskFactors: [] only when no factors apply.",
     '- IDs: T001, T002 - zero-padded and sequential. New tasks start as status "pending".',
     "",
     "Example task entry in task-graph.json:",
