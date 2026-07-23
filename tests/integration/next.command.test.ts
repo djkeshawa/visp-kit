@@ -303,10 +303,10 @@ async function expectedPhase8ActionV3(
       dependsOn: [],
       parallelizable: false
     },
-    taskClass: { state: "unavailable", reasonCode: "not_in_source_artifact" },
+    taskClass: { state: "available", value: "bounded_feature" },
     risk: {
       level: { state: "available", value: "medium" },
-      factors: { state: "unavailable", reasonCode: "not_in_source_artifact" }
+      factors: { state: "available", value: [] }
     },
     assurance: {
       level: "advisory",

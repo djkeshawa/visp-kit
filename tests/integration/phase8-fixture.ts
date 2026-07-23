@@ -119,10 +119,22 @@ async function completePlanningArtifacts(featureDir: string, program: ReturnType
       allowedFiles: ["src/notes.ts"],
       expectedFiles: ["tests/notes.test.ts"],
       validationCommands: ["pnpm test"],
-      status: "ready"
+      status: "ready",
+      taskClass: "bounded_feature",
+      riskFactors: []
     };
   });
-  await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
+
+  const previousExitCode = process.exitCode;
+  process.exitCode = undefined;
+  try {
+    await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
+    if (process.exitCode !== undefined && process.exitCode !== 0) {
+      throw new Error(`Phase 8 fixture task validation failed with exit code ${process.exitCode}.`);
+    }
+  } finally {
+    process.exitCode = previousExitCode;
+  }
 }
 
 export async function createPhase8Fixture(tempDir: string): Promise<void> {
@@ -207,7 +219,9 @@ test("pinNote", () => {
     allowedFiles: ["src/notes.ts"],
     expectedFiles: ["tests/notes.test.ts"],
     validationCommands: ["pnpm test"],
-    status: "ready"
+    status: "ready",
+    taskClass: "bounded_feature",
+    riskFactors: []
   };
 
   await writeFile(taskGraphPath, `${JSON.stringify(taskGraph, null, 2)}\n`, "utf8");
