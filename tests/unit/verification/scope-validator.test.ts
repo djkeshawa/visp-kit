@@ -40,7 +40,13 @@ describe("scope validator", () => {
 
   it("ignores .visp generated files", () => {
     const result = validateScope({
-      changedFiles: [".visp/features/001/verification.json"],
+      changedFiles: [
+        ".visp/features/001/verification.json",
+        ".visp/features/001/assurance/T001/oracle-plan.json",
+        ".visp/features/001/assurance/T001/oracle-lock.json",
+        ".visp/features/001/assurance/T001/baseline-evidence.json",
+        ".visp/features/001/assurance/T001/candidate-evidence.json"
+      ],
       task: validTaskGraph.tasks[0],
       explicit: false,
       gitWarnings: []

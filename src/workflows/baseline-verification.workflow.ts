@@ -54,7 +54,7 @@ export type BaselineVerificationSummary = {
   readonly dryRun: boolean;
 };
 
-function observation(
+export function observeVerificationCommands(
   commands: readonly VerificationCommandResult[]
 ): "passed" | "failed" | "inconclusive" {
   const executed = commands.filter((command) => !command.skipped);
@@ -66,7 +66,7 @@ export function evaluateBaselineOracles(input: {
   readonly oracles: readonly OraclePlanOracle[];
   readonly commands: readonly VerificationCommandResult[];
 }): readonly BaselineOracleResult[] {
-  const observed = observation(input.commands);
+  const observed = observeVerificationCommands(input.commands);
   return input.oracles.map((oracle) => ({
     oracleId: oracle.id,
     expected: oracle.baseline.expected,
@@ -81,8 +81,12 @@ export function evaluateBaselineOracles(input: {
 }
 
 export function evaluateBaselineOutcome(
-  results: readonly BaselineOracleResult[]
+  results: readonly BaselineOracleResult[],
+  commands?: readonly VerificationCommandResult[]
 ): BaselineEvidence["outcome"] {
+  if (results.length === 0) {
+    return commands === undefined ? "inconclusive" : observeVerificationCommands(commands);
+  }
   if (results.some((result) => result.observed === "inconclusive")) return "inconclusive";
   return results.every((result) => result.expectationMet) ? "passed" : "failed";
 }
@@ -195,7 +199,7 @@ export async function runBaselineVerificationWorkflow(
     cacheKey: cacheKey.value,
     oracles,
     commands,
-    outcome: evaluateBaselineOutcome(oracles),
+    outcome: evaluateBaselineOutcome(oracles, commands),
     generatedAt
   };
   const parsed = baselineEvidenceSchema.safeParse(candidate);

@@ -282,6 +282,14 @@ export function baselineEvidenceArtifactPath(
   return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "baseline-evidence.json");
 }
 
+export function candidateEvidenceArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "candidate-evidence.json");
+}
+
 export function verificationArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.json");
 }

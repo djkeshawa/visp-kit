@@ -57,7 +57,10 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     /^\.visp\/features\/[^/]+\/reconcile\//.test(filePath) ||
     /^\.visp\/features\/[^/]+\/reconcile\.(json|md)$/.test(filePath) ||
     /^\.visp\/features\/[^/]+\/reconcile-prompt\.md$/.test(filePath) ||
-    /^\.visp\/features\/[^/]+\/verification\.(json|md)$/.test(filePath)
+    /^\.visp\/features\/[^/]+\/verification\.(json|md)$/.test(filePath) ||
+    /^\.visp\/features\/[^/]+\/assurance\/[^/]+\/(oracle-plan|oracle-approval|oracle-lock|baseline-evidence|candidate-evidence)\.json$/.test(
+      filePath
+    )
   );
 }
 

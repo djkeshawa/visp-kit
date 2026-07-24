@@ -69,4 +69,10 @@ describe("baseline verification semantics", () => {
     expect(results[0]).toMatchObject({ observed: "failed", expectationMet: true });
     expect(evaluateBaselineOutcome(results)).toBe("passed");
   });
+
+  it("uses the locked command observation for routine plans without oracles", () => {
+    expect(evaluateBaselineOutcome([], [command(true)])).toBe("passed");
+    expect(evaluateBaselineOutcome([], [command(false)])).toBe("failed");
+    expect(evaluateBaselineOutcome([], [])).toBe("inconclusive");
+  });
 });

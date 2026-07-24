@@ -53,15 +53,33 @@ async function initGitBaseline(rootPath: string): Promise<void> {
   );
 }
 
-async function prepareImplementedTask(rootPath: string): Promise<void> {
+async function prepareImplementedTask(
+  rootPath: string,
+  options: { readonly assurance?: boolean; readonly validationCommand?: string } = {}
+): Promise<void> {
   await updateTask(rootPath, {
-    validationCommands: ["node -e \"console.log('tests passed')\""]
+    validationCommands: [options.validationCommand ?? "node -e \"console.log('tests passed')\""]
   });
+  if (options.assurance ?? false) {
+    const packagePath = path.join(rootPath, "package.json");
+    const manifest = JSON.parse(await readFile(packagePath, "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    manifest.scripts.test = "node -e \"console.log('plan tests passed')\"";
+    manifest.scripts.typecheck = "node -e \"console.log('types passed')\"";
+    manifest.scripts.build = "node -e \"console.log('build passed')\"";
+    await writeFile(packagePath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  }
 
   const silent = createCli({ writeOut: () => undefined });
 
   await silent.parseAsync(["node", "visp", "context", "T001", rootPath, "--force"]);
   await initGitBaseline(rootPath);
+  if (options.assurance ?? false) {
+    await silent.parseAsync(["node", "visp", "oracle", "plan", rootPath, "--task", "T001"]);
+    await silent.parseAsync(["node", "visp", "oracle", "lock", rootPath, "--task", "T001"]);
+    await silent.parseAsync(["node", "visp", "verify", rootPath, "--baseline", "--task", "T001"]);
+  }
   await silent.parseAsync(["node", "visp", "gate", "implement", rootPath, "--task", "T001"]);
 
   for (const item of ["read-context", "implement-selected-task", "scope-check", "tests-updated"]) {
@@ -160,6 +178,83 @@ describe("visp done command", { timeout: 30000 }, () => {
     expect(summary.steps[0]?.name).toBe("verify");
     expect(summary.steps[0]?.success).toBe(false);
     expect(summary.steps[0]?.recovery).toBe("visp verify --task T001");
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("runs locked candidate evidence before the ordinary post-implementation checks", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareImplementedTask(tempDir, { assurance: true });
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "done",
+      tempDir,
+      "--task",
+      "T001",
+      "--usage-unavailable",
+      "--model",
+      "test-agent",
+      "--usage-note",
+      "Agent surface did not expose numeric token usage.",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as DoneJson;
+    expect(summary.success).toBe(true);
+    expect(summary.steps.map((step) => step.name)).toEqual([
+      "candidate",
+      "verify",
+      "budget",
+      "review",
+      "reconcile",
+      "checklist",
+      "next"
+    ]);
+    expect(
+      await readFile(
+        path.join(
+          tempDir,
+          ".visp",
+          "features",
+          "001-add-note-pinning",
+          "assurance",
+          "T001",
+          "candidate-evidence.json"
+        ),
+        "utf8"
+      )
+    ).toContain('"outcome": "passed"');
+  });
+
+  it("stops before ordinary verification when locked candidate evidence fails", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareImplementedTask(tempDir, {
+      assurance: true,
+      validationCommand: `node -e "process.exit(require('fs').readFileSync('src/notes.ts','utf8').includes('candidate-fail') ? 1 : 0)"`
+    });
+    const sourcePath = path.join(tempDir, "src", "notes.ts");
+    await writeFile(
+      sourcePath,
+      `${await readFile(sourcePath, "utf8")}\n// candidate-fail\n`,
+      "utf8"
+    );
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "done", tempDir, "--task", "T001", "--json"]);
+
+    const summary = JSON.parse(output.join("")) as DoneJson;
+    expect(summary.success).toBe(false);
+    expect(summary.steps).toEqual([
+      expect.objectContaining({
+        name: "candidate",
+        success: false,
+        recovery: "visp verify --candidate --task T001"
+      })
+    ]);
     expect(process.exitCode).toBe(1);
   });
 

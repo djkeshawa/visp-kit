@@ -207,7 +207,6 @@ Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
-- `--baseline` (run or reuse task baseline evidence and bind it into the oracle lock)
 - `--budget lean|balanced|strict`
 - `--max-tokens <number>`
 - `--write-report`
@@ -316,6 +315,8 @@ Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
+- `--baseline` (run or reuse pre-implementation evidence and bind it into the oracle lock)
+- `--candidate` (run post-implementation evidence and compare it with the locked baseline)
 - `--targeted`
 - `--all`
 - `--commands`
@@ -334,6 +335,7 @@ Generated artifacts:
 - `.visp/features/<feature>/verification.md`
 - `.visp/features/<feature>/verification.json`
 - `.visp/features/<feature>/assurance/<task>/baseline-evidence.json` (`--baseline`)
+- `.visp/features/<feature>/assurance/<task>/candidate-evidence.json` (`--candidate`)
 
 Baseline mode uses the locked oracle plan's validation commands. Its cache key
 binds the base commit, command set, lockfiles, authoritative and project
@@ -341,6 +343,9 @@ configuration hashes, provider versions, runtime majors, operating system, and
 architecture. A localized-bug baseline must reproduce failure; feature
 baselines record the observed result. Material cache changes force a fresh run,
 and implementation remains blocked until the resulting baseline is locked.
+Candidate mode refuses missing, modified, or cache-stale baseline evidence,
+runs the exact locked command set, and records a per-oracle
+baseline/candidate comparison. Failed or inconclusive comparison is not a pass.
 
 ## `visp review [path]`
 
@@ -394,10 +399,12 @@ Generated artifacts:
 
 ## `visp done [path]`
 
-Purpose: run the full post-implementation pipeline for one task in order —
-verify, usage recording, review, reconcile (with traceability update),
-checklist status check, and next-step recommendation. The pipeline stops at
-the first failing step and prints the exact recovery command.
+Purpose: run the full post-implementation pipeline for one task in order.
+When assurance is active it first runs candidate evidence, then ordinary
+verification without duplicating the locked command batch, usage recording,
+review, reconcile (with traceability update), checklist status, and the
+next-step recommendation. The pipeline stops at the first failing step and
+prints the exact recovery command.
 
 Common flags:
 

@@ -3,10 +3,13 @@ import path from "node:path";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
 import { clearTaskImplementMarker } from "../gates/implement-marker.js";
+import { loadEffectivePolicy } from "../policy/policy-loader.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { runBudgetWorkflow } from "./budget.workflow.js";
+import { runCandidateVerificationWorkflow } from "./candidate-verification.workflow.js";
 import { runChecklistStatusWorkflow } from "./checklist.workflow.js";
 import { runNextWorkflow } from "./next.workflow.js";
+import { oraclePlanExists } from "./oracle-authorization.workflow.js";
 import { runReconcileWorkflow } from "./reconcile.workflow.js";
 import { runReviewWorkflow } from "./review.workflow.js";
 import { runVerifyWorkflow } from "./verify.workflow.js";
@@ -25,7 +28,14 @@ export type DoneWorkflowOptions = {
   readonly now?: string;
 };
 
-export type DoneStepName = "verify" | "budget" | "review" | "reconcile" | "checklist" | "next";
+export type DoneStepName =
+  | "candidate"
+  | "verify"
+  | "budget"
+  | "review"
+  | "reconcile"
+  | "checklist"
+  | "next";
 
 export type DoneStepResult = {
   readonly name: DoneStepName;
@@ -109,7 +119,57 @@ export async function runDoneWorkflow(
     nextCommand
   });
 
-  const verify = await runVerifyWorkflow({ ...shared, dryRun });
+  const policy = await loadEffectivePolicy({
+    targetPath,
+    now: options.now ?? new Date().toISOString()
+  });
+  if (!policy.ok) return policy;
+  const planExists = await oraclePlanExists(shared);
+  if (!planExists.ok) return planExists;
+  const candidateRequired =
+    policy.value.policy.rules.requireOracleLockBeforeImplementation === true ||
+    policy.value.policy.assurance !== undefined ||
+    planExists.value;
+
+  if (candidateRequired) {
+    const candidate = await runCandidateVerificationWorkflow({
+      ...shared,
+      dryRun
+    });
+
+    if (!candidate.ok) {
+      steps.push(
+        step({
+          name: "candidate",
+          success: false,
+          detail: candidate.error.message,
+          recovery: `visp verify --candidate --task ${taskId}`
+        })
+      );
+      return ok(summarize(`visp verify --candidate --task ${taskId}`));
+    }
+
+    steps.push(
+      step({
+        name: "candidate",
+        success: candidate.value.success,
+        detail: candidate.value.success
+          ? "Candidate evidence passed the locked baseline/oracle comparison."
+          : `Candidate evidence was ${candidate.value.outcome}.`,
+        recovery: candidate.value.success ? undefined : `visp verify --candidate --task ${taskId}`
+      })
+    );
+
+    if (!candidate.value.success) {
+      return ok(summarize(`visp verify --candidate --task ${taskId}`));
+    }
+  }
+
+  const verify = await runVerifyWorkflow({
+    ...shared,
+    skipCommands: candidateRequired,
+    dryRun
+  });
 
   if (!verify.ok) {
     steps.push(
@@ -129,7 +189,7 @@ export async function runDoneWorkflow(
       success: verify.value.success,
       detail: verify.value.success
         ? "Verification passed."
-        : "Verification failed. Fix the reported issues, then rerun.",
+        : `Verification failed: ${verify.value.errors.join("; ") || "fix the reported issues, then rerun."}`,
       recovery: verify.value.success ? undefined : `visp verify --task ${taskId}`
     })
   );

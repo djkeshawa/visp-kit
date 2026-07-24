@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   budgetArtifactPath,
   baselineEvidenceArtifactPath,
+  candidateEvidenceArtifactPath,
   doctorReportArtifactPath,
   constitutionArtifactPath,
   contextPackArtifactPath,
@@ -89,6 +90,17 @@ describe("artifact paths", () => {
         "assurance",
         "T001",
         "baseline-evidence.json"
+      )
+    );
+    expect(candidateEvidenceArtifactPath(root, featureKey, "T001")).toBe(
+      path.join(
+        root,
+        ".visp",
+        "features",
+        featureKey,
+        "assurance",
+        "T001",
+        "candidate-evidence.json"
       )
     );
     expect(verificationArtifactPath(root, featureKey)).toBe(

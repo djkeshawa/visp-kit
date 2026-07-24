@@ -19,6 +19,9 @@ describe("diff summary helpers", () => {
     expect(isGeneratedVispReviewFile(".visp/state/implement-allowed.json")).toBe(true);
     expect(isGeneratedVispReviewFile(".visp/state/implement-allowed/T001.json")).toBe(true);
     expect(isGeneratedVispReviewFile(".visp/state/implement-allowed/task:one_2.json")).toBe(true);
+    expect(
+      isGeneratedVispReviewFile(".visp/features/001-example/assurance/T001/candidate-evidence.json")
+    ).toBe(true);
   });
 
   it.each([

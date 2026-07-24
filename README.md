@@ -98,8 +98,8 @@ Task context and token control:
 Evidence and drift control:
 
 - `visp oracle` (generate, approve, lock, and validate task-bound implementation assurance)
-- `visp done` (verify + usage + review + reconcile + checklist in one command)
-- `visp verify` (including cache-bound pre-implementation baseline evidence)
+- `visp done` (candidate evidence + verify + usage + review + reconcile + checklist)
+- `visp verify` (including cache-bound baseline and candidate evidence comparison)
 - `visp review`
 - `visp reconcile`
 
@@ -322,9 +322,12 @@ After implementation, run the whole evidence pipeline in one command:
 visp done --task T001 --input-tokens <actual> --output-tokens <actual>
 ```
 
-`visp done` runs verify, usage recording, review, reconcile, the checklist
-status check, and `visp next` in order. It stops at the first failure and
-prints the exact recovery command.
+When assurance is active, `visp done` first compares candidate behavior with
+the locked baseline and oracle expectations. It then runs ordinary verification
+without repeating that locked command batch, followed by usage recording,
+review, reconcile, the checklist status check, and `visp next`. It stops at the
+first failure and prints the exact recovery command. Projects without active
+assurance retain the existing pipeline.
 
 If the agent surface does not expose numeric token usage, record that
 explicitly instead of inventing counts:
@@ -341,6 +344,7 @@ The granular commands remain available when you need one step at a time:
 ```bash
 visp checklist status --task T001
 visp budget --task T001 --record-usage --input-tokens <actual> --output-tokens <actual> --write-report
+visp verify --candidate --task T001
 visp verify --task T001
 visp review --task T001
 visp reconcile --task T001 --update-traceability

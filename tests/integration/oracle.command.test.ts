@@ -451,4 +451,102 @@ describe("visp oracle command", () => {
     expect(refreshed.action).toBe("executed");
     expect(refreshed.cacheKey).not.toBe(first.cacheKey);
   });
+
+  it("writes candidate evidence and rejects comparison against a stale baseline", async () => {
+    await createPhase8Fixture(tempDir);
+    const packagePath = path.join(tempDir, "package.json");
+    const packageManifest = JSON.parse(await readFile(packagePath, "utf8")) as {
+      scripts: Record<string, string>;
+    };
+    packageManifest.scripts.test = "node -e \"console.log('plan tests passed')\"";
+    packageManifest.scripts.typecheck = "node -e \"console.log('types passed')\"";
+    packageManifest.scripts.build = "node -e \"console.log('build passed')\"";
+    await writeFile(packagePath, `${JSON.stringify(packageManifest, null, 2)}\n`, "utf8");
+    const taskGraphPath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "task-graph.json"
+    );
+    const taskGraph = JSON.parse(await readFile(taskGraphPath, "utf8")) as {
+      tasks: Array<{ validationCommands: string[] }>;
+    };
+    taskGraph.tasks[0]!.validationCommands = [
+      `node -e "process.exit(require('fs').existsSync('candidate.ok') ? 0 : 1)"`
+    ];
+    await writeFile(taskGraphPath, `${JSON.stringify(taskGraph, null, 2)}\n`, "utf8");
+    await prepareContext(tempDir);
+
+    let program = createCli({ writeOut: () => undefined });
+    await program.parseAsync(["node", "visp", "oracle", "plan", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--baseline", "--task", "T001"]);
+    expect(process.exitCode).toBeUndefined();
+
+    const candidatePath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001",
+      "candidate-evidence.json"
+    );
+    const failedOutput: string[] = [];
+    program = createCli({ writeOut: (value) => failedOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "verify",
+      tempDir,
+      "--candidate",
+      "--task",
+      "T001",
+      "--json"
+    ]);
+    expect(JSON.parse(failedOutput.join(""))).toMatchObject({
+      success: false,
+      outcome: "failed",
+      action: "executed"
+    });
+    expect(process.exitCode).toBe(1);
+
+    process.exitCode = undefined;
+    await writeFile(path.join(tempDir, "candidate.ok"), "ready\n", "utf8");
+    const passedOutput: string[] = [];
+    program = createCli({ writeOut: (value) => passedOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "verify",
+      tempDir,
+      "--candidate",
+      "--task",
+      "T001",
+      "--json"
+    ]);
+    const passedSummary = JSON.parse(passedOutput.join(""));
+    expect(passedSummary, JSON.stringify(passedSummary, null, 2)).toMatchObject({
+      success: true,
+      outcome: "passed",
+      action: "executed"
+    });
+    const passedEvidence = await readFile(candidatePath, "utf8");
+
+    const manifest = JSON.parse(await readFile(packagePath, "utf8")) as Record<string, unknown>;
+    manifest.materialConfigurationChange = true;
+    await writeFile(packagePath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+    process.exitCode = undefined;
+    const errors: string[] = [];
+    program = createCli({
+      writeOut: () => undefined,
+      writeErr: (value) => errors.push(value)
+    });
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--candidate", "--task", "T001"]);
+    expect(process.exitCode).toBe(1);
+    expect(errors.join("")).toContain("Baseline cache inputs changed");
+    expect(await readFile(candidatePath, "utf8")).toBe(passedEvidence);
+  });
 });

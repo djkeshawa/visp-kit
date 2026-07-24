@@ -62,7 +62,7 @@ export const baselineEvidenceSchema = z
     oraclePlan: oracleArtifactBindingSchema,
     originLockHash: oracleSha256Schema,
     cacheKey: baselineCacheKeySchema,
-    oracles: z.array(baselineOracleResultSchema).min(1),
+    oracles: z.array(baselineOracleResultSchema),
     commands: z.array(verificationCommandResultSchema),
     outcome: evidenceStatusSchema,
     generatedAt: isoDateTimeSchema

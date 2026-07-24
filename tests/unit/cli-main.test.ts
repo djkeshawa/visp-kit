@@ -246,6 +246,7 @@ describe("createCli", () => {
     expect(help).toContain("--task");
     expect(help).toContain("--targeted");
     expect(help).toContain("--baseline");
+    expect(help).toContain("--candidate");
     expect(help).toContain("--all");
     expect(help).toContain("--commands");
     expect(help).toContain("--skip-commands");

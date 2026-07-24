@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { VispError } from "../../core/errors.js";
 import { writeWorkflowError } from "./shared/error-output.js";
 import {
   formatVerifySummary,
@@ -10,10 +11,15 @@ import {
   formatBaselineVerificationSummary,
   runBaselineVerificationWorkflow
 } from "../../workflows/baseline-verification.workflow.js";
+import {
+  formatCandidateVerificationSummary,
+  runCandidateVerificationWorkflow
+} from "../../workflows/candidate-verification.workflow.js";
 
 export type VerifyCommandDependencies = {
   readonly runVerify?: typeof runVerifyWorkflow;
   readonly runBaselineVerify?: typeof runBaselineVerificationWorkflow;
+  readonly runCandidateVerify?: typeof runCandidateVerificationWorkflow;
   readonly writeOut?: (value: string) => void;
   readonly writeErr?: (value: string) => void;
   readonly cwd?: string;
@@ -23,6 +29,7 @@ type VerifyCommandOptions = {
   readonly feature?: string;
   readonly task?: string;
   readonly baseline?: boolean;
+  readonly candidate?: boolean;
   readonly targeted?: boolean;
   readonly all?: boolean;
   readonly commands?: boolean;
@@ -65,6 +72,7 @@ function workflowOptions(
 export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}): Command {
   const runVerify = dependencies.runVerify ?? runVerifyWorkflow;
   const runBaselineVerify = dependencies.runBaselineVerify ?? runBaselineVerificationWorkflow;
+  const runCandidateVerify = dependencies.runCandidateVerify ?? runCandidateVerificationWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
@@ -74,6 +82,10 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
     .option("--feature <feature>", "Feature ID, slug, or folder name.")
     .option("--task <task-id>", "Verify a single task.")
     .option("--baseline", "Run or reuse task baseline evidence and bind it into the oracle lock.")
+    .option(
+      "--candidate",
+      "Run candidate evidence and compare it with the locked baseline and oracle expectations."
+    )
     .option("--targeted", "Run task-specific validation commands where possible.")
     .option("--all", "Run all known project and task validation commands.")
     .option("--commands", "Run validation commands explicitly.")
@@ -90,6 +102,20 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
     .option("--dry-run", "Show verification plan without running commands or writing reports.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: VerifyCommandOptions) => {
+      if (options.baseline && options.candidate) {
+        writeWorkflowError({
+          error: new VispError(
+            "VALIDATION_FAILED",
+            "Use either --baseline or --candidate, not both."
+          ),
+          json: options.json ?? false,
+          writeOut,
+          writeErr
+        });
+        process.exitCode = 1;
+        return;
+      }
+
       if (options.baseline) {
         const result = await runBaselineVerify({
           targetPath,
@@ -114,6 +140,34 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
           options.json
             ? `${JSON.stringify(result.value, null, 2)}\n`
             : formatBaselineVerificationSummary(result.value)
+        );
+        if (!result.value.success) process.exitCode = 1;
+        return;
+      }
+
+      if (options.candidate) {
+        const result = await runCandidateVerify({
+          targetPath,
+          cwd: dependencies.cwd,
+          feature: options.feature,
+          taskId: options.task,
+          dryRun: options.dryRun ?? false,
+          jsonOutput: options.json ?? false
+        });
+        if (!result.ok) {
+          writeWorkflowError({
+            error: result.error,
+            json: options.json ?? false,
+            writeOut,
+            writeErr
+          });
+          process.exitCode = 1;
+          return;
+        }
+        writeOut(
+          options.json
+            ? `${JSON.stringify(result.value, null, 2)}\n`
+            : formatCandidateVerificationSummary(result.value)
         );
         if (!result.value.success) process.exitCode = 1;
         return;
