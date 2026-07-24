@@ -79,6 +79,7 @@ import {
   createOverrideCommand,
   type OverrideCommandDependencies
 } from "./commands/override.command.js";
+import { createOracleCommand, type OracleCommandDependencies } from "./commands/oracle.command.js";
 import {
   createNextCommand,
   type NextCommandDependencies
@@ -132,6 +133,7 @@ export type CliDependencies = AgentCommandDependencies &
   InitCommandDependencies &
   IntegrationCommandDependencies &
   NextCommandDependencies &
+  OracleCommandDependencies &
   OverrideCommandDependencies &
   PlanCommandDependencies &
   PolicyCommandDependencies &
@@ -182,6 +184,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
   program.addCommand(createInitCommand(dependencies));
   program.addCommand(createIntegrationCommand(dependencies));
   program.addCommand(createNextCommand(dependencies));
+  program.addCommand(createOracleCommand(dependencies));
   program.addCommand(createOverrideCommand(dependencies));
   program.addCommand(createPlanCommand(dependencies));
   program.addCommand(createPolicyCommand(dependencies));

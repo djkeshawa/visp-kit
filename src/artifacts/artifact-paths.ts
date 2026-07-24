@@ -246,6 +246,18 @@ export function contextChecklistJsonPath(
   );
 }
 
+export function assuranceArtifactDir(rootPath: string, featureKey: string, taskId: string): string {
+  return joinPath(featureArtifactDir(rootPath, featureKey), "assurance", taskId);
+}
+
+export function oraclePlanArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "oracle-plan.json");
+}
+
 export function verificationArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.json");
 }

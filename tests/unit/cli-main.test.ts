@@ -24,6 +24,7 @@ describe("createCli", () => {
     expect(help).toContain("init");
     expect(help).toContain("integration");
     expect(help).toContain("next");
+    expect(help).toContain("oracle");
     expect(help).toContain("override");
     expect(help).toContain("plan");
     expect(help).toContain("policy");
@@ -166,6 +167,15 @@ describe("createCli", () => {
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
     expect(help).toContain("--json");
+  });
+
+  it("prints oracle command help", () => {
+    const oracle = createCli().commands.find((command) => command.name() === "oracle");
+
+    expect(oracle?.commands.map((command) => command.name())).toEqual(["plan", "validate"]);
+    expect(
+      oracle?.commands.find((command) => command.name() === "plan")?.helpInformation()
+    ).toContain("--pre-approved-test");
   });
 
   it("prints budget command help", () => {

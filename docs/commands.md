@@ -157,6 +157,34 @@ Common flags:
 
 Related gate: `visp gate implement --task T001`
 
+## `visp oracle`
+
+Purpose: generate and validate a task-bound oracle plan before evidence collection.
+
+Subcommands:
+
+- `visp oracle plan [path] --task T001`
+- `visp oracle validate [path] --task T001`
+
+Plan flags:
+
+- `--feature <id-or-slug-or-folder>`
+- `--task <task-id>`
+- `--pre-approved-test <path>` (repeatable explicit pre-approval)
+- `--force`
+- `--dry-run`
+- `--json`
+
+Generated artifact:
+
+- `.visp/features/<feature>/assurance/<task>/oracle-plan.json`
+
+The plan binds current policy, specification, plan, task graph, context, task,
+validation commands, baseline/candidate expectations, base commit, required
+providers, and any Git-proven pre-existing or explicitly pre-approved test
+hashes. `validate` fails when a bound input, base commit, or test file changes.
+Critical plans remain pending until the separate approval-and-lock workflow.
+
 ## `visp budget [path]`
 
 Purpose: estimate feature or task context token usage.
