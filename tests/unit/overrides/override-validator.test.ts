@@ -25,10 +25,12 @@ describe("override validator", () => {
     expect(isKnownPolicyRule("VSP014")).toBe(true);
     expect(isKnownPolicyRule("VSP999")).toBe(false);
     expect(isNonOverridableRule({ ruleId: "VSP019", policy })).toBe(true);
+    expect(isKnownPolicyRule("VSP023")).toBe(true);
+    expect(isNonOverridableRule({ ruleId: "VSP023", policy })).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP014", policy })).toBe(false);
   });
 
-  it("keeps VSP019/VSP020 protected even when the policy array is tampered", () => {
+  it("keeps the authorization core protected even when the policy array is tampered", () => {
     const policy = createDefaultPolicy({ now: "2026-01-01T00:00:00.000Z" });
     const tampered = {
       ...policy,
@@ -40,6 +42,7 @@ describe("override validator", () => {
 
     expect(isNonOverridableRule({ ruleId: "VSP019", policy: tampered })).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP020", policy: tampered })).toBe(true);
+    expect(isNonOverridableRule({ ruleId: "VSP023", policy: tampered })).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP014", policy: tampered })).toBe(false);
   });
 

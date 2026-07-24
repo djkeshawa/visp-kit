@@ -21,6 +21,7 @@ import {
   writeImplementMarker
 } from "../gates/implement-marker.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
+import { loadOracleAuthorization } from "./oracle-authorization.workflow.js";
 
 export type GateWorkflowOptions = {
   readonly targetPath?: string;
@@ -112,12 +113,26 @@ export async function runGateWorkflow(
       });
 
       if (state.ok && state.value.selectedTask !== undefined) {
+        const oracleAuthorization = parsed.data.passedRules.includes("VSP023")
+          ? await loadOracleAuthorization({
+              targetPath,
+              feature: options.feature,
+              taskId: parsed.data.taskId,
+              now
+            })
+          : undefined;
+        if (oracleAuthorization !== undefined && !oracleAuthorization.ok) {
+          return oracleAuthorization;
+        }
         const marker = await writeImplementMarker({
           targetPath,
           task: state.value.selectedTask,
           featureId: parsed.data.feature.id,
           strictnessMode: parsed.data.strictnessMode,
-          now
+          now,
+          ...(oracleAuthorization?.ok === true
+            ? { oracleAuthorization: oracleAuthorization.value.binding }
+            : {})
         });
 
         if (!marker.ok) return marker;

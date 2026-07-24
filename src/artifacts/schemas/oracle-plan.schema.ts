@@ -11,16 +11,16 @@ import {
 } from "./common.schema.js";
 import { assuranceProfileSchema, evidenceProviderIdentitySchema } from "./evidence.schema.js";
 
-const sha256Schema = z.string().regex(/^sha256:[a-f0-9]{64}$/u);
+export const oracleSha256Schema = z.string().regex(/^sha256:[a-f0-9]{64}$/u);
 
-const artifactBindingSchema = z
+export const oracleArtifactBindingSchema = z
   .object({
     path: pathStringSchema,
-    sha256: sha256Schema
+    sha256: oracleSha256Schema
   })
   .strict();
 
-const baseCommitSchema = z.discriminatedUnion("status", [
+export const oracleBaseCommitSchema = z.discriminatedUnion("status", [
   z
     .object({
       status: z.literal("captured"),
@@ -58,7 +58,7 @@ export const oracleTestStrengthEvidenceSchema = z.discriminatedUnion("independen
   z
     .object({
       path: pathStringSchema,
-      sha256: sha256Schema,
+      sha256: oracleSha256Schema,
       independence: z.literal("pre_existing"),
       source: z
         .object({
@@ -71,7 +71,7 @@ export const oracleTestStrengthEvidenceSchema = z.discriminatedUnion("independen
   z
     .object({
       path: pathStringSchema,
-      sha256: sha256Schema,
+      sha256: oracleSha256Schema,
       independence: z.literal("pre_approved"),
       source: z
         .object({
@@ -101,15 +101,15 @@ export const oraclePlanSchema = z
     testStrengthEvidence: z.array(oracleTestStrengthEvidenceSchema),
     bindings: z
       .object({
-        policy: artifactBindingSchema,
-        specification: artifactBindingSchema,
-        plan: artifactBindingSchema,
-        taskGraph: artifactBindingSchema,
-        context: artifactBindingSchema,
-        task: z.object({ id: idSchema, sha256: sha256Schema }).strict()
+        policy: oracleArtifactBindingSchema,
+        specification: oracleArtifactBindingSchema,
+        plan: oracleArtifactBindingSchema,
+        taskGraph: oracleArtifactBindingSchema,
+        context: oracleArtifactBindingSchema,
+        task: z.object({ id: idSchema, sha256: oracleSha256Schema }).strict()
       })
       .strict(),
-    baseCommit: baseCommitSchema,
+    baseCommit: oracleBaseCommitSchema,
     requiredProviders: z.array(evidenceProviderIdentitySchema).min(1),
     generatedAt: isoDateTimeSchema
   })
@@ -179,3 +179,5 @@ export const oraclePlanSchema = z
 export type OraclePlan = z.infer<typeof oraclePlanSchema>;
 export type OraclePlanOracle = z.infer<typeof oraclePlanOracleSchema>;
 export type OracleTestStrengthEvidence = z.infer<typeof oracleTestStrengthEvidenceSchema>;
+export type OracleArtifactBinding = z.infer<typeof oracleArtifactBindingSchema>;
+export type OracleBaseCommitArtifact = z.infer<typeof oracleBaseCommitSchema>;

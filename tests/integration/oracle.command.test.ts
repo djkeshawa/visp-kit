@@ -247,4 +247,132 @@ describe("visp oracle command", () => {
     expect(process.exitCode).toBe(1);
     expect(errors.join("")).toContain("stale or has been modified");
   });
+
+  it("blocks implementation until a current oracle lock is bound to the marker", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareContext(tempDir);
+    let program = createCli({ writeOut: () => undefined });
+    await program.parseAsync(["node", "visp", "oracle", "plan", tempDir, "--task", "T001"]);
+
+    const output: string[] = [];
+    program = createCli({ writeOut: (value) => output.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "gate",
+      "implement",
+      tempDir,
+      "--task",
+      "T001",
+      "--json"
+    ]);
+    const blocked = JSON.parse(output.join("")) as {
+      allowed: boolean;
+      failedRules: Array<{ ruleId: string }>;
+    };
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.failedRules.map((rule) => rule.ruleId)).toContain("VSP023");
+
+    process.exitCode = undefined;
+    program = createCli({ writeOut: () => undefined });
+    await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "gate", "implement", tempDir, "--task", "T001"]);
+    expect(process.exitCode).toBeUndefined();
+
+    const marker = JSON.parse(
+      await readFile(path.join(tempDir, ".visp", "state", "implement-allowed", "T001.json"), "utf8")
+    ) as {
+      oracleAuthorization?: {
+        lockPath: string;
+        lockHash: string;
+        lockFileSha256: string;
+      };
+    };
+    expect(marker.oracleAuthorization).toMatchObject({
+      lockPath: expect.stringContaining("oracle-lock.json"),
+      lockHash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+      lockFileSha256: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u)
+    });
+  });
+
+  it("requires approval for critical tasks and fails closed after revocation", async () => {
+    await createPhase8Fixture(tempDir);
+    const taskGraphPath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "task-graph.json"
+    );
+    const taskGraph = JSON.parse(await readFile(taskGraphPath, "utf8")) as {
+      tasks: Array<{ taskClass?: string; riskLevel: string }>;
+    };
+    taskGraph.tasks[0]!.taskClass = "security";
+    taskGraph.tasks[0]!.riskLevel = "high";
+    await writeFile(taskGraphPath, `${JSON.stringify(taskGraph, null, 2)}\n`, "utf8");
+    await prepareContext(tempDir);
+
+    let errors: string[] = [];
+    let program = createCli({
+      writeOut: () => undefined,
+      writeErr: (value) => errors.push(value)
+    });
+    await program.parseAsync(["node", "visp", "oracle", "plan", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+    expect(process.exitCode).toBe(1);
+    expect(errors.join("")).toContain("approval");
+
+    process.exitCode = undefined;
+    errors = [];
+    program = createCli({
+      writeOut: () => undefined,
+      writeErr: (value) => errors.push(value)
+    });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "oracle",
+      "approve",
+      tempDir,
+      "--task",
+      "T001",
+      "--reviewer",
+      "human-reviewer",
+      "--reason",
+      "Critical authorization behavior was reviewed."
+    ]);
+    await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+    expect(process.exitCode).toBeUndefined();
+    await program.parseAsync(["node", "visp", "gate", "implement", tempDir, "--task", "T001"]);
+    const lockPath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001",
+      "oracle-lock.json"
+    );
+    const markerPath = path.join(tempDir, ".visp", "state", "implement-allowed", "T001.json");
+    expect(expectOk(await pathExists(lockPath))).toBe(true);
+    expect(expectOk(await pathExists(markerPath))).toBe(true);
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "oracle",
+      "revoke",
+      tempDir,
+      "--task",
+      "T001",
+      "--reason",
+      "The reviewed authorization is no longer valid."
+    ]);
+    expect(expectOk(await pathExists(lockPath))).toBe(false);
+    expect(expectOk(await pathExists(markerPath))).toBe(false);
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+    expect(process.exitCode).toBe(1);
+    expect(errors.join("")).toContain("revoked");
+  });
 });

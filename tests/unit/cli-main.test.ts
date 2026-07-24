@@ -172,7 +172,13 @@ describe("createCli", () => {
   it("prints oracle command help", () => {
     const oracle = createCli().commands.find((command) => command.name() === "oracle");
 
-    expect(oracle?.commands.map((command) => command.name())).toEqual(["plan", "validate"]);
+    expect(oracle?.commands.map((command) => command.name())).toEqual([
+      "plan",
+      "validate",
+      "approve",
+      "revoke",
+      "lock"
+    ]);
     expect(
       oracle?.commands.find((command) => command.name() === "plan")?.helpInformation()
     ).toContain("--pre-approved-test");

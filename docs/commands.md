@@ -159,12 +159,15 @@ Related gate: `visp gate implement --task T001`
 
 ## `visp oracle`
 
-Purpose: generate and validate a task-bound oracle plan before evidence collection.
+Purpose: generate, approve, lock, and validate task-bound implementation assurance.
 
 Subcommands:
 
 - `visp oracle plan [path] --task T001`
 - `visp oracle validate [path] --task T001`
+- `visp oracle approve [path] --task T001 --reviewer <id> --reason <reason>`
+- `visp oracle revoke [path] --task T001 --reason <reason>`
+- `visp oracle lock [path] --task T001`
 
 Plan flags:
 
@@ -178,12 +181,19 @@ Plan flags:
 Generated artifact:
 
 - `.visp/features/<feature>/assurance/<task>/oracle-plan.json`
+- `.visp/features/<feature>/assurance/<task>/oracle-approval.json` (critical tasks)
+- `.visp/features/<feature>/assurance/<task>/oracle-lock.json`
 
 The plan binds current policy, specification, plan, task graph, context, task,
 validation commands, baseline/candidate expectations, base commit, required
 providers, and any Git-proven pre-existing or explicitly pre-approved test
 hashes. `validate` fails when a bound input, base commit, or test file changes.
-Critical plans remain pending until the separate approval-and-lock workflow.
+Critical plans cannot be locked until a human approval is active. Revoked,
+expired, stale, or modified approvals and locks fail closed. When assurance is
+active, `visp gate implement` binds the current lock into the implementation
+marker; strict edit and commit hooks reject that marker if the lock later
+changes. Projects without an assurance policy or oracle plan keep their prior
+implementation-gate behavior.
 
 ## `visp budget [path]`
 

@@ -23,7 +23,8 @@ export type GateRuleId =
   | "VSP019"
   | "VSP020"
   | "VSP021"
-  | "VSP022";
+  | "VSP022"
+  | "VSP023";
 
 export type GateRuleDefinition = {
   readonly id: GateRuleId;

@@ -28,6 +28,10 @@ import {
   evaluateTasksGate,
   evaluateVerifyGate
 } from "./stage-checks.js";
+import {
+  loadOracleAuthorization,
+  oraclePlanExists
+} from "../workflows/oracle-authorization.workflow.js";
 
 export type GateEngineOptions = {
   readonly targetPath: string;
@@ -105,6 +109,53 @@ function assuranceChecks(context: GateContext): GateEvaluation["checks"] {
         "Raise or remove policy.assurance.profile, or record a scoped VSP022 override with a human reason.",
       evidence: `calculated=${selection.calculatedProfile}; policy=${policyProfile}`
     }
+  ];
+}
+
+async function oracleAuthorizationChecks(input: {
+  readonly context: GateContext;
+  readonly options: GateEngineOptions;
+}): Promise<GateEvaluation["checks"]> {
+  if (
+    input.options.stage !== "implement" ||
+    input.context.state.selectedTask === undefined ||
+    input.context.state.selectedFeature === undefined
+  ) {
+    return [];
+  }
+
+  const workflowOptions = {
+    targetPath: input.options.targetPath,
+    feature: `${input.context.state.selectedFeature.id}-${input.context.state.selectedFeature.slug}`,
+    taskId: input.context.state.selectedTask.id,
+    now: input.options.now
+  };
+  const planExists = await oraclePlanExists(workflowOptions);
+  const required =
+    input.context.policy.policy.rules.requireOracleLockBeforeImplementation === true ||
+    input.context.policy.policy.assurance !== undefined ||
+    (planExists.ok && planExists.value);
+
+  if (!required) return [];
+
+  const authorization = await loadOracleAuthorization(workflowOptions);
+  return [
+    authorization.ok
+      ? {
+          ruleId: "VSP023",
+          passed: true,
+          message: "Oracle implementation authorization is current.",
+          recommendation: "Continue.",
+          evidence: `${authorization.value.binding.lockPath} (${authorization.value.binding.lockHash})`
+        }
+      : {
+          ruleId: "VSP023",
+          passed: false,
+          severity: "error",
+          message: "Oracle implementation authorization is missing, stale, or invalid.",
+          recommendation: `Run visp oracle plan --task ${input.context.state.selectedTask.id}, then visp oracle lock --task ${input.context.state.selectedTask.id}.`,
+          evidence: authorization.error.message
+        }
   ];
 }
 
@@ -207,9 +258,10 @@ export async function evaluateGate(
     }
 
     const stageEvaluation = evaluateStage(context, options.stage);
+    const authorizationChecks = await oracleAuthorizationChecks({ context, options });
     const evaluation = {
       ...stageEvaluation,
-      checks: [...stageEvaluation.checks, ...assuranceChecks(context)]
+      checks: [...stageEvaluation.checks, ...assuranceChecks(context), ...authorizationChecks]
     };
 
     const baseResult = buildGateResult({

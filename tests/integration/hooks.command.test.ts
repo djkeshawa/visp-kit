@@ -1,4 +1,5 @@
 import { execFile, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { promisify } from "node:util";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -293,6 +294,11 @@ describe("claude pretooluse hook script", () => {
     readonly taskId: string;
     readonly allowedFiles: readonly string[];
     readonly forbiddenFiles?: readonly string[];
+    readonly oracleAuthorization?: {
+      readonly lockPath: string;
+      readonly lockHash: string;
+      readonly lockFileSha256: string;
+    };
   }): Promise<void> {
     const markerDir = path.join(tempDir, ".visp", "state", "implement-allowed");
 
@@ -307,11 +313,54 @@ describe("claude pretooluse hook script", () => {
         allowedFiles: [...input.allowedFiles],
         expectedFiles: [],
         forbiddenFiles: [...(input.forbiddenFiles ?? [])],
+        ...(input.oracleAuthorization === undefined
+          ? {}
+          : { oracleAuthorization: input.oracleAuthorization }),
         createdAt: "2026-01-01T00:00:00.000Z"
       }),
       "utf8"
     );
   }
+
+  it("blocks edits when an oracle lock changes after marker authorization", async () => {
+    await installStrictFixtureWithHook();
+    const lockPath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001",
+      "oracle-lock.json"
+    );
+    const lock = { lockHash: `sha256:${"a".repeat(64)}` };
+    const lockText = `${JSON.stringify(lock, null, 2)}\n`;
+    await mkdir(path.dirname(lockPath), { recursive: true });
+    await writeFile(lockPath, lockText, "utf8");
+    await writeTaskMarker({
+      taskId: "T001",
+      allowedFiles: ["src/notes.ts"],
+      oracleAuthorization: {
+        lockPath: path.relative(tempDir, lockPath),
+        lockHash: lock.lockHash,
+        lockFileSha256: `sha256:${createHash("sha256").update(lockText, "utf8").digest("hex")}`
+      }
+    });
+
+    const allowed = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+    expect(allowed.exitCode).toBe(0);
+
+    await writeFile(lockPath, `${JSON.stringify({ ...lock, changed: true }, null, 2)}\n`, "utf8");
+    const blocked = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+    expect(blocked.exitCode).toBe(2);
+    expect(blocked.stderr).toContain("changed after authorization");
+  });
 
   it("allows edits covered by any of multiple active task markers", async () => {
     await installStrictFixtureWithHook();

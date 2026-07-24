@@ -258,6 +258,22 @@ export function oraclePlanArtifactPath(
   return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "oracle-plan.json");
 }
 
+export function oracleApprovalArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "oracle-approval.json");
+}
+
+export function oracleLockArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "oracle-lock.json");
+}
+
 export function verificationArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.json");
 }

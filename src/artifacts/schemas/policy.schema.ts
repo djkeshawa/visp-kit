@@ -30,7 +30,8 @@ export const policyRulesSchema = z
     // Optional so policy files written before this rule existed keep
     // validating; gates fall back to the strictness default when absent.
     blockOnUnresolvedDrift: z.boolean().optional(),
-    preventAssuranceProfileLowering: z.boolean().optional()
+    preventAssuranceProfileLowering: z.boolean().optional(),
+    requireOracleLockBeforeImplementation: z.boolean().optional()
   })
   .strict();
 

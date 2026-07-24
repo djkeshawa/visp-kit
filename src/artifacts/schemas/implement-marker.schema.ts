@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { idSchema, isoDateTimeSchema, pathStringSchema } from "./common.schema.js";
+import { oracleAuthorizationBindingSchema } from "./oracle-authorization.schema.js";
 import { strictnessModeSchema } from "./policy.schema.js";
 
 export const implementMarkerSchema = z
@@ -12,6 +13,7 @@ export const implementMarkerSchema = z
     allowedFiles: z.array(pathStringSchema),
     expectedFiles: z.array(pathStringSchema),
     forbiddenFiles: z.array(pathStringSchema),
+    oracleAuthorization: oracleAuthorizationBindingSchema.optional(),
     createdAt: isoDateTimeSchema
   })
   .strict();

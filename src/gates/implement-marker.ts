@@ -7,6 +7,7 @@ import {
 } from "../artifacts/schemas/implement-marker.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
+import { type OracleAuthorizationBinding } from "../artifacts/schemas/oracle-authorization.schema.js";
 import { type VispError } from "../core/errors.js";
 import { readJsonFile, removeFile } from "../core/file-system.js";
 import { joinPath, vispDir } from "../core/paths.js";
@@ -29,6 +30,7 @@ function markerFor(input: {
   readonly featureId: string | null;
   readonly strictnessMode: StrictnessMode;
   readonly now: string;
+  readonly oracleAuthorization?: OracleAuthorizationBinding;
 }): ImplementMarker {
   return {
     version: "1.0",
@@ -38,6 +40,9 @@ function markerFor(input: {
     allowedFiles: input.task.allowedFiles,
     expectedFiles: input.task.expectedFiles ?? [],
     forbiddenFiles: input.task.forbiddenFiles ?? [],
+    ...(input.oracleAuthorization === undefined
+      ? {}
+      : { oracleAuthorization: input.oracleAuthorization }),
     createdAt: input.now
   };
 }
@@ -48,6 +53,7 @@ export async function writeImplementMarker(input: {
   readonly featureId: string | null;
   readonly strictnessMode: StrictnessMode;
   readonly now: string;
+  readonly oracleAuthorization?: OracleAuthorizationBinding;
 }): Promise<Result<string, VispError>> {
   const marker = markerFor(input);
 

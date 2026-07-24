@@ -97,7 +97,7 @@ Task context and token control:
 
 Evidence and drift control:
 
-- `visp oracle` (generate and validate task-bound baseline/candidate expectations)
+- `visp oracle` (generate, approve, lock, and validate task-bound implementation assurance)
 - `visp done` (verify + usage + review + reconcile + checklist in one command)
 - `visp verify`
 - `visp review`

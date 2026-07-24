@@ -10,6 +10,8 @@ import {
   featureArtifactPath,
   featurePrArtifactPath,
   featurePrMarkdownPath,
+  oracleApprovalArtifactPath,
+  oracleLockArtifactPath,
   oraclePlanArtifactPath,
   planArtifactPath,
   projectConfigArtifactPath,
@@ -70,6 +72,12 @@ describe("artifact paths", () => {
     );
     expect(oraclePlanArtifactPath(root, featureKey, "T001")).toBe(
       path.join(root, ".visp", "features", featureKey, "assurance", "T001", "oracle-plan.json")
+    );
+    expect(oracleApprovalArtifactPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "assurance", "T001", "oracle-approval.json")
+    );
+    expect(oracleLockArtifactPath(root, featureKey, "T001")).toBe(
+      path.join(root, ".visp", "features", featureKey, "assurance", "T001", "oracle-lock.json")
     );
     expect(verificationArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "verification.json")
