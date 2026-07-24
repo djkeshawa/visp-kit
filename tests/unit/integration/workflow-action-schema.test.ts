@@ -12,7 +12,8 @@ import {
   generateWorkflowActionSchemaDocument,
   workflowActionSchemaHash,
   workflowActionV2Schema,
-  workflowActionV3Schema
+  workflowActionV3Schema,
+  workflowActionV31Schema
 } from "../../../src/integration/workflow-action-schema.js";
 
 const sha256 = `sha256:${"0".repeat(64)}`;
@@ -86,6 +87,101 @@ function validAction() {
   } as const;
 }
 
+function validAction31() {
+  return {
+    ...validAction(),
+    protocolVersion: "3.1" as const,
+    canonicalVersion: "1.1" as const,
+    evidence: { state: "unavailable" as const, reasonCode: "source_missing" as const }
+  };
+}
+
+function evidenceSummary() {
+  const result = (
+    id: string,
+    freshness: Record<string, unknown>,
+    outcome: Record<string, unknown>
+  ) => ({
+    id,
+    requirementId: `REQ-${id}`,
+    target: { kind: "command", command: "pnpm test" },
+    freshness,
+    independence: "pre_existing",
+    outcome
+  });
+  return {
+    version: "1.0",
+    source: "candidate",
+    artifact: {
+      path: ".visp/features/001-note-pinning/assurance/T001/candidate-evidence.json",
+      contentHash: sha256
+    },
+    generatedAt: "2026-07-25T00:00:00.000Z",
+    outcome: "inconclusive",
+    freshness: "stale",
+    providers: [
+      {
+        id: "provider-candidate-command",
+        provider: { id: "command", version: "1.0" },
+        status: "passed",
+        failure: null,
+        results: [
+          result(
+            "passed",
+            {
+              status: "fresh",
+              checkedAt: "2026-07-25T00:00:00.000Z",
+              inputHashes: [{ id: "command", sha256 }]
+            },
+            { status: "passed" }
+          ),
+          result(
+            "failed",
+            {
+              status: "stale",
+              checkedAt: "2026-07-25T00:00:01.000Z",
+              inputHashes: [],
+              reason: "Input changed."
+            },
+            { status: "failed", reason: "Expectation failed." }
+          ),
+          result(
+            "inconclusive",
+            {
+              status: "unknown",
+              checkedAt: "2026-07-25T00:00:02.000Z",
+              inputHashes: [],
+              reason: "Input unavailable."
+            },
+            { status: "inconclusive", reason: "Provider unavailable." }
+          ),
+          result(
+            "not-applicable",
+            {
+              status: "fresh",
+              checkedAt: "2026-07-25T00:00:03.000Z",
+              inputHashes: []
+            },
+            {
+              status: "not_applicable",
+              reason: "Rule excludes the check.",
+              determination: { kind: "rule", ruleId: "VSP-EVIDENCE-NA" }
+            }
+          )
+        ]
+      }
+    ],
+    testStrength: {
+      state: "available",
+      value: {
+        status: "passed",
+        independence: ["pre_existing"],
+        reason: "A pre-existing regression test is locked."
+      }
+    }
+  } as const;
+}
+
 type ActionFixture = ReturnType<typeof validAction>;
 type SchemaDocumentView = {
   readonly $schema: string;
@@ -111,7 +207,7 @@ function evidenceRequirement(overrides: Readonly<Record<string, unknown>> = {}) 
 
 describe("workflow-action runtime schemas", () => {
   it("keeps v2 permissiveness while exposing exact protocol constants", () => {
-    expect(SUPPORTED_WORKFLOW_ACTION_PROTOCOLS).toEqual(["2.0", "3.0"]);
+    expect(SUPPORTED_WORKFLOW_ACTION_PROTOCOLS).toEqual(["2.0", "3.0", "3.1"]);
     expect(DEFAULT_WORKFLOW_ACTION_PROTOCOL).toBe("2.0");
     expect(
       workflowActionV2Schema.parse({
@@ -134,6 +230,37 @@ describe("workflow-action runtime schemas", () => {
 
   it("strictly accepts the complete v3 shape including nested override nulls", () => {
     expect(workflowActionV3Schema.parse(validAction())).toEqual(validAction());
+  });
+
+  it("strictly separates evidence-aware 3.1 from immutable 3.0", () => {
+    expect(workflowActionV31Schema.parse(validAction31())).toEqual(validAction31());
+    expect(() => workflowActionV3Schema.parse(validAction31())).toThrow();
+    expect(() => workflowActionV31Schema.parse(validAction())).toThrow();
+  });
+
+  it("preserves every evidence status and freshness state in 3.1", () => {
+    const action = {
+      ...validAction31(),
+      evidence: { state: "available" as const, value: evidenceSummary() }
+    };
+    const parsed = workflowActionV31Schema.parse(action);
+    const results =
+      parsed.evidence.state === "available"
+        ? parsed.evidence.value.providers.flatMap((provider) => provider.results)
+        : [];
+
+    expect(results.map((result) => result.outcome.status)).toEqual([
+      "passed",
+      "failed",
+      "inconclusive",
+      "not_applicable"
+    ]);
+    expect(results.map((result) => result.freshness.status)).toEqual([
+      "fresh",
+      "stale",
+      "unknown",
+      "fresh"
+    ]);
   });
 
   it.each([
@@ -656,16 +783,18 @@ describe("workflow-action runtime schemas", () => {
 });
 
 describe("generated workflow-action schemas", () => {
-  it("contains exactly the two supported schema artifacts", async () => {
+  it("contains exactly the supported schema artifacts", async () => {
     expect((await readdir(path.join(process.cwd(), "schemas", "workflow-action"))).sort()).toEqual([
       "2.0.schema.json",
-      "3.0.schema.json"
+      "3.0.schema.json",
+      "3.1.schema.json"
     ]);
   });
 
   it.each([
     "2.0",
-    "3.0"
+    "3.0",
+    "3.1"
   ] as const)("matches the committed %s artifact document", async (protocol) => {
     const filePath = path.join(
       process.cwd(),
@@ -682,6 +811,7 @@ describe("generated workflow-action schemas", () => {
   it("uses stable metadata, closed objects, and protocol literals", () => {
     const v2 = generateWorkflowActionSchemaDocument("2.0") as SchemaDocumentView;
     const v3 = generateWorkflowActionSchemaDocument("3.0") as SchemaDocumentView;
+    const v31 = generateWorkflowActionSchemaDocument("3.1") as SchemaDocumentView;
 
     expect(v2).toMatchObject({
       $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -695,18 +825,28 @@ describe("generated workflow-action schemas", () => {
       type: "object",
       additionalProperties: false
     });
+    expect(v31).toMatchObject({
+      $schema: "https://json-schema.org/draft/2020-12/schema",
+      $id: "urn:visp:schema:workflow-action:3.1",
+      type: "object",
+      additionalProperties: false
+    });
     expect(v2.properties.protocolVersion.const).toBe("2.0");
     expect(v3.properties.protocolVersion.const).toBe("3.0");
+    expect(v31.properties.protocolVersion.const).toBe("3.1");
     expect(v3.required).toEqual(Object.keys(validAction()));
+    expect(v31.required).toEqual(Object.keys(validAction31()));
   });
 
   it("hashes canonical parsed JSON rather than formatting", async () => {
     expect({
       "2.0": workflowActionSchemaHash("2.0"),
-      "3.0": workflowActionSchemaHash("3.0")
+      "3.0": workflowActionSchemaHash("3.0"),
+      "3.1": workflowActionSchemaHash("3.1")
     }).toEqual({
       "2.0": "sha256:c63b279b1ce89f047b2be696a47e845a57adda7f8437892e211e3a4cfad39ed6",
-      "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7"
+      "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7",
+      "3.1": "sha256:41ffa28fcd4476ea1812ff307df67a7ab7edb5b2cf4d6c11955d34d4aad74d4d"
     });
 
     for (const protocol of SUPPORTED_WORKFLOW_ACTION_PROTOCOLS) {

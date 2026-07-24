@@ -12,8 +12,12 @@ import {
 } from "../artifacts/schemas/common.schema.js";
 import {
   type AssuranceProfile,
-  type EvidenceRequirement
+  type EvidenceProviderIdentity,
+  type EvidenceRequirement,
+  type EvidenceResult,
+  type EvidenceStatus
 } from "../artifacts/schemas/evidence.schema.js";
+import { type ProviderFailureCode } from "../artifacts/schemas/provider-run.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type NextStep } from "../orchestrator/next-step.js";
@@ -22,8 +26,10 @@ import {
   canonicalJsonV1,
   compareUtf16CodeUnits,
   createWorkflowActionId,
+  createWorkflowActionIdV1_1,
   type Sha256Hash
 } from "./canonical-json.js";
+import { selectCanonicalEvidence } from "./canonical-evidence.js";
 
 export type {
   RiskFactor,
@@ -167,6 +173,56 @@ export type CanonicalWorkflowAction = CanonicalWorkflowActionIdentityInput & {
   readonly actionId: Sha256Hash;
 };
 
+export type CanonicalEvidenceResultSummary = {
+  readonly id: string;
+  readonly requirementId: string;
+  readonly target: EvidenceResult["target"];
+  readonly freshness: EvidenceResult["freshness"];
+  readonly independence: EvidenceResult["independence"];
+  readonly outcome: EvidenceResult["outcome"];
+};
+
+export type CanonicalEvidenceProviderSummary = {
+  readonly id: string;
+  readonly provider: EvidenceProviderIdentity;
+  readonly status: "passed" | "inconclusive";
+  readonly failure: {
+    readonly code: ProviderFailureCode;
+    readonly reason: string;
+  } | null;
+  readonly results: readonly CanonicalEvidenceResultSummary[];
+};
+
+export type CanonicalEvidenceSummary = {
+  readonly version: "1.0";
+  readonly source: "baseline" | "candidate";
+  readonly artifact: {
+    readonly path: string;
+    readonly contentHash: Sha256Hash;
+  };
+  readonly generatedAt: string;
+  readonly outcome: EvidenceStatus;
+  readonly freshness: "fresh" | "stale" | "unknown";
+  readonly providers: readonly CanonicalEvidenceProviderSummary[];
+  readonly testStrength: DeclaredValue<{
+    readonly status: "passed" | "inconclusive";
+    readonly independence: readonly ("pre_existing" | "pre_approved")[];
+    readonly reason: string;
+  }>;
+};
+
+export type CanonicalWorkflowActionV1_1IdentityInput = Omit<
+  CanonicalWorkflowActionIdentityInput,
+  "canonicalVersion"
+> & {
+  readonly canonicalVersion: "1.1";
+  readonly evidence: DeclaredValue<CanonicalEvidenceSummary>;
+};
+
+export type CanonicalWorkflowActionV1_1 = CanonicalWorkflowActionV1_1IdentityInput & {
+  readonly actionId: Sha256Hash;
+};
+
 export type CanonicalWorkflowActionV2Presentation = {
   readonly writablePaths: readonly string[];
   readonly forbiddenPaths: readonly string[];
@@ -176,6 +232,11 @@ export type CanonicalWorkflowActionV2Presentation = {
 
 export type CanonicalWorkflowActionEnvelope = {
   readonly action: CanonicalWorkflowAction;
+  readonly v2Presentation: CanonicalWorkflowActionV2Presentation;
+};
+
+export type CanonicalWorkflowActionEnvelopeV1_1 = {
+  readonly action: CanonicalWorkflowActionV1_1;
   readonly v2Presentation: CanonicalWorkflowActionV2Presentation;
 };
 
@@ -1301,6 +1362,42 @@ export async function buildCanonicalWorkflowAction(input: {
   readonly step: NextStep;
 }): Promise<CanonicalWorkflowAction> {
   return (await buildCanonicalWorkflowActionEnvelope(input)).action;
+}
+
+export async function upgradeCanonicalWorkflowActionEnvelopeV1_1(input: {
+  readonly state: ProjectState;
+  readonly envelope: CanonicalWorkflowActionEnvelope;
+}): Promise<CanonicalWorkflowActionEnvelopeV1_1> {
+  const evidenceSelection = await selectCanonicalEvidence(input.state);
+  const findings = normalizedFindings([
+    ...input.envelope.action.findings,
+    ...(evidenceSelection.finding === undefined ? [] : [evidenceSelection.finding])
+  ]);
+  const {
+    actionId: _actionId,
+    canonicalVersion: _canonicalVersion,
+    ...base
+  } = input.envelope.action;
+  const identityInput: CanonicalWorkflowActionV1_1IdentityInput = {
+    canonicalVersion: "1.1",
+    ...base,
+    requiredEvidence: base.requiredEvidence,
+    evidence: evidenceSelection.evidence,
+    findings,
+    verdict: verdict(findings, false)
+  };
+  return {
+    action: {
+      canonicalVersion: "1.1",
+      actionId: createWorkflowActionIdV1_1(identityInput),
+      ...base,
+      requiredEvidence: base.requiredEvidence,
+      evidence: evidenceSelection.evidence,
+      findings,
+      verdict: verdict(findings, false)
+    },
+    v2Presentation: input.envelope.v2Presentation
+  };
 }
 
 export function canonicalWorkflowActionJson(action: CanonicalWorkflowAction): string {

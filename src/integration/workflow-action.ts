@@ -1,11 +1,17 @@
 import { type ProjectState } from "../orchestrator/project-state.js";
 import { type NextStep } from "../orchestrator/next-step.js";
-import { compareUtf16CodeUnits, createWorkflowActionId } from "./canonical-json.js";
+import {
+  compareUtf16CodeUnits,
+  createWorkflowActionId,
+  createWorkflowActionIdV1_1
+} from "./canonical-json.js";
 import {
   buildCanonicalWorkflowActionEnvelope,
   canonicalFindingReference,
+  upgradeCanonicalWorkflowActionEnvelopeV1_1,
   type CanonicalWorkflowAction,
   type CanonicalWorkflowActionEnvelope,
+  type CanonicalWorkflowActionEnvelopeV1_1,
   type CanonicalWorkflowPhase,
   type Finding,
   type HashedReadRole
@@ -16,9 +22,11 @@ import {
   type WorkflowActionProtocol,
   type WorkflowActionV2,
   type WorkflowActionV3,
+  type WorkflowActionV31,
   isWorkflowActionProtocol,
   workflowActionV2Schema,
-  workflowActionV3Schema
+  workflowActionV3Schema,
+  workflowActionV31Schema
 } from "./workflow-action-schema.js";
 
 export {
@@ -29,10 +37,12 @@ export {
   type WorkflowActionProtocol,
   type WorkflowActionV2,
   type WorkflowActionV3,
+  type WorkflowActionV31,
   isWorkflowActionProtocol,
   workflowActionSchemaHash,
   workflowActionV2Schema,
-  workflowActionV3Schema
+  workflowActionV3Schema,
+  workflowActionV31Schema
 } from "./workflow-action-schema.js";
 
 const v2Phase: Record<CanonicalWorkflowPhase, WorkflowActionV2["phase"]> = {
@@ -255,6 +265,20 @@ export function projectWorkflowActionV3(
   });
 }
 
+export function projectWorkflowActionV31(
+  envelope: CanonicalWorkflowActionEnvelopeV1_1
+): WorkflowActionV31 {
+  const { actionId, ...identityInput } = envelope.action;
+  if (createWorkflowActionIdV1_1(identityInput) !== actionId) {
+    throw new TypeError("workflow-action-v3.1: canonical action identity is invalid");
+  }
+
+  return workflowActionV31Schema.parse({
+    protocolVersion: "3.1",
+    ...envelope.action
+  });
+}
+
 export async function buildWorkflowAction(input: {
   readonly state: ProjectState;
   readonly step: NextStep;
@@ -271,6 +295,13 @@ export async function buildWorkflowAction(input: {
       return projectWorkflowActionV2(envelope);
     case "3.0":
       return projectWorkflowActionV3(envelope);
+    case "3.1":
+      return projectWorkflowActionV31(
+        await upgradeCanonicalWorkflowActionEnvelopeV1_1({
+          state: input.state,
+          envelope
+        })
+      );
   }
 }
 

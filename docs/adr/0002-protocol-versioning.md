@@ -10,7 +10,7 @@ Visp Kit already exposes machine-readable workflow and integration data consumed
 
 The next assurance design requires richer fields, but changing existing output in place would risk breaking users and external consumers.
 
-The current implemented boundary includes WorkflowAction 2.0 and 3.0 plus
+The current implemented boundary includes WorkflowAction 2.0, 3.0, and 3.1 plus
 integration contract 2.0, including orchestrator read contract 0.1. Kit also has an internal,
 protocol-independent canonical workflow action at canonical version `1.0`.
 P1-03 routes the existing WorkflowAction 2.0 CLI result through that canonical
@@ -18,7 +18,9 @@ meaning without publicly exporting the canonical action from the package root.
 P1-04 adds WorkflowAction 3.0 as an explicit projection, while preserving v2
 as the omitted-protocol default. P1-05 adds exact supported-version, default,
 and schema-hash advertisement to integration contract 2.0 without changing the
-default or claiming consumer support.
+default or claiming consumer support. P2-09 preserves the accepted 3.0 schema
+and adds evidence-aware WorkflowAction 3.1 rather than changing an immutable
+schema hash under an existing protocol name.
 
 ## Decision
 
@@ -29,9 +31,10 @@ Rules:
 
 1. WorkflowAction 2.0 remains the current and initial default until a later
    recorded decision and compatibility evidence authorize a change.
-2. WorkflowAction 3.0 is additive and explicitly requested; it does not
-   silently replace v2 output.
-3. V2 and v3 representations are derived from one shared canonical
+2. WorkflowAction 3.0 and 3.1 are additive and explicitly requested; neither
+   silently replaces v2 output. Accepted protocol schemas and hashes are
+   immutable.
+3. V2 and v3-family representations are derived from shared canonical
    meaning so their authoritative semantics cannot drift.
 4. An unknown or malformed selected strict protocol fails closed.
 5. Existing projects retain their configured behavior until explicitly upgraded.
@@ -58,11 +61,12 @@ Integration contract 2.0 emits this required top-level metadata after
 {
   "protocols": {
     "workflowAction": {
-      "supported": ["2.0", "3.0"],
+      "supported": ["2.0", "3.0", "3.1"],
       "default": "2.0",
       "schemaHashes": {
         "2.0": "sha256:c63b279b1ce89f047b2be696a47e845a57adda7f8437892e211e3a4cfad39ed6",
-        "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7"
+        "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7",
+        "3.1": "sha256:41ffa28fcd4476ea1812ff307df67a7ab7edb5b2cf4d6c11955d34d4aad74d4d"
       }
     }
   }
@@ -165,20 +169,41 @@ and not-applicable values. Top-level feature/task absence may be null;
 existing nullable fields inside an applied override remain nested record
 values. Kit does not infer currently unavailable Phase 2 evidence.
 
+## Implemented WorkflowAction 3.1 projection
+
+WorkflowAction 3.1 preserves 3.0 and advances the canonical action to version
+`1.1`. Its domain-separated identity uses
+`visp.workflow-action\0canonical-1.1\0` and includes a compact current-evidence
+summary. The summary identifies the baseline or candidate artifact by path and
+hash and carries exact Kit-supplied artifact, provider, result, freshness,
+independence, and test-strength states. It intentionally excludes captured
+stdout/stderr, operations, and other bulky evidence payloads.
+
+Candidate evidence takes precedence and is exposed only after its content hash
+and current plan, lock, authorization, baseline, cache, and provider bindings
+validate. Its recorded implementation-workspace fingerprint must also match
+the current task files, so changes after candidate verification make the
+action inconclusive. Otherwise an existing invalid or stale artifact makes the
+action inconclusive. A locked baseline is exposed only after the existing
+authorization loader validates its raw hash, plan/provider bindings, and cache.
+Missing ordinary evidence remains explicitly unavailable; a taskless action is
+not applicable. Consumers render these values and never decide sufficiency.
+
 ## Implemented schemas and CLI selection
 
 The single runtime Zod source generates committed draft 2020-12 schemas with
 stable IDs:
 
 - `urn:visp:schema:workflow-action:2.0`; and
-- `urn:visp:schema:workflow-action:3.0`.
+- `urn:visp:schema:workflow-action:3.0`; and
+- `urn:visp:schema:workflow-action:3.1`.
 
 Artifacts are included in the package and checked before packing. Schema
 hashes use dependency-free canonical-json-v1 over the parsed document, so
 formatting changes do not alter the schema hash.
 
-Kit accepts exact `visp next --format json --protocol 2.0` or `3.0`. Omitting
-the protocol preserves v2 bytes. Kit rejects `auto`, shorthand, unknown
+Kit accepts exact `visp next --format json --protocol 2.0`, `3.0`, or `3.1`.
+Omitting the protocol preserves v2 bytes. Kit rejects `auto`, shorthand, unknown
 versions, and protocol use without `--format json` before workflow evaluation.
 The legacy `--json` flag remains the larger NextStep summary.
 
@@ -197,6 +222,6 @@ A protocol release is not complete until:
 The projects may release independently, but current support claims remain
 limited to exact tested pairs. A wider compatibility window requires packed
 Kit/Hyper matrix evidence. The canonical builder remains internal. V2 remains
-the default and unchanged projection; v3 is explicit and additive. Kit now
-packages both schemas and can compute their stable hashes, but protocol
-advertisement and Hyper negotiation remain separate later work.
+the default and unchanged projection; the v3 family is explicit and additive.
+Kit packages all accepted schemas and computes their stable hashes; Hyper owns
+selection and negotiation.

@@ -20,6 +20,23 @@ describe("candidateEvidenceSchema", () => {
       },
       baselineEvidence: { path: ".visp/baseline-evidence.json", sha256: hash },
       baselineCacheKeySha256: hash,
+      workspace: {
+        version: "1.0",
+        mode: "git_changed",
+        files: [
+          {
+            path: "src/example.ts",
+            state: "present",
+            sha256: hash,
+            executable: false
+          },
+          {
+            path: "src/removed.ts",
+            state: "missing"
+          }
+        ],
+        hash
+      },
       testStrength: {
         status: "passed",
         independence: ["pre_existing"],

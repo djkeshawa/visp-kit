@@ -19,6 +19,19 @@ const authorization = {
   lockHash: digest,
   lockFileSha256: digest
 };
+const workspaceMaterial = {
+  version: "1.0" as const,
+  mode: "task_scope_fallback" as const,
+  files: [
+    {
+      path: "src/example.ts",
+      state: "present" as const,
+      sha256: digest,
+      executable: false
+    }
+  ]
+};
+const workspace = { ...workspaceMaterial, hash: hashOracleValue(workspaceMaterial) };
 
 function plan(): OraclePlan {
   const binding = { path: ".visp/input.json", sha256: digest };
@@ -69,6 +82,7 @@ function evidence(): CandidateEvidence {
     oracleAuthorization: authorization,
     baselineEvidence: baselineBinding,
     baselineCacheKeySha256: digest,
+    workspace,
     testStrength: {
       status: "inconclusive",
       independence: [],
@@ -115,7 +129,8 @@ function validate(value: CandidateEvidence, cacheKey = digest) {
     planPath,
     authorization,
     baselineBinding,
-    baselineCacheKeySha256: cacheKey
+    baselineCacheKeySha256: cacheKey,
+    currentWorkspace: workspace
   });
 }
 
@@ -128,6 +143,30 @@ describe("candidate evidence integrity", () => {
     const original = evidence();
     expect(validate({ ...original, outcome: "passed" }).ok).toBe(false);
     expect(validate(original, `sha256:${"b".repeat(64)}`).ok).toBe(false);
+  });
+
+  it("rejects a candidate after the implementation workspace changes", () => {
+    const changedMaterial = {
+      ...workspaceMaterial,
+      files: [{ ...workspaceMaterial.files[0], sha256: `sha256:${"b".repeat(64)}` as const }]
+    };
+    const changedWorkspace = {
+      ...changedMaterial,
+      hash: hashOracleValue(changedMaterial)
+    };
+    const original = evidence();
+
+    expect(
+      validateCandidateEvidenceIntegrity({
+        evidence: original,
+        plan: plan(),
+        planPath,
+        authorization,
+        baselineBinding,
+        baselineCacheKeySha256: digest,
+        currentWorkspace: changedWorkspace
+      }).ok
+    ).toBe(false);
   });
 
   it("rejects a recomputed pass without complete provider and strength proof", () => {

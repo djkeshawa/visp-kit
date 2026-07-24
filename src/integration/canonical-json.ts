@@ -4,6 +4,7 @@ import { isProxy } from "node:util/types";
 export type Sha256Hash = `sha256:${string}`;
 
 export const workflowActionIdentityDomain = "visp.workflow-action\0canonical-1.0\0";
+export const workflowActionIdentityDomainV1_1 = "visp.workflow-action\0canonical-1.1\0";
 
 export function compareUtf16CodeUnits(left: string, right: string): number {
   const length = Math.min(left.length, right.length);
@@ -133,11 +134,22 @@ export function canonicalJsonV1(value: unknown): string {
   return serializeJsonValue(value, "$", new WeakSet());
 }
 
-export function createWorkflowActionId(actionWithoutId: unknown): Sha256Hash {
+function createDomainSeparatedWorkflowActionId(
+  domain: string,
+  actionWithoutId: unknown
+): Sha256Hash {
   const digest = createHash("sha256")
-    .update(workflowActionIdentityDomain, "utf8")
+    .update(domain, "utf8")
     .update(canonicalJsonV1(actionWithoutId), "utf8")
     .digest("hex");
 
   return `sha256:${digest}`;
+}
+
+export function createWorkflowActionId(actionWithoutId: unknown): Sha256Hash {
+  return createDomainSeparatedWorkflowActionId(workflowActionIdentityDomain, actionWithoutId);
+}
+
+export function createWorkflowActionIdV1_1(actionWithoutId: unknown): Sha256Hash {
+  return createDomainSeparatedWorkflowActionId(workflowActionIdentityDomainV1_1, actionWithoutId);
 }

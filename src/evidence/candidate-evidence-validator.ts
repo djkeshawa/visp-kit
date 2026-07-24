@@ -1,4 +1,7 @@
-import { type CandidateEvidence } from "../artifacts/schemas/candidate-evidence.schema.js";
+import {
+  type CandidateEvidence,
+  type CandidateWorkspace
+} from "../artifacts/schemas/candidate-evidence.schema.js";
 import { type OracleAuthorizationBinding } from "../artifacts/schemas/oracle-authorization.schema.js";
 import {
   type OracleArtifactBinding,
@@ -22,6 +25,7 @@ export function validateCandidateEvidenceIntegrity(input: {
   readonly authorization: OracleAuthorizationBinding;
   readonly baselineBinding: OracleArtifactBinding;
   readonly baselineCacheKeySha256: string;
+  readonly currentWorkspace: CandidateWorkspace;
 }): Result<CandidateEvidence, VispError> {
   const { evidenceHash, ...material } = input.evidence;
   if (candidateEvidenceHash(material) !== evidenceHash) {
@@ -38,6 +42,20 @@ export function validateCandidateEvidenceIntegrity(input: {
       new VispError(
         "VALIDATION_FAILED",
         "Candidate evidence is not bound to the current task plan."
+      )
+    );
+  }
+  const { hash: workspaceHash, ...workspaceMaterial } = input.evidence.workspace;
+  const { hash: currentWorkspaceHash, ...currentWorkspaceMaterial } = input.currentWorkspace;
+  if (
+    hashOracleValue(workspaceMaterial) !== workspaceHash ||
+    hashOracleValue(currentWorkspaceMaterial) !== currentWorkspaceHash ||
+    workspaceHash !== currentWorkspaceHash
+  ) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        "Candidate evidence is stale for the current implementation workspace."
       )
     );
   }

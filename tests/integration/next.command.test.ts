@@ -10,9 +10,12 @@ import { type CanonicalWorkflowActionIdentityInput } from "../../src/integration
 import {
   type WorkflowActionV2,
   type WorkflowActionV3,
+  type WorkflowActionV31,
   workflowActionV2Schema,
-  workflowActionV3Schema
+  workflowActionV3Schema,
+  workflowActionV31Schema
 } from "../../src/integration/workflow-action.js";
+import { createWorkflowActionIdV1_1 } from "../../src/integration/canonical-json.js";
 import { runInitWorkflow } from "../../src/workflows/init.workflow.js";
 import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
 
@@ -33,6 +36,12 @@ function expectExactWorkflowActionV3Json(
   const action = workflowActionV3Schema.parse(JSON.parse(rawOutput));
   expect(action).toEqual(expected);
   expect(rawOutput).toBe(`${JSON.stringify(expected, null, 2)}\n`);
+  return action;
+}
+
+function expectExactWorkflowActionV31Json(rawOutput: string): WorkflowActionV31 {
+  const action = workflowActionV31Schema.parse(JSON.parse(rawOutput));
+  expect(rawOutput).toBe(`${JSON.stringify(action, null, 2)}\n`);
   return action;
 }
 
@@ -527,6 +536,19 @@ describe("visp next command", () => {
     expect(result.exitCode).toBeUndefined();
   });
 
+  it("adds identity-bound evidence only in WorkflowAction 3.1", async () => {
+    await createPhase8Fixture(tempDir);
+    const result = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.1"]);
+    const action = expectExactWorkflowActionV31Json(result.stdout);
+    const { protocolVersion: _protocolVersion, actionId, ...identity } = action;
+
+    expect(action.canonicalVersion).toBe("1.1");
+    expect(action.evidence).toEqual({ state: "unavailable", reasonCode: "source_missing" });
+    expect(createWorkflowActionIdV1_1(identity)).toBe(actionId);
+    expect(result.stderr).toBe("");
+    expect(result.exitCode).toBeUndefined();
+  });
+
   it.each([
     "auto",
     "4.0",
@@ -565,7 +587,7 @@ describe("visp next command", () => {
           error: {
             code: "UNSUPPORTED_WORKFLOW_ACTION_PROTOCOL",
             requested,
-            supported: ["2.0", "3.0"],
+            supported: ["2.0", "3.0", "3.1"],
             default: "2.0"
           }
         },

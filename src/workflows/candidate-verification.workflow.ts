@@ -23,7 +23,9 @@ import {
   candidateEvidenceHash,
   validateCandidateEvidenceIntegrity
 } from "../evidence/candidate-evidence-validator.js";
+import { createCandidateWorkspaceFingerprint } from "../evidence/candidate-workspace.js";
 import { hashOracleValue } from "../oracle/oracle-authorization.js";
+import { loadProjectState } from "../orchestrator/project-state.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { runVerificationCommands } from "../verification/verification-runner.js";
 import { observeVerificationCommands } from "./baseline-verification.workflow.js";
@@ -257,6 +259,27 @@ export async function runCandidateVerificationWorkflow(
       ? observeVerificationCommands(commands)
       : evaluateCandidateOutcome(oracles);
   const testStrength = evaluateCandidateTestStrength(authorization.value.plan);
+  const state = await loadProjectState({
+    targetPath: authorization.value.targetPath,
+    feature: authorization.value.featureKey,
+    taskId: authorization.value.plan.taskId,
+    commandRunner: options.commandRunner
+  });
+  if (!state.ok) return state;
+  if (state.value.selectedTask === undefined) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        `Candidate workspace task ${authorization.value.plan.taskId} is unavailable.`
+      )
+    );
+  }
+  const workspace = await createCandidateWorkspaceFingerprint({
+    targetPath: authorization.value.targetPath,
+    task: state.value.selectedTask,
+    commandRunner: options.commandRunner
+  });
+  if (!workspace.ok) return workspace;
   const candidateMaterial: Omit<CandidateEvidence, "evidenceHash"> = {
     version: "1.0" as const,
     id: `CANDIDATE-${authorization.value.plan.featureId}-${authorization.value.plan.taskId}`,
@@ -270,6 +293,7 @@ export async function runCandidateVerificationWorkflow(
     oracleAuthorization: authorization.value.binding,
     baselineEvidence: baselineBinding,
     baselineCacheKeySha256: baseline.cacheKey.hash,
+    workspace: workspace.value,
     testStrength,
     oracles: [...oracles],
     providerRuns: [...providerRuns],
@@ -299,7 +323,8 @@ export async function runCandidateVerificationWorkflow(
     planPath: authorization.value.planPath,
     authorization: authorization.value.binding,
     baselineBinding,
-    baselineCacheKeySha256: baseline.cacheKey.hash
+    baselineCacheKeySha256: baseline.cacheKey.hash,
+    currentWorkspace: workspace.value
   });
   if (!integrity.ok) return integrity;
 

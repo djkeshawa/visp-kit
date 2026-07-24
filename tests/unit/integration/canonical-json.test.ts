@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalJsonV1,
   createWorkflowActionId,
+  createWorkflowActionIdV1_1,
   workflowActionIdentityDomain
 } from "../../../src/integration/canonical-json.js";
 
@@ -154,5 +155,12 @@ describe("canonical-json-v1", () => {
     expect(createWorkflowActionId({ ...compactAction, semanticChange: true })).not.toBe(
       createWorkflowActionId(compactAction)
     );
+  });
+
+  it("keeps canonical 1.1 identities separate from immutable 1.0 identities", () => {
+    const action = { canonicalVersion: "1.1", evidence: { state: "unavailable" } };
+
+    expect(createWorkflowActionIdV1_1(action)).toMatch(/^sha256:[a-f0-9]{64}$/u);
+    expect(createWorkflowActionIdV1_1(action)).not.toBe(createWorkflowActionId(action));
   });
 });

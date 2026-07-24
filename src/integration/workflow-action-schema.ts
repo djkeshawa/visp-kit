@@ -9,12 +9,16 @@ import {
 } from "../artifacts/schemas/common.schema.js";
 import {
   assuranceProfileSchemaV4,
-  evidenceRequirementSchemaV4
+  evidenceRequirementSchemaV4,
+  evidenceTargetSchemaV4
 } from "../artifacts/schemas/evidence.schema.js";
 import { canonicalJsonV1, type Sha256Hash } from "./canonical-json.js";
-import { type CanonicalWorkflowAction } from "./canonical-workflow-action.js";
+import {
+  type CanonicalWorkflowAction,
+  type CanonicalWorkflowActionV1_1
+} from "./canonical-workflow-action.js";
 
-export const SUPPORTED_WORKFLOW_ACTION_PROTOCOLS = Object.freeze(["2.0", "3.0"] as const);
+export const SUPPORTED_WORKFLOW_ACTION_PROTOCOLS = Object.freeze(["2.0", "3.0", "3.1"] as const);
 export const DEFAULT_WORKFLOW_ACTION_PROTOCOL = "2.0" as const;
 
 export type WorkflowActionProtocol = (typeof SUPPORTED_WORKFLOW_ACTION_PROTOCOLS)[number];
@@ -220,9 +224,133 @@ export const workflowActionV3Schema = z
   })
   .strict();
 
+const evidenceInputHashSchema = z
+  .object({
+    id: idSchema,
+    sha256: sha256Schema
+  })
+  .strict();
+const evidenceFreshnessSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("fresh"),
+      checkedAt: z.string().datetime(),
+      inputHashes: z.array(evidenceInputHashSchema)
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("stale"),
+      checkedAt: z.string().datetime(),
+      inputHashes: z.array(evidenceInputHashSchema),
+      reason: nonEmptyStringSchema
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("unknown"),
+      checkedAt: z.string().datetime(),
+      inputHashes: z.array(evidenceInputHashSchema),
+      reason: nonEmptyStringSchema
+    })
+    .strict()
+]);
+const notApplicableDeterminationSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("rule"), ruleId: idSchema }).strict(),
+  z.object({ kind: z.literal("override"), overrideId: idSchema }).strict()
+]);
+const evidenceOutcomeSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("passed") }).strict(),
+  z.object({ status: z.literal("failed"), reason: nonEmptyStringSchema }).strict(),
+  z.object({ status: z.literal("inconclusive"), reason: nonEmptyStringSchema }).strict(),
+  z
+    .object({
+      status: z.literal("not_applicable"),
+      reason: nonEmptyStringSchema,
+      determination: notApplicableDeterminationSchema
+    })
+    .strict()
+]);
+const evidenceResultSummarySchema = z
+  .object({
+    id: idSchema,
+    requirementId: idSchema,
+    target: evidenceTargetSchemaV4,
+    freshness: evidenceFreshnessSchema,
+    independence: z.enum([
+      "pre_existing",
+      "pre_approved",
+      "implementer_authored",
+      "independent_challenger",
+      "human_attestation"
+    ]),
+    outcome: evidenceOutcomeSchema
+  })
+  .strict();
+const evidenceProviderSummarySchema = z
+  .object({
+    id: idSchema,
+    provider: z
+      .object({
+        id: idSchema,
+        version: nonEmptyStringSchema
+      })
+      .strict(),
+    status: z.enum(["passed", "inconclusive"]),
+    failure: z
+      .object({
+        code: z.enum([
+          "unsupported_provider",
+          "malformed_output",
+          "timeout",
+          "command_not_found",
+          "skipped_evidence"
+        ]),
+        reason: nonEmptyStringSchema
+      })
+      .strict()
+      .nullable(),
+    results: z.array(evidenceResultSummarySchema)
+  })
+  .strict();
+const evidenceSummarySchema = z
+  .object({
+    version: z.literal("1.0"),
+    source: z.enum(["baseline", "candidate"]),
+    artifact: z
+      .object({
+        path: projectPathSchema,
+        contentHash: sha256Schema
+      })
+      .strict(),
+    generatedAt: z.string().datetime(),
+    outcome: z.enum(["passed", "failed", "inconclusive", "not_applicable"]),
+    freshness: z.enum(["fresh", "stale", "unknown"]),
+    providers: z.array(evidenceProviderSummarySchema),
+    testStrength: declaredValueSchema(
+      z
+        .object({
+          status: z.enum(["passed", "inconclusive"]),
+          independence: z.array(z.enum(["pre_existing", "pre_approved"])),
+          reason: nonEmptyStringSchema
+        })
+        .strict()
+    )
+  })
+  .strict();
+
+export const workflowActionV31Schema = workflowActionV3Schema
+  .extend({
+    protocolVersion: z.literal("3.1"),
+    canonicalVersion: z.literal("1.1"),
+    evidence: declaredValueSchema(evidenceSummarySchema)
+  })
+  .strict();
+
 export type WorkflowActionV2 = z.infer<typeof workflowActionV2Schema>;
 export type WorkflowActionV3 = z.infer<typeof workflowActionV3Schema>;
-export type WorkflowAction = WorkflowActionV2 | WorkflowActionV3;
+export type WorkflowActionV31 = z.infer<typeof workflowActionV31Schema>;
+export type WorkflowAction = WorkflowActionV2 | WorkflowActionV3 | WorkflowActionV31;
 export type WorkflowActionSchemaDocument = Readonly<Record<string, unknown>>;
 
 type WireShape<T> = T extends Sha256Hash
@@ -242,16 +370,31 @@ type _V3MatchesCanonical = Assert<
       : false
     : false
 >;
+type WorkflowActionV31Body = Omit<WorkflowActionV31, "protocolVersion">;
+type CanonicalV1_1WireBody = WireShape<CanonicalWorkflowActionV1_1>;
+type _V31MatchesCanonical = Assert<
+  WorkflowActionV31Body extends CanonicalV1_1WireBody
+    ? CanonicalV1_1WireBody extends WorkflowActionV31Body
+      ? true
+      : false
+    : false
+>;
 
 const schemaIds: Record<WorkflowActionProtocol, string> = {
   "2.0": "urn:visp:schema:workflow-action:2.0",
-  "3.0": "urn:visp:schema:workflow-action:3.0"
+  "3.0": "urn:visp:schema:workflow-action:3.0",
+  "3.1": "urn:visp:schema:workflow-action:3.1"
 };
 
 export function generateWorkflowActionSchemaDocument(
   protocol: WorkflowActionProtocol
 ): WorkflowActionSchemaDocument {
-  const schema = protocol === "2.0" ? workflowActionV2Schema : workflowActionV3Schema;
+  const schema =
+    protocol === "2.0"
+      ? workflowActionV2Schema
+      : protocol === "3.0"
+        ? workflowActionV3Schema
+        : workflowActionV31Schema;
   const generated = z.toJSONSchema(schema, {
     target: "draft-2020-12",
     reused: "inline"
@@ -276,7 +419,8 @@ function deepFreeze<T>(value: T): T {
 
 export const WORKFLOW_ACTION_SCHEMA_HASHES = Object.freeze({
   "2.0": "sha256:c63b279b1ce89f047b2be696a47e845a57adda7f8437892e211e3a4cfad39ed6",
-  "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7"
+  "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7",
+  "3.1": "sha256:41ffa28fcd4476ea1812ff307df67a7ab7edb5b2cf4d6c11955d34d4aad74d4d"
 } satisfies Record<WorkflowActionProtocol, Sha256Hash>);
 
 export function generatedWorkflowActionSchemaHash(protocol: WorkflowActionProtocol): Sha256Hash {

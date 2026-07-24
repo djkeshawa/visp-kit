@@ -9,6 +9,32 @@ import { verificationCommandResultSchema } from "./verification.schema.js";
 
 const observedStatusSchema = z.enum(["passed", "failed", "inconclusive"]);
 
+export const candidateWorkspaceSchema = z
+  .object({
+    version: z.literal("1.0"),
+    mode: z.enum(["git_changed", "task_scope_fallback"]),
+    files: z.array(
+      z.discriminatedUnion("state", [
+        z
+          .object({
+            path: nonEmptyStringSchema,
+            state: z.literal("present"),
+            sha256: oracleSha256Schema,
+            executable: z.boolean()
+          })
+          .strict(),
+        z
+          .object({
+            path: nonEmptyStringSchema,
+            state: z.literal("missing")
+          })
+          .strict()
+      ])
+    ),
+    hash: oracleSha256Schema
+  })
+  .strict();
+
 export const candidateOracleComparisonSchema = z
   .object({
     oracleId: idSchema,
@@ -41,6 +67,7 @@ export const candidateEvidenceSchema = z
     oracleAuthorization: oracleAuthorizationBindingSchema,
     baselineEvidence: oracleArtifactBindingSchema,
     baselineCacheKeySha256: oracleSha256Schema,
+    workspace: candidateWorkspaceSchema,
     testStrength: z
       .object({
         status: z.enum(["passed", "inconclusive"]),
@@ -69,4 +96,5 @@ export const candidateEvidenceSchema = z
   });
 
 export type CandidateOracleComparison = z.infer<typeof candidateOracleComparisonSchema>;
+export type CandidateWorkspace = z.infer<typeof candidateWorkspaceSchema>;
 export type CandidateEvidence = z.infer<typeof candidateEvidenceSchema>;

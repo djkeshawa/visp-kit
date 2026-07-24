@@ -346,6 +346,7 @@ describe("visp oracle command", () => {
     await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
     await program.parseAsync(["node", "visp", "verify", tempDir, "--baseline", "--task", "T001"]);
     expect(process.exitCode).toBeUndefined();
+
     await program.parseAsync(["node", "visp", "gate", "implement", tempDir, "--task", "T001"]);
     const lockPath = path.join(
       tempDir,
@@ -549,6 +550,26 @@ describe("visp oracle command", () => {
       "T001",
       "candidate-evidence.json"
     );
+    const baselineActionOutput: string[] = [];
+    program = createCli({ writeOut: (value) => baselineActionOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "next",
+      tempDir,
+      "--format",
+      "json",
+      "--protocol",
+      "3.1"
+    ]);
+    expect(JSON.parse(baselineActionOutput.join("")).evidence).toMatchObject({
+      state: "available",
+      value: {
+        source: "baseline",
+        outcome: "passed",
+        freshness: "fresh"
+      }
+    });
     const failedOutput: string[] = [];
     program = createCli({ writeOut: (value) => failedOutput.push(value) });
     await program.parseAsync([
@@ -569,6 +590,35 @@ describe("visp oracle command", () => {
     expect(process.exitCode).toBe(1);
 
     process.exitCode = undefined;
+    const failedActionOutput: string[] = [];
+    program = createCli({ writeOut: (value) => failedActionOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "next",
+      tempDir,
+      "--format",
+      "json",
+      "--protocol",
+      "3.1"
+    ]);
+    const failedAction = JSON.parse(failedActionOutput.join(""));
+    expect(failedAction.evidence).toMatchObject({
+      state: "available",
+      value: {
+        source: "candidate",
+        outcome: "failed",
+        freshness: "fresh",
+        testStrength: { state: "available", value: { status: "passed" } }
+      }
+    });
+    expect(
+      failedAction.evidence.value.providers.flatMap(
+        (provider: { results: Array<{ outcome: { status: string } }> }) =>
+          provider.results.map((result) => result.outcome.status)
+      )
+    ).toContain("failed");
+
     await writeFile(path.join(tempDir, "candidate.ok"), "ready\n", "utf8");
     const passedOutput: string[] = [];
     program = createCli({ writeOut: (value) => passedOutput.push(value) });
@@ -589,6 +639,83 @@ describe("visp oracle command", () => {
       action: "executed"
     });
     const passedEvidence = await readFile(candidatePath, "utf8");
+
+    const passedActionOutput: string[] = [];
+    program = createCli({ writeOut: (value) => passedActionOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "next",
+      tempDir,
+      "--format",
+      "json",
+      "--protocol",
+      "3.1"
+    ]);
+    expect(JSON.parse(passedActionOutput.join("")).evidence).toMatchObject({
+      state: "available",
+      value: {
+        source: "candidate",
+        outcome: "passed",
+        freshness: "fresh"
+      }
+    });
+
+    const tampered = JSON.parse(passedEvidence) as { evidenceHash: string };
+    tampered.evidenceHash = `sha256:${"0".repeat(64)}`;
+    await writeFile(candidatePath, `${JSON.stringify(tampered, null, 2)}\n`, "utf8");
+    const invalidActionOutput: string[] = [];
+    program = createCli({ writeOut: (value) => invalidActionOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "next",
+      tempDir,
+      "--format",
+      "json",
+      "--protocol",
+      "3.1"
+    ]);
+    const invalidAction = JSON.parse(invalidActionOutput.join(""));
+    expect(invalidAction).toMatchObject({
+      evidence: { state: "unavailable", reasonCode: "source_invalid" },
+      verdict: "inconclusive"
+    });
+    expect(invalidAction.findings).toContainEqual(
+      expect.objectContaining({
+        code: "VISP.EVIDENCE.CURRENT_INVALID",
+        effect: "uncertain"
+      })
+    );
+    await writeFile(candidatePath, passedEvidence, "utf8");
+
+    const implementationPath = path.join(tempDir, "src", "notes.ts");
+    const implementation = await readFile(implementationPath, "utf8");
+    await writeFile(implementationPath, `${implementation}\n// changed after candidate\n`, "utf8");
+    const staleWorkspaceOutput: string[] = [];
+    program = createCli({ writeOut: (value) => staleWorkspaceOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "next",
+      tempDir,
+      "--format",
+      "json",
+      "--protocol",
+      "3.1"
+    ]);
+    const staleWorkspaceAction = JSON.parse(staleWorkspaceOutput.join(""));
+    expect(staleWorkspaceAction).toMatchObject({
+      evidence: { state: "unavailable", reasonCode: "source_invalid" },
+      verdict: "inconclusive"
+    });
+    expect(staleWorkspaceAction.findings).toContainEqual(
+      expect.objectContaining({
+        code: "VISP.EVIDENCE.CURRENT_INVALID",
+        message: expect.stringContaining("stale for the current implementation workspace")
+      })
+    );
+    await writeFile(implementationPath, implementation, "utf8");
 
     const manifest = JSON.parse(await readFile(packagePath, "utf8")) as Record<string, unknown>;
     manifest.materialConfigurationChange = true;

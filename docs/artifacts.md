@@ -117,7 +117,10 @@ Phase 2 evidence contracts distinguish requirements from results:
 - `failed` and `inconclusive` require a reason, while `not_applicable` also
   requires an auditable rule or override; and
 - missing, mismatched, stale, or freshness-unknown results never satisfy a
-  strict evidence requirement.
+  strict evidence requirement; and
+- candidate evidence binds a deterministic current-workspace fingerprint so a
+  later implementation-file change makes the candidate stale before it can be
+  surfaced as current evidence.
 
 The stable assurance-profile vocabulary is `routine`, `behavioral`, and
 `critical`. Profile selection and provider execution are introduced by later
