@@ -1,11 +1,16 @@
 import path from "node:path";
 
 import {
+  baselineEvidenceArtifactPath,
   oracleApprovalArtifactPath,
   oracleLockArtifactPath,
   oraclePlanArtifactPath
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
+import {
+  baselineEvidenceSchema,
+  type BaselineEvidence
+} from "../artifacts/schemas/baseline-evidence.schema.js";
 import {
   oracleApprovalSchema,
   oracleLockSchema,
@@ -18,10 +23,12 @@ import { VispError } from "../core/errors.js";
 import { pathExists, readTextFile, removeFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
+import { createBaselineCacheKey } from "../evidence/baseline-cache-key.js";
 import {
   createOracleApproval,
   createOracleLock,
   hashOracleText,
+  hashOracleValue,
   revokeOracleApproval,
   validateOracleLock
 } from "../oracle/oracle-authorization.js";
@@ -43,6 +50,8 @@ export type OracleAuthorizationWorkflowOptions = {
   readonly taskId?: string;
   readonly now?: string;
   readonly dryRun?: boolean;
+  readonly allowMissingBaseline?: boolean;
+  readonly allowStaleBaseline?: boolean;
 };
 
 export type OracleApproveWorkflowOptions = OracleAuthorizationWorkflowOptions & {
@@ -76,6 +85,7 @@ export type LoadedOracleAuthorization = {
   readonly approval?: OracleApproval;
   readonly approvalPath?: string;
   readonly lock: OracleLock;
+  readonly baselineEvidence?: BaselineEvidence;
   readonly binding: OracleAuthorizationBinding;
 };
 
@@ -266,11 +276,38 @@ export async function runOracleLockWorkflow(
     approval = read.value;
     approvalPath = relativePath(loaded.value.targetPath, approvalAbsolutePath);
   }
+  const baselineAbsolutePath = baselineEvidenceArtifactPath(
+    loaded.value.targetPath,
+    loaded.value.featureKey,
+    loaded.value.plan.taskId
+  );
+  let baselineEvidence: OracleLock["baselineEvidence"];
+  const baselineExists = await pathExists(baselineAbsolutePath);
+  if (!baselineExists.ok) return baselineExists;
+  if (baselineExists.value) {
+    const baseline = await readArtifact(baselineAbsolutePath, baselineEvidenceSchema, {
+      artifactName: "baseline evidence"
+    });
+    const rawBaseline = await readTextFile(baselineAbsolutePath);
+    if (
+      baseline.ok &&
+      rawBaseline.ok &&
+      baseline.value.taskId === loaded.value.plan.taskId &&
+      baseline.value.outcome === "passed" &&
+      baseline.value.oraclePlan.sha256 === hashOracleValue(loaded.value.plan)
+    ) {
+      baselineEvidence = {
+        path: relativePath(loaded.value.targetPath, baselineAbsolutePath),
+        sha256: hashOracleText(rawBaseline.value)
+      };
+    }
+  }
   const lock = createOracleLock({
     plan: loaded.value.plan,
     planPath: loaded.value.planPath,
     approval,
     approvalPath,
+    baselineEvidence,
     lockedAt: options.now ?? new Date().toISOString()
   });
   if (!lock.ok) return lock;
@@ -302,7 +339,10 @@ export async function runOracleLockWorkflow(
     action: written.value[0]?.action ?? "updated",
     lockHash: lock.value.lockHash,
     dryRun: options.dryRun ?? false,
-    nextCommand: `visp gate implement --task ${loaded.value.plan.taskId}`
+    nextCommand:
+      baselineEvidence === undefined
+        ? `visp verify --baseline --task ${loaded.value.plan.taskId}`
+        : `visp gate implement --task ${loaded.value.plan.taskId}`
   });
 }
 
@@ -320,6 +360,76 @@ export async function loadOracleAuthorization(
     artifactName: "oracle lock"
   });
   if (!lock.ok) return lock;
+
+  let baselineEvidence: BaselineEvidence | undefined;
+  if (lock.value.baselineEvidence !== undefined) {
+    const baselineAbsolutePath = baselineEvidenceArtifactPath(
+      loaded.value.targetPath,
+      loaded.value.featureKey,
+      loaded.value.plan.taskId
+    );
+    const expectedPath = relativePath(loaded.value.targetPath, baselineAbsolutePath);
+    if (lock.value.baselineEvidence.path !== expectedPath) {
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Oracle lock baseline path is invalid for task ${loaded.value.plan.taskId}.`
+        )
+      );
+    }
+    const rawBaseline = await readTextFile(baselineAbsolutePath);
+    if (!rawBaseline.ok) return rawBaseline;
+    if (hashOracleText(rawBaseline.value) !== lock.value.baselineEvidence.sha256) {
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Baseline evidence changed after oracle locking for task ${loaded.value.plan.taskId}.`
+        )
+      );
+    }
+    const baseline = await readArtifact(baselineAbsolutePath, baselineEvidenceSchema, {
+      artifactName: "baseline evidence"
+    });
+    if (!baseline.ok) return baseline;
+    if (
+      baseline.value.taskId !== loaded.value.plan.taskId ||
+      baseline.value.oraclePlan.path !== loaded.value.planPath ||
+      baseline.value.oraclePlan.sha256 !== hashOracleValue(loaded.value.plan) ||
+      baseline.value.outcome !== "passed"
+    ) {
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Baseline evidence is stale or insufficient for task ${loaded.value.plan.taskId}.`
+        )
+      );
+    }
+    const currentCacheKey = await createBaselineCacheKey({
+      targetPath: loaded.value.targetPath,
+      plan: loaded.value.plan,
+      planPath: loaded.value.planPath
+    });
+    if (!currentCacheKey.ok) return currentCacheKey;
+    if (
+      baseline.value.cacheKey.hash !== currentCacheKey.value.hash &&
+      !(options.allowStaleBaseline ?? false)
+    ) {
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Baseline cache inputs changed for task ${loaded.value.plan.taskId}. Run \`visp verify --baseline --task ${loaded.value.plan.taskId}\`.`
+        )
+      );
+    }
+    baselineEvidence = baseline.value;
+  } else if (!(options.allowMissingBaseline ?? false)) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        `Baseline evidence is not locked for task ${loaded.value.plan.taskId}. Run \`visp verify --baseline --task ${loaded.value.plan.taskId}\`.`
+      )
+    );
+  }
 
   let approval: OracleApproval | undefined;
   let approvalPath: string | undefined;
@@ -353,6 +463,7 @@ export async function loadOracleAuthorization(
     approval,
     approvalPath,
     lock: validated.value,
+    baselineEvidence,
     binding: {
       lockPath: relativePath(loaded.value.targetPath, lockAbsolutePath),
       lockHash: validated.value.lockHash,

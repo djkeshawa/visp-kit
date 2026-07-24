@@ -62,6 +62,32 @@ describe("oracle authorization", () => {
     expect(first.value.lockedAt).not.toBe(second.value.lockedAt);
   });
 
+  it("changes the lock identity when baseline evidence changes", () => {
+    const first = createOracleLock({
+      plan: plan(),
+      planPath,
+      baselineEvidence: {
+        path: ".visp/features/001-example/assurance/T001/baseline-evidence.json",
+        sha256: `sha256:${"c".repeat(64)}`
+      },
+      lockedAt: "2026-07-25T01:00:00.000Z"
+    });
+    const second = createOracleLock({
+      plan: plan(),
+      planPath,
+      baselineEvidence: {
+        path: ".visp/features/001-example/assurance/T001/baseline-evidence.json",
+        sha256: `sha256:${"d".repeat(64)}`
+      },
+      lockedAt: "2026-07-25T01:00:00.000Z"
+    });
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.value.lockHash).not.toBe(second.value.lockHash);
+  });
+
   it("requires a current human approval for critical tasks", () => {
     const critical = plan("critical");
     expect(

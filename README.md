@@ -99,7 +99,7 @@ Evidence and drift control:
 
 - `visp oracle` (generate, approve, lock, and validate task-bound implementation assurance)
 - `visp done` (verify + usage + review + reconcile + checklist in one command)
-- `visp verify`
+- `visp verify` (including cache-bound pre-implementation baseline evidence)
 - `visp review`
 - `visp reconcile`
 

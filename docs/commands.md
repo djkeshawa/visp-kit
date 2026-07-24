@@ -190,9 +190,11 @@ providers, and any Git-proven pre-existing or explicitly pre-approved test
 hashes. `validate` fails when a bound input, base commit, or test file changes.
 Critical plans cannot be locked until a human approval is active. Revoked,
 expired, stale, or modified approvals and locks fail closed. When assurance is
-active, `visp gate implement` binds the current lock into the implementation
-marker; strict edit and commit hooks reject that marker if the lock later
-changes. Projects without an assurance policy or oracle plan keep their prior
+active, run `visp verify --baseline --task <id>` after the initial lock. The
+accepted baseline is bound into the final implementation lock, which
+`visp gate implement` binds into the implementation marker. Strict edit and
+commit hooks reject that marker if the lock or baseline later changes. Projects
+without an assurance policy or oracle plan keep their prior
 implementation-gate behavior.
 
 ## `visp budget [path]`
@@ -205,6 +207,7 @@ Common flags:
 
 - `--feature <id-or-slug-or-folder>`
 - `--task <task-id>`
+- `--baseline` (run or reuse task baseline evidence and bind it into the oracle lock)
 - `--budget lean|balanced|strict`
 - `--max-tokens <number>`
 - `--write-report`
@@ -330,6 +333,14 @@ Generated artifacts:
 
 - `.visp/features/<feature>/verification.md`
 - `.visp/features/<feature>/verification.json`
+- `.visp/features/<feature>/assurance/<task>/baseline-evidence.json` (`--baseline`)
+
+Baseline mode uses the locked oracle plan's validation commands. Its cache key
+binds the base commit, command set, lockfiles, authoritative and project
+configuration hashes, provider versions, runtime majors, operating system, and
+architecture. A localized-bug baseline must reproduce failure; feature
+baselines record the observed result. Material cache changes force a fresh run,
+and implementation remains blocked until the resulting baseline is locked.
 
 ## `visp review [path]`
 

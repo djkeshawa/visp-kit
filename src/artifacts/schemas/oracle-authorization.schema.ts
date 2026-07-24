@@ -51,6 +51,7 @@ export const oracleLockSchema = z
     assuranceProfile: assuranceProfileSchema,
     oraclePlan: oracleArtifactBindingSchema,
     approval: oracleArtifactBindingSchema.nullable(),
+    baselineEvidence: oracleArtifactBindingSchema.optional(),
     baseCommit: oracleBaseCommitSchema,
     bindings: z
       .object({

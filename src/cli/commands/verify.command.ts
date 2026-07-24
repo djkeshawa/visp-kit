@@ -6,9 +6,14 @@ import {
   runVerifyWorkflow,
   type VerifyWorkflowOptions
 } from "../../workflows/verify.workflow.js";
+import {
+  formatBaselineVerificationSummary,
+  runBaselineVerificationWorkflow
+} from "../../workflows/baseline-verification.workflow.js";
 
 export type VerifyCommandDependencies = {
   readonly runVerify?: typeof runVerifyWorkflow;
+  readonly runBaselineVerify?: typeof runBaselineVerificationWorkflow;
   readonly writeOut?: (value: string) => void;
   readonly writeErr?: (value: string) => void;
   readonly cwd?: string;
@@ -17,6 +22,7 @@ export type VerifyCommandDependencies = {
 type VerifyCommandOptions = {
   readonly feature?: string;
   readonly task?: string;
+  readonly baseline?: boolean;
   readonly targeted?: boolean;
   readonly all?: boolean;
   readonly commands?: boolean;
@@ -58,6 +64,7 @@ function workflowOptions(
 
 export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}): Command {
   const runVerify = dependencies.runVerify ?? runVerifyWorkflow;
+  const runBaselineVerify = dependencies.runBaselineVerify ?? runBaselineVerificationWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
 
@@ -66,6 +73,7 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
     .argument("[path]", "Target project path.")
     .option("--feature <feature>", "Feature ID, slug, or folder name.")
     .option("--task <task-id>", "Verify a single task.")
+    .option("--baseline", "Run or reuse task baseline evidence and bind it into the oracle lock.")
     .option("--targeted", "Run task-specific validation commands where possible.")
     .option("--all", "Run all known project and task validation commands.")
     .option("--commands", "Run validation commands explicitly.")
@@ -82,6 +90,35 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
     .option("--dry-run", "Show verification plan without running commands or writing reports.")
     .option("--json", "Print a machine-readable summary.")
     .action(async (targetPath: string | undefined, options: VerifyCommandOptions) => {
+      if (options.baseline) {
+        const result = await runBaselineVerify({
+          targetPath,
+          cwd: dependencies.cwd,
+          feature: options.feature,
+          taskId: options.task,
+          force: options.force ?? false,
+          dryRun: options.dryRun ?? false,
+          jsonOutput: options.json ?? false
+        });
+        if (!result.ok) {
+          writeWorkflowError({
+            error: result.error,
+            json: options.json ?? false,
+            writeOut,
+            writeErr
+          });
+          process.exitCode = 1;
+          return;
+        }
+        writeOut(
+          options.json
+            ? `${JSON.stringify(result.value, null, 2)}\n`
+            : formatBaselineVerificationSummary(result.value)
+        );
+        if (!result.value.success) process.exitCode = 1;
+        return;
+      }
+
       const result = await runVerify(workflowOptions(targetPath, options, dependencies.cwd));
 
       if (!result.ok) {

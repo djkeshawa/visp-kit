@@ -276,6 +276,7 @@ describe("visp oracle command", () => {
     process.exitCode = undefined;
     program = createCli({ writeOut: () => undefined });
     await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--baseline", "--task", "T001"]);
     await program.parseAsync(["node", "visp", "gate", "implement", tempDir, "--task", "T001"]);
     expect(process.exitCode).toBeUndefined();
 
@@ -342,6 +343,7 @@ describe("visp oracle command", () => {
       "Critical authorization behavior was reviewed."
     ]);
     await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--baseline", "--task", "T001"]);
     expect(process.exitCode).toBeUndefined();
     await program.parseAsync(["node", "visp", "gate", "implement", tempDir, "--task", "T001"]);
     const lockPath = path.join(
@@ -374,5 +376,79 @@ describe("visp oracle command", () => {
     await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
     expect(process.exitCode).toBe(1);
     expect(errors.join("")).toContain("revoked");
+  });
+
+  it("reuses a complete baseline cache and invalidates it after configuration changes", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareContext(tempDir);
+    let program = createCli({ writeOut: () => undefined });
+    await program.parseAsync(["node", "visp", "oracle", "plan", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+
+    const gateOutput: string[] = [];
+    program = createCli({ writeOut: (value) => gateOutput.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "gate",
+      "implement",
+      tempDir,
+      "--task",
+      "T001",
+      "--json"
+    ]);
+    expect(
+      (JSON.parse(gateOutput.join("")) as { failedRules: Array<{ ruleId: string }> }).failedRules
+    ).toContainEqual(expect.objectContaining({ ruleId: "VSP023" }));
+
+    process.exitCode = undefined;
+    const output: string[] = [];
+    program = createCli({ writeOut: (value) => output.push(value) });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "verify",
+      tempDir,
+      "--baseline",
+      "--task",
+      "T001",
+      "--json"
+    ]);
+    const first = JSON.parse(output.join("")) as { action: string; cacheKey: string };
+    expect(first.action).toBe("executed");
+
+    output.length = 0;
+    await program.parseAsync([
+      "node",
+      "visp",
+      "verify",
+      tempDir,
+      "--baseline",
+      "--task",
+      "T001",
+      "--json"
+    ]);
+    const cached = JSON.parse(output.join("")) as { action: string; cacheKey: string };
+    expect(cached).toMatchObject({ action: "cached", cacheKey: first.cacheKey });
+
+    const packagePath = path.join(tempDir, "package.json");
+    const manifest = JSON.parse(await readFile(packagePath, "utf8")) as Record<string, unknown>;
+    manifest.baselineCacheInput = "changed";
+    await writeFile(packagePath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+    output.length = 0;
+    await program.parseAsync([
+      "node",
+      "visp",
+      "verify",
+      tempDir,
+      "--baseline",
+      "--task",
+      "T001",
+      "--json"
+    ]);
+    const refreshed = JSON.parse(output.join("")) as { action: string; cacheKey: string };
+    expect(refreshed.action).toBe("executed");
+    expect(refreshed.cacheKey).not.toBe(first.cacheKey);
   });
 });

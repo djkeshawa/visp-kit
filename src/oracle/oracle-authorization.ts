@@ -7,6 +7,7 @@ import {
   type OracleLock
 } from "../artifacts/schemas/oracle-authorization.schema.js";
 import { type OraclePlan } from "../artifacts/schemas/oracle-plan.schema.js";
+import { type OracleArtifactBinding } from "../artifacts/schemas/oracle-plan.schema.js";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
 import { canonicalJsonV1 } from "../integration/canonical-json.js";
@@ -29,6 +30,7 @@ type LockInput = {
   readonly approvalPath?: string;
   readonly lockedAt: string;
   readonly now?: string;
+  readonly baselineEvidence?: OracleArtifactBinding;
 };
 
 function failure(message: string): Result<never, VispError> {
@@ -176,6 +178,7 @@ export function createOracleLock(input: LockInput): Result<OracleLock, VispError
       sha256: hashOracleValue(input.plan)
     },
     approval: approvalBinding,
+    ...(input.baselineEvidence === undefined ? {} : { baselineEvidence: input.baselineEvidence }),
     baseCommit: input.plan.baseCommit,
     bindings: input.plan.bindings,
     validationCommandsSha256: hashOracleValue(input.plan.validationCommands),
@@ -208,6 +211,7 @@ export function validateOracleLock(input: {
     planPath: input.planPath,
     approval: input.approval,
     approvalPath: input.approvalPath,
+    baselineEvidence: input.lock.baselineEvidence,
     lockedAt: input.lock.lockedAt,
     now: input.now
   });

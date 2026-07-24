@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   budgetArtifactPath,
+  baselineEvidenceArtifactPath,
   doctorReportArtifactPath,
   constitutionArtifactPath,
   contextPackArtifactPath,
@@ -78,6 +79,17 @@ describe("artifact paths", () => {
     );
     expect(oracleLockArtifactPath(root, featureKey, "T001")).toBe(
       path.join(root, ".visp", "features", featureKey, "assurance", "T001", "oracle-lock.json")
+    );
+    expect(baselineEvidenceArtifactPath(root, featureKey, "T001")).toBe(
+      path.join(
+        root,
+        ".visp",
+        "features",
+        featureKey,
+        "assurance",
+        "T001",
+        "baseline-evidence.json"
+      )
     );
     expect(verificationArtifactPath(root, featureKey)).toBe(
       path.join(root, ".visp", "features", featureKey, "verification.json")

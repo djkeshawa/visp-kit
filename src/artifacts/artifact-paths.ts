@@ -274,6 +274,14 @@ export function oracleLockArtifactPath(
   return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "oracle-lock.json");
 }
 
+export function baselineEvidenceArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "baseline-evidence.json");
+}
+
 export function verificationArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.json");
 }

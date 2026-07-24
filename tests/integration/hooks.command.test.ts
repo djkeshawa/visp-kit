@@ -333,9 +333,37 @@ describe("claude pretooluse hook script", () => {
       "T001",
       "oracle-lock.json"
     );
-    const lock = { lockHash: `sha256:${"a".repeat(64)}` };
-    const lockText = `${JSON.stringify(lock, null, 2)}\n`;
     await mkdir(path.dirname(lockPath), { recursive: true });
+    const baselinePath = path.join(path.dirname(lockPath), "baseline-evidence.json");
+    const baselineText = `${JSON.stringify(
+      {
+        cacheKey: {
+          baseCommit: { status: "unavailable", reason: "Fixture has no commit binding." },
+          lockfiles: [],
+          configurations: [],
+          providers: [],
+          runtimes: [
+            {
+              id: "node",
+              major: Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10)
+            }
+          ],
+          platform: process.platform,
+          architecture: process.arch
+        }
+      },
+      null,
+      2
+    )}\n`;
+    await writeFile(baselinePath, baselineText, "utf8");
+    const lock = {
+      lockHash: `sha256:${"a".repeat(64)}`,
+      baselineEvidence: {
+        path: path.relative(tempDir, baselinePath),
+        sha256: `sha256:${createHash("sha256").update(baselineText, "utf8").digest("hex")}`
+      }
+    };
+    const lockText = `${JSON.stringify(lock, null, 2)}\n`;
     await writeFile(lockPath, lockText, "utf8");
     await writeTaskMarker({
       taskId: "T001",
@@ -360,6 +388,144 @@ describe("claude pretooluse hook script", () => {
     });
     expect(blocked.exitCode).toBe(2);
     expect(blocked.stderr).toContain("changed after authorization");
+  });
+
+  it("blocks edits when locked baseline evidence is tampered", async () => {
+    await installStrictFixtureWithHook();
+    const assuranceDir = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001"
+    );
+    const baselinePath = path.join(assuranceDir, "baseline-evidence.json");
+    const baselineText = `${JSON.stringify({ outcome: "passed" }, null, 2)}\n`;
+    await mkdir(assuranceDir, { recursive: true });
+    await writeFile(baselinePath, baselineText, "utf8");
+    const lockPath = path.join(assuranceDir, "oracle-lock.json");
+    const lock = {
+      lockHash: `sha256:${"a".repeat(64)}`,
+      baselineEvidence: {
+        path: path.relative(tempDir, baselinePath),
+        sha256: `sha256:${createHash("sha256").update(baselineText, "utf8").digest("hex")}`
+      }
+    };
+    const lockText = `${JSON.stringify(lock, null, 2)}\n`;
+    await writeFile(lockPath, lockText, "utf8");
+    await writeTaskMarker({
+      taskId: "T001",
+      allowedFiles: ["src/notes.ts"],
+      oracleAuthorization: {
+        lockPath: path.relative(tempDir, lockPath),
+        lockHash: lock.lockHash,
+        lockFileSha256: `sha256:${createHash("sha256").update(lockText, "utf8").digest("hex")}`
+      }
+    });
+
+    await writeFile(baselinePath, `${JSON.stringify({ outcome: "failed" }, null, 2)}\n`, "utf8");
+    const blocked = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+    expect(blocked.exitCode).toBe(2);
+    expect(blocked.stderr).toContain("baseline evidence");
+    expect(blocked.stderr).toContain("changed after locking");
+  });
+
+  it("blocks oracle-bound markers whose lock has no baseline", async () => {
+    await installStrictFixtureWithHook();
+    const lockPath = path.join(tempDir, ".visp", "state", "legacy-oracle-lock.json");
+    const lock = { lockHash: `sha256:${"a".repeat(64)}` };
+    const lockText = `${JSON.stringify(lock, null, 2)}\n`;
+    await mkdir(path.dirname(lockPath), { recursive: true });
+    await writeFile(lockPath, lockText, "utf8");
+    await writeTaskMarker({
+      taskId: "T001",
+      allowedFiles: ["src/notes.ts"],
+      oracleAuthorization: {
+        lockPath: path.relative(tempDir, lockPath),
+        lockHash: lock.lockHash,
+        lockFileSha256: `sha256:${createHash("sha256").update(lockText, "utf8").digest("hex")}`
+      }
+    });
+
+    const blocked = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+    expect(blocked.exitCode).toBe(2);
+    expect(blocked.stderr).toContain("no baseline evidence");
+  });
+
+  it("blocks edits when a baseline cache configuration changes", async () => {
+    await installStrictFixtureWithHook();
+    const packagePath = path.join(tempDir, "package.json");
+    const packageText = await readFile(packagePath, "utf8");
+    const assuranceDir = path.join(tempDir, ".visp", "state", "baseline-cache");
+    const baselinePath = path.join(assuranceDir, "baseline-evidence.json");
+    const baselineText = `${JSON.stringify(
+      {
+        cacheKey: {
+          baseCommit: { status: "unavailable", reason: "Fixture has no commit binding." },
+          lockfiles: [],
+          configurations: [
+            {
+              path: "package.json",
+              sha256: `sha256:${createHash("sha256").update(packageText, "utf8").digest("hex")}`
+            }
+          ],
+          providers: [],
+          runtimes: [
+            {
+              id: "node",
+              major: Number.parseInt(process.versions.node.split(".")[0] ?? "0", 10)
+            },
+            { id: "pnpm", major: 10 }
+          ],
+          platform: process.platform,
+          architecture: process.arch
+        }
+      },
+      null,
+      2
+    )}\n`;
+    await mkdir(assuranceDir, { recursive: true });
+    await writeFile(baselinePath, baselineText, "utf8");
+    const lockPath = path.join(assuranceDir, "oracle-lock.json");
+    const lock = {
+      lockHash: `sha256:${"a".repeat(64)}`,
+      baselineEvidence: {
+        path: path.relative(tempDir, baselinePath),
+        sha256: `sha256:${createHash("sha256").update(baselineText, "utf8").digest("hex")}`
+      }
+    };
+    const lockText = `${JSON.stringify(lock, null, 2)}\n`;
+    await writeFile(lockPath, lockText, "utf8");
+    await writeTaskMarker({
+      taskId: "T001",
+      allowedFiles: ["src/notes.ts"],
+      oracleAuthorization: {
+        lockPath: path.relative(tempDir, lockPath),
+        lockHash: lock.lockHash,
+        lockFileSha256: `sha256:${createHash("sha256").update(lockText, "utf8").digest("hex")}`
+      }
+    });
+
+    const allowed = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+    expect(allowed.exitCode).toBe(0);
+
+    await writeFile(packagePath, `${packageText}\n`, "utf8");
+    const blocked = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+    expect(blocked.exitCode).toBe(2);
+    expect(blocked.stderr).toContain("cache input package.json changed");
   });
 
   it("allows edits covered by any of multiple active task markers", async () => {
