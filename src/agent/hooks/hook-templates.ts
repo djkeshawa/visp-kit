@@ -28,6 +28,23 @@ function baselineCacheIssue(baseline) {
   ) {
     return "the baseline cache key is malformed";
   }
+  if (!Array.isArray(baseline?.providerRuns)) {
+    return "the baseline provider evidence is missing";
+  }
+  const requiredProviders = cache.providers
+    .map((provider) => \`\${provider?.id}@\${provider?.version}\`)
+    .sort();
+  const providerRuns = baseline.providerRuns
+    .map((run) => \`\${run?.provider?.id}@\${run?.provider?.version}\`)
+    .sort();
+  if (
+    baseline.providerRuns.length === 0 ||
+    baseline.providerRuns.some((run) => run?.status !== "passed") ||
+    new Set(providerRuns).size !== providerRuns.length ||
+    JSON.stringify(providerRuns) !== JSON.stringify(requiredProviders)
+  ) {
+    return "the baseline provider evidence is incomplete";
+  }
   if (cache.platform !== process.platform || cache.architecture !== process.arch) {
     return "the operating system or architecture changed";
   }
@@ -369,6 +386,23 @@ function baselineCacheIssue(baseline) {
     !Array.isArray(cache.runtimes)
   ) {
     return "the baseline cache key is malformed";
+  }
+  if (!Array.isArray(baseline?.providerRuns)) {
+    return "the baseline provider evidence is missing";
+  }
+  const requiredProviders = cache.providers
+    .map((provider) => \`\${provider?.id}@\${provider?.version}\`)
+    .sort();
+  const providerRuns = baseline.providerRuns
+    .map((run) => \`\${run?.provider?.id}@\${run?.provider?.version}\`)
+    .sort();
+  if (
+    baseline.providerRuns.length === 0 ||
+    baseline.providerRuns.some((run) => run?.status !== "passed") ||
+    new Set(providerRuns).size !== providerRuns.length ||
+    JSON.stringify(providerRuns) !== JSON.stringify(requiredProviders)
+  ) {
+    return "the baseline provider evidence is incomplete";
   }
   if (cache.platform !== process.platform || cache.architecture !== process.arch) {
     return "the operating system or architecture changed";

@@ -12,6 +12,7 @@ import {
   oracleBaseCommitSchema,
   oracleSha256Schema
 } from "./oracle-plan.schema.js";
+import { evidenceProviderRunSchema } from "./provider-run.schema.js";
 import { verificationCommandResultSchema } from "./verification.schema.js";
 
 const hashedPathSchema = z
@@ -63,6 +64,7 @@ export const baselineEvidenceSchema = z
     originLockHash: oracleSha256Schema,
     cacheKey: baselineCacheKeySchema,
     oracles: z.array(baselineOracleResultSchema),
+    providerRuns: z.array(evidenceProviderRunSchema).default([]),
     commands: z.array(verificationCommandResultSchema),
     outcome: evidenceStatusSchema,
     generatedAt: isoDateTimeSchema

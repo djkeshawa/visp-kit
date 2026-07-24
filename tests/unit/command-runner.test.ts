@@ -67,6 +67,22 @@ describe("command runner", () => {
     }
   });
 
+  it("force-terminates a command that ignores the timeout signal", async () => {
+    const result = await runCommand(
+      process.execPath,
+      ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"],
+      { timeoutMs: 25 }
+    );
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.details).toMatchObject({
+        exitCode: null,
+        timedOut: true
+      });
+    }
+  });
+
   it("runs full command strings through the shell when requested", async () => {
     const result = await runShellCommand("echo shell visp");
 

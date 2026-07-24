@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCli } from "../../src/cli/main.js";
 import { runCommand } from "../../src/core/command-runner.js";
 import { pathExists } from "../../src/core/file-system.js";
+import { runBaselineVerificationWorkflow } from "../../src/workflows/baseline-verification.workflow.js";
 import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
 
 async function runGit(targetPath: string, args: readonly string[]): Promise<void> {
@@ -452,6 +453,51 @@ describe("visp oracle command", () => {
     expect(refreshed.cacheKey).not.toBe(first.cacheKey);
   });
 
+  it("fails closed before execution for an unavailable provider and remains recoverable", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareContext(tempDir);
+    const program = createCli({ writeOut: () => undefined });
+    await program.parseAsync(["node", "visp", "oracle", "plan", tempDir, "--task", "T001"]);
+    await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
+
+    const unsupported = await runBaselineVerificationWorkflow({
+      targetPath: tempDir,
+      taskId: "T001",
+      providerRegistry: new Map()
+    });
+    expect(unsupported.ok).toBe(true);
+    if (!unsupported.ok) return;
+    expect(unsupported.value).toMatchObject({
+      success: false,
+      outcome: "inconclusive",
+      commands: []
+    });
+    expect(unsupported.value.providers).toHaveLength(2);
+    expect(unsupported.value.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: "inconclusive",
+          failureCode: "unsupported_provider"
+        })
+      ])
+    );
+
+    const lockPath = path.join(
+      tempDir,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001",
+      "oracle-lock.json"
+    );
+    expect(JSON.parse(await readFile(lockPath, "utf8"))).not.toHaveProperty("baselineEvidence");
+
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--baseline", "--task", "T001"]);
+    expect(process.exitCode).toBeUndefined();
+  });
+
   it("writes candidate evidence and rejects comparison against a stale baseline", async () => {
     await createPhase8Fixture(tempDir);
     const packagePath = path.join(tempDir, "package.json");
@@ -479,7 +525,17 @@ describe("visp oracle command", () => {
     await prepareContext(tempDir);
 
     let program = createCli({ writeOut: () => undefined });
-    await program.parseAsync(["node", "visp", "oracle", "plan", tempDir, "--task", "T001"]);
+    await program.parseAsync([
+      "node",
+      "visp",
+      "oracle",
+      "plan",
+      tempDir,
+      "--task",
+      "T001",
+      "--pre-approved-test",
+      "tests/notes.test.ts"
+    ]);
     await program.parseAsync(["node", "visp", "oracle", "lock", tempDir, "--task", "T001"]);
     await program.parseAsync(["node", "visp", "verify", tempDir, "--baseline", "--task", "T001"]);
     expect(process.exitCode).toBeUndefined();

@@ -17,6 +17,7 @@ export type VerificationRunnerOptions = {
   readonly commandRunner?: CommandRunner;
   readonly now?: () => string;
   readonly jsonOutput?: boolean;
+  readonly timeoutMs?: number;
 };
 
 function skippedResult(input: {
@@ -116,7 +117,7 @@ export async function runVerificationCommands(
     const startMs = Date.now();
     const result = await runner.run(executable, args, {
       cwd: options.targetPath,
-      timeoutMs: 120_000,
+      timeoutMs: options.timeoutMs ?? 120_000,
       executionMode: profile.executionMode,
       stdioMode: profile.stdioMode
     });

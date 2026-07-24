@@ -329,6 +329,12 @@ review, reconcile, the checklist status check, and `visp next`. It stops at the
 first failure and prints the exact recovery command. Projects without active
 assurance retain the existing pipeline.
 
+Assurance providers are a closed, versioned allowlist. Missing or unsupported
+providers, malformed provider output, command startup failure, timeout, and
+skipped evidence are explicit `inconclusive` results. Behavioral and critical
+candidate evidence cannot pass on implementer-authored tests alone; it needs
+locked pre-existing or explicitly pre-approved test evidence.
+
 If the agent surface does not expose numeric token usage, record that
 explicitly instead of inventing counts:
 

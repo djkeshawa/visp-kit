@@ -5,7 +5,8 @@ import { type OraclePlanOracle } from "../../../src/artifacts/schemas/oracle-pla
 import { type VerificationCommandResult } from "../../../src/artifacts/schemas/verification.schema.js";
 import {
   evaluateCandidateOracles,
-  evaluateCandidateOutcome
+  evaluateCandidateOutcome,
+  evaluateCandidateTestStrength
 } from "../../../src/workflows/candidate-verification.workflow.js";
 
 function oracle(expected: "failed" | "recorded" = "recorded"): OraclePlanOracle {
@@ -54,6 +55,34 @@ function command(success: boolean, skipped = false): VerificationCommandResult {
 }
 
 describe("candidate verification semantics", () => {
+  it("requires independent test strength for behavioral and critical assurance", () => {
+    expect(
+      evaluateCandidateTestStrength({
+        assuranceProfile: "behavioral",
+        testStrengthEvidence: []
+      }).status
+    ).toBe("inconclusive");
+    expect(
+      evaluateCandidateTestStrength({
+        assuranceProfile: "critical",
+        testStrengthEvidence: [
+          {
+            path: "tests/example.test.ts",
+            sha256: `sha256:${"a".repeat(64)}`,
+            independence: "pre_approved",
+            source: { kind: "explicit_pre_approval", reference: "APPROVAL-1" }
+          }
+        ]
+      }).status
+    ).toBe("passed");
+    expect(
+      evaluateCandidateTestStrength({
+        assuranceProfile: "routine",
+        testStrengthEvidence: []
+      }).status
+    ).toBe("passed");
+  });
+
   it("passes bug-fix comparison when the failure becomes passing", () => {
     const results = evaluateCandidateOracles({
       oracles: [oracle("failed")],
@@ -98,6 +127,16 @@ describe("candidate verification semantics", () => {
       oracles: [oracle()],
       baseline: [baseline("recorded", "passed")],
       commands: [command(true, true)]
+    });
+
+    expect(evaluateCandidateOutcome(results)).toBe("inconclusive");
+  });
+
+  it("is inconclusive when any declared candidate command is skipped", () => {
+    const results = evaluateCandidateOracles({
+      oracles: [oracle()],
+      baseline: [baseline("recorded", "passed")],
+      commands: [command(true, true), command(true)]
     });
 
     expect(evaluateCandidateOutcome(results)).toBe("inconclusive");

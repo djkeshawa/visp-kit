@@ -20,6 +20,11 @@ describe("candidateEvidenceSchema", () => {
       },
       baselineEvidence: { path: ".visp/baseline-evidence.json", sha256: hash },
       baselineCacheKeySha256: hash,
+      testStrength: {
+        status: "passed",
+        independence: ["pre_existing"],
+        reason: "Pre-existing test evidence is locked."
+      },
       oracles: [
         {
           oracleId: "ORACLE-AC001",
@@ -36,9 +41,11 @@ describe("candidateEvidenceSchema", () => {
           outcome: "passed"
         }
       ],
+      providerRuns: [],
       commands: [],
       outcome: "passed",
-      generatedAt: "2026-07-25T00:00:00.000Z"
+      generatedAt: "2026-07-25T00:00:00.000Z",
+      evidenceHash: hash
     });
 
     expect(result.success).toBe(true);

@@ -55,6 +55,7 @@ export async function runCommand(
     let stderr = "";
     let timedOut = false;
     let settled = false;
+    let forceKillTimer: NodeJS.Timeout | undefined;
     const executionMode = options.executionMode ?? "argv";
     const stdioMode = options.stdioMode ?? "capture";
     const outputCaptureMode =
@@ -119,6 +120,9 @@ export async function runCommand(
         if (timer !== undefined) {
           clearTimeout(timer);
         }
+        if (forceKillTimer !== undefined) {
+          clearTimeout(forceKillTimer);
+        }
         resolve(result);
       }
     };
@@ -167,6 +171,9 @@ export async function runCommand(
         : setTimeout(() => {
             timedOut = true;
             child.kill("SIGTERM");
+            forceKillTimer = setTimeout(() => {
+              if (!settled) child.kill("SIGKILL");
+            }, 250);
           }, options.timeoutMs);
 
     child.stdout?.setEncoding("utf8");

@@ -75,4 +75,14 @@ describe("baseline verification semantics", () => {
     expect(evaluateBaselineOutcome([], [command(false)])).toBe("failed");
     expect(evaluateBaselineOutcome([], [])).toBe("inconclusive");
   });
+
+  it("does not ignore a skipped command beside a passing command", () => {
+    const skipped = { ...command(true), skipped: true, skipReason: "not run", exitCode: null };
+    const results = evaluateBaselineOracles({
+      oracles: [oracle("recorded")],
+      commands: [skipped, command(true)]
+    });
+
+    expect(evaluateBaselineOutcome(results)).toBe("inconclusive");
+  });
 });

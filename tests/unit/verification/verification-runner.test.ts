@@ -92,6 +92,43 @@ describe("verification runner", () => {
     });
   });
 
+  it("forwards the configured timeout and preserves timeout evidence", async () => {
+    let observedTimeout: number | undefined;
+    const runner: CommandRunner = {
+      async run(command, args, options) {
+        observedTimeout = options?.timeoutMs;
+        return err(
+          new VispError("COMMAND_FAILED", "Command timed out.", {
+            details: {
+              command,
+              args,
+              cwd: options?.cwd,
+              exitCode: null,
+              stdout: "",
+              stderr: "",
+              timedOut: true
+            }
+          })
+        );
+      }
+    };
+
+    const results = await runVerificationCommands({
+      targetPath: "/workspace/project",
+      commands: ["pnpm test"],
+      commandRunner: runner,
+      timeoutMs: 25,
+      now: () => "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(observedTimeout).toBe(25);
+    expect(results[0]).toMatchObject({
+      success: false,
+      exitCode: null,
+      timedOut: true
+    });
+  });
+
   it("marks commands skipped during dry-run", async () => {
     const results = await runVerificationCommands({
       targetPath: "/workspace/project",

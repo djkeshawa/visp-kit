@@ -346,6 +346,15 @@ and implementation remains blocked until the resulting baseline is locked.
 Candidate mode refuses missing, modified, or cache-stale baseline evidence,
 runs the exact locked command set, and records a per-oracle
 baseline/candidate comparison. Failed or inconclusive comparison is not a pass.
+Provider execution is closed to the versioned built-ins declared by the
+oracle plan (`command@1.0` and `validation-oracle@1.0`). Unsupported or
+malformed providers, command startup failures, timeouts, and skipped required
+commands are recorded as `inconclusive`; they never become an evidence pass.
+Ordinary nonzero exits remain valid observations so a localized-bug baseline
+can intentionally reproduce failure. Behavioral and critical candidate
+evidence also requires a Git-proven pre-existing or explicitly pre-approved
+test-strength signal. Candidate artifacts carry a deterministic content hash,
+current authorization/baseline bindings, and complete provider results.
 
 ## `visp review [path]`
 

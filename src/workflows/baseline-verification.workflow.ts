@@ -18,6 +18,14 @@ import { pathExists } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { createBaselineCacheKey } from "../evidence/baseline-cache-key.js";
+import {
+  preflightRequiredEvidenceProviders,
+  providerInputHashes,
+  providerRunsMatchRequirements,
+  providerRunsPass,
+  runRequiredEvidenceProviders,
+  type EvidenceProviderRegistry
+} from "../evidence/provider-registry.js";
 import { clearTaskImplementMarker } from "../gates/implement-marker.js";
 import {
   createOracleLock,
@@ -35,6 +43,8 @@ export type BaselineVerificationWorkflowOptions = OracleAuthorizationWorkflowOpt
   readonly force?: boolean;
   readonly jsonOutput?: boolean;
   readonly commandRunner?: CommandRunner;
+  readonly commandTimeoutMs?: number;
+  readonly providerRegistry?: EvidenceProviderRegistry;
 };
 
 export type BaselineVerificationSummary = {
@@ -44,6 +54,13 @@ export type BaselineVerificationSummary = {
   readonly action: "executed" | "cached" | "previewed";
   readonly cacheKey: string;
   readonly reportPath: string | null;
+  readonly providers: readonly {
+    readonly id: string;
+    readonly version: string;
+    readonly status: string;
+    readonly failureCode: string | null;
+    readonly reason: string | null;
+  }[];
   readonly commands: readonly {
     readonly command: string;
     readonly success: boolean;
@@ -57,8 +74,10 @@ export type BaselineVerificationSummary = {
 export function observeVerificationCommands(
   commands: readonly VerificationCommandResult[]
 ): "passed" | "failed" | "inconclusive" {
+  if (commands.length === 0 || commands.some((command) => command.skipped)) {
+    return "inconclusive";
+  }
   const executed = commands.filter((command) => !command.skipped);
-  if (executed.length === 0) return "inconclusive";
   return executed.every((command) => command.success) ? "passed" : "failed";
 }
 
@@ -104,6 +123,13 @@ function summary(input: {
     action: input.action,
     cacheKey: input.evidence.cacheKey.hash,
     reportPath: input.reportPath,
+    providers: input.evidence.providerRuns.map((run) => ({
+      id: run.provider.id,
+      version: run.provider.version,
+      status: run.status,
+      failureCode: run.failure?.code ?? null,
+      reason: run.failure?.reason ?? null
+    })),
     commands: input.evidence.commands.map((command) => ({
       command: command.command,
       success: command.success,
@@ -152,6 +178,11 @@ export async function runBaselineVerificationWorkflow(
       cached.value.oraclePlan.sha256 === hashOracleValue(authorization.value.plan) &&
       cached.value.cacheKey.hash === cacheKey.value.hash &&
       cached.value.outcome === "passed" &&
+      providerRunsPass(cached.value.providerRuns) &&
+      providerRunsMatchRequirements(
+        cached.value.providerRuns,
+        authorization.value.plan.requiredProviders
+      ) &&
       authorization.value.lock.baselineEvidence !== undefined
     ) {
       return ok(
@@ -173,18 +204,58 @@ export async function runBaselineVerificationWorkflow(
     if (!cleared.ok) return cleared;
   }
   const generatedAt = options.now ?? new Date().toISOString();
-  const commands = await runVerificationCommands({
-    targetPath: authorization.value.targetPath,
-    commands: authorization.value.plan.validationCommands,
-    dryRun: options.dryRun ?? false,
-    commandRunner: options.commandRunner,
-    now: () => generatedAt,
-    jsonOutput: options.jsonOutput
+  const providerPreflight = preflightRequiredEvidenceProviders({
+    requiredProviders: authorization.value.plan.requiredProviders,
+    phase: "baseline",
+    registry: options.providerRegistry
   });
+  const commands =
+    providerPreflight.length > 0
+      ? []
+      : await runVerificationCommands({
+          targetPath: authorization.value.targetPath,
+          commands: authorization.value.plan.validationCommands,
+          dryRun: options.dryRun ?? false,
+          commandRunner: options.commandRunner,
+          now: () => generatedAt,
+          jsonOutput: options.jsonOutput,
+          timeoutMs: options.commandTimeoutMs
+        });
   const oracles = evaluateBaselineOracles({
     oracles: authorization.value.plan.oracles,
     commands
   });
+  const providerRuns =
+    providerPreflight.length > 0
+      ? providerPreflight
+      : runRequiredEvidenceProviders({
+          requiredProviders: authorization.value.plan.requiredProviders,
+          registry: options.providerRegistry,
+          providerInput: {
+            phase: "baseline",
+            targetPath: authorization.value.targetPath,
+            plan: authorization.value.plan,
+            commands,
+            oracleObservations: oracles.map((oracle) => ({
+              oracleId: oracle.oracleId,
+              status: oracle.expectationMet
+                ? ("passed" as const)
+                : oracle.observed === "inconclusive"
+                  ? ("inconclusive" as const)
+                  : ("failed" as const),
+              reason: oracle.expectationMet
+                ? "The baseline observation met its locked expectation."
+                : "The baseline observation did not meet its locked expectation."
+            })),
+            inputHashes: providerInputHashes({
+              plan: authorization.value.plan,
+              lockHash: authorization.value.lock.lockHash,
+              cacheKeyHash: cacheKey.value.hash
+            }),
+            generatedAt
+          }
+        });
+  const oracleOutcome = evaluateBaselineOutcome(oracles, commands);
   const candidate = {
     version: "1.0" as const,
     id: `BASELINE-${authorization.value.plan.featureId}-${authorization.value.plan.taskId}`,
@@ -198,8 +269,9 @@ export async function runBaselineVerificationWorkflow(
     originLockHash: authorization.value.lock.lockHash,
     cacheKey: cacheKey.value,
     oracles,
+    providerRuns,
     commands,
-    outcome: evaluateBaselineOutcome(oracles, commands),
+    outcome: providerRunsPass(providerRuns) ? oracleOutcome : ("inconclusive" as const),
     generatedAt
   };
   const parsed = baselineEvidenceSchema.safeParse(candidate);
@@ -226,10 +298,13 @@ export async function runBaselineVerificationWorkflow(
     artifactName: "baseline evidence"
   });
   if (!reportWrite.ok) return reportWrite;
-  const baselineBinding = {
-    path: reportPath,
-    sha256: hashOracleText(`${JSON.stringify(parsed.data, null, 2)}\n`)
-  };
+  const baselineBinding =
+    parsed.data.outcome === "passed"
+      ? {
+          path: reportPath,
+          sha256: hashOracleText(`${JSON.stringify(parsed.data, null, 2)}\n`)
+        }
+      : undefined;
   const lock = createOracleLock({
     plan: authorization.value.plan,
     planPath: authorization.value.planPath,
@@ -271,6 +346,10 @@ export function formatBaselineVerificationSummary(value: BaselineVerificationSum
     formatKeyValue("Action", value.action),
     formatKeyValue("Cache key", value.cacheKey),
     ...(value.reportPath === null ? [] : [formatKeyValue("Artifact", value.reportPath)]),
+    ...value.providers.map(
+      (provider) =>
+        `  Provider ${provider.id}@${provider.version}: ${provider.status}${provider.failureCode === null ? "" : ` (${provider.failureCode})`}`
+    ),
     "",
     "Next:",
     `  ${value.nextCommand}`

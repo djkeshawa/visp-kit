@@ -24,6 +24,7 @@ import { pathExists, readTextFile, removeFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { createBaselineCacheKey } from "../evidence/baseline-cache-key.js";
+import { providerRunsMatchRequirements, providerRunsPass } from "../evidence/provider-registry.js";
 import {
   createOracleApproval,
   createOracleLock,
@@ -294,7 +295,12 @@ export async function runOracleLockWorkflow(
       rawBaseline.ok &&
       baseline.value.taskId === loaded.value.plan.taskId &&
       baseline.value.outcome === "passed" &&
-      baseline.value.oraclePlan.sha256 === hashOracleValue(loaded.value.plan)
+      baseline.value.oraclePlan.sha256 === hashOracleValue(loaded.value.plan) &&
+      providerRunsPass(baseline.value.providerRuns) &&
+      providerRunsMatchRequirements(
+        baseline.value.providerRuns,
+        loaded.value.plan.requiredProviders
+      )
     ) {
       baselineEvidence = {
         path: relativePath(loaded.value.targetPath, baselineAbsolutePath),
@@ -395,7 +401,12 @@ export async function loadOracleAuthorization(
       baseline.value.taskId !== loaded.value.plan.taskId ||
       baseline.value.oraclePlan.path !== loaded.value.planPath ||
       baseline.value.oraclePlan.sha256 !== hashOracleValue(loaded.value.plan) ||
-      baseline.value.outcome !== "passed"
+      baseline.value.outcome !== "passed" ||
+      !providerRunsPass(baseline.value.providerRuns) ||
+      !providerRunsMatchRequirements(
+        baseline.value.providerRuns,
+        loaded.value.plan.requiredProviders
+      )
     ) {
       return err(
         new VispError(

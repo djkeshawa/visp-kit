@@ -6,12 +6,23 @@ import {
   type CandidateEvidence,
   type CandidateOracleComparison
 } from "../artifacts/schemas/candidate-evidence.schema.js";
-import { type OraclePlanOracle } from "../artifacts/schemas/oracle-plan.schema.js";
+import { type OraclePlan, type OraclePlanOracle } from "../artifacts/schemas/oracle-plan.schema.js";
 import { type VerificationCommandResult } from "../artifacts/schemas/verification.schema.js";
 import { type CommandRunner } from "../core/command-runner.js";
 import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
+import {
+  preflightRequiredEvidenceProviders,
+  providerInputHashes,
+  providerRunsPass,
+  runRequiredEvidenceProviders,
+  type EvidenceProviderRegistry
+} from "../evidence/provider-registry.js";
+import {
+  candidateEvidenceHash,
+  validateCandidateEvidenceIntegrity
+} from "../evidence/candidate-evidence-validator.js";
 import { hashOracleValue } from "../oracle/oracle-authorization.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { runVerificationCommands } from "../verification/verification-runner.js";
@@ -24,6 +35,8 @@ import {
 export type CandidateVerificationWorkflowOptions = OracleAuthorizationWorkflowOptions & {
   readonly jsonOutput?: boolean;
   readonly commandRunner?: CommandRunner;
+  readonly commandTimeoutMs?: number;
+  readonly providerRegistry?: EvidenceProviderRegistry;
 };
 
 export type CandidateVerificationSummary = {
@@ -32,6 +45,14 @@ export type CandidateVerificationSummary = {
   readonly outcome: CandidateEvidence["outcome"];
   readonly action: "executed" | "previewed";
   readonly reportPath: string | null;
+  readonly testStrength: CandidateEvidence["testStrength"]["status"];
+  readonly providers: readonly {
+    readonly id: string;
+    readonly version: string;
+    readonly status: string;
+    readonly failureCode: string | null;
+    readonly reason: string | null;
+  }[];
   readonly comparisons: readonly {
     readonly oracleId: string;
     readonly baselineObserved: string;
@@ -110,6 +131,20 @@ export function evaluateCandidateOutcome(
   return comparisons.every((comparison) => comparison.outcome === "passed") ? "passed" : "failed";
 }
 
+export function evaluateCandidateTestStrength(
+  plan: Pick<OraclePlan, "assuranceProfile" | "testStrengthEvidence">
+): CandidateEvidence["testStrength"] {
+  const independence = plan.testStrengthEvidence.map((evidence) => evidence.independence);
+  const passed = plan.assuranceProfile === "routine" || independence.length > 0;
+  return {
+    status: passed ? "passed" : "inconclusive",
+    independence,
+    reason: passed
+      ? "The locked plan contains an independent test-strength signal or requires routine assurance."
+      : "Behavioral and critical assurance require pre-existing or explicitly pre-approved test evidence."
+  };
+}
+
 function summary(input: {
   readonly evidence: CandidateEvidence;
   readonly reportPath: string | null;
@@ -121,6 +156,14 @@ function summary(input: {
     outcome: input.evidence.outcome,
     action: input.dryRun ? "previewed" : "executed",
     reportPath: input.reportPath,
+    testStrength: input.evidence.testStrength.status,
+    providers: input.evidence.providerRuns.map((run) => ({
+      id: run.provider.id,
+      version: run.provider.version,
+      status: run.status,
+      failureCode: run.failure?.code ?? null,
+      reason: run.failure?.reason ?? null
+    })),
     comparisons: input.evidence.oracles.map((comparison) => ({
       oracleId: comparison.oracleId,
       baselineObserved: comparison.baseline.observed,
@@ -158,20 +201,63 @@ export async function runCandidateVerificationWorkflow(
   }
 
   const generatedAt = options.now ?? new Date().toISOString();
-  const commands = await runVerificationCommands({
-    targetPath: authorization.value.targetPath,
-    commands: authorization.value.plan.validationCommands,
-    dryRun: options.dryRun ?? false,
-    commandRunner: options.commandRunner,
-    now: () => generatedAt,
-    jsonOutput: options.jsonOutput
+  const providerPreflight = preflightRequiredEvidenceProviders({
+    requiredProviders: authorization.value.plan.requiredProviders,
+    phase: "candidate",
+    registry: options.providerRegistry
   });
+  const commands =
+    providerPreflight.length > 0
+      ? []
+      : await runVerificationCommands({
+          targetPath: authorization.value.targetPath,
+          commands: authorization.value.plan.validationCommands,
+          dryRun: options.dryRun ?? false,
+          commandRunner: options.commandRunner,
+          now: () => generatedAt,
+          jsonOutput: options.jsonOutput,
+          timeoutMs: options.commandTimeoutMs
+        });
   const oracles = evaluateCandidateOracles({
     oracles: authorization.value.plan.oracles,
     baseline: baseline.oracles,
     commands
   });
-  const candidate = {
+  const providerRuns =
+    providerPreflight.length > 0
+      ? providerPreflight
+      : runRequiredEvidenceProviders({
+          requiredProviders: authorization.value.plan.requiredProviders,
+          registry: options.providerRegistry,
+          providerInput: {
+            phase: "candidate",
+            targetPath: authorization.value.targetPath,
+            plan: authorization.value.plan,
+            commands,
+            oracleObservations: oracles.map((oracle) => ({
+              oracleId: oracle.oracleId,
+              status:
+                oracle.outcome === "not_applicable" ? ("inconclusive" as const) : oracle.outcome,
+              reason:
+                oracle.outcome === "passed"
+                  ? "The candidate met the locked baseline/oracle comparison."
+                  : "The candidate did not establish the locked baseline/oracle comparison."
+            })),
+            inputHashes: providerInputHashes({
+              plan: authorization.value.plan,
+              lockHash: authorization.value.lock.lockHash,
+              cacheKeyHash: baseline.cacheKey.hash,
+              baselineSha256: baselineBinding.sha256
+            }),
+            generatedAt
+          }
+        });
+  const oracleOutcome =
+    oracles.length === 0
+      ? observeVerificationCommands(commands)
+      : evaluateCandidateOutcome(oracles);
+  const testStrength = evaluateCandidateTestStrength(authorization.value.plan);
+  const candidateMaterial: Omit<CandidateEvidence, "evidenceHash"> = {
     version: "1.0" as const,
     id: `CANDIDATE-${authorization.value.plan.featureId}-${authorization.value.plan.taskId}`,
     featureId: authorization.value.plan.featureId,
@@ -184,13 +270,19 @@ export async function runCandidateVerificationWorkflow(
     oracleAuthorization: authorization.value.binding,
     baselineEvidence: baselineBinding,
     baselineCacheKeySha256: baseline.cacheKey.hash,
-    oracles,
-    commands,
+    testStrength,
+    oracles: [...oracles],
+    providerRuns: [...providerRuns],
+    commands: [...commands],
     outcome:
-      oracles.length === 0
-        ? observeVerificationCommands(commands)
-        : evaluateCandidateOutcome(oracles),
+      providerRunsPass(providerRuns) && testStrength.status === "passed"
+        ? oracleOutcome
+        : ("inconclusive" as const),
     generatedAt
+  };
+  const candidate = {
+    ...candidateMaterial,
+    evidenceHash: candidateEvidenceHash(candidateMaterial)
   };
   const parsed = candidateEvidenceSchema.safeParse(candidate);
   if (!parsed.success) {
@@ -201,6 +293,15 @@ export async function runCandidateVerificationWorkflow(
       )
     );
   }
+  const integrity = validateCandidateEvidenceIntegrity({
+    evidence: parsed.data,
+    plan: authorization.value.plan,
+    planPath: authorization.value.planPath,
+    authorization: authorization.value.binding,
+    baselineBinding,
+    baselineCacheKeySha256: baseline.cacheKey.hash
+  });
+  if (!integrity.ok) return integrity;
 
   const dryRun = options.dryRun ?? false;
   const reportAbsolutePath = candidateEvidenceArtifactPath(
@@ -231,8 +332,13 @@ export function formatCandidateVerificationSummary(value: CandidateVerificationS
     "",
     formatKeyValue("Task", value.taskId),
     formatKeyValue("Outcome", value.outcome),
+    formatKeyValue("Test strength", value.testStrength),
     formatKeyValue("Action", value.action),
     ...(value.reportPath === null ? [] : [formatKeyValue("Artifact", value.reportPath)]),
+    ...value.providers.map(
+      (provider) =>
+        `  Provider ${provider.id}@${provider.version}: ${provider.status}${provider.failureCode === null ? "" : ` (${provider.failureCode})`}`
+    ),
     "",
     "Next:",
     `  ${value.nextCommand}`

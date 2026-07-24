@@ -341,7 +341,7 @@ describe("claude pretooluse hook script", () => {
           baseCommit: { status: "unavailable", reason: "Fixture has no commit binding." },
           lockfiles: [],
           configurations: [],
-          providers: [],
+          providers: [{ id: "command", version: "1.0" }],
           runtimes: [
             {
               id: "node",
@@ -350,7 +350,13 @@ describe("claude pretooluse hook script", () => {
           ],
           platform: process.platform,
           architecture: process.arch
-        }
+        },
+        providerRuns: [
+          {
+            provider: { id: "command", version: "1.0" },
+            status: "passed"
+          }
+        ]
       },
       null,
       2
@@ -476,7 +482,7 @@ describe("claude pretooluse hook script", () => {
               sha256: `sha256:${createHash("sha256").update(packageText, "utf8").digest("hex")}`
             }
           ],
-          providers: [],
+          providers: [{ id: "command", version: "1.0" }],
           runtimes: [
             {
               id: "node",
@@ -486,7 +492,13 @@ describe("claude pretooluse hook script", () => {
           ],
           platform: process.platform,
           architecture: process.arch
-        }
+        },
+        providerRuns: [
+          {
+            provider: { id: "command", version: "1.0" },
+            status: "passed"
+          }
+        ]
       },
       null,
       2

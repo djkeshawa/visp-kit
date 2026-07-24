@@ -15,6 +15,7 @@ import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.sch
 import { selectAssuranceProfile } from "../assurance/assurance-profile.js";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
+import { builtinEvidenceProviders } from "../evidence/provider-registry.js";
 import { canonicalJsonV1 } from "../integration/canonical-json.js";
 
 type BoundArtifact<T> = {
@@ -40,11 +41,6 @@ export type OraclePlanGenerationInput = {
   readonly requiredProviders?: readonly EvidenceProviderIdentity[];
   readonly generatedAt: string;
 };
-
-const defaultProviders: readonly EvidenceProviderIdentity[] = [
-  { id: "command", version: "1.0" },
-  { id: "validation-oracle", version: "1.0" }
-];
 
 function sha256Json(value: unknown): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(canonicalJsonV1(value), "utf8").digest("hex")}`;
@@ -277,8 +273,8 @@ export function generateOraclePlan(
       task: { id: input.task.id, sha256: sha256Json(input.task) }
     },
     baseCommit: input.baseCommit,
-    requiredProviders: [...(input.requiredProviders ?? defaultProviders)].sort((left, right) =>
-      left.id.localeCompare(right.id)
+    requiredProviders: [...(input.requiredProviders ?? builtinEvidenceProviders)].sort(
+      (left, right) => left.id.localeCompare(right.id)
     ),
     generatedAt: input.generatedAt
   };
