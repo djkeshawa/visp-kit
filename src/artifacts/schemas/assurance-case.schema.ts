@@ -2,14 +2,21 @@ import { z } from "zod";
 
 import { createAssuranceCaseHash } from "../../assurance/assurance-case-hash.js";
 import {
+  deriveAssuranceVerdict,
+  deriveCandidateStateSha,
+  deriveClaimDisposition,
+  deriveEvidenceConclusion
+} from "../../assurance/assurance-semantics.js";
+import {
   commandStringSchema,
   idSchema,
   nonEmptyStringSchema,
   pathStringSchema,
   requirementPrioritySchema
 } from "./common.schema.js";
-import { assuranceProfileSchema } from "./evidence.schema.js";
+import { assuranceProfileSchema, evidenceProviderIdentitySchema } from "./evidence.schema.js";
 import { oracleSha256Schema } from "./oracle-plan.schema.js";
+import { overrideRecordSchema } from "./override.schema.js";
 
 export const assuranceCasePathSchema = pathStringSchema.superRefine((value, context) => {
   const segments = value.split("/");
@@ -42,14 +49,26 @@ export const assuranceCaseArtifactRoleSchema = z.enum([
 
 const requiredArtifactRoles = assuranceCaseArtifactRoleSchema.options;
 
-export const assuranceCaseArtifactBindingSchema = z
-  .object({
-    id: idSchema,
-    role: assuranceCaseArtifactRoleSchema,
-    path: assuranceCasePathSchema,
-    sha256: oracleSha256Schema
-  })
-  .strict();
+export const assuranceCaseArtifactBindingSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      id: idSchema,
+      role: assuranceCaseArtifactRoleSchema,
+      status: z.literal("available"),
+      path: assuranceCasePathSchema,
+      sha256: oracleSha256Schema
+    })
+    .strict(),
+  z
+    .object({
+      id: idSchema,
+      role: assuranceCaseArtifactRoleSchema,
+      status: z.literal("unavailable"),
+      path: assuranceCasePathSchema,
+      reason: nonEmptyStringSchema
+    })
+    .strict()
+]);
 
 export const assuranceCaseCodeStateSchema = z.discriminatedUnion("status", [
   z
@@ -123,16 +142,23 @@ export const assuranceCaseChangeUnitSchema = z
         message: "Rename units require distinct before and after paths."
       });
     }
+    if (unit.category === "mode" && unit.beforeMode === undefined && unit.afterMode === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["category"],
+        message: "Mode units require a before or after mode."
+      });
+    }
     if (
       unit.category === "mode" &&
-      (unit.beforeMode === undefined ||
-        unit.afterMode === undefined ||
-        unit.beforeMode === unit.afterMode)
+      unit.beforeMode !== undefined &&
+      unit.afterMode !== undefined &&
+      unit.beforeMode === unit.afterMode
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["category"],
-        message: "Mode units require distinct before and after modes."
+        message: "Mode units with both modes require a real mode change."
       });
     }
     if (
@@ -150,8 +176,22 @@ export const assuranceCaseChangeUnitSchema = z
 export const assuranceCaseClaimSchema = z
   .object({
     id: idSchema,
-    requirementId: idSchema,
-    acceptanceCriterionId: idSchema,
+    source: z.discriminatedUnion("kind", [
+      z
+        .object({
+          kind: z.literal("acceptance_criterion"),
+          requirementId: idSchema,
+          acceptanceCriterionId: idSchema
+        })
+        .strict(),
+      z
+        .object({
+          kind: z.literal("invariant"),
+          invariantId: idSchema,
+          origin: z.enum(["business_rule", "non_functional"])
+        })
+        .strict()
+    ]),
     priority: requirementPrioritySchema,
     assuranceProfile: assuranceProfileSchema,
     statement: nonEmptyStringSchema,
@@ -209,7 +249,7 @@ const evidenceOutcomeSchema = z
 export const assuranceCaseEvidenceComparisonSchema = z
   .object({
     id: idSchema,
-    providerId: idSchema,
+    providers: z.array(evidenceProviderIdentitySchema),
     claimIds: z.array(idSchema).min(1),
     baseline: evidenceOutcomeSchema,
     candidate: evidenceOutcomeSchema,
@@ -279,8 +319,7 @@ export const assuranceCaseUnresolvedItemSchema = z
 export const assuranceCaseOverrideSchema = z
   .object({
     id: idSchema,
-    reference: nonEmptyStringSchema,
-    reason: nonEmptyStringSchema,
+    record: overrideRecordSchema,
     claimIds: z.array(idSchema)
   })
   .strict();
@@ -324,7 +363,10 @@ export const assuranceCaseWithoutHashSchema = z
         mode: z.enum(["base_to_commit", "base_to_workspace"]),
         baseRevision: nonEmptyStringSchema,
         targetRevision: nonEmptyStringSchema,
-        snapshotSha256: oracleSha256Schema
+        snapshotSha256: oracleSha256Schema,
+        headRevision: z.string().regex(/^[a-f0-9]{40,64}$/u),
+        indexTreeRevision: z.string().regex(/^[a-f0-9]{40,64}$/u),
+        stateSha256: oracleSha256Schema
       })
       .strict(),
     changeUnits: z.array(assuranceCaseChangeUnitSchema),
@@ -472,11 +514,12 @@ export const assuranceCaseSchema = assuranceCaseWithoutHashSchema
         context
       );
 
-      if (claim.priority === "must" && claim.disposition === "unmapped") {
+      const expectedDisposition = deriveClaimDisposition(claim);
+      if (claim.disposition !== expectedDisposition) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["claims", index, "disposition"],
-          message: "Must claims must be mapped or unresolved."
+          message: `Claim disposition must be ${expectedDisposition} for its authoritative mappings.`
         });
       }
       if (
@@ -497,9 +540,30 @@ export const assuranceCaseSchema = assuranceCaseWithoutHashSchema
           message: "Unresolved claims require an unresolved item."
         });
       }
+      if (claim.disposition !== "unresolved" && claim.unresolvedItemIds.length > 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["claims", index, "unresolvedItemIds"],
+          message: "Only unresolved claims may reference unresolved items."
+        });
+      }
     }
 
     for (const [index, comparison] of assuranceCase.evidenceComparisons.entries()) {
+      for (let providerIndex = 0; providerIndex < comparison.providers.length; providerIndex += 1) {
+        const previous = comparison.providers[providerIndex - 1];
+        const current = comparison.providers[providerIndex]!;
+        if (
+          previous !== undefined &&
+          `${previous.id}\0${previous.version}` >= `${current.id}\0${current.version}`
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["evidenceComparisons", index, "providers", providerIndex],
+            message: "Evidence providers must be unique and sorted by ID and version."
+          });
+        }
+      }
       validateReferences(
         comparison.claimIds,
         claimIds,
@@ -507,6 +571,16 @@ export const assuranceCaseSchema = assuranceCaseWithoutHashSchema
         context
       );
       for (const side of ["baseline", "candidate"] as const) {
+        if (
+          comparison.providers.length === 0 &&
+          (comparison[side].outcome === "passed" || comparison[side].outcome === "failed")
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["evidenceComparisons", index, "providers"],
+            message: `${side} passing or failing outcomes require an actual evidence provider.`
+          });
+        }
         const expectedRole = side === "baseline" ? "baseline_evidence" : "candidate_evidence";
         const sourceBinding = assuranceCase.bindings.find(
           (binding) => binding.id === comparison[side].source.bindingId
@@ -524,6 +598,67 @@ export const assuranceCaseSchema = assuranceCaseWithoutHashSchema
             message: `${side} evidence must use the ${expectedRole} binding.`
           });
         }
+        if (sourceBinding?.status === "unavailable") {
+          if (
+            comparison[side].outcome !== "inconclusive" ||
+            comparison[side].freshness !== "unknown" ||
+            comparison[side].uncertainty.status !== "unresolved" ||
+            comparison[side].source.evidenceIds.length !== 0
+          ) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["evidenceComparisons", index, side],
+              message: "Unavailable evidence must remain empty, unknown, and inconclusive."
+            });
+          }
+        }
+        if (
+          comparison[side].freshness !== "fresh" &&
+          comparison[side].uncertainty.status === "none"
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["evidenceComparisons", index, side, "uncertainty"],
+            message: "Non-fresh evidence requires explicit uncertainty."
+          });
+        }
+        if (comparison[side].freshness !== "fresh" && comparison[side].outcome === "passed") {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["evidenceComparisons", index, side, "outcome"],
+            message: "Non-fresh evidence cannot establish a passing outcome."
+          });
+        }
+        if (
+          comparison[side].uncertainty.status !== "none" &&
+          comparison[side].outcome === "passed"
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["evidenceComparisons", index, side, "outcome"],
+            message: "Uncertain evidence cannot establish a passing outcome."
+          });
+        }
+        if (
+          comparison[side].source.evidenceIds.length === 0 &&
+          (comparison[side].outcome === "passed" || comparison[side].outcome === "failed")
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["evidenceComparisons", index, side, "source", "evidenceIds"],
+            message: "Passing or failing outcomes require cited evidence IDs."
+          });
+        }
+        if (
+          comparison[side].uncertainty.status !== "none" &&
+          comparison[side].uncertainty.reasons.length === 0
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["evidenceComparisons", index, side, "uncertainty", "reasons"],
+            message: "Evidence uncertainty requires reasons."
+          });
+        }
         validateSortedUniqueIds(
           comparison[side].source.evidenceIds,
           ["evidenceComparisons", index, side, "source", "evidenceIds"],
@@ -534,6 +669,17 @@ export const assuranceCaseSchema = assuranceCaseWithoutHashSchema
           ["evidenceComparisons", index, side, "uncertainty", "reasons"],
           context
         );
+      }
+      const expectedConclusion = deriveEvidenceConclusion(
+        comparison.baseline,
+        comparison.candidate
+      );
+      if (comparison.conclusion !== expectedConclusion) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["evidenceComparisons", index, "conclusion"],
+          message: `Evidence conclusion must be ${expectedConclusion}.`
+        });
       }
     }
 
@@ -566,6 +712,34 @@ export const assuranceCaseSchema = assuranceCaseWithoutHashSchema
       for (const [index, value] of values.entries()) {
         validateReferences(value.claimIds, claimIds, [path, index, "claimIds"], context);
       }
+    }
+
+    const expectedVerdict = deriveAssuranceVerdict(assuranceCase);
+    if (assuranceCase.verdict !== expectedVerdict) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["verdict"],
+        message: `Assurance verdict must be ${expectedVerdict}.`
+      });
+    }
+    const candidateBinding = assuranceCase.bindings.find(
+      (binding) => binding.role === "candidate_evidence"
+    );
+    if (
+      candidateBinding !== undefined &&
+      (assuranceCase.codeStates.candidate.status !== "captured" ||
+        assuranceCase.codeStates.candidate.sha256 !==
+          deriveCandidateStateSha({
+            actionId: assuranceCase.actionId,
+            diffStateSha256: assuranceCase.diff.stateSha256,
+            candidateEvidenceBinding: candidateBinding
+          }))
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["codeStates", "candidate"],
+        message: "Candidate code state is not bound to action, diff, and evidence identity."
+      });
     }
 
     const { caseHash, ...withoutHash } = assuranceCase;

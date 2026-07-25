@@ -13,11 +13,15 @@ import {
   assuranceCaseArtifactPath,
   assuranceCaseMarkdownPath
 } from "../../../src/artifacts/artifact-paths.js";
+import { buildAssuranceCase } from "../../../src/assurance/assurance-case.js";
+import { renderAssuranceCase } from "../../../src/assurance/assurance-case-renderer.js";
+import { type DiffSnapshot } from "../../../src/artifacts/schemas/diff-snapshot.schema.js";
+import { deriveCandidateStateSha } from "../../../src/assurance/assurance-semantics.js";
 
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 
 function completeCase(): AssuranceCaseWithoutHash {
-  return {
+  const value: AssuranceCaseWithoutHash = {
     version: "1.0",
     actionId: sha("0"),
     featureId: "F001",
@@ -91,7 +95,10 @@ function completeCase(): AssuranceCaseWithoutHash {
         path: ".visp/features/001-assurance/task-graph.json",
         sha256: sha("5")
       }
-    ],
+    ].map((binding) => ({
+      ...binding,
+      status: "available" as const
+    })) as AssuranceCaseWithoutHash["bindings"],
     codeStates: {
       baseline: {
         status: "captured",
@@ -108,7 +115,10 @@ function completeCase(): AssuranceCaseWithoutHash {
       mode: "base_to_workspace",
       baseRevision: "0123456789abcdef0123456789abcdef01234567",
       targetRevision: "working-tree",
-      snapshotSha256: sha("8")
+      snapshotSha256: sha("8"),
+      headRevision: "0123456789abcdef0123456789abcdef01234567",
+      indexTreeRevision: "1123456789abcdef0123456789abcdef01234567",
+      stateSha256: sha("f")
     },
     changeUnits: [
       {
@@ -134,8 +144,11 @@ function completeCase(): AssuranceCaseWithoutHash {
     claims: [
       {
         id: "CL001",
-        requirementId: "REQ001",
-        acceptanceCriterionId: "AC001",
+        source: {
+          kind: "acceptance_criterion",
+          requirementId: "REQ001",
+          acceptanceCriterionId: "AC001"
+        },
         priority: "must",
         assuranceProfile: "critical",
         statement: "The assurance case is deterministic.",
@@ -148,7 +161,7 @@ function completeCase(): AssuranceCaseWithoutHash {
     evidenceComparisons: [
       {
         id: "EC001",
-        providerId: "unit-tests",
+        providers: [{ id: "unit-tests", version: "1" }],
         claimIds: ["CL001"],
         baseline: {
           outcome: "failed",
@@ -162,7 +175,7 @@ function completeCase(): AssuranceCaseWithoutHash {
           source: { bindingId: "candidate_evidence", evidenceIds: ["EV002"] },
           freshness: "fresh",
           independence: "independent_challenger",
-          uncertainty: { status: "known", reasons: ["CI environment differs from production."] }
+          uncertainty: { status: "none", reasons: [] }
         },
         conclusion: "improved"
       }
@@ -190,8 +203,19 @@ function completeCase(): AssuranceCaseWithoutHash {
     overrides: [
       {
         id: "OV001",
-        reference: "override-001",
-        reason: "Approved test-environment exception.",
+        record: {
+          id: "OVR001",
+          ruleId: "VSP022",
+          scope: "task",
+          featureId: "F001",
+          featureSlug: "assurance-cases",
+          taskId: "T001",
+          stage: "review",
+          reason: "Approved test-environment exception.",
+          status: "active",
+          createdAt: "2026-07-25T00:00:00.000Z",
+          createdBy: "reviewer"
+        },
         claimIds: ["CL001"]
       }
     ],
@@ -218,6 +242,17 @@ function completeCase(): AssuranceCaseWithoutHash {
       reason: "The assurance case passed."
     }
   };
+  const candidateBinding = value.bindings.find((binding) => binding.role === "candidate_evidence")!;
+  value.codeStates.candidate = {
+    status: "captured",
+    revision: "working-tree",
+    sha256: deriveCandidateStateSha({
+      actionId: value.actionId,
+      diffStateSha256: value.diff.stateSha256,
+      candidateEvidenceBinding: candidateBinding
+    })
+  };
+  return value;
 }
 
 function signedCase(): AssuranceCase {
@@ -226,6 +261,118 @@ function signedCase(): AssuranceCase {
 }
 
 describe("assuranceCaseSchema", () => {
+  it("keeps mandatory review hotspots without turning a passing case inconclusive", () => {
+    const fixture = completeCase();
+    const snapshot = {
+      version: "1.0",
+      mode: fixture.diff.mode,
+      baseRevision: fixture.diff.baseRevision,
+      targetRevision: fixture.diff.targetRevision,
+      snapshotSha256: fixture.diff.snapshotSha256,
+      state: {
+        headRevision: fixture.diff.headRevision,
+        indexTreeRevision: fixture.diff.indexTreeRevision,
+        implementationSha256: sha("e"),
+        stateSha256: fixture.diff.stateSha256
+      },
+      changeUnits: fixture.changeUnits.map((unit) =>
+        unit.kind === "hunk"
+          ? { ...unit, layer: "staged", patch: "@@ -1 +1 @@\n-a\n+b\n" }
+          : { ...unit, layer: "staged", detail: "rename\n" }
+      )
+    } as DiffSnapshot;
+    const built = buildAssuranceCase({
+      actionId: fixture.actionId as `sha256:${string}`,
+      featureId: fixture.featureId,
+      featureSlug: fixture.featureSlug,
+      taskId: fixture.taskId,
+      assuranceProfile: fixture.assuranceProfile,
+      bindings: fixture.bindings,
+      baselineState: fixture.codeStates.baseline,
+      snapshot,
+      claims: fixture.claims,
+      comparisons: fixture.evidenceComparisons,
+      hotspots: [
+        {
+          ...fixture.hotspots[0],
+          category: "public_api",
+          reason: "Public API changed."
+        }
+      ],
+      spec: { assumptions: [] },
+      unresolvedItems: [],
+      overrides: [],
+      manualChecks: fixture.manualChecks,
+      challengerFindings: fixture.challengerFindings
+    });
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.value.verdict).toBe("passed");
+    expect(built.value.hotspots[0]?.category).toBe("public_api");
+  });
+
+  it("renders every authoritative section and escapes unsafe Markdown content", () => {
+    const value = completeCase();
+    value.claims[0] = {
+      ...value.claims[0],
+      statement: "<script>|`claim`\r\nnext\t"
+    };
+    value.evidenceComparisons[0] = {
+      ...value.evidenceComparisons[0],
+      candidate: {
+        ...value.evidenceComparisons[0].candidate,
+        outcome: "inconclusive",
+        uncertainty: {
+          status: "known",
+          reasons: ["CI environment differs from production."]
+        }
+      },
+      conclusion: "inconclusive"
+    };
+    value.verdict = "inconclusive";
+    value.bindings[1] = {
+      id: value.bindings[1]!.id,
+      role: value.bindings[1]!.role,
+      status: "unavailable",
+      path: value.bindings[1]!.path,
+      reason: "missing | candidate"
+    };
+    const assuranceCase = {
+      ...value,
+      caseHash: createAssuranceCaseHash(value)
+    };
+    const markdown = renderAssuranceCase(assuranceCase);
+    for (const section of [
+      "Bindings and code states",
+      "Claims",
+      "Evidence",
+      "Hotspots",
+      "Assumptions and overrides",
+      "Unresolved",
+      "Manual checks and challenger findings",
+      "Next action"
+    ]) {
+      expect(markdown).toContain(section);
+    }
+    expect(markdown).not.toContain("<script>");
+    expect(markdown).toContain("&lt;script&gt;&#124;&#96;claim&#96;&#13;<br>next&#x09;");
+    expect(markdown).toContain("unavailable");
+    expect(markdown).toContain("missing &#124; candidate");
+    expect(markdown).toContain("independent_challenger");
+    expect(markdown).toContain("CI environment differs from production.");
+    expect(markdown).toContain("mandatory=true");
+    expect(markdown).toContain("status=active");
+    expect(markdown).toContain("featureId=F001");
+    expect(markdown).toContain("featureSlug=assurance-cases");
+    expect(markdown).toContain("taskId=T001");
+    expect(markdown).toContain("stage=review");
+    expect(markdown).toContain("expiresAt=undefined");
+    expect(markdown).toContain("revokedAt=undefined");
+    expect(markdown).toContain("revokedReason=undefined");
+    expect(markdown).toContain("MC001");
+    expect(markdown).toContain("CF001");
+  });
+
   it("accepts a complete strict assurance case and exposes stable artifact paths", () => {
     expect(assuranceCaseSchema.parse(signedCase())).toEqual(signedCase());
     expect(assuranceCaseArtifactPath("/repo", "001-assurance", "T001")).toBe(
@@ -234,6 +381,57 @@ describe("assuranceCaseSchema", () => {
     expect(assuranceCaseMarkdownPath("/repo", "001-assurance", "T001")).toBe(
       "/repo/.visp/features/001-assurance/assurance/T001/assurance-case.md"
     );
+  });
+
+  it("allows providerless inconclusive oracle evidence but rejects attributed outcomes", () => {
+    const inconclusive = completeCase();
+    inconclusive.evidenceComparisons[0] = {
+      ...inconclusive.evidenceComparisons[0],
+      providers: [],
+      baseline: {
+        ...inconclusive.evidenceComparisons[0].baseline,
+        outcome: "inconclusive",
+        freshness: "unknown",
+        uncertainty: { status: "unresolved", reasons: ["Provider evidence is unavailable."] }
+      },
+      candidate: {
+        ...inconclusive.evidenceComparisons[0].candidate,
+        outcome: "inconclusive",
+        freshness: "unknown",
+        uncertainty: { status: "unresolved", reasons: ["Provider evidence is unavailable."] }
+      },
+      conclusion: "inconclusive"
+    };
+    inconclusive.verdict = "inconclusive";
+    expect(
+      assuranceCaseSchema.safeParse({
+        ...inconclusive,
+        caseHash: createAssuranceCaseHash(inconclusive)
+      }).success
+    ).toBe(true);
+
+    for (const attributedSide of ["baseline", "candidate"] as const) {
+      const attributed = completeCase();
+      const otherSide = attributedSide === "baseline" ? "candidate" : "baseline";
+      attributed.evidenceComparisons[0] = {
+        ...attributed.evidenceComparisons[0],
+        providers: [],
+        [otherSide]: {
+          ...attributed.evidenceComparisons[0][otherSide],
+          outcome: "inconclusive",
+          freshness: "unknown",
+          uncertainty: { status: "unresolved", reasons: ["Provider evidence is unavailable."] }
+        },
+        conclusion: "inconclusive"
+      };
+      attributed.verdict = "inconclusive";
+      expect(
+        assuranceCaseSchema.safeParse({
+          ...attributed,
+          caseHash: createAssuranceCaseHash(attributed)
+        }).success
+      ).toBe(false);
+    }
   });
 
   it("rejects unknown keys and unsafe or non-normalized project paths", () => {
@@ -318,6 +516,25 @@ describe("assuranceCaseSchema", () => {
       path: null,
       changeUnitIds: [],
       claimIds: ["CL001"]
+    };
+
+    expect(
+      assuranceCaseSchema.safeParse({
+        ...value,
+        caseHash: createAssuranceCaseHash(value)
+      }).success
+    ).toBe(true);
+  });
+
+  it("accepts invariant claims without inventing requirement or criterion IDs", () => {
+    const value = completeCase();
+    value.claims[0] = {
+      ...value.claims[0],
+      source: {
+        kind: "invariant",
+        invariantId: "INV-BR-001",
+        origin: "business_rule"
+      }
     };
 
     expect(

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   isDependencyFile,
   isGeneratedVispReviewFile,
-  isTestFile
+  isTestFile,
+  normalizeReviewPath
 } from "../../../src/review/diff-summary.js";
 
 describe("diff summary helpers", () => {
@@ -21,6 +22,14 @@ describe("diff summary helpers", () => {
     expect(isGeneratedVispReviewFile(".visp/state/implement-allowed/task:one_2.json")).toBe(true);
     expect(
       isGeneratedVispReviewFile(".visp/features/001-example/assurance/T001/candidate-evidence.json")
+    ).toBe(true);
+    expect(
+      isGeneratedVispReviewFile(".visp/features/001-example/assurance/T001/assurance-case.md")
+    ).toBe(true);
+    expect(
+      isGeneratedVispReviewFile(
+        ".visp/features/001-example/assurance/T001/decision/history/decision-001.json"
+      )
     ).toBe(true);
   });
 
@@ -50,6 +59,10 @@ describe("diff summary helpers", () => {
     expect(isTestFile("src/NoteServiceTest.java")).toBe(true);
     expect(isTestFile("tests/test_notes.py")).toBe(true);
     expect(isTestFile("src/notes_test.rs")).toBe(true);
+  });
+
+  it("normalizes separators without changing legal path whitespace", () => {
+    expect(normalizeReviewPath(" src\\a.ts ")).toBe(" src/a.ts ");
   });
 
   it.each([

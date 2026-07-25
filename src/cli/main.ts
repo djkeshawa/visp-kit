@@ -7,6 +7,10 @@ import {
   type AgentCommandDependencies
 } from "./commands/agent.command.js";
 import {
+  createAssuranceCommand,
+  type AssuranceCommandDependencies
+} from "./commands/assurance.command.js";
+import {
   createBudgetCommand,
   type BudgetCommandDependencies
 } from "./commands/budget.command.js";
@@ -118,6 +122,7 @@ import {
 } from "./commands/workflow.command.js";
 
 export type CliDependencies = AgentCommandDependencies &
+  AssuranceCommandDependencies &
   BudgetCommandDependencies &
   ChecklistCommandDependencies &
   ClarifyCommandDependencies &
@@ -169,6 +174,7 @@ export function createCli(dependencies: CliDependencies = {}): Command {
 
   program.addCommand(createBudgetCommand(dependencies));
   program.addCommand(createAgentCommand(dependencies));
+  program.addCommand(createAssuranceCommand(dependencies));
   program.addCommand(createChecklistCommand(dependencies));
   program.addCommand(createClarifyCommand(dependencies));
   program.addCommand(createConstitutionCommand(dependencies));

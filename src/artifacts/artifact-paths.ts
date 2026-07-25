@@ -290,6 +290,14 @@ export function candidateEvidenceArtifactPath(
   return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "candidate-evidence.json");
 }
 
+export function diffSnapshotArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "diff-snapshot.json");
+}
+
 export function assuranceCaseArtifactPath(
   rootPath: string,
   featureKey: string,

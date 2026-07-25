@@ -4,7 +4,19 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { createCandidateWorkspaceFingerprint } from "../../../src/evidence/candidate-workspace.js";
+import {
+  createCandidateWorkspaceFingerprint,
+  createCommittedCandidateFingerprint
+} from "../../../src/evidence/candidate-workspace.js";
+import { defaultCommandRunner } from "../../../src/core/command-runner.js";
+
+async function git(targetPath: string, ...args: string[]): Promise<string> {
+  const result = await defaultCommandRunner.run("git", args, { cwd: targetPath });
+  if (!result.ok || result.value.exitCode !== 0) {
+    throw new Error(result.ok ? result.value.stderr : result.error.message);
+  }
+  return result.value.stdout.trim();
+}
 
 describe("candidate workspace fingerprint", () => {
   const roots: string[] = [];
@@ -46,5 +58,64 @@ describe("candidate workspace fingerprint", () => {
     });
 
     expect(result.ok).toBe(false);
+  });
+
+  it("reproduces a pre-commit rename fingerprint from the committed target", async () => {
+    const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-candidate-commit-"));
+    roots.push(targetPath);
+    await git(targetPath, "init");
+    await git(targetPath, "config", "user.email", "test@example.com");
+    await git(targetPath, "config", "user.name", "Test");
+    await writeFile(path.join(targetPath, "before.ts"), "export const value = 1;\n");
+    await git(targetPath, "add", "before.ts");
+    await git(targetPath, "commit", "-m", "base");
+    const base = await git(targetPath, "rev-parse", "HEAD");
+    await git(targetPath, "mv", "before.ts", "after.ts");
+    const workspace = await createCandidateWorkspaceFingerprint({
+      targetPath,
+      task: { allowedFiles: ["after.ts"], expectedFiles: [] }
+    });
+    expect(workspace.ok).toBe(true);
+    await git(targetPath, "commit", "-m", "rename");
+    const target = await git(targetPath, "rev-parse", "HEAD");
+    const committed = await createCommittedCandidateFingerprint({
+      targetPath,
+      baseRevision: base,
+      targetRevision: target
+    });
+    expect(committed.ok).toBe(true);
+    if (!workspace.ok || !committed.ok) return;
+    expect(committed.value).toEqual(workspace.value);
+  });
+
+  it("changes when the exact committed target changes", async () => {
+    const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-candidate-commit-"));
+    roots.push(targetPath);
+    await git(targetPath, "init");
+    await git(targetPath, "config", "user.email", "test@example.com");
+    await git(targetPath, "config", "user.name", "Test");
+    await writeFile(path.join(targetPath, "value.ts"), "export const value = 1;\n");
+    await git(targetPath, "add", "value.ts");
+    await git(targetPath, "commit", "-m", "base");
+    const base = await git(targetPath, "rev-parse", "HEAD");
+    await writeFile(path.join(targetPath, "value.ts"), "export const value = 2;\n");
+    await git(targetPath, "commit", "-am", "target one");
+    const targetOne = await git(targetPath, "rev-parse", "HEAD");
+    const first = await createCommittedCandidateFingerprint({
+      targetPath,
+      baseRevision: base,
+      targetRevision: targetOne
+    });
+    await writeFile(path.join(targetPath, "value.ts"), "export const value = 3;\n");
+    await git(targetPath, "commit", "-am", "target two");
+    const second = await createCommittedCandidateFingerprint({
+      targetPath,
+      baseRevision: base,
+      targetRevision: "HEAD"
+    });
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(second.value.hash).not.toBe(first.value.hash);
   });
 });

@@ -4,7 +4,7 @@ import { idSchema } from "../artifacts/schemas/common.schema.js";
 import { isDependencyFile as isKnownDependencyFile } from "../dependencies/dependency-files.js";
 
 export function normalizeReviewPath(value: string): string {
-  return value.replaceAll("\\", "/").trim();
+  return value.replaceAll("\\", "/");
 }
 
 export function isDependencyFile(filePath: string): boolean {
@@ -58,9 +58,7 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     /^\.visp\/features\/[^/]+\/reconcile\.(json|md)$/.test(filePath) ||
     /^\.visp\/features\/[^/]+\/reconcile-prompt\.md$/.test(filePath) ||
     /^\.visp\/features\/[^/]+\/verification\.(json|md)$/.test(filePath) ||
-    /^\.visp\/features\/[^/]+\/assurance\/[^/]+\/(oracle-plan|oracle-approval|oracle-lock|baseline-evidence|candidate-evidence)\.json$/.test(
-      filePath
-    )
+    /^\.visp\/features\/[^/]+\/assurance\/[^/]+\/(?:.+\/)?[^/]+\.(json|md)$/.test(filePath)
   );
 }
 
