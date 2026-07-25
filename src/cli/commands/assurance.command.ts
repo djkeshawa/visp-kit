@@ -5,10 +5,17 @@ import {
   runAssuranceWorkflow,
   type AssuranceWorkflowOptions
 } from "../../workflows/assurance.workflow.js";
+import {
+  runReviewDecisionRepair,
+  runReviewDecisionWorkflow,
+  type ReviewDecisionWorkflowOptions
+} from "../../review/review-decision.js";
 import { writeWorkflowError } from "./shared/error-output.js";
 
 export type AssuranceCommandDependencies = {
   readonly runAssurance?: typeof runAssuranceWorkflow;
+  readonly runAssuranceDecision?: typeof runReviewDecisionWorkflow;
+  readonly runAssuranceRepair?: typeof runReviewDecisionRepair;
   readonly writeOut?: (value: string) => void;
   readonly writeErr?: (value: string) => void;
   readonly cwd?: string;
@@ -21,6 +28,20 @@ type AssuranceCommandOptions = {
   readonly dryRun?: boolean;
   readonly json?: boolean;
 };
+
+type ReviewDecisionCommandOptions = {
+  readonly feature?: string;
+  readonly task: string;
+  readonly reviewer: string;
+  readonly reason: string;
+  readonly reviewedHotspot?: string[];
+  readonly dryRun?: boolean;
+  readonly json?: boolean;
+};
+
+function collect(value: string, previous: string[]): string[] {
+  return [...previous, value];
+}
 
 function workflowOptions(
   targetPath: string | undefined,
@@ -39,6 +60,8 @@ function workflowOptions(
 
 export function createAssuranceCommand(dependencies: AssuranceCommandDependencies = {}): Command {
   const runAssurance = dependencies.runAssurance ?? runAssuranceWorkflow;
+  const runDecision = dependencies.runAssuranceDecision ?? runReviewDecisionWorkflow;
+  const runRepair = dependencies.runAssuranceRepair ?? runReviewDecisionRepair;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
   const command = new Command("assurance").description(
@@ -70,5 +93,94 @@ export function createAssuranceCommand(dependencies: AssuranceCommandDependencie
           : formatAssuranceSummary(result.value)
       );
     });
+  for (const decision of ["accept", "reject"] as const) {
+    command
+      .command(decision)
+      .description(`${decision === "accept" ? "Accept" : "Reject"} the current assurance case.`)
+      .argument("[path]", "Target project path.")
+      .requiredOption("--task <task-id>", "Task to review.")
+      .requiredOption("--reviewer <reviewer-id>", "Self-declared accountable reviewer.")
+      .requiredOption("--reason <reason>", "Meaningful review rationale.")
+      .option("--feature <feature>", "Feature ID, slug, or folder name.")
+      .option(
+        "--reviewed-hotspot <hotspot-id>",
+        "Acknowledge a hotspot. Repeat for multiple hotspots.",
+        collect,
+        []
+      )
+      .option("--dry-run", "Validate without writing decision artifacts.")
+      .option("--json", "Print a machine-readable summary.")
+      .action(async (targetPath: string | undefined, options: ReviewDecisionCommandOptions) => {
+        const workflowOptions: ReviewDecisionWorkflowOptions = {
+          targetPath,
+          cwd: dependencies.cwd,
+          feature: options.feature,
+          taskId: options.task,
+          reviewerId: options.reviewer,
+          reason: options.reason,
+          reviewedHotspotIds: options.reviewedHotspot ?? [],
+          decision,
+          dryRun: options.dryRun ?? false
+        };
+        const result = await runDecision(workflowOptions);
+        if (!result.ok) {
+          writeWorkflowError({
+            error: result.error,
+            json: options.json ?? false,
+            writeOut,
+            writeErr
+          });
+          process.exitCode = 1;
+          return;
+        }
+        writeOut(
+          options.json
+            ? `${JSON.stringify(result.value, null, 2)}\n`
+            : `Review decision ${result.value.decision} recorded for ${result.value.taskId}.\nCase: ${result.value.caseHash}\nSnapshot: ${result.value.snapshotHash}\nState: ${result.value.stateHash}\nDecision: ${result.value.decisionHash}\nHistory: ${result.value.historyPath}\nPointer: ${result.value.pointerPath}\nNext: ${result.value.nextCommand}\n`
+        );
+      });
+  }
+  command
+    .command("repair")
+    .description("Rebuild the current pointer from unique valid review decision history.")
+    .argument("[path]", "Target project path.")
+    .requiredOption("--task <task-id>", "Task whose review pointer should be repaired.")
+    .option("--feature <feature>", "Feature ID, slug, or folder name.")
+    .option("--dry-run", "Validate without writing the current pointer.")
+    .option("--json", "Print a machine-readable summary.")
+    .action(
+      async (
+        targetPath: string | undefined,
+        options: {
+          task: string;
+          feature?: string;
+          dryRun?: boolean;
+          json?: boolean;
+        }
+      ) => {
+        const result = await runRepair({
+          targetPath,
+          cwd: dependencies.cwd,
+          feature: options.feature,
+          taskId: options.task,
+          dryRun: options.dryRun ?? false
+        });
+        if (!result.ok) {
+          writeWorkflowError({
+            error: result.error,
+            json: options.json ?? false,
+            writeOut,
+            writeErr
+          });
+          process.exitCode = 1;
+          return;
+        }
+        writeOut(
+          options.json
+            ? `${JSON.stringify(result.value, null, 2)}\n`
+            : `Review decision pointer repaired for ${result.value.taskId}.\nDecision: ${result.value.decisionHash}\nPointer: ${result.value.pointerPath}\nNext: ${result.value.nextCommand}\n`
+        );
+      }
+    );
   return command;
 }

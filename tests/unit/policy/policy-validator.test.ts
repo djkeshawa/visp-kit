@@ -13,6 +13,28 @@ describe("policy validator", () => {
     expect(validation.value?.strictnessMode).toBe("strict");
   });
 
+  it("accepts legacy policy files without the optional assurance-decision rule", () => {
+    const policy = createDefaultPolicy({
+      strictnessMode: "standard",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const { requireCurrentAssuranceDecisionBeforePr: _legacyMissing, ...legacyRules } =
+      policy.rules;
+    const validation = validatePolicyArtifact({
+      ...policy,
+      rules: legacyRules,
+      overrides: {
+        ...policy.overrides,
+        nonOverridableRules: policy.overrides.nonOverridableRules.filter(
+          (rule) => rule !== "VSP024"
+        )
+      }
+    });
+
+    expect(validation.passed).toBe(true);
+    expect(validation.value?.rules.requireCurrentAssuranceDecisionBeforePr).toBeUndefined();
+  });
+
   it("rejects invalid strictness modes and unknown rule fields", () => {
     const policy = createDefaultPolicy({ now: "2026-01-01T00:00:00.000Z" });
     const validation = validatePolicyArtifact({

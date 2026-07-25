@@ -32,6 +32,20 @@ describe("policy defaults", () => {
     expect(locked.rules.requireScanBeforeFeature).toBe(true);
     expect(locked.limits.maxContextOverBudgetPercent).toBe(0);
     expect(locked.overrides.allowed).toBe(false);
+    expect(strict.rules.requireCurrentAssuranceDecisionBeforePr).toBe(true);
+    expect(locked.rules.requireCurrentAssuranceDecisionBeforePr).toBe(true);
+    expect(strict.overrides.nonOverridableRules).toContain("VSP024");
+  });
+
+  it("keeps relaxed and standard assurance decisions opt-in", () => {
+    for (const strictnessMode of ["relaxed", "standard"] as const) {
+      expect(
+        createDefaultPolicy({
+          strictnessMode,
+          now: "2026-01-01T00:00:00.000Z"
+        }).rules.requireCurrentAssuranceDecisionBeforePr
+      ).toBe(false);
+    }
   });
 
   it("returns defensive rule copies", () => {

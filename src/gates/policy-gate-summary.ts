@@ -79,6 +79,11 @@ export function gateBlocksWorkflow(input: {
 }): boolean {
   if (input.gate.policyStatus === "invalid") return true;
   if (input.gate.allowed) return false;
+  if (
+    input.gate.failedRules.some((rule) => rule.severity === "error" && rule.ruleId === "VSP024")
+  ) {
+    return true;
+  }
   // strict and locked block gate failures unconditionally; --force cannot bypass
   // them. Only relaxed/standard modes allow --force to downgrade blocks to warnings.
   if (input.gate.strictnessMode === "locked" || input.gate.strictnessMode === "strict") {

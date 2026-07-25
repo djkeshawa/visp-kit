@@ -153,17 +153,29 @@ export async function runNextWorkflow(
     ...(prGate?.ok && !prGate.value.allowed ? prGate.value.failedRules : [])
   ];
   const existingPreparationCommands = new Set(["visp scan", "visp constitution"]);
+  const assuranceDecisionFailure = prGate?.ok
+    ? prGate.value.failedRules.find((rule) => rule.ruleId === "VSP024")
+    : undefined;
+  const assuranceRemediation =
+    assuranceDecisionFailure === undefined
+      ? undefined
+      : /^Run (visp .+?)\.?$/u.exec(assuranceDecisionFailure.recommendation)?.[1];
   const nextCommand =
-    existingPreparationCommands.has(fallback.nextCommand) &&
-    nextGate.value.nextAllowedCommand !== "visp policy init --strictness strict"
-      ? fallback.nextCommand
-      : nextGate.value.nextAllowedCommand;
+    fallback.nextCommand === "visp pr" && assuranceRemediation !== undefined
+      ? assuranceRemediation
+      : existingPreparationCommands.has(fallback.nextCommand) &&
+          nextGate.value.nextAllowedCommand !== "visp policy init --strictness strict"
+        ? fallback.nextCommand
+        : nextGate.value.nextAllowedCommand;
   const implementationAllowed = implementationGate?.ok ? implementationGate.value.allowed : false;
   const prAllowed = prGate?.ok ? prGate.value.allowed : false;
 
   const summary: NextStep = {
     ...fallback,
-    success: nextGate.value.allowed && fallback.success,
+    success:
+      nextGate.value.allowed &&
+      fallback.success &&
+      !(fallback.nextCommand === "visp pr" && assuranceDecisionFailure !== undefined),
     nextCommand,
     reason:
       nextCommand === fallback.nextCommand

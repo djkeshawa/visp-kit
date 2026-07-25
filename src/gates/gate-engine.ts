@@ -32,6 +32,7 @@ import {
   loadOracleAuthorization,
   oraclePlanExists
 } from "../workflows/oracle-authorization.workflow.js";
+import { evaluateReviewDecisionRequirement } from "../review/review-decision.js";
 
 export type GateEngineOptions = {
   readonly targetPath: string;
@@ -159,6 +160,63 @@ async function oracleAuthorizationChecks(input: {
   ];
 }
 
+async function reviewDecisionChecks(input: {
+  readonly context: GateContext;
+  readonly options: GateEngineOptions;
+}): Promise<GateEvaluation["checks"]> {
+  const task = input.context.state.selectedTask;
+  if (input.options.stage !== "pr" || task === undefined) return [];
+  const evaluated = await evaluateReviewDecisionRequirement({
+    targetPath: input.options.targetPath,
+    feature: input.options.feature,
+    taskId: task.id,
+    enabled: input.context.policy.policy.rules.requireCurrentAssuranceDecisionBeforePr === true,
+    now: input.options.now
+  });
+  if (!evaluated.ok) {
+    return [
+      {
+        ruleId: "VSP024",
+        passed: false,
+        severity: "error",
+        message: "Current assurance decision could not be validated.",
+        recommendation: `Run visp assurance generate --task ${task.id}.`,
+        evidence: evaluated.error.message
+      }
+    ];
+  }
+  const { required, currentness } = evaluated.value;
+  const rejected = currentness.status === "rejected";
+  const passed = required
+    ? currentness.status === "current"
+    : currentness.status === "missing" || currentness.status === "current";
+  const recommendation =
+    currentness.status === "invalid" && /pointer|history/iu.test(currentness.reason)
+      ? `Run visp assurance repair --task ${task.id}.`
+      : currentness.caseHash === undefined
+        ? `Run visp assurance generate --task ${task.id}.`
+        : `Run visp assurance accept --task ${task.id} --reviewer <id> --reason "<reason>" --reviewed-hotspot <id>.`;
+  return [
+    {
+      ruleId: "VSP024",
+      passed,
+      ...(passed ? {} : { severity: "error" as const }),
+      message: passed
+        ? required
+          ? "A current assurance acceptance decision is recorded."
+          : "Current assurance acceptance is not required by policy."
+        : rejected
+          ? "The current assurance decision rejects PR readiness."
+          : `A required assurance decision is ${currentness.status}.`,
+      recommendation: passed ? "Continue." : recommendation,
+      evidence:
+        currentness.status === "current"
+          ? `case=${currentness.caseHash}; decision=${currentness.decisionHash}`
+          : currentness.reason
+    }
+  ];
+}
+
 async function applyPolicyOverrides(input: {
   readonly result: GateResult;
   readonly context: GateContext;
@@ -259,9 +317,15 @@ export async function evaluateGate(
 
     const stageEvaluation = evaluateStage(context, options.stage);
     const authorizationChecks = await oracleAuthorizationChecks({ context, options });
+    const decisionChecks = await reviewDecisionChecks({ context, options });
     const evaluation = {
       ...stageEvaluation,
-      checks: [...stageEvaluation.checks, ...assuranceChecks(context), ...authorizationChecks]
+      checks: [
+        ...stageEvaluation.checks,
+        ...assuranceChecks(context),
+        ...authorizationChecks,
+        ...decisionChecks
+      ]
     };
 
     const baseResult = buildGateResult({

@@ -161,6 +161,22 @@ describe("gateBlocksWorkflow", () => {
     it("lets force downgrade the block", () => {
       expect(gateBlocksWorkflow({ gate: blockedSummary("standard"), force: true })).toBe(false);
     });
+
+    it("does not let force bypass VSP024", () => {
+      const gate: PolicyGateSummary = {
+        ...blockedSummary("standard"),
+        failedRules: [
+          {
+            ruleId: "VSP024",
+            severity: "error",
+            message: "Current assurance decision is required.",
+            recommendation: "Run visp assurance accept.",
+            evidence: "missing"
+          }
+        ]
+      };
+      expect(gateBlocksWorkflow({ gate, force: true })).toBe(true);
+    });
   });
 
   describe("strict mode", () => {

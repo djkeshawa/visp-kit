@@ -31,7 +31,8 @@ export const policyRulesSchema = z
     // validating; gates fall back to the strictness default when absent.
     blockOnUnresolvedDrift: z.boolean().optional(),
     preventAssuranceProfileLowering: z.boolean().optional(),
-    requireOracleLockBeforeImplementation: z.boolean().optional()
+    requireOracleLockBeforeImplementation: z.boolean().optional(),
+    requireCurrentAssuranceDecisionBeforePr: z.boolean().optional()
   })
   .strict();
 

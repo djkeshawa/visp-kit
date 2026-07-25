@@ -10,7 +10,18 @@ import {
   runCommand,
   type CommandRunner
 } from "../../src/core/command-runner.js";
+import { pathExists } from "../../src/core/file-system.js";
 import { ok } from "../../src/core/result.js";
+import { evaluatePolicyGate } from "../../src/gates/policy-gate-summary.js";
+import { type ReviewDecision } from "../../src/artifacts/schemas/review-decision.schema.js";
+import { createAssuranceCaseHash } from "../../src/assurance/assurance-case-hash.js";
+import { type AssuranceCase } from "../../src/artifacts/schemas/assurance-case.schema.js";
+import { createReviewDecisionHash } from "../../src/review/review-decision-hash.js";
+import {
+  evaluateCurrentReviewDecision,
+  runReviewDecisionRepair,
+  runReviewDecisionWorkflow
+} from "../../src/review/review-decision.js";
 import { runAssuranceWorkflow } from "../../src/workflows/assurance.workflow.js";
 import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
 
@@ -102,6 +113,70 @@ describe("assurance command", () => {
       mode: "base_to_commit",
       verdict: "passed"
     });
+  });
+
+  it("routes review decision options without a force bypass", async () => {
+    const writeOut = vi.fn();
+    const runAssuranceDecision = vi.fn(async () =>
+      ok({
+        success: true as const,
+        taskId: "T001",
+        decision: "accept" as const,
+        decisionHash: `sha256:${"c".repeat(64)}`,
+        caseHash: `sha256:${"d".repeat(64)}`,
+        snapshotHash: `sha256:${"e".repeat(64)}`,
+        stateHash: `sha256:${"f".repeat(64)}`,
+        historyPath: ".visp/history.json",
+        pointerPath: ".visp/current.json",
+        dryRun: true,
+        nextCommand: "visp gate pr"
+      })
+    );
+    const program = createCli({
+      cwd: "/workspace",
+      runAssuranceDecision,
+      writeOut,
+      writeErr: vi.fn()
+    });
+    await program.parseAsync([
+      "node",
+      "visp",
+      "assurance",
+      "accept",
+      "project",
+      "--task",
+      "T001",
+      "--feature",
+      "001-example",
+      "--reviewer",
+      "reviewer",
+      "--reason",
+      "All mandatory evidence was reviewed.",
+      "--reviewed-hotspot",
+      "HS001",
+      "--reviewed-hotspot",
+      "HS002",
+      "--dry-run",
+      "--json"
+    ]);
+    expect(runAssuranceDecision).toHaveBeenCalledWith({
+      targetPath: "project",
+      cwd: "/workspace",
+      feature: "001-example",
+      taskId: "T001",
+      reviewerId: "reviewer",
+      reason: "All mandatory evidence was reviewed.",
+      reviewedHotspotIds: ["HS001", "HS002"],
+      decision: "accept",
+      dryRun: true
+    });
+    expect(JSON.parse(writeOut.mock.calls[0]![0])).toMatchObject({
+      taskId: "T001",
+      decision: "accept"
+    });
+    expect(
+      program.commands.find((item) => item.name() === "assurance")?.helpInformation()
+    ).not.toContain("--force");
   });
 
   it("generates honest missing-evidence artifacts from the phase 8 fixture", async () => {
@@ -258,5 +333,465 @@ describe("assurance command", () => {
     expect(result.error.message).toContain(
       "Authoritative assurance inputs or workflow action changed"
     );
+  }, 30_000);
+
+  it("records append-only reject and accept decisions and validates currentness", async () => {
+    const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-decision-"));
+    roots.push(targetPath);
+    await prepareAssuranceFixture(targetPath);
+    const generated = await runAssuranceWorkflow({
+      targetPath,
+      taskId: "T001",
+      now: "2026-07-25T01:00:00.000Z"
+    });
+    expect(generated.ok).toBe(true);
+    if (!generated.ok) return;
+    const assuranceDir = path.join(
+      targetPath,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001"
+    );
+    const assuranceCase = JSON.parse(
+      await readFile(path.join(assuranceDir, "assurance-case.json"), "utf8")
+    ) as { hotspots: Array<{ id: string; mandatory: boolean }> };
+    const mandatoryHotspots = assuranceCase.hotspots
+      .filter((hotspot) => hotspot.mandatory)
+      .map((hotspot) => hotspot.id);
+    const policyPath = path.join(targetPath, ".visp", "policy.json");
+    const originalPolicy = await readFile(policyPath, "utf8");
+    const requiredPolicy = JSON.parse(originalPolicy) as {
+      rules: { requireCurrentAssuranceDecisionBeforePr?: boolean };
+    };
+    requiredPolicy.rules.requireCurrentAssuranceDecisionBeforePr = true;
+    await writeFile(policyPath, `${JSON.stringify(requiredPolicy, null, 2)}\n`, "utf8");
+    expect(
+      expectOk(
+        await evaluatePolicyGate({
+          targetPath,
+          stage: "pr",
+          taskId: "T001",
+          now: "2026-07-25T01:30:00.000Z"
+        })
+      ).failedRules
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ruleId: "VSP024", message: expect.stringContaining("missing") })
+      ])
+    );
+    await writeFile(policyPath, originalPolicy, "utf8");
+
+    expect(
+      (
+        await runReviewDecisionWorkflow({
+          targetPath,
+          taskId: "T001",
+          reviewerId: "reviewer",
+          reason: "too short",
+          decision: "reject"
+        })
+      ).ok
+    ).toBe(false);
+    expect(
+      (
+        await runReviewDecisionWorkflow({
+          targetPath,
+          taskId: "T001",
+          reviewerId: "reviewer",
+          reason: "Unknown hotspot must fail.",
+          reviewedHotspotIds: ["HS-unknown"],
+          decision: "reject"
+        })
+      ).ok
+    ).toBe(false);
+    if (mandatoryHotspots.length > 0) {
+      expect(
+        (
+          await runReviewDecisionWorkflow({
+            targetPath,
+            taskId: "T001",
+            reviewerId: "reviewer",
+            reason: "Duplicate acknowledgements must fail.",
+            reviewedHotspotIds: [mandatoryHotspots[0]!, mandatoryHotspots[0]!],
+            decision: "reject"
+          })
+        ).ok
+      ).toBe(false);
+      expect(
+        (
+          await runReviewDecisionWorkflow({
+            targetPath,
+            taskId: "T001",
+            reviewerId: "reviewer",
+            reason: "Mandatory review is incomplete.",
+            decision: "accept"
+          })
+        ).ok
+      ).toBe(false);
+    }
+
+    const rejected = await runReviewDecisionWorkflow({
+      targetPath,
+      taskId: "T001",
+      reviewerId: "reviewer",
+      reason: "Evidence remains insufficient.",
+      decision: "reject",
+      now: "2026-07-25T02:00:00.000Z"
+    });
+    expect(rejected.ok).toBe(true);
+    if (!rejected.ok) return;
+    expect(expectOk(await pathExists(path.join(targetPath, rejected.value.historyPath)))).toBe(
+      true
+    );
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T02:30:00.000Z"
+        })
+      )
+    ).toMatchObject({ status: "rejected", decisionHash: rejected.value.decisionHash });
+    expect(
+      expectOk(
+        await evaluatePolicyGate({
+          targetPath,
+          stage: "pr",
+          taskId: "T001",
+          now: "2026-07-25T02:30:00.000Z"
+        })
+      ).failedRules
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ruleId: "VSP024", message: expect.stringContaining("rejects") })
+      ])
+    );
+
+    const accepted = await runReviewDecisionWorkflow({
+      targetPath,
+      taskId: "T001",
+      reviewerId: "reviewer",
+      reason: "Mandatory hotspots were reviewed.",
+      reviewedHotspotIds: mandatoryHotspots,
+      decision: "accept",
+      now: "2026-07-25T03:00:00.000Z"
+    });
+    expect(accepted.ok).toBe(true);
+    if (!accepted.ok) return;
+    expect(accepted.value.decisionHash).not.toBe(rejected.value.decisionHash);
+    expect(expectOk(await pathExists(path.join(targetPath, rejected.value.historyPath)))).toBe(
+      true
+    );
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T03:30:00.000Z"
+        })
+      )
+    ).toMatchObject({ status: "current", decisionHash: accepted.value.decisionHash });
+    expect(
+      (
+        await runReviewDecisionWorkflow({
+          targetPath,
+          taskId: "T001",
+          reviewerId: "reviewer",
+          reason: "Same-time successors must fail.",
+          decision: "reject",
+          now: "2026-07-25T03:00:00.000Z"
+        })
+      ).ok
+    ).toBe(false);
+    expect(
+      expectOk(
+        await evaluatePolicyGate({
+          targetPath,
+          stage: "pr",
+          taskId: "T001",
+          now: "2026-07-25T03:30:00.000Z"
+        })
+      ).failedRules.some((rule) => rule.ruleId === "VSP024")
+    ).toBe(false);
+
+    const sourcePath = path.join(targetPath, "src", "notes.ts");
+    const sourceBeforeDrift = await readFile(sourcePath, "utf8");
+    await writeFile(sourcePath, `${sourceBeforeDrift}\nexport const drifted = true;\n`, "utf8");
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T03:45:00.000Z"
+        })
+      ).status
+    ).toBe("stale");
+    expect(
+      expectOk(
+        await evaluatePolicyGate({
+          targetPath,
+          stage: "pr",
+          taskId: "T001",
+          now: "2026-07-25T03:45:00.000Z"
+        })
+      ).failedRules.some((rule) => rule.ruleId === "VSP024")
+    ).toBe(true);
+    await writeFile(sourcePath, sourceBeforeDrift, "utf8");
+
+    const pointerPath = path.join(targetPath, accepted.value.pointerPath);
+    const pointerBeforeDryRun = await readFile(pointerPath, "utf8");
+    expect(
+      (
+        await runReviewDecisionWorkflow({
+          targetPath,
+          taskId: "T001",
+          reviewerId: "reviewer",
+          reason: "Dry run must not publish.",
+          decision: "reject",
+          dryRun: true,
+          now: "2026-07-25T04:00:00.000Z"
+        })
+      ).ok
+    ).toBe(true);
+    expect(await readFile(pointerPath, "utf8")).toBe(pointerBeforeDryRun);
+
+    const laterRejected = await runReviewDecisionWorkflow({
+      targetPath,
+      taskId: "T001",
+      reviewerId: "reviewer",
+      reason: "Later review rejects readiness.",
+      decision: "reject",
+      now: "2026-07-25T05:00:00.000Z"
+    });
+    expect(laterRejected.ok).toBe(true);
+    if (!laterRejected.ok) return;
+    await writeFile(pointerPath, pointerBeforeDryRun, "utf8");
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T05:30:00.000Z"
+        })
+      ).status
+    ).toBe("invalid");
+    expect(
+      expectOk(
+        await evaluatePolicyGate({
+          targetPath,
+          stage: "pr",
+          taskId: "T001",
+          now: "2026-07-25T05:30:00.000Z"
+        })
+      ).failedRules
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "VSP024",
+          recommendation: expect.stringContaining("assurance repair")
+        })
+      ])
+    );
+    expectOk(await runReviewDecisionRepair({ targetPath, taskId: "T001" }));
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T05:30:00.000Z"
+        })
+      )
+    ).toMatchObject({ status: "rejected", decisionHash: laterRejected.value.decisionHash });
+
+    const repairedPointer = await readFile(pointerPath, "utf8");
+    const pointer = JSON.parse(pointerBeforeDryRun) as Record<string, unknown>;
+    pointer.decisionHash = `sha256:${"0".repeat(64)}`;
+    await writeFile(pointerPath, `${JSON.stringify(pointer, null, 2)}\n`, "utf8");
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T05:30:00.000Z"
+        })
+      ).status
+    ).toBe("invalid");
+    expectOk(await runReviewDecisionRepair({ targetPath, taskId: "T001" }));
+    expect(await readFile(pointerPath, "utf8")).toBe(repairedPointer);
+
+    await writeFile(sourcePath, `${sourceBeforeDrift}\nexport const stagedDrift = true;\n`, "utf8");
+    expectOk(await runCommand("git", ["add", "src/notes.ts"], { cwd: targetPath }));
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T05:30:00.000Z"
+        })
+      ).status
+    ).toBe("stale");
+    await writeFile(sourcePath, sourceBeforeDrift, "utf8");
+    expectOk(await runCommand("git", ["add", "src/notes.ts"], { cwd: targetPath }));
+    expectOk(
+      await runCommand(
+        "git",
+        [
+          "-c",
+          "user.name=Visp Test",
+          "-c",
+          "user.email=visp@example.invalid",
+          "commit",
+          "--allow-empty",
+          "-m",
+          "head drift"
+        ],
+        { cwd: targetPath }
+      )
+    );
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T05:30:00.000Z"
+        })
+      ).status
+    ).toBe("stale");
+
+    const acceptedHistory = JSON.parse(
+      await readFile(path.join(targetPath, accepted.value.historyPath), "utf8")
+    ) as ReviewDecision;
+    const { decisionHash: _oldHash, ...acceptedWithoutHash } = acceptedHistory;
+    const forkWithoutHash = {
+      ...acceptedWithoutHash,
+      decision: "reject" as const,
+      reason: "A competing terminal must fail.",
+      supersedesDecisionHash: accepted.value.decisionHash,
+      decidedAt: "2026-07-25T05:15:00.000Z"
+    };
+    const forkHash = createReviewDecisionHash(forkWithoutHash);
+    await writeFile(
+      path.join(
+        path.dirname(path.join(targetPath, accepted.value.historyPath)),
+        `${forkHash.slice(7)}.json`
+      ),
+      `${JSON.stringify({ ...forkWithoutHash, decisionHash: forkHash }, null, 2)}\n`,
+      "utf8"
+    );
+    const forkRepair = await runReviewDecisionRepair({ targetPath, taskId: "T001" });
+    expect(forkRepair.ok).toBe(false);
+    if (!forkRepair.ok) expect(forkRepair.error.message).toContain("fork");
+  }, 30_000);
+
+  it("reconstructs authoritative inputs and applies override expiry at evaluation time", async () => {
+    const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-authority-"));
+    roots.push(targetPath);
+    await prepareAssuranceFixture(targetPath);
+    const overridesPath = path.join(targetPath, ".visp", "overrides.json");
+    await writeFile(
+      overridesPath,
+      `${JSON.stringify(
+        {
+          version: "1.0",
+          overrides: [
+            {
+              id: "OVR999",
+              ruleId: "VSP999",
+              scope: "project",
+              reason: "Time-bounded assurance review fixture.",
+              status: "active",
+              createdAt: "2026-07-25T00:00:00.000Z",
+              createdBy: "test",
+              expiresAt: "2026-07-25T02:30:00.000Z"
+            }
+          ]
+        },
+        null,
+        2
+      )}\n`,
+      "utf8"
+    );
+    expect(
+      (
+        await runAssuranceWorkflow({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T01:00:00.000Z"
+        })
+      ).ok
+    ).toBe(true);
+    const assuranceDir = path.join(
+      targetPath,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001"
+    );
+    const casePath = path.join(assuranceDir, "assurance-case.json");
+    const originalCase = await readFile(casePath, "utf8");
+    const parsedCase = JSON.parse(originalCase) as AssuranceCase;
+    const { caseHash: _caseHash, ...caseWithoutHash } = {
+      ...parsedCase,
+      featureSlug: "wrong-feature"
+    };
+    const changedCase = { ...caseWithoutHash, caseHash: createAssuranceCaseHash(caseWithoutHash) };
+    await writeFile(casePath, `${JSON.stringify(changedCase, null, 2)}\n`, "utf8");
+    expect(
+      (
+        await runReviewDecisionWorkflow({
+          targetPath,
+          taskId: "T001",
+          reviewerId: "reviewer",
+          reason: "Identity mismatch must fail.",
+          decision: "reject",
+          now: "2026-07-25T02:00:00.000Z"
+        })
+      ).ok
+    ).toBe(false);
+    await writeFile(casePath, originalCase, "utf8");
+
+    const taskGraphPath = path.join(
+      targetPath,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "task-graph.json"
+    );
+    const taskGraph = await readFile(taskGraphPath, "utf8");
+    await writeFile(taskGraphPath, `${taskGraph} `, "utf8");
+    expect(
+      (
+        await runReviewDecisionWorkflow({
+          targetPath,
+          taskId: "T001",
+          reviewerId: "reviewer",
+          reason: "Changed binding must fail.",
+          decision: "reject",
+          now: "2026-07-25T02:00:00.000Z"
+        })
+      ).ok
+    ).toBe(false);
+    await writeFile(taskGraphPath, taskGraph, "utf8");
+    const accepted = await runReviewDecisionWorkflow({
+      targetPath,
+      taskId: "T001",
+      reviewerId: "reviewer",
+      reason: "Inputs are current before expiry.",
+      decision: "reject",
+      now: "2026-07-25T02:00:00.000Z"
+    });
+    expect(accepted.ok).toBe(true);
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T03:00:00.000Z"
+        })
+      ).status
+    ).toBe("stale");
   }, 30_000);
 });

@@ -20,6 +20,7 @@ export * from "./pr.schema.js";
 export * from "./reconcile.schema.js";
 export * from "./requirement.schema.js";
 export * from "./review.schema.js";
+export * from "./review-decision.schema.js";
 export * from "./run.schema.js";
 export * from "./spec.schema.js";
 export * from "./task.schema.js";

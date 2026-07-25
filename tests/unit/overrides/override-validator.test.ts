@@ -27,6 +27,8 @@ describe("override validator", () => {
     expect(isNonOverridableRule({ ruleId: "VSP019", policy })).toBe(true);
     expect(isKnownPolicyRule("VSP023")).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP023", policy })).toBe(true);
+    expect(isKnownPolicyRule("VSP024")).toBe(true);
+    expect(isNonOverridableRule({ ruleId: "VSP024", policy })).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP014", policy })).toBe(false);
   });
 
@@ -43,6 +45,7 @@ describe("override validator", () => {
     expect(isNonOverridableRule({ ruleId: "VSP019", policy: tampered })).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP020", policy: tampered })).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP023", policy: tampered })).toBe(true);
+    expect(isNonOverridableRule({ ruleId: "VSP024", policy: tampered })).toBe(true);
     expect(isNonOverridableRule({ ruleId: "VSP014", policy: tampered })).toBe(false);
   });
 

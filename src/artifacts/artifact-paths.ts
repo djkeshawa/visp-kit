@@ -314,6 +314,33 @@ export function assuranceCaseMarkdownPath(
   return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "assurance-case.md");
 }
 
+export function currentReviewDecisionArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "review-decision.json");
+}
+
+export function reviewDecisionHistoryDir(
+  rootPath: string,
+  featureKey: string,
+  taskId: string
+): string {
+  return joinPath(assuranceArtifactDir(rootPath, featureKey, taskId), "review-decisions");
+}
+
+export function reviewDecisionHistoryArtifactPath(
+  rootPath: string,
+  featureKey: string,
+  taskId: string,
+  decisionHash: string
+): string {
+  const digest = /^sha256:([a-f0-9]{64})$/u.exec(decisionHash)?.[1];
+  if (digest === undefined) throw new Error("Review decision hash is malformed.");
+  return joinPath(reviewDecisionHistoryDir(rootPath, featureKey, taskId), `${digest}.json`);
+}
+
 export function verificationArtifactPath(rootPath: string, featureKey: string): string {
   return joinPath(featureArtifactDir(rootPath, featureKey), "verification.json");
 }
