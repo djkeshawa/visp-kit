@@ -470,7 +470,7 @@ Common flags:
 - `--explain`
 - `--strict`
 - `--format <text|json>`
-- `--protocol <2.0|3.0|3.1>`
+- `--protocol <2.0|3.0|3.1|3.2>`
 - `--json`
 
 `--format json` emits WorkflowAction 2.0 by default. Its tested schema
@@ -486,15 +486,22 @@ canonical version `1.1` to add a compact, identity-bound summary of the current
 Kit evidence artifact, provider/result statuses, freshness, independence, and
 test strength. Captured command output remains in the evidence artifact and is
 not copied into the action.
+`--format json --protocol 3.2` preserves 3.1 and uses canonical version `1.2`
+to add the Kit-authored `assuranceSummary`: exact assurance-case path and raw
+content hash, independent case hash, verdict, sorted mandatory hotspots, and
+the current Kit review-decision requirement/status/hash/reason. A missing,
+invalid, or tampered case is explicitly unavailable. The summary adds no
+command; top-level `nextCommand` remains the sole authoritative next command.
 
-Protocol values are exact: Kit accepts only `2.0`, `3.0`, and `3.1`, never
+Protocol values are exact: Kit accepts only `2.0`, `3.0`, `3.1`, and `3.2`, never
 `auto`, and does not silently downgrade. `--protocol` requires `--format json`.
 Unsupported JSON protocol requests return a stable
 `UNSUPPORTED_WORKFLOW_ACTION_PROTOCOL` object and exit nonzero before project
 evaluation. Public schemas are packaged at
 `schemas/workflow-action/2.0.schema.json` and
 `schemas/workflow-action/3.0.schema.json`, and
-`schemas/workflow-action/3.1.schema.json`.
+`schemas/workflow-action/3.1.schema.json`, and
+`schemas/workflow-action/3.2.schema.json`.
 
 `--json` instead emits the `visp next` command/workflow summary, which includes
 the action alongside the command decision. Without `--json`, `--format text`
@@ -525,7 +532,7 @@ target and active-work state, canonical argument arrays for the supported
 orchestrator commands, current capability declarations, strict workflow
 metadata, artifact paths, warnings, and WorkflowAction protocol compatibility
 metadata. `protocols.workflowAction` advertises exact supported versions
-`["2.0", "3.0", "3.1"]`, the unchanged default `"2.0"`, and the accepted canonical
+`["2.0", "3.0", "3.1", "3.2"]`, the unchanged default `"2.0"`, and the accepted canonical
 schema hash for each version. The command map covers status, policy validation,
 next and implement gates, context, verification, review, reconciliation, usage
 recording, the combined done workflow, and the three enforcement-hook

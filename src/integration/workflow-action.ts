@@ -3,15 +3,19 @@ import { type NextStep } from "../orchestrator/next-step.js";
 import {
   compareUtf16CodeUnits,
   createWorkflowActionId,
-  createWorkflowActionIdV1_1
+  createWorkflowActionIdV1_1,
+  createWorkflowActionIdV1_2
 } from "./canonical-json.js";
+import { selectCanonicalAssuranceSummary } from "./canonical-assurance.js";
 import {
   buildCanonicalWorkflowActionEnvelope,
   canonicalFindingReference,
   upgradeCanonicalWorkflowActionEnvelopeV1_1,
+  upgradeCanonicalWorkflowActionEnvelopeV1_2,
   type CanonicalWorkflowAction,
   type CanonicalWorkflowActionEnvelope,
   type CanonicalWorkflowActionEnvelopeV1_1,
+  type CanonicalWorkflowActionEnvelopeV1_2,
   type CanonicalWorkflowPhase,
   type Finding,
   type HashedReadRole
@@ -23,10 +27,12 @@ import {
   type WorkflowActionV2,
   type WorkflowActionV3,
   type WorkflowActionV31,
+  type WorkflowActionV32,
   isWorkflowActionProtocol,
   workflowActionV2Schema,
   workflowActionV3Schema,
-  workflowActionV31Schema
+  workflowActionV31Schema,
+  workflowActionV32Schema
 } from "./workflow-action-schema.js";
 
 export {
@@ -38,11 +44,13 @@ export {
   type WorkflowActionV2,
   type WorkflowActionV3,
   type WorkflowActionV31,
+  type WorkflowActionV32,
   isWorkflowActionProtocol,
   workflowActionSchemaHash,
   workflowActionV2Schema,
   workflowActionV3Schema,
-  workflowActionV31Schema
+  workflowActionV31Schema,
+  workflowActionV32Schema
 } from "./workflow-action-schema.js";
 
 const v2Phase: Record<CanonicalWorkflowPhase, WorkflowActionV2["phase"]> = {
@@ -279,10 +287,25 @@ export function projectWorkflowActionV31(
   });
 }
 
+export function projectWorkflowActionV32(
+  envelope: CanonicalWorkflowActionEnvelopeV1_2
+): WorkflowActionV32 {
+  const { actionId, ...identityInput } = envelope.action;
+  if (createWorkflowActionIdV1_2(identityInput) !== actionId) {
+    throw new TypeError("workflow-action-v3.2: canonical action identity is invalid");
+  }
+
+  return workflowActionV32Schema.parse({
+    protocolVersion: "3.2",
+    ...envelope.action
+  });
+}
+
 export async function buildWorkflowAction(input: {
   readonly state: ProjectState;
   readonly step: NextStep;
   readonly protocol?: WorkflowActionProtocol;
+  readonly now?: string;
 }): Promise<WorkflowAction> {
   const protocol = input.protocol === undefined ? DEFAULT_WORKFLOW_ACTION_PROTOCOL : input.protocol;
   if (!isWorkflowActionProtocol(protocol)) {
@@ -302,6 +325,21 @@ export async function buildWorkflowAction(input: {
           envelope
         })
       );
+    case "3.2": {
+      const v1_1 = await upgradeCanonicalWorkflowActionEnvelopeV1_1({
+        state: input.state,
+        envelope
+      });
+      return projectWorkflowActionV32(
+        upgradeCanonicalWorkflowActionEnvelopeV1_2({
+          envelope: v1_1,
+          assuranceSummary: await selectCanonicalAssuranceSummary({
+            state: input.state,
+            now: input.now ?? new Date().toISOString()
+          })
+        })
+      );
+    }
   }
 }
 

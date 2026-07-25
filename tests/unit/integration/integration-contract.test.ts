@@ -59,12 +59,13 @@ async function createKitProject(): Promise<string> {
 }
 
 const EXPECTED_WORKFLOW_ACTION_PROTOCOLS = {
-  supported: ["2.0", "3.0", "3.1"],
+  supported: ["2.0", "3.0", "3.1", "3.2"],
   default: "2.0",
   schemaHashes: {
     "2.0": "sha256:c63b279b1ce89f047b2be696a47e845a57adda7f8437892e211e3a4cfad39ed6",
     "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7",
-    "3.1": "sha256:41ffa28fcd4476ea1812ff307df67a7ab7edb5b2cf4d6c11955d34d4aad74d4d"
+    "3.1": "sha256:41ffa28fcd4476ea1812ff307df67a7ab7edb5b2cf4d6c11955d34d4aad74d4d",
+    "3.2": "sha256:77dcaba51ef8e1a78064680077f8bcc48c081d8025596c6cc8df9ea7873d68e9"
   }
 } as const;
 
@@ -217,6 +218,7 @@ describe("integration contract workflow", () => {
       expect(advertised.supported).toContain(advertised.default);
       expect(Object.keys(advertised.schemaHashes)).toEqual([...advertised.supported]);
       expect(Object.values(advertised.schemaHashes)).toEqual([
+        expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
         expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
         expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
         expect.stringMatching(/^sha256:[a-f0-9]{64}$/u)
@@ -523,7 +525,8 @@ describe("integration contract workflow", () => {
     expect(Object.keys(parsed.protocols.workflowAction.schemaHashes)).toEqual([
       "2.0",
       "3.0",
-      "3.1"
+      "3.1",
+      "3.2"
     ]);
     expect(output.join("")).toBe(`${JSON.stringify(parsed, null, 2)}\n`);
     expect(parsed.capabilities.governance.failClosedGates).toBe(true);

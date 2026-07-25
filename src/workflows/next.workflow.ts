@@ -23,6 +23,7 @@ export type NextWorkflowOptions = {
   readonly json?: boolean;
   readonly protocol?: WorkflowActionProtocol;
   readonly commandRunner?: CommandRunner;
+  readonly now?: string;
 };
 
 export type NextWorkflowResult = NextStep & {
@@ -32,6 +33,7 @@ export type NextWorkflowResult = NextStep & {
 export async function runNextWorkflow(
   options: NextWorkflowOptions = {}
 ): Promise<Result<NextWorkflowResult, VispError>> {
+  const effectiveNow = options.now ?? new Date().toISOString();
   const state = await loadProjectState(options);
 
   if (!state.ok) return state;
@@ -45,7 +47,8 @@ export async function runNextWorkflow(
     targetPath: state.value.targetPath,
     stage: "next",
     feature: options.feature,
-    taskId: options.taskId ?? state.value.selectedTask?.id
+    taskId: options.taskId ?? state.value.selectedTask?.id,
+    now: effectiveNow
   });
   const implementationGate =
     state.value.selectedTask === undefined
@@ -54,7 +57,8 @@ export async function runNextWorkflow(
           targetPath: state.value.targetPath,
           stage: "implement",
           feature: options.feature,
-          taskId: options.taskId ?? state.value.selectedTask.id
+          taskId: options.taskId ?? state.value.selectedTask.id,
+          now: effectiveNow
         });
   const prGate =
     state.value.selectedFeature === undefined
@@ -63,7 +67,8 @@ export async function runNextWorkflow(
           targetPath: state.value.targetPath,
           stage: "pr",
           feature: options.feature,
-          taskId: options.taskId ?? state.value.selectedTask?.id
+          taskId: options.taskId ?? state.value.selectedTask?.id,
+          now: effectiveNow
         });
 
   const gateEvaluationError = !nextGate.ok
@@ -98,7 +103,8 @@ export async function runNextWorkflow(
       action: await buildWorkflowAction({
         state: state.value,
         step: summary,
-        protocol: options.protocol
+        protocol: options.protocol,
+        now: effectiveNow
       })
     });
   }
@@ -206,7 +212,8 @@ export async function runNextWorkflow(
     action: await buildWorkflowAction({
       state: state.value,
       step: summary,
-      protocol: options.protocol
+      protocol: options.protocol,
+      now: effectiveNow
     })
   });
 }

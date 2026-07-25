@@ -13,7 +13,8 @@ import {
   workflowActionSchemaHash,
   workflowActionV2Schema,
   workflowActionV3Schema,
-  workflowActionV31Schema
+  workflowActionV31Schema,
+  workflowActionV32Schema
 } from "../../../src/integration/workflow-action-schema.js";
 
 const sha256 = `sha256:${"0".repeat(64)}`;
@@ -93,6 +94,39 @@ function validAction31() {
     protocolVersion: "3.1" as const,
     canonicalVersion: "1.1" as const,
     evidence: { state: "unavailable" as const, reasonCode: "source_missing" as const }
+  };
+}
+
+function validAction32() {
+  return {
+    ...validAction31(),
+    protocolVersion: "3.2" as const,
+    canonicalVersion: "1.2" as const,
+    assuranceSummary: {
+      state: "available" as const,
+      version: "1.0" as const,
+      artifact: {
+        path: ".visp/features/001-note-pinning/assurance/T001/assurance-case.json",
+        contentHash: sha256
+      },
+      caseHash: sha256,
+      verdict: "inconclusive" as const,
+      mandatoryHotspots: [
+        {
+          id: "HS001",
+          category: "security" as const,
+          severity: "critical" as const,
+          path: null,
+          reason: "Security behavior requires accountable review."
+        }
+      ],
+      reviewDecision: {
+        required: true,
+        status: "missing" as const,
+        decisionHash: null,
+        reason: "No review decision is recorded."
+      }
+    }
   };
 }
 
@@ -207,7 +241,7 @@ function evidenceRequirement(overrides: Readonly<Record<string, unknown>> = {}) 
 
 describe("workflow-action runtime schemas", () => {
   it("keeps v2 permissiveness while exposing exact protocol constants", () => {
-    expect(SUPPORTED_WORKFLOW_ACTION_PROTOCOLS).toEqual(["2.0", "3.0", "3.1"]);
+    expect(SUPPORTED_WORKFLOW_ACTION_PROTOCOLS).toEqual(["2.0", "3.0", "3.1", "3.2"]);
     expect(DEFAULT_WORKFLOW_ACTION_PROTOCOL).toBe("2.0");
     expect(
       workflowActionV2Schema.parse({
@@ -261,6 +295,93 @@ describe("workflow-action runtime schemas", () => {
       "unknown",
       "fresh"
     ]);
+  });
+
+  it("strictly separates assurance-aware 3.2 from immutable prior protocols", () => {
+    expect(workflowActionV32Schema.parse(validAction32())).toEqual(validAction32());
+    expect(() => workflowActionV31Schema.parse(validAction32())).toThrow();
+    expect(() => workflowActionV32Schema.parse(validAction31())).toThrow();
+    expect(() => workflowActionV3Schema.parse(validAction32())).toThrow();
+  });
+
+  it.each([
+    [
+      "unknown summary field",
+      () => ({
+        ...validAction32(),
+        assuranceSummary: { ...validAction32().assuranceSummary, command: "visp pr" }
+      })
+    ],
+    [
+      "unknown decision status",
+      () => ({
+        ...validAction32(),
+        assuranceSummary: {
+          ...validAction32().assuranceSummary,
+          reviewDecision: {
+            ...validAction32().assuranceSummary.reviewDecision,
+            status: "accepted"
+          }
+        }
+      })
+    ],
+    [
+      "malformed case hash",
+      () => ({
+        ...validAction32(),
+        assuranceSummary: { ...validAction32().assuranceSummary, caseHash: "sha256:ABC" }
+      })
+    ],
+    [
+      "unsafe artifact path",
+      () => ({
+        ...validAction32(),
+        assuranceSummary: {
+          ...validAction32().assuranceSummary,
+          artifact: {
+            ...validAction32().assuranceSummary.artifact,
+            path: "../assurance-case.json"
+          }
+        }
+      })
+    ],
+    [
+      "unsorted mandatory hotspots",
+      () => ({
+        ...validAction32(),
+        assuranceSummary: {
+          ...validAction32().assuranceSummary,
+          mandatoryHotspots: [
+            {
+              ...validAction32().assuranceSummary.mandatoryHotspots[0],
+              id: "HS002"
+            },
+            {
+              ...validAction32().assuranceSummary.mandatoryHotspots[0],
+              id: "HS001"
+            }
+          ]
+        }
+      })
+    ],
+    [
+      "non-null unavailable decision hash",
+      () => ({
+        ...validAction32(),
+        assuranceSummary: {
+          state: "unavailable",
+          reason: "Assurance case is missing.",
+          reviewDecision: {
+            required: true,
+            status: "missing",
+            decisionHash: sha256,
+            reason: "No decision."
+          }
+        }
+      })
+    ]
+  ])("rejects malformed 3.2 assurance summary: %s", (_name, mutate) => {
+    expect(() => workflowActionV32Schema.parse(mutate())).toThrow();
   });
 
   it.each([
@@ -787,14 +908,16 @@ describe("generated workflow-action schemas", () => {
     expect((await readdir(path.join(process.cwd(), "schemas", "workflow-action"))).sort()).toEqual([
       "2.0.schema.json",
       "3.0.schema.json",
-      "3.1.schema.json"
+      "3.1.schema.json",
+      "3.2.schema.json"
     ]);
   });
 
   it.each([
     "2.0",
     "3.0",
-    "3.1"
+    "3.1",
+    "3.2"
   ] as const)("matches the committed %s artifact document", async (protocol) => {
     const filePath = path.join(
       process.cwd(),

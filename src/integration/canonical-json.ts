@@ -5,6 +5,7 @@ export type Sha256Hash = `sha256:${string}`;
 
 export const workflowActionIdentityDomain = "visp.workflow-action\0canonical-1.0\0";
 export const workflowActionIdentityDomainV1_1 = "visp.workflow-action\0canonical-1.1\0";
+export const workflowActionIdentityDomainV1_2 = "visp.workflow-action\0canonical-1.2\0";
 
 export function compareUtf16CodeUnits(left: string, right: string): number {
   const length = Math.min(left.length, right.length);
@@ -152,4 +153,8 @@ export function createWorkflowActionId(actionWithoutId: unknown): Sha256Hash {
 
 export function createWorkflowActionIdV1_1(actionWithoutId: unknown): Sha256Hash {
   return createDomainSeparatedWorkflowActionId(workflowActionIdentityDomainV1_1, actionWithoutId);
+}
+
+export function createWorkflowActionIdV1_2(actionWithoutId: unknown): Sha256Hash {
+  return createDomainSeparatedWorkflowActionId(workflowActionIdentityDomainV1_2, actionWithoutId);
 }

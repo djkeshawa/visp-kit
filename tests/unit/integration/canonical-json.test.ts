@@ -6,7 +6,9 @@ import {
   canonicalJsonV1,
   createWorkflowActionId,
   createWorkflowActionIdV1_1,
-  workflowActionIdentityDomain
+  createWorkflowActionIdV1_2,
+  workflowActionIdentityDomain,
+  workflowActionIdentityDomainV1_2
 } from "../../../src/integration/canonical-json.js";
 
 describe("canonical-json-v1", () => {
@@ -162,5 +164,48 @@ describe("canonical-json-v1", () => {
 
     expect(createWorkflowActionIdV1_1(action)).toMatch(/^sha256:[a-f0-9]{64}$/u);
     expect(createWorkflowActionIdV1_1(action)).not.toBe(createWorkflowActionId(action));
+  });
+
+  it("domain-separates deterministic canonical 1.2 identities and binds summary mutations", () => {
+    const action = {
+      canonicalVersion: "1.2",
+      nextCommand: "visp assurance accept --task T001",
+      assuranceSummary: {
+        state: "unavailable",
+        reason: "Assurance case is missing.",
+        reviewDecision: {
+          required: true,
+          status: "missing",
+          decisionHash: null,
+          reason: "No review decision is recorded."
+        }
+      }
+    };
+    const reordered = {
+      assuranceSummary: {
+        reviewDecision: {
+          reason: "No review decision is recorded.",
+          decisionHash: null,
+          status: "missing",
+          required: true
+        },
+        reason: "Assurance case is missing.",
+        state: "unavailable"
+      },
+      nextCommand: "visp assurance accept --task T001",
+      canonicalVersion: "1.2"
+    };
+
+    expect(Buffer.from(workflowActionIdentityDomainV1_2, "utf8").toString("hex")).toBe(
+      "766973702e776f726b666c6f772d616374696f6e0063616e6f6e6963616c2d312e3200"
+    );
+    expect(createWorkflowActionIdV1_2(action)).toBe(createWorkflowActionIdV1_2(reordered));
+    expect(createWorkflowActionIdV1_2(action)).not.toBe(
+      createWorkflowActionIdV1_2({
+        ...action,
+        assuranceSummary: { ...action.assuranceSummary, reason: "Assurance case is invalid." }
+      })
+    );
+    expect(createWorkflowActionIdV1_2(action)).not.toBe(createWorkflowActionIdV1_1(action));
   });
 });

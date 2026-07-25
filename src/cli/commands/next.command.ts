@@ -65,7 +65,7 @@ export function createNextCommand(dependencies: NextCommandDependencies = {}): C
     .option("--strict", "Require all deterministic gates.")
     .option("--json", "Print a machine-readable summary.")
     .option("--format <format>", "Output format: text or json.")
-    .option("--protocol <version>", "WorkflowAction protocol: 2.0 or 3.0.")
+    .option("--protocol <version>", "WorkflowAction protocol: 2.0, 3.0, 3.1, or 3.2.")
     .action(async (targetPath: string | undefined, options: NextCommandOptions) => {
       if (options.protocol !== undefined && options.format !== "json") {
         writeErr(`${formatError("--protocol requires --format json.", { color: false })}\n`);

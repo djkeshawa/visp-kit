@@ -57,6 +57,12 @@ import { captureDiffSnapshot } from "../assurance/diff-snapshot.js";
 import { isGeneratedVispReviewFile } from "./diff-summary.js";
 
 type MaterialSchema = ZodType<unknown>;
+type LoadedReviewCase = {
+  readonly targetPath: string;
+  readonly featureKey: string;
+  readonly casePath: string;
+  readonly assuranceCase: AssuranceCase;
+};
 
 const schemaByRole: Partial<Record<AssuranceCase["bindings"][number]["role"], MaterialSchema>> = {
   policy: policyArtifactSchema,
@@ -119,6 +125,7 @@ export type ReviewDecisionRepairSummary = {
 
 export type ReviewDecisionRequirement = {
   readonly required: boolean;
+  readonly caseHash?: string;
   readonly currentness: ReviewDecisionCurrentness;
 };
 
@@ -342,17 +349,7 @@ async function loadCase(input: {
   readonly cwd?: string;
   readonly feature?: string;
   readonly taskId: string;
-}): Promise<
-  Result<
-    {
-      readonly targetPath: string;
-      readonly featureKey: string;
-      readonly casePath: string;
-      readonly assuranceCase: AssuranceCase;
-    },
-    VispError
-  >
-> {
+}): Promise<Result<LoadedReviewCase, VispError>> {
   const state = await loadProjectState(input);
   if (!state.ok) return state;
   if (state.value.selectedFeature === undefined || state.value.selectedTask === undefined) {
@@ -798,10 +795,20 @@ export async function evaluateCurrentReviewDecision(input: {
       reason: loaded.error.message
     });
   }
-  const assuranceCase = loaded.value.assuranceCase;
+  return evaluateLoadedCurrentReviewDecision(loaded.value, input);
+}
+
+async function evaluateLoadedCurrentReviewDecision(
+  loaded: LoadedReviewCase,
+  input: {
+    readonly commandRunner?: CommandRunner;
+    readonly now?: string;
+  }
+): Promise<Result<ReviewDecisionCurrentness, VispError>> {
+  const assuranceCase = loaded.assuranceCase;
   const current = await loadCurrentDecision({
-    targetPath: loaded.value.targetPath,
-    featureKey: loaded.value.featureKey,
+    targetPath: loaded.targetPath,
+    featureKey: loaded.featureKey,
     featureId: assuranceCase.featureId,
     featureSlug: assuranceCase.featureSlug,
     taskId: assuranceCase.taskId
@@ -822,15 +829,15 @@ export async function evaluateCurrentReviewDecision(input: {
   }
   const decision = current.value;
   const chain = await validateSupersessionChain({
-    targetPath: loaded.value.targetPath,
-    featureKey: loaded.value.featureKey,
+    targetPath: loaded.targetPath,
+    featureKey: loaded.featureKey,
     decision
   });
   if (!chain.ok) return ok({ status: "invalid", reason: chain.error.message });
   const policyBinding = assuranceCase.bindings.find((binding) => binding.role === "policy");
   const knownHotspots = new Set(assuranceCase.hotspots.map((hotspot) => hotspot.id));
   if (
-    decision.assuranceCase.path !== relativePath(loaded.value.targetPath, loaded.value.casePath) ||
+    decision.assuranceCase.path !== relativePath(loaded.targetPath, loaded.casePath) ||
     decision.assuranceCase.sha256 !== assuranceCase.caseHash ||
     decision.assuranceProfile !== assuranceCase.assuranceProfile ||
     policyBinding?.status !== "available" ||
@@ -855,8 +862,8 @@ export async function evaluateCurrentReviewDecision(input: {
     });
   }
   const freshness = await captureFreshnessInputs({
-    targetPath: loaded.value.targetPath,
-    featureKey: loaded.value.featureKey,
+    targetPath: loaded.targetPath,
+    featureKey: loaded.featureKey,
     taskId: assuranceCase.taskId,
     assuranceCase
   });
@@ -870,8 +877,8 @@ export async function evaluateCurrentReviewDecision(input: {
     });
   }
   const reconstructed = await validateReconstructedAssuranceInputs({
-    targetPath: loaded.value.targetPath,
-    featureKey: loaded.value.featureKey,
+    targetPath: loaded.targetPath,
+    featureKey: loaded.featureKey,
     taskId: assuranceCase.taskId,
     assuranceCase,
     now: input.now,
@@ -886,7 +893,7 @@ export async function evaluateCurrentReviewDecision(input: {
     });
   }
   const codeMatches = await currentCodeMatches({
-    targetPath: loaded.value.targetPath,
+    targetPath: loaded.targetPath,
     decision,
     commandRunner: input.commandRunner
   });
@@ -921,30 +928,38 @@ export async function evaluateReviewDecisionRequirement(input: {
   readonly now?: string;
 }): Promise<Result<ReviewDecisionRequirement, VispError>> {
   const loaded = await loadCase(input);
-  const currentness = await evaluateCurrentReviewDecision(input);
-  if (!currentness.ok) return currentness;
-  if (!input.enabled) {
-    return ok({ required: false, currentness: currentness.value });
-  }
   if (!loaded.ok) {
-    return ok({ required: true, currentness: currentness.value });
+    return ok({
+      required: input.enabled,
+      currentness: {
+        status: loaded.error.code === "FILE_NOT_FOUND" ? "missing" : "invalid",
+        reason: loaded.error.message
+      }
+    });
   }
   const assuranceCase = loaded.value.assuranceCase;
+  const currentness = await evaluateLoadedCurrentReviewDecision(loaded.value, input);
+  if (!currentness.ok) return currentness;
   const required =
-    assuranceCase.assuranceProfile === "behavioral" ||
-    assuranceCase.assuranceProfile === "critical" ||
-    assuranceCase.hotspots.some((hotspot) => hotspot.mandatory) ||
-    assuranceCase.claims.some(
-      (claim) => claim.priority === "must" && claim.disposition === "unresolved"
-    ) ||
-    assuranceCase.evidenceComparisons.some(
-      (comparison) =>
-        comparison.conclusion === "inconclusive" ||
-        comparison.baseline.uncertainty.status !== "none" ||
-        comparison.candidate.uncertainty.status !== "none"
-    ) ||
-    assuranceCase.overrides.length > 0;
-  return ok({ required, currentness: currentness.value });
+    input.enabled &&
+    (assuranceCase.assuranceProfile === "behavioral" ||
+      assuranceCase.assuranceProfile === "critical" ||
+      assuranceCase.hotspots.some((hotspot) => hotspot.mandatory) ||
+      assuranceCase.claims.some(
+        (claim) => claim.priority === "must" && claim.disposition === "unresolved"
+      ) ||
+      assuranceCase.evidenceComparisons.some(
+        (comparison) =>
+          comparison.conclusion === "inconclusive" ||
+          comparison.baseline.uncertainty.status !== "none" ||
+          comparison.candidate.uncertainty.status !== "none"
+      ) ||
+      assuranceCase.overrides.length > 0);
+  return ok({
+    required,
+    caseHash: assuranceCase.caseHash,
+    currentness: currentness.value
+  });
 }
 
 export async function runReviewDecisionRepair(input: {

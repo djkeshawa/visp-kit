@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -17,12 +18,15 @@ import { type ReviewDecision } from "../../src/artifacts/schemas/review-decision
 import { createAssuranceCaseHash } from "../../src/assurance/assurance-case-hash.js";
 import { type AssuranceCase } from "../../src/artifacts/schemas/assurance-case.schema.js";
 import { createReviewDecisionHash } from "../../src/review/review-decision-hash.js";
+import { selectCanonicalAssuranceSummary } from "../../src/integration/canonical-assurance.js";
+import { loadProjectState } from "../../src/orchestrator/project-state.js";
 import {
   evaluateCurrentReviewDecision,
   runReviewDecisionRepair,
   runReviewDecisionWorkflow
 } from "../../src/review/review-decision.js";
 import { runAssuranceWorkflow } from "../../src/workflows/assurance.workflow.js";
+import { runNextWorkflow } from "../../src/workflows/next.workflow.js";
 import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
 
 async function prepareAssuranceFixture(targetPath: string): Promise<void> {
@@ -54,6 +58,22 @@ async function prepareAssuranceFixture(targetPath: string): Promise<void> {
     "utf8"
   );
   process.exitCode = undefined;
+}
+
+async function action32(targetPath: string, now: string) {
+  const result = expectOk(
+    await runNextWorkflow({
+      targetPath,
+      taskId: "T001",
+      protocol: "3.2",
+      now
+    })
+  );
+  if (result.action.protocolVersion !== "3.2") {
+    throw new Error("Expected WorkflowAction 3.2.");
+  }
+  expect(result.action.nextCommand).toBe(result.nextCommand);
+  return result.action;
 }
 
 describe("assurance command", () => {
@@ -183,6 +203,12 @@ describe("assurance command", () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-command-"));
     roots.push(targetPath);
     await prepareAssuranceFixture(targetPath);
+    expect((await action32(targetPath, "2026-07-25T00:30:00.000Z")).assuranceSummary).toMatchObject(
+      {
+        state: "unavailable",
+        reviewDecision: { status: "missing", decisionHash: null }
+      }
+    );
     const output: string[] = [];
     const errors: string[] = [];
     const program = createCli({
@@ -275,6 +301,68 @@ describe("assurance command", () => {
     expect(secondSummary.snapshotHash).toBe(firstSummary.snapshotHash);
   }, 30_000);
 
+  it("fails closed when the assurance case swaps during review snapshot evaluation", async () => {
+    const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-snapshot-swap-"));
+    roots.push(targetPath);
+    await prepareAssuranceFixture(targetPath);
+    expectOk(
+      await runAssuranceWorkflow({
+        targetPath,
+        taskId: "T001",
+        now: "2026-07-25T01:00:00.000Z"
+      })
+    );
+    const state = expectOk(await loadProjectState({ targetPath, taskId: "T001" }));
+    const casePath = path.join(
+      targetPath,
+      ".visp",
+      "features",
+      "001-add-note-pinning",
+      "assurance",
+      "T001",
+      "assurance-case.json"
+    );
+    const originalRaw = await readFile(casePath, "utf8");
+    const original = JSON.parse(originalRaw) as AssuranceCase;
+    const { caseHash: _caseHash, ...replacementWithoutHash } = {
+      ...original,
+      nextAction: {
+        ...original.nextAction,
+        reason: "Concurrent replacement case content."
+      }
+    };
+    const replacement = {
+      ...replacementWithoutHash,
+      caseHash: createAssuranceCaseHash(replacementWithoutHash)
+    };
+    const summary = await selectCanonicalAssuranceSummary({
+      state,
+      now: "2026-07-25T01:30:00.000Z",
+      evaluateRequirement: async () => {
+        await writeFile(casePath, `${JSON.stringify(replacement, null, 2)}\n`, "utf8");
+        return ok({
+          required: false,
+          caseHash: original.caseHash,
+          currentness: {
+            status: "current",
+            reason: "The original assurance case was accepted.",
+            caseHash: original.caseHash,
+            decisionHash: `sha256:${"a".repeat(64)}`
+          }
+        });
+      }
+    });
+
+    expect(summary).toMatchObject({
+      state: "unavailable",
+      reviewDecision: {
+        required: false,
+        status: "invalid",
+        decisionHash: null
+      }
+    });
+  }, 30_000);
+
   it("fails closed when authoritative inputs change after the initial build", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-drift-"));
     roots.push(targetPath);
@@ -354,12 +442,27 @@ describe("assurance command", () => {
       "assurance",
       "T001"
     );
-    const assuranceCase = JSON.parse(
-      await readFile(path.join(assuranceDir, "assurance-case.json"), "utf8")
-    ) as { hotspots: Array<{ id: string; mandatory: boolean }> };
+    const assuranceCasePath = path.join(assuranceDir, "assurance-case.json");
+    const assuranceCaseRaw = await readFile(assuranceCasePath, "utf8");
+    const assuranceCase = JSON.parse(assuranceCaseRaw) as AssuranceCase;
     const mandatoryHotspots = assuranceCase.hotspots
       .filter((hotspot) => hotspot.mandatory)
       .map((hotspot) => hotspot.id);
+    const missingDecisionAction = await action32(targetPath, "2026-07-25T01:15:00.000Z");
+    expect(missingDecisionAction.assuranceSummary).toMatchObject({
+      state: "available",
+      artifact: {
+        contentHash: `sha256:${createHash("sha256").update(assuranceCaseRaw).digest("hex")}`
+      },
+      caseHash: assuranceCase.caseHash,
+      verdict: assuranceCase.verdict,
+      reviewDecision: { status: "missing", decisionHash: null }
+    });
+    if (missingDecisionAction.assuranceSummary.state === "available") {
+      expect(
+        missingDecisionAction.assuranceSummary.mandatoryHotspots.map((hotspot) => hotspot.id)
+      ).toEqual([...mandatoryHotspots].sort());
+    }
     const policyPath = path.join(targetPath, ".visp", "policy.json");
     const originalPolicy = await readFile(policyPath, "utf8");
     const requiredPolicy = JSON.parse(originalPolicy) as {
@@ -454,6 +557,15 @@ describe("assurance command", () => {
         })
       )
     ).toMatchObject({ status: "rejected", decisionHash: rejected.value.decisionHash });
+    expect((await action32(targetPath, "2026-07-25T02:30:00.000Z")).assuranceSummary).toMatchObject(
+      {
+        state: "available",
+        reviewDecision: {
+          status: "rejected",
+          decisionHash: rejected.value.decisionHash
+        }
+      }
+    );
     expect(
       expectOk(
         await evaluatePolicyGate({
@@ -493,6 +605,15 @@ describe("assurance command", () => {
         })
       )
     ).toMatchObject({ status: "current", decisionHash: accepted.value.decisionHash });
+    expect((await action32(targetPath, "2026-07-25T03:30:00.000Z")).assuranceSummary).toMatchObject(
+      {
+        state: "available",
+        reviewDecision: {
+          status: "current",
+          decisionHash: accepted.value.decisionHash
+        }
+      }
+    );
     expect(
       (
         await runReviewDecisionWorkflow({
@@ -528,6 +649,15 @@ describe("assurance command", () => {
         })
       ).status
     ).toBe("stale");
+    expect((await action32(targetPath, "2026-07-25T03:45:00.000Z")).assuranceSummary).toMatchObject(
+      {
+        state: "available",
+        reviewDecision: {
+          status: "stale",
+          decisionHash: accepted.value.decisionHash
+        }
+      }
+    );
     expect(
       expectOk(
         await evaluatePolicyGate({
@@ -577,6 +707,12 @@ describe("assurance command", () => {
         })
       ).status
     ).toBe("invalid");
+    expect((await action32(targetPath, "2026-07-25T05:30:00.000Z")).assuranceSummary).toMatchObject(
+      {
+        state: "available",
+        reviewDecision: { status: "invalid", decisionHash: null }
+      }
+    );
     expect(
       expectOk(
         await evaluatePolicyGate({
@@ -751,6 +887,12 @@ describe("assurance command", () => {
         })
       ).ok
     ).toBe(false);
+    expect((await action32(targetPath, "2026-07-25T02:00:00.000Z")).assuranceSummary).toMatchObject(
+      {
+        state: "unavailable",
+        reviewDecision: { status: "invalid", decisionHash: null }
+      }
+    );
     await writeFile(casePath, originalCase, "utf8");
 
     const taskGraphPath = path.join(

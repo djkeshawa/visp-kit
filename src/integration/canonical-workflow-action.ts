@@ -27,6 +27,7 @@ import {
   compareUtf16CodeUnits,
   createWorkflowActionId,
   createWorkflowActionIdV1_1,
+  createWorkflowActionIdV1_2,
   type Sha256Hash
 } from "./canonical-json.js";
 import { selectCanonicalEvidence } from "./canonical-evidence.js";
@@ -223,6 +224,68 @@ export type CanonicalWorkflowActionV1_1 = CanonicalWorkflowActionV1_1IdentityInp
   readonly actionId: Sha256Hash;
 };
 
+export type CanonicalAssuranceReviewDecisionSummary = {
+  readonly required: boolean;
+  readonly status: "current" | "missing" | "rejected" | "stale" | "invalid";
+  readonly decisionHash: Sha256Hash | null;
+  readonly reason: string;
+};
+
+export type CanonicalAssuranceSummary =
+  | {
+      readonly state: "available";
+      readonly version: "1.0";
+      readonly artifact: {
+        readonly path: string;
+        readonly contentHash: Sha256Hash;
+      };
+      readonly caseHash: Sha256Hash;
+      readonly verdict: "passed" | "failed" | "inconclusive";
+      readonly mandatoryHotspots: readonly {
+        readonly id: string;
+        readonly category:
+          | "public_api"
+          | "dependency"
+          | "schema_migration"
+          | "security"
+          | "concurrency"
+          | "permissions"
+          | "deployment_configuration"
+          | "test_deletion"
+          | "test_weakening"
+          | "validation_command_change"
+          | "unmapped_change"
+          | "scope_expansion"
+          | "oversized_scope"
+          | "inconclusive_evidence"
+          | "override_usage"
+          | "generated_behavior";
+        readonly severity: "critical" | "high" | "medium";
+        readonly path: string | null;
+        readonly reason: string;
+      }[];
+      readonly reviewDecision: CanonicalAssuranceReviewDecisionSummary;
+    }
+  | {
+      readonly state: "unavailable";
+      readonly reason: string;
+      readonly reviewDecision: CanonicalAssuranceReviewDecisionSummary & {
+        readonly decisionHash: null;
+      };
+    };
+
+export type CanonicalWorkflowActionV1_2IdentityInput = Omit<
+  CanonicalWorkflowActionV1_1IdentityInput,
+  "canonicalVersion"
+> & {
+  readonly canonicalVersion: "1.2";
+  readonly assuranceSummary: CanonicalAssuranceSummary;
+};
+
+export type CanonicalWorkflowActionV1_2 = CanonicalWorkflowActionV1_2IdentityInput & {
+  readonly actionId: Sha256Hash;
+};
+
 export type CanonicalWorkflowActionV2Presentation = {
   readonly writablePaths: readonly string[];
   readonly forbiddenPaths: readonly string[];
@@ -237,6 +300,11 @@ export type CanonicalWorkflowActionEnvelope = {
 
 export type CanonicalWorkflowActionEnvelopeV1_1 = {
   readonly action: CanonicalWorkflowActionV1_1;
+  readonly v2Presentation: CanonicalWorkflowActionV2Presentation;
+};
+
+export type CanonicalWorkflowActionEnvelopeV1_2 = {
+  readonly action: CanonicalWorkflowActionV1_2;
   readonly v2Presentation: CanonicalWorkflowActionV2Presentation;
 };
 
@@ -1395,6 +1463,31 @@ export async function upgradeCanonicalWorkflowActionEnvelopeV1_1(input: {
       evidence: evidenceSelection.evidence,
       findings,
       verdict: verdict(findings, false)
+    },
+    v2Presentation: input.envelope.v2Presentation
+  };
+}
+
+export function upgradeCanonicalWorkflowActionEnvelopeV1_2(input: {
+  readonly envelope: CanonicalWorkflowActionEnvelopeV1_1;
+  readonly assuranceSummary: CanonicalAssuranceSummary;
+}): CanonicalWorkflowActionEnvelopeV1_2 {
+  const {
+    actionId: _actionId,
+    canonicalVersion: _canonicalVersion,
+    ...base
+  } = input.envelope.action;
+  const identityInput: CanonicalWorkflowActionV1_2IdentityInput = {
+    canonicalVersion: "1.2",
+    ...base,
+    assuranceSummary: input.assuranceSummary
+  };
+  return {
+    action: {
+      canonicalVersion: "1.2",
+      actionId: createWorkflowActionIdV1_2(identityInput),
+      ...base,
+      assuranceSummary: input.assuranceSummary
     },
     v2Presentation: input.envelope.v2Presentation
   };
