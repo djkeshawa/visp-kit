@@ -226,6 +226,35 @@ async function collectTestEvidence(input: {
     explicit.add(normalized.value);
   }
 
+  // A regression_test task's own declared test files are its deliverable, not
+  // independent evidence. Classify them before the generic scan so the workflow
+  // does not deadlock on the task changing the very file it exists to write.
+  const deliverableTests =
+    selected.value.taskClass === "regression_test"
+      ? (selected.value.expectedFiles ?? [])
+          .filter(isTestPath)
+          .map((candidate) => candidate.replaceAll("\\", "/").replace(/^\.\/+/u, ""))
+          .filter((candidate) => !explicit.has(candidate))
+      : [];
+
+  for (const candidate of [...new Set(deliverableTests)].sort()) {
+    const normalized = projectRelativePath(input.targetPath, candidate);
+    if (!normalized.ok) return normalized;
+    const hash = await currentFileHash(input.targetPath, normalized.value);
+    if (!hash.ok) return hash;
+    evidence.push({
+      path: normalized.value,
+      sha256: hash.value,
+      independence: "task_deliverable",
+      source: {
+        kind: "declared_task_deliverable",
+        taskId: selected.value.id,
+        taskClass: "regression_test"
+      }
+    });
+    explicit.add(normalized.value);
+  }
+
   const candidates = [
     ...selected.value.allowedFiles,
     ...(selected.value.expectedFiles ?? []),
@@ -256,6 +285,11 @@ async function validateEvidenceFiles(input: {
   readonly runner: CommandRunner;
 }): Promise<Result<void, VispError>> {
   for (const evidence of input.plan.testStrengthEvidence) {
+    // The task declared this test as its own deliverable, so a change to it is
+    // expected rather than tampering. The plan-time hash stays recorded for
+    // audit, and the assurance case raises a mandatory hotspot for review.
+    if (evidence.independence === "task_deliverable") continue;
+
     const normalized = projectRelativePath(input.targetPath, evidence.path);
     if (!normalized.ok) return normalized;
     const current = await currentFileHash(input.targetPath, normalized.value);

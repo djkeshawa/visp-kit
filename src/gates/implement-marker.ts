@@ -31,6 +31,7 @@ function markerFor(input: {
   readonly strictnessMode: StrictnessMode;
   readonly now: string;
   readonly oracleAuthorization?: OracleAuthorizationBinding;
+  readonly preExistingChangedFiles?: readonly string[];
 }): ImplementMarker {
   return {
     version: "1.0",
@@ -43,6 +44,9 @@ function markerFor(input: {
     ...(input.oracleAuthorization === undefined
       ? {}
       : { oracleAuthorization: input.oracleAuthorization }),
+    ...(input.preExistingChangedFiles === undefined
+      ? {}
+      : { preExistingChangedFiles: [...input.preExistingChangedFiles].sort() }),
     createdAt: input.now
   };
 }
@@ -54,6 +58,7 @@ export async function writeImplementMarker(input: {
   readonly strictnessMode: StrictnessMode;
   readonly now: string;
   readonly oracleAuthorization?: OracleAuthorizationBinding;
+  readonly preExistingChangedFiles?: readonly string[];
 }): Promise<Result<string, VispError>> {
   const marker = markerFor(input);
 

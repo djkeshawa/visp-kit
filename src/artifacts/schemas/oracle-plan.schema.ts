@@ -80,6 +80,35 @@ export const oracleTestStrengthEvidenceSchema = z.discriminatedUnion("independen
         })
         .strict()
     })
+    .strict(),
+  /**
+   * The test is this task's own declared deliverable.
+   *
+   * Test-strength evidence exists to prove the implementer did not author or
+   * edit the test to make their change pass. That protection is inapplicable
+   * when authoring the test *is* the task: the file necessarily changes, and
+   * enforcing its hash deadlocks the workflow.
+   *
+   * The exemption is narrow and declared in advance. It applies only when the
+   * task's `taskClass` is `regression_test` and the path is in that task's own
+   * `expectedFiles`, both recorded in the hash-bound task graph before
+   * implementation. The hash observed at plan time is still recorded, so the
+   * change remains auditable, and the assurance case raises a mandatory hotspot
+   * so a reviewer is told the test was self-authored.
+   */
+  z
+    .object({
+      path: pathStringSchema,
+      sha256: oracleSha256Schema,
+      independence: z.literal("task_deliverable"),
+      source: z
+        .object({
+          kind: z.literal("declared_task_deliverable"),
+          taskId: nonEmptyStringSchema,
+          taskClass: z.literal("regression_test")
+        })
+        .strict()
+    })
     .strict()
 ]);
 

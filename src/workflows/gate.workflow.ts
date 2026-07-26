@@ -22,6 +22,7 @@ import {
 } from "../gates/implement-marker.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
 import { loadOracleAuthorization } from "./oracle-authorization.workflow.js";
+import { getGitChangedFiles } from "../verification/git-diff.js";
 
 export type GateWorkflowOptions = {
   readonly targetPath?: string;
@@ -124,12 +125,22 @@ export async function runGateWorkflow(
         if (oracleAuthorization !== undefined && !oracleAuthorization.ok) {
           return oracleAuthorization;
         }
+        // Record what was already dirty when this task was authorized. Scope is
+        // diffed against the feature base commit, so without this an earlier
+        // task's uncommitted work is reported as if this task changed it.
+        const startingState = await getGitChangedFiles({ targetPath });
+        // Only record a clean read. Git errors mean "unknown", and an empty list
+        // would wrongly assert the tree was clean.
+        const preExistingChangedFiles =
+          startingState.errors.length > 0 ? undefined : startingState.changedFiles;
+
         const marker = await writeImplementMarker({
           targetPath,
           task: state.value.selectedTask,
           featureId: parsed.data.feature.id,
           strictnessMode: parsed.data.strictnessMode,
           now,
+          ...(preExistingChangedFiles === undefined ? {} : { preExistingChangedFiles }),
           ...(oracleAuthorization?.ok === true
             ? { oracleAuthorization: oracleAuthorization.value.binding }
             : {})

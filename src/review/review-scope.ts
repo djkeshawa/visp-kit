@@ -30,6 +30,14 @@ export function reviewScope(input: {
   readonly files: readonly LoadedDiffFile[];
   readonly task?: Task;
   readonly taskGraph: TaskGraphArtifact;
+  /**
+   * Files already modified when implementation was authorized, from the
+   * implement marker. Scope is diffed against the feature base commit, so
+   * without this an earlier task's uncommitted work is reported as if this task
+   * changed it. These are still surfaced, but as pre-existing rather than as a
+   * scope violation by the current task.
+   */
+  readonly preExistingChangedFiles?: readonly string[];
 }): {
   readonly changedFiles: readonly ReviewChangedFile[];
   readonly scopeReview: {
@@ -38,6 +46,7 @@ export function reviewScope(input: {
     readonly expectedFiles: readonly string[];
     readonly forbiddenFiles: readonly string[];
     readonly outOfScopeFiles: readonly string[];
+    readonly preExistingOutOfScopeFiles: readonly string[];
     readonly forbiddenChangedFiles: readonly string[];
     readonly unmappedChangedFiles: readonly string[];
     readonly warnings: readonly string[];
@@ -63,10 +72,17 @@ export function reviewScope(input: {
   const forbiddenChangedFiles = implementationFiles
     .filter((file) => file.inForbiddenFiles)
     .map((file) => file.path);
-  const outOfScopeFiles =
+  // Files dirty before this task was authorized are attributed to earlier work,
+  // not to the current task. They are still reported, but as pre-existing.
+  const preExistingSet = new Set(normalizeList(input.preExistingChangedFiles ?? []));
+  const allOutOfScope =
     input.task !== undefined && allowedFiles.length > 0
       ? implementationFiles.filter((file) => !allowedSet.has(file.path)).map((file) => file.path)
       : [];
+  const outOfScopeFiles = allOutOfScope.filter((filePath) => !preExistingSet.has(filePath));
+  const preExistingOutOfScopeFiles = allOutOfScope.filter((filePath) =>
+    preExistingSet.has(filePath)
+  );
   const unmappedChangedFiles =
     input.task === undefined && allowedSet.size > 0
       ? implementationFiles.filter((file) => !allowedSet.has(file.path)).map((file) => file.path)
@@ -105,6 +121,31 @@ export function reviewScope(input: {
         file: filePath,
         evidence: message,
         recommendation: "Revert this change or update the task scope with explicit approval.",
+        relatedTaskId: input.task?.id ?? null,
+        relatedRequirementIds: input.task?.requirementIds ?? [],
+        relatedAcceptanceCriterionIds: input.task?.acceptanceCriterionIds ?? []
+      })
+    );
+  }
+
+  for (const filePath of preExistingOutOfScopeFiles) {
+    const message =
+      `Pre-existing change outside task scope: ${filePath}. ` +
+      "This file was already modified when implementation was authorized, so it " +
+      "is attributed to earlier uncommitted work rather than to this task. " +
+      "Commit or revert it so scope reflects only the current task.";
+    warnings.push(message);
+    findings.push(
+      finding({
+        category: "scope",
+        severity: "warning",
+        title: "Pre-existing change outside task scope",
+        description:
+          "Scope is diffed against the feature base commit, and this file was already changed before this task was authorized.",
+        file: filePath,
+        evidence: message,
+        recommendation:
+          "Commit the earlier task's accepted work, or revert it, so scope reflects only this task.",
         relatedTaskId: input.task?.id ?? null,
         relatedRequirementIds: input.task?.requirementIds ?? [],
         relatedAcceptanceCriterionIds: input.task?.acceptanceCriterionIds ?? []
@@ -156,6 +197,7 @@ export function reviewScope(input: {
       expectedFiles,
       forbiddenFiles,
       outOfScopeFiles,
+      preExistingOutOfScopeFiles,
       forbiddenChangedFiles,
       unmappedChangedFiles,
       warnings,

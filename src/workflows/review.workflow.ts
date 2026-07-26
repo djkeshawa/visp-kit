@@ -90,6 +90,8 @@ import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
 import { recordWorkflowRun } from "./shared/run-recorder.js";
 import { refreshFeatureTimeline } from "./shared/timeline-refresh.js";
+import { taskImplementMarkerPath } from "../gates/implement-marker.js";
+import { implementMarkerSchema } from "../artifacts/schemas/implement-marker.schema.js";
 
 export type ReviewWorkflowOptions = {
   readonly targetPath?: string;
@@ -439,10 +441,25 @@ export async function runReviewWorkflow(
     featureKey: feature.value.key,
     task: selectedTask
   });
+  // The implement marker records what was already dirty when this task was
+  // authorized, so review can attribute those files to earlier work instead of
+  // reporting them as this task's scope violations.
+  const marker =
+    selectedTask === undefined
+      ? undefined
+      : await readArtifact(
+          taskImplementMarkerPath(targetPath, selectedTask.id),
+          implementMarkerSchema,
+          { artifactName: "implement marker" }
+        );
+  const preExistingChangedFiles =
+    marker?.ok === true ? marker.value.preExistingChangedFiles : undefined;
+
   const scope = reviewScope({
     files: diff.value.files,
     task: selectedTask,
-    taskGraph: taskGraph.value
+    taskGraph: taskGraph.value,
+    ...(preExistingChangedFiles === undefined ? {} : { preExistingChangedFiles })
   });
   const trace = reviewTraceability({
     taskGraph: taskGraph.value,

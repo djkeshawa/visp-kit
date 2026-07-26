@@ -102,7 +102,14 @@ function commandEvidenceResult(
   index: number
 ): EvidenceResult {
   const failure = commandFailure(command);
-  const independence = input.plan.testStrengthEvidence[0]?.independence ?? "implementer_authored";
+  const declaredIndependence = input.plan.testStrengthEvidence[0]?.independence;
+  // A test declared as the task's own deliverable was written by the
+  // implementer, so it reports as `implementer_authored` downstream rather than
+  // borrowing the strength of independent evidence.
+  const independence =
+    declaredIndependence === undefined || declaredIndependence === "task_deliverable"
+      ? "implementer_authored"
+      : declaredIndependence;
   const executable = command.runner?.executable ?? command.command;
   const args = command.runner?.args ?? [];
   const outcome: EvidenceResult["outcome"] =

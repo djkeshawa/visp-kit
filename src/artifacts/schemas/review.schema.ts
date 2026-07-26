@@ -99,6 +99,13 @@ export const reviewScopeSchema = z
     expectedFiles: z.array(pathStringSchema),
     forbiddenFiles: z.array(pathStringSchema),
     outOfScopeFiles: z.array(pathStringSchema),
+    /**
+     * Out-of-scope paths that were already modified when this task was
+     * authorized, so they belong to earlier uncommitted work rather than to
+     * this task. Reported as warnings, not errors. Optional so reviews written
+     * before this field remain valid.
+     */
+    preExistingOutOfScopeFiles: z.array(pathStringSchema).optional(),
     forbiddenChangedFiles: z.array(pathStringSchema),
     unmappedChangedFiles: z.array(pathStringSchema),
     warnings: stringListSchema,

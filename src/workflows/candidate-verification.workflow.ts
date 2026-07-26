@@ -136,14 +136,24 @@ export function evaluateCandidateOutcome(
 export function evaluateCandidateTestStrength(
   plan: Pick<OraclePlan, "assuranceProfile" | "testStrengthEvidence">
 ): CandidateEvidence["testStrength"] {
-  const independence = plan.testStrengthEvidence.map((evidence) => evidence.independence);
+  // A test the task itself declared as its deliverable is not independent
+  // evidence — the implementer wrote it. The `task_deliverable` exemption
+  // unblocks a regression_test task whose own file necessarily changes; it must
+  // never satisfy the independence requirement that behavioral and critical
+  // assurance impose, or self-authored tests would launder into a pass.
+  const independence = plan.testStrengthEvidence
+    .map((evidence) => evidence.independence)
+    .filter(
+      (value): value is "pre_existing" | "pre_approved" =>
+        value === "pre_existing" || value === "pre_approved"
+    );
   const passed = plan.assuranceProfile === "routine" || independence.length > 0;
   return {
     status: passed ? "passed" : "inconclusive",
     independence,
     reason: passed
       ? "The locked plan contains an independent test-strength signal or requires routine assurance."
-      : "Behavioral and critical assurance require pre-existing or explicitly pre-approved test evidence."
+      : "Behavioral and critical assurance require pre-existing or explicitly pre-approved test evidence. A test declared as the task's own deliverable does not qualify."
   };
 }
 
