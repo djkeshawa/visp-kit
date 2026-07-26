@@ -146,10 +146,12 @@ export async function completeTemplateWorkflow(input: {
         dryRun: false,
         now: input.now
       });
-      actions.push(...timeline.writtenFiles.map((filePath) => ({
-        path: filePath,
-        action: "updated" as const
-      })));
+      actions.push(
+        ...timeline.writtenFiles.map((filePath) => ({
+          path: filePath,
+          action: "updated" as const
+        }))
+      );
     }
 
     return ok(

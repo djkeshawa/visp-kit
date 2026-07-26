@@ -3,7 +3,13 @@
   "taskCount": 24,
   "languages": ["typescript", "python", "go"],
   "taskClasses": ["localized_bug", "bounded_feature", "cross_file_change", "regression_test"],
-  "conditions": ["native_raw", "compact_token_matched", "visp_kit", "hyper_quick", "kit_plus_hyper"],
+  "conditions": [
+    "native_raw",
+    "compact_token_matched",
+    "visp_kit",
+    "hyper_quick",
+    "kit_plus_hyper"
+  ],
   "modelBands": ["small_open", "medium_open", "generation_old_proprietary"],
   "calibration": { "band": "current_strong", "taskCount": 6 },
   "seeds": [17, 43],

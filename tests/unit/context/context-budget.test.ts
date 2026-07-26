@@ -66,6 +66,7 @@ describe("effectiveMaxInputTokens", () => {
     // Exactly at the base limit -> within budget.
     expect(1000 > cutoff).toBe(false);
     // Exactly at the tolerated cutoff -> still within budget (boundary).
+    // biome-ignore lint/suspicious/noSelfCompare: asserts the cutoff is exclusive, mirroring the production `estimatedInputTokens > effectiveMaxInputTokens` comparison.
     expect(cutoff > cutoff).toBe(false);
     // Within tolerance (above base limit, below cutoff) -> within budget.
     expect(1200 > cutoff).toBe(false);

@@ -1,10 +1,30 @@
 {
   "lockedAt": "REPLACE_BEFORE_RUN",
   "models": [
-    { "band": "small_open", "provider": "REPLACE", "modelId": "REPLACE", "parameters": { "temperature": 0 } },
-    { "band": "medium_open", "provider": "REPLACE", "modelId": "REPLACE", "parameters": { "temperature": 0 } },
-    { "band": "generation_old_proprietary", "provider": "REPLACE", "modelId": "REPLACE", "parameters": { "temperature": 0 } },
-    { "band": "current_strong", "provider": "REPLACE", "modelId": "REPLACE", "parameters": { "temperature": 0 } }
+    {
+      "band": "small_open",
+      "provider": "REPLACE",
+      "modelId": "REPLACE",
+      "parameters": { "temperature": 0 }
+    },
+    {
+      "band": "medium_open",
+      "provider": "REPLACE",
+      "modelId": "REPLACE",
+      "parameters": { "temperature": 0 }
+    },
+    {
+      "band": "generation_old_proprietary",
+      "provider": "REPLACE",
+      "modelId": "REPLACE",
+      "parameters": { "temperature": 0 }
+    },
+    {
+      "band": "current_strong",
+      "provider": "REPLACE",
+      "modelId": "REPLACE",
+      "parameters": { "temperature": 0 }
+    }
   ],
   "tools": [],
   "repositoryCommits": {},

@@ -81,9 +81,7 @@ export function createEvalCommand(dependencies: EvalCommandDependencies = {}): C
     });
 }
 
-export function createAuditCommand(
-  dependencies: EvalCommandDependencies = {}
-): Command {
+export function createAuditCommand(dependencies: EvalCommandDependencies = {}): Command {
   return createEvalCommand(dependencies)
     .name("audit")
     .description("Audit Visp workflow artifacts and deterministic evidence.");

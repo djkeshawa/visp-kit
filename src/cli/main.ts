@@ -2,18 +2,12 @@ import { Command } from "commander";
 import { z } from "zod";
 import { packageVersion } from "../core/package-version.js";
 
-import {
-  createAgentCommand,
-  type AgentCommandDependencies
-} from "./commands/agent.command.js";
+import { createAgentCommand, type AgentCommandDependencies } from "./commands/agent.command.js";
 import {
   createAssuranceCommand,
   type AssuranceCommandDependencies
 } from "./commands/assurance.command.js";
-import {
-  createBudgetCommand,
-  type BudgetCommandDependencies
-} from "./commands/budget.command.js";
+import { createBudgetCommand, type BudgetCommandDependencies } from "./commands/budget.command.js";
 import {
   createChecklistCommand,
   type ChecklistCommandDependencies
@@ -26,18 +20,9 @@ import {
   createConstitutionCommand,
   type ConstitutionCommandDependencies
 } from "./commands/constitution.command.js";
-import {
-  createDoctorCommand,
-  type DoctorCommandDependencies
-} from "./commands/doctor.command.js";
-import {
-  createDoneCommand,
-  type DoneCommandDependencies
-} from "./commands/done.command.js";
-import {
-  createDriftCommand,
-  type DriftCommandDependencies
-} from "./commands/drift.command.js";
+import { createDoctorCommand, type DoctorCommandDependencies } from "./commands/doctor.command.js";
+import { createDoneCommand, type DoneCommandDependencies } from "./commands/done.command.js";
+import { createDriftCommand, type DriftCommandDependencies } from "./commands/drift.command.js";
 import {
   createAuditCommand,
   createEvalCommand,
@@ -47,10 +32,7 @@ import {
   createContextCommand,
   type ContextCommandDependencies
 } from "./commands/context.command.js";
-import {
-  createInitCommand,
-  type InitCommandDependencies
-} from "./commands/init.command.js";
+import { createInitCommand, type InitCommandDependencies } from "./commands/init.command.js";
 import {
   createIntegrationCommand,
   type IntegrationCommandDependencies
@@ -59,63 +41,27 @@ import {
   createFeatureCommand,
   type FeatureCommandDependencies
 } from "./commands/feature.command.js";
-import {
-  createGateCommand,
-  type GateCommandDependencies
-} from "./commands/gate.command.js";
-import {
-  createHooksCommand,
-  type HooksCommandDependencies
-} from "./commands/hooks.command.js";
-import {
-  createScanCommand,
-  type ScanCommandDependencies
-} from "./commands/scan.command.js";
-import {
-  createPlanCommand,
-  type PlanCommandDependencies
-} from "./commands/plan.command.js";
-import {
-  createPolicyCommand,
-  type PolicyCommandDependencies
-} from "./commands/policy.command.js";
+import { createGateCommand, type GateCommandDependencies } from "./commands/gate.command.js";
+import { createHooksCommand, type HooksCommandDependencies } from "./commands/hooks.command.js";
+import { createScanCommand, type ScanCommandDependencies } from "./commands/scan.command.js";
+import { createPlanCommand, type PlanCommandDependencies } from "./commands/plan.command.js";
+import { createPolicyCommand, type PolicyCommandDependencies } from "./commands/policy.command.js";
 import {
   createOverrideCommand,
   type OverrideCommandDependencies
 } from "./commands/override.command.js";
 import { createOracleCommand, type OracleCommandDependencies } from "./commands/oracle.command.js";
-import {
-  createNextCommand,
-  type NextCommandDependencies
-} from "./commands/next.command.js";
-import {
-  createPrCommand,
-  type PrCommandDependencies
-} from "./commands/pr.command.js";
-import {
-  createReviewCommand,
-  type ReviewCommandDependencies
-} from "./commands/review.command.js";
+import { createNextCommand, type NextCommandDependencies } from "./commands/next.command.js";
+import { createPrCommand, type PrCommandDependencies } from "./commands/pr.command.js";
+import { createReviewCommand, type ReviewCommandDependencies } from "./commands/review.command.js";
 import {
   createReconcileCommand,
   type ReconcileCommandDependencies
 } from "./commands/reconcile.command.js";
-import {
-  createSpecCommand,
-  type SpecCommandDependencies
-} from "./commands/spec.command.js";
-import {
-  createStatusCommand,
-  type StatusCommandDependencies
-} from "./commands/status.command.js";
-import {
-  createTasksCommand,
-  type TasksCommandDependencies
-} from "./commands/tasks.command.js";
-import {
-  createVerifyCommand,
-  type VerifyCommandDependencies
-} from "./commands/verify.command.js";
+import { createSpecCommand, type SpecCommandDependencies } from "./commands/spec.command.js";
+import { createStatusCommand, type StatusCommandDependencies } from "./commands/status.command.js";
+import { createTasksCommand, type TasksCommandDependencies } from "./commands/tasks.command.js";
+import { createVerifyCommand, type VerifyCommandDependencies } from "./commands/verify.command.js";
 import {
   createWorkflowCommand,
   type WorkflowCliDependencies

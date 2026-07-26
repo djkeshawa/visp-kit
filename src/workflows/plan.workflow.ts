@@ -130,11 +130,13 @@ export async function runPlanWorkflow(
     if (!spec.ok) return spec;
     const readiness = validateSpec({ spec: spec.value });
     if (!readiness.passed) {
-      return err(new VispError(
-        "VALIDATION_FAILED",
-        `Specification is incomplete: ${readiness.errors.join(" ")}`,
-        { recovery: "visp spec --validate" }
-      ));
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Specification is incomplete: ${readiness.errors.join(" ")}`,
+          { recovery: "visp spec --validate" }
+        )
+      );
     }
   }
 

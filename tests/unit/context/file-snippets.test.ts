@@ -68,13 +68,15 @@ describe("file snippets", () => {
       "utf8"
     );
 
-    const snippet = expectOk(await extractFileSnippet({
-      rootPath: tempDir,
-      filePath: "store.ts",
-      maxTokens: 50,
-      reason: "task symbol",
-      focusTerms: ["pinNote"]
-    }));
+    const snippet = expectOk(
+      await extractFileSnippet({
+        rootPath: tempDir,
+        filePath: "store.ts",
+        maxTokens: 50,
+        reason: "task symbol",
+        focusTerms: ["pinNote"]
+      })
+    );
 
     expect(snippet?.startLine).toBeGreaterThan(1);
     expect(snippet?.content).toContain("pinNote");

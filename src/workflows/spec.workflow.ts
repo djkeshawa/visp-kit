@@ -15,7 +15,7 @@ import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
 import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
-import { err, ok, type Result } from "../core/result.js";
+import { err, type Result } from "../core/result.js";
 import { renderSpecPrompt } from "../prompts/render-spec-prompt.js";
 import {
   createSpecArtifact,
@@ -73,12 +73,7 @@ async function validateExisting(input: {
     spec.value === undefined
       ? { passed: false, errors: [] }
       : validateSpec({ spec: spec.value, traceability: traceability.value });
-  const errors = [
-    ...textErrors,
-    ...spec.errors,
-    ...traceability.errors,
-    ...semantic.errors
-  ];
+  const errors = [...textErrors, ...spec.errors, ...traceability.errors, ...semantic.errors];
 
   return {
     validation: { passed: errors.length === 0, errors },
@@ -166,11 +161,13 @@ export async function runSpecWorkflow(
     if (!clarifications.ok) return clarifications;
     const readiness = validateClarifications(clarifications.value);
     if (!readiness.passed) {
-      return err(new VispError(
-        "VALIDATION_FAILED",
-        `Clarifications are incomplete: ${readiness.errors.join(" ")}`,
-        { recovery: "visp clarify --validate" }
-      ));
+      return err(
+        new VispError(
+          "VALIDATION_FAILED",
+          `Clarifications are incomplete: ${readiness.errors.join(" ")}`,
+          { recovery: "visp clarify --validate" }
+        )
+      );
     }
   }
 
