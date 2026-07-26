@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
 import { pathExists } from "../../src/core/file-system.js";
+import { packageVersion } from "../../src/core/package-version.js";
 import { runInitWorkflow } from "../../src/workflows/init.workflow.js";
 import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
 
@@ -114,6 +115,10 @@ describe("visp hooks command", () => {
     const contents = await readFile(workflowPath, "utf8");
     expect(contents).toContain("visp policy validate --json");
     expect(contents).toContain("visp gate pr --json");
+    // An evidence gate that installs `latest` cannot produce reproducible
+    // verdicts and changes enforcement on an unrelated release.
+    expect(contents).toContain(`npm install -g visp-kit@${packageVersion()}`);
+    expect(contents).not.toMatch(/npm install -g visp-kit\s*$/mu);
   });
 
   it("dry-run writes nothing", async () => {
@@ -264,9 +269,23 @@ describe("claude pretooluse hook script", () => {
     expect(result.stderr).toContain("unknown strictnessMode");
   });
 
-  it("allows when policy.json is missing entirely", async () => {
+  it("blocks when policy.json is deleted from an initialized project", async () => {
     await installStrictFixtureWithHook();
     await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
+
+    const result = await runClaudeHookWithStdin(tempDir, {
+      tool_name: "Edit",
+      tool_input: { file_path: "src/notes.ts" }
+    });
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("missing from an initialized Visp project");
+  });
+
+  it("allows when .visp exists but the project was never initialized", async () => {
+    await installStrictFixtureWithHook();
+    await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
+    await rm(path.join(tempDir, ".visp", "project.json"), { force: true });
 
     const result = await runClaudeHookWithStdin(tempDir, {
       tool_name: "Edit",
@@ -704,9 +723,20 @@ describe("pre-commit hook script", () => {
     expect(result.stderr).toContain("could not read staged files");
   });
 
-  it("allows when policy.json is missing entirely", async () => {
+  it("blocks when policy.json is deleted from an initialized project", async () => {
     await installStrictGitFixtureWithHook();
     await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
+
+    const result = await runPreCommitHook();
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("missing from an initialized Visp project");
+  });
+
+  it("allows when .visp exists but the project was never initialized", async () => {
+    await installStrictGitFixtureWithHook();
+    await rm(path.join(tempDir, ".visp", "policy.json"), { force: true });
+    await rm(path.join(tempDir, ".visp", "project.json"), { force: true });
 
     const result = await runPreCommitHook();
 

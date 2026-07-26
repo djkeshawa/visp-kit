@@ -28,9 +28,26 @@ describe("diff summary helpers", () => {
     ).toBe(true);
     expect(
       isGeneratedVispReviewFile(
-        ".visp/features/001-example/assurance/T001/decision/history/decision-001.json"
+        `.visp/features/001-example/assurance/T001/review-decisions/${"a".repeat(64)}.json`
       )
     ).toBe(true);
+  });
+
+  it("does not treat arbitrary files under an assurance directory as generated", () => {
+    // A catch-all over the assurance directory would hide anything dropped
+    // there from codeIdentity, currentCodeMatches, scope validation, the
+    // candidate workspace fingerprints, and the hotspot detectors.
+    expect(
+      isGeneratedVispReviewFile(".visp/features/001-example/assurance/T001/smuggled.json")
+    ).toBe(false);
+    expect(
+      isGeneratedVispReviewFile(".visp/features/001-example/assurance/T001/notes/extra.md")
+    ).toBe(false);
+    expect(
+      isGeneratedVispReviewFile(
+        ".visp/features/001-example/assurance/T001/review-decisions/not-a-digest.json"
+      )
+    ).toBe(false);
   });
 
   it.each([

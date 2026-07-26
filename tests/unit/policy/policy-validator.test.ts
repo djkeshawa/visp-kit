@@ -35,6 +35,51 @@ describe("policy validator", () => {
     expect(validation.value?.rules.requireCurrentAssuranceDecisionBeforePr).toBeUndefined();
   });
 
+  it("rejects strict policies that disable the assurance-decision rule", () => {
+    const policy = createDefaultPolicy({
+      strictnessMode: "strict",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const validation = validatePolicyArtifact({
+      ...policy,
+      rules: { ...policy.rules, requireCurrentAssuranceDecisionBeforePr: false }
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(validation.errors.join("\n")).toContain("requireCurrentAssuranceDecisionBeforePr");
+  });
+
+  it("rejects locked policies that disable drift blocking", () => {
+    const policy = createDefaultPolicy({
+      strictnessMode: "locked",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const validation = validatePolicyArtifact({
+      ...policy,
+      rules: { ...policy.rules, blockOnUnresolvedDrift: false }
+    });
+
+    expect(validation.passed).toBe(false);
+    expect(validation.errors.join("\n")).toContain("blockOnUnresolvedDrift");
+  });
+
+  it("still allows standard policies to disable both assurance rules", () => {
+    const policy = createDefaultPolicy({
+      strictnessMode: "standard",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const validation = validatePolicyArtifact({
+      ...policy,
+      rules: {
+        ...policy.rules,
+        requireCurrentAssuranceDecisionBeforePr: false,
+        blockOnUnresolvedDrift: false
+      }
+    });
+
+    expect(validation.passed).toBe(true);
+  });
+
   it("rejects invalid strictness modes and unknown rule fields", () => {
     const policy = createDefaultPolicy({ now: "2026-01-01T00:00:00.000Z" });
     const validation = validatePolicyArtifact({

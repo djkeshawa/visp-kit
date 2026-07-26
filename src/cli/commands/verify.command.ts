@@ -38,6 +38,7 @@ type VerifyCommandOptions = {
   readonly traceability?: boolean;
   readonly scope?: boolean;
   readonly dependencies?: boolean;
+  readonly base?: string;
   readonly updateTaskStatus?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
@@ -62,6 +63,7 @@ function workflowOptions(
     traceability: options.traceability ?? false,
     scope: options.scope ?? false,
     dependencies: options.dependencies ?? false,
+    base: options.base,
     updateTaskStatus: options.updateTaskStatus ?? false,
     force: options.force ?? false,
     dryRun: options.dryRun ?? false,
@@ -94,6 +96,10 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
     .option("--traceability", "Run traceability validation.")
     .option("--scope", "Run task scope validation.")
     .option("--dependencies", "Run dependency-change validation.")
+    .option(
+      "--base <git-ref>",
+      "Also compare against this Git ref, so committed changes are in scope."
+    )
     .option("--update-task-status", "Mark selected task verified when verification passes.")
     .option(
       "--force",

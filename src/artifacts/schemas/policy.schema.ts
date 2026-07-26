@@ -106,6 +106,31 @@ export const policyArtifactSchema = z
       });
     }
 
+    // `strict` and `locked` are claims about enforcement level. Their defaults
+    // enable both assurance rules, so an explicit `false` here is a policy that
+    // calls itself strict while disabling the checks that make it strict. Drop
+    // to `standard` instead. `undefined` stays valid so policy files written
+    // before these rules existed keep validating.
+    if (policy.strictnessMode === "strict" || policy.strictnessMode === "locked") {
+      if (policy.rules.requireCurrentAssuranceDecisionBeforePr === false) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["rules", "requireCurrentAssuranceDecisionBeforePr"],
+          message:
+            "rules.requireCurrentAssuranceDecisionBeforePr cannot be false in strict or locked mode; VSP024 is non-overridable. Use standard mode if PR readiness should not require a current assurance decision."
+        });
+      }
+
+      if (policy.rules.blockOnUnresolvedDrift === false) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["rules", "blockOnUnresolvedDrift"],
+          message:
+            "rules.blockOnUnresolvedDrift cannot be false in strict or locked mode; VSP021 keeps context packs grounded on current artifacts. Use standard mode if unresolved drift should not block."
+        });
+      }
+    }
+
     for (const ruleId of ["VSP019", "VSP020"]) {
       if (!policy.overrides.nonOverridableRules.includes(ruleId)) {
         ctx.addIssue({

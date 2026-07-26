@@ -14,6 +14,7 @@ function gitRunner(
     readonly stagedFiles?: readonly string[];
     readonly unstagedFiles?: readonly string[];
     readonly untrackedFiles?: readonly string[];
+    readonly committedFiles?: readonly string[];
     readonly calls?: Array<readonly string[]>;
   } = {}
 ): CommandRunner {
@@ -45,12 +46,15 @@ function gitRunner(
         });
       }
 
+      const joined = args.join(" ");
       const stdout =
-        args.join(" ") === "diff --name-only -z --"
+        joined === "diff --name-only -z --"
           ? `${(input.unstagedFiles ?? ["src/shared.ts", "src/unstaged.ts"]).join("\0")}\0`
-          : args.join(" ") === "diff --cached --name-only -z --"
+          : joined === "diff --cached --name-only -z --"
             ? `${(input.stagedFiles ?? ["src/staged.ts"]).join("\0")}\0`
-            : "";
+            : joined.startsWith("diff --name-only -z ") && joined.includes("...HEAD")
+              ? `${(input.committedFiles ?? []).join("\0")}\0`
+              : "";
 
       return ok({
         command,
@@ -65,6 +69,56 @@ function gitRunner(
     }
   };
 }
+
+describe("verification Git diff base revision", () => {
+  const committedOnly = {
+    unstagedFiles: [],
+    stagedFiles: [],
+    untrackedFiles: [],
+    committedFiles: ["src/billing.ts"]
+  };
+
+  it("cannot see a committed change without a base revision", async () => {
+    const result = await getGitChangedFiles({
+      targetPath: "/tmp/project",
+      commandRunner: gitRunner(committedOnly)
+    });
+
+    // This is the hole: `git commit` moves the change out of the working tree,
+    // so scope validation stops seeing it entirely.
+    expect(result.changedFiles).toEqual([]);
+  });
+
+  it("sees a committed change when a base revision is supplied", async () => {
+    const result = await getGitChangedFiles({
+      targetPath: "/tmp/project",
+      base: "origin/main",
+      commandRunner: gitRunner(committedOnly)
+    });
+
+    expect(result.changedFiles).toEqual(["src/billing.ts"]);
+  });
+
+  it("flags a committed out-of-scope file once the base revision is compared", async () => {
+    const calls: Array<readonly string[]> = [];
+    const changed = await getGitChangedFiles({
+      targetPath: "/tmp/project",
+      base: "origin/main",
+      commandRunner: gitRunner({ ...committedOnly, calls })
+    });
+    const scope = validateScope({
+      changedFiles: changed.changedFiles,
+      task: validTaskGraph.tasks[0],
+      taskGraph: validTaskGraph,
+      explicit: true,
+      gitWarnings: changed.warnings
+    });
+
+    expect(scope.status).toBe("failed");
+    expect(scope.outOfScopeFiles).toContain("src/billing.ts");
+    expect(calls.some((args) => args.join(" ").includes("origin/main...HEAD"))).toBe(true);
+  });
+});
 
 describe("verification Git diff", () => {
   it("unions untracked source, dependency, forbidden, and out-of-scope paths", async () => {

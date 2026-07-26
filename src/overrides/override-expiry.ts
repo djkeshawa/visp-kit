@@ -36,6 +36,10 @@ export function overrideExpired(input: {
   const expiresAt = new Date(input.expiresAt).getTime();
   const now = new Date(input.now).getTime();
 
-  if (Number.isNaN(expiresAt) || Number.isNaN(now)) return false;
+  // An unparseable expiry or clock leaves the override's validity window
+  // unknown. Treat unknown as expired so a malformed date cannot keep a
+  // gate suppressed forever. The schema rejects malformed values on every
+  // validated read path, so this is the defense-in-depth case.
+  if (Number.isNaN(expiresAt) || Number.isNaN(now)) return true;
   return expiresAt <= now;
 }
