@@ -2,8 +2,16 @@ import { readFile } from "node:fs/promises";
 
 const input = process.argv[2];
 if (!input) throw new Error("usage: node analyze.mjs <runs.jsonl>");
-const runs = (await readFile(input, "utf8")).split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
-const success = (run) => run.failToPassPassed && run.passToPassPassed && !run.scopeViolation && run.requirementsCovered && !run.humanCorrection;
+const runs = (await readFile(input, "utf8"))
+  .split(/\r?\n/u)
+  .filter(Boolean)
+  .map((line) => JSON.parse(line));
+const success = (run) =>
+  run.failToPassPassed &&
+  run.passToPassPassed &&
+  !run.scopeViolation &&
+  run.requirementsCovered &&
+  !run.humanCorrection;
 
 const groups = groupBy(runs, (run) => `${run.modelId}\t${run.condition}`);
 const summaries = [...groups].map(([key, values]) => {
@@ -47,18 +55,25 @@ for (const modelId of new Set(runs.map((run) => run.modelId))) {
       mcnemar: { baselineOnly: b, candidateOnly: c, exactP: exactMcNemar(b, c) },
       medianTokenReduction: baselineTokens === 0 ? null : 1 - candidateTokens / baselineTokens,
       accuracyClaimSupported: ci.lower > 0,
-      efficiencyClaimSupported: ci.lower >= -0.05 && baselineTokens > 0 && candidateTokens <= baselineTokens * 0.8
+      efficiencyClaimSupported:
+        ci.lower >= -0.05 && baselineTokens > 0 && candidateTokens <= baselineTokens * 0.8
     });
   }
 }
 applyHolmCorrection(comparisons);
 
-process.stdout.write(`${JSON.stringify({
-  generatedAt: new Date().toISOString(),
-  primaryOutcome: "composite first-attempt success",
-  groups: summaries,
-  pairedComparisons: comparisons
-}, null, 2)}\n`);
+process.stdout.write(
+  `${JSON.stringify(
+    {
+      generatedAt: new Date().toISOString(),
+      primaryOutcome: "composite first-attempt success",
+      groups: summaries,
+      pairedComparisons: comparisons
+    },
+    null,
+    2
+  )}\n`
+);
 
 function pairRuns(baseline, candidate) {
   const byKey = new Map(candidate.map((run) => [`${run.taskId}\t${run.seed}`, run]));
@@ -73,11 +88,21 @@ function pairedTaskBootstrap(pairs, iterations, seed) {
   const random = mulberry32(seed);
   const estimates = [];
   for (let iteration = 0; iteration < iterations; iteration += 1) {
-    const sampled = Array.from({ length: taskGroups.length }, () => taskGroups[Math.floor(random() * taskGroups.length)]).flat();
-    estimates.push(mean(sampled.map(([base, next]) => Number(success(next)) - Number(success(base)))));
+    const sampled = Array.from(
+      { length: taskGroups.length },
+      () => taskGroups[Math.floor(random() * taskGroups.length)]
+    ).flat();
+    estimates.push(
+      mean(sampled.map(([base, next]) => Number(success(next)) - Number(success(base))))
+    );
   }
   estimates.sort((a, b) => a - b);
-  return { lower: percentile(estimates, 0.025), upper: percentile(estimates, 0.975), iterations, unit: "task" };
+  return {
+    lower: percentile(estimates, 0.025),
+    upper: percentile(estimates, 0.975),
+    iterations,
+    unit: "task"
+  };
 }
 
 function exactMcNemar(b, c) {
@@ -85,7 +110,7 @@ function exactMcNemar(b, c) {
   if (n === 0) return 1;
   const tail = Math.min(b, c);
   let probability = 0;
-  for (let k = 0; k <= tail; k += 1) probability += combination(n, k) * (0.5 ** n);
+  for (let k = 0; k <= tail; k += 1) probability += combination(n, k) * 0.5 ** n;
   return Math.min(1, 2 * probability);
 }
 
@@ -99,11 +124,45 @@ function applyHolmCorrection(items) {
   });
 }
 
-function tokens(run) { return run.inputTokens + run.outputTokens; }
-function mean(values) { return values.reduce((sum, value) => sum + value, 0) / values.length; }
-function median(values) { const sorted = [...values].sort((a, b) => a - b); if (!sorted.length) return null; const m = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2; }
-function percentile(sorted, p) { return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]; }
-function groupBy(values, key) { const map = new Map(); for (const value of values) { const k = key(value); map.set(k, [...(map.get(k) ?? []), value]); } return map; }
-function combination(n, k) { let value = 1; for (let i = 1; i <= k; i += 1) value = value * (n - k + i) / i; return value; }
-function hashSeed(value) { let hash = 2166136261; for (const char of value) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619); return hash >>> 0; }
-function mulberry32(seed) { return () => { let t = seed += 0x6d2b79f5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function tokens(run) {
+  return run.inputTokens + run.outputTokens;
+}
+function mean(values) {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+function median(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const m = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[m] : (sorted[m - 1] + sorted[m]) / 2;
+}
+function percentile(sorted, p) {
+  return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+}
+function groupBy(values, key) {
+  const map = new Map();
+  for (const value of values) {
+    const k = key(value);
+    map.set(k, [...(map.get(k) ?? []), value]);
+  }
+  return map;
+}
+function combination(n, k) {
+  let value = 1;
+  for (let i = 1; i <= k; i += 1) value = (value * (n - k + i)) / i;
+  return value;
+}
+function hashSeed(value) {
+  let hash = 2166136261;
+  for (const char of value) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return hash >>> 0;
+}
+function mulberry32(seed) {
+  return () => {
+    seed += 0x6d2b79f5;
+    let t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}

@@ -62,6 +62,8 @@ describe("agent doctor", () => {
     const summary = expectOk(await runAgentDoctor({ targetPath: tempDir, target: "opencode" }));
 
     expect(summary.result).toBe("warnings");
-    expect(summary.findings.some((finding) => finding.file?.includes("agent-feature.prompt.md"))).toBe(true);
+    expect(
+      summary.findings.some((finding) => finding.file?.includes("agent-feature.prompt.md"))
+    ).toBe(true);
   });
 });

@@ -37,6 +37,12 @@ async function diffNames(input: {
 
 export async function getGitChangedFiles(input: {
   readonly targetPath: string;
+  /**
+   * Compare against this revision as well as the working tree. Without it only
+   * uncommitted work is visible, so committing an out-of-scope change hides it
+   * from scope validation entirely.
+   */
+  readonly base?: string;
   readonly commandRunner?: CommandRunner;
 }): Promise<GitDiffResult> {
   const runner = input.commandRunner ?? defaultCommandRunner;
@@ -54,20 +60,30 @@ export async function getGitChangedFiles(input: {
     targetPath: input.targetPath,
     commandRunner: runner
   });
+  const committed =
+    input.base === undefined
+      ? undefined
+      : await diffNames({
+          targetPath: input.targetPath,
+          args: ["diff", "--name-only", "-z", `${input.base}...HEAD`, "--"],
+          runner
+        });
 
   return {
     changedFiles: [
       ...new Set([
         ...unstaged.changedFiles,
         ...staged.changedFiles,
-        ...(untracked.ok ? untracked.value : [])
+        ...(untracked.ok ? untracked.value : []),
+        ...(committed?.changedFiles ?? [])
       ])
     ].sort(),
     warnings: [
       ...unstaged.warnings,
       ...staged.warnings,
+      ...(committed?.warnings ?? []),
       ...(untracked.ok ? [] : [`Git untracked file enumeration failed: ${untracked.error.message}`])
     ],
-    errors: [...unstaged.errors, ...staged.errors]
+    errors: [...unstaged.errors, ...staged.errors, ...(committed?.errors ?? [])]
   };
 }

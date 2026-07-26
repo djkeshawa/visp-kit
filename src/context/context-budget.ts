@@ -95,8 +95,7 @@ export function contextBudgetPolicy(
   const policy: ContextBudgetPolicy = {
     ...base,
     maxInputTokens: maxTokensOverride ?? base.maxInputTokens,
-    overBudgetTolerancePercent:
-      overBudgetTolerancePercent ?? base.overBudgetTolerancePercent
+    overBudgetTolerancePercent: overBudgetTolerancePercent ?? base.overBudgetTolerancePercent
   };
 
   return policy;

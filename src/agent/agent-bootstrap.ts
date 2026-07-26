@@ -1,12 +1,9 @@
 import path from "node:path";
 
 import { type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
-import {
-  type BudgetMode,
-  type Preset
-} from "../artifacts/schemas/common.schema.js";
+import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
-import { VispError } from "../core/errors.js";
+import { type VispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
 import { relativePath, vispDir } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
@@ -19,10 +16,7 @@ import {
   installedTargetsPath,
   workflowMapPath
 } from "./agent-paths.js";
-import {
-  runAgentInstall,
-  type AgentInstallSummary
-} from "./agent-installer.js";
+import { runAgentInstall, type AgentInstallSummary } from "./agent-installer.js";
 import { claudeTargetFiles } from "./targets/claude.js";
 import { codexTargetFiles } from "./targets/codex.js";
 import { copilotTargetFiles } from "./targets/copilot.js";
@@ -187,21 +181,22 @@ export async function runAgentBootstrap(
 
   if (init !== undefined && !init.ok) return init;
 
-  const install = !initialized.value && dryRun
-    ? await dryRunInstallSummary({
-        targetPath,
-        target: options.target,
-        strictness,
-        force
-      })
-    : await runAgentInstall({
-        targetPath,
-        target: options.target,
-        strictness: initialized.value ? strictness : undefined,
-        force,
-        dryRun,
-        now
-      });
+  const install =
+    !initialized.value && dryRun
+      ? await dryRunInstallSummary({
+          targetPath,
+          target: options.target,
+          strictness,
+          force
+        })
+      : await runAgentInstall({
+          targetPath,
+          target: options.target,
+          strictness: initialized.value ? strictness : undefined,
+          force,
+          dryRun,
+          now
+        });
 
   if (!install.ok) return install;
 
@@ -214,10 +209,7 @@ export async function runAgentBootstrap(
     dryRun,
     init: init?.value,
     install: install.value,
-    warnings: [
-      ...(init?.value.warnings ?? []),
-      ...install.value.warnings
-    ],
+    warnings: [...(init?.value.warnings ?? []), ...install.value.warnings],
     nextCommand: "visp gate next",
     nextInstructions: install.value.nextInstructions
   });

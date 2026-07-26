@@ -1,7 +1,12 @@
 import { type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
 import { duplicateIds, validation } from "./validation-helpers.js";
 import { type WorkflowValidation } from "../workflows/shared/workflow-summary.js";
-import { concreteStrings, concreteText, hasConcreteCommand, placeholderFindings } from "./semantic-lint.js";
+import {
+  concreteStrings,
+  concreteText,
+  hasConcreteCommand,
+  placeholderFindings
+} from "./semantic-lint.js";
 
 export function validatePlan(plan: PlanDraftArtifact): WorkflowValidation {
   const errors: string[] = [
@@ -23,8 +28,14 @@ export function validatePlan(plan: PlanDraftArtifact): WorkflowValidation {
   errors.push(
     ...concreteText({ value: plan.implementationApproach, label: "implementationApproach" }),
     ...concreteText({ value: plan.rollbackStrategy, label: "rollbackStrategy" }),
-    ...concreteStrings({ values: plan.evidence.knownFromSpecification, label: "evidence.knownFromSpecification" }),
-    ...concreteStrings({ values: plan.evidence.knownFromCodebase, label: "evidence.knownFromCodebase" })
+    ...concreteStrings({
+      values: plan.evidence.knownFromSpecification,
+      label: "evidence.knownFromSpecification"
+    }),
+    ...concreteStrings({
+      values: plan.evidence.knownFromCodebase,
+      label: "evidence.knownFromCodebase"
+    })
   );
 
   if (plan.implementationApproach.trim().length === 0) {

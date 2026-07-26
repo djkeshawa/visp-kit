@@ -1,7 +1,4 @@
-import {
-  agentTargetNameSchema,
-  type AgentTargetName
-} from "../artifacts/schemas/agent.schema.js";
+import { agentTargetNameSchema, type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
 
 export type AgentTarget = {
   readonly name: AgentTargetName;

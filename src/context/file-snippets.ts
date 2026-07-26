@@ -25,14 +25,21 @@ export type SnippetOptions = {
   readonly focusTerms?: readonly string[];
 };
 
-function focusedRange(lines: readonly string[], maxTokens: number, terms: readonly string[]): { start: number; end: number } {
-  const normalized = [...new Set(terms.map((term) => term.toLowerCase()).filter((term) => term.length >= 3))];
+function focusedRange(
+  lines: readonly string[],
+  maxTokens: number,
+  terms: readonly string[]
+): { start: number; end: number } {
+  const normalized = [
+    ...new Set(terms.map((term) => term.toLowerCase()).filter((term) => term.length >= 3))
+  ];
   let center = 0;
   let best = 0;
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]?.toLowerCase() ?? "";
     const matches = normalized.filter((term) => line.includes(term)).length;
-    const declarationBonus = /\b(export|function|class|interface|type|def|func|struct|enum)\b/u.test(line) ? 2 : 0;
+    const declarationBonus =
+      /\b(export|function|class|interface|type|def|func|struct|enum)\b/u.test(line) ? 2 : 0;
     const score = matches * 4 + (matches > 0 ? declarationBonus : 0);
     if (score > best) {
       best = score;

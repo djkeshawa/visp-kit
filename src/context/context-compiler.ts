@@ -278,12 +278,12 @@ function tokenizedPack(input: {
       expectedOutput: input.policy.expectedOutputTokens,
       total: inputTokens + input.policy.expectedOutputTokens,
       maxInput: input.policy.maxInputTokens,
-        mode: input.policy.mode,
-        estimator: tokenEstimatorName,
-        lowerBound,
-        upperBound,
-        profile: markdownRange.profile,
-        uncertainty: markdownRange.uncertainty
+      mode: input.policy.mode,
+      estimator: tokenEstimatorName,
+      lowerBound,
+      upperBound,
+      profile: markdownRange.profile,
+      uncertainty: markdownRange.uncertainty
     },
     overBudget,
     recommendation,

@@ -23,7 +23,12 @@ export function validateClarifications(artifact: ClarificationArtifact): Workflo
   for (const question of artifact.questions) {
     errors.push(...concreteText({ value: question.question, label: question.id }));
     errors.push(...concreteText({ value: question.reason, label: `${question.id} reason` }));
-    errors.push(...concreteText({ value: question.recommendedDefault, label: `${question.id} recommended default` }));
+    errors.push(
+      ...concreteText({
+        value: question.recommendedDefault,
+        label: `${question.id} recommended default`
+      })
+    );
     if (question.blocking && question.question.trim().length === 0) {
       errors.push(`${question.id} is blocking and must have question text.`);
     }

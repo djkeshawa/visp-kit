@@ -1,7 +1,4 @@
-import {
-  type AgentTargetName,
-  type AgentWorkflowMap
-} from "../artifacts/schemas/agent.schema.js";
+import { type AgentTargetName, type AgentWorkflowMap } from "../artifacts/schemas/agent.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { renderVispFeatureTemplate } from "./templates/visp-feature.js";
 import { renderVispFixTemplate } from "./templates/visp-fix.js";
@@ -43,12 +40,10 @@ export function renderWorkflowTemplate(
   }
 }
 
-export function renderCodexSkill(
-  workflow: AgentWorkflowName,
-  strictness: StrictnessMode
-): string {
+export function renderCodexSkill(workflow: AgentWorkflowName, strictness: StrictnessMode): string {
   const descriptions: Record<AgentWorkflowName, string> = {
-    feature: "Use this when the user asks to implement a feature through Visp Kit. Treat the user request as raw intent, run the Visp workflow, implement only one scoped task, and stop on failed gates.",
+    feature:
+      "Use this when the user asks to implement a feature through Visp Kit. Treat the user request as raw intent, run the Visp workflow, implement only one scoped task, and stop on failed gates.",
     task: "Use this when the user asks to continue with the next Visp task or implement the current Visp task.",
     fix: "Use this when Visp verification, review, or reconciliation failed and the user wants a scoped repair.",
     review: "Use this when the user asks for a review-only pass through Visp Kit.",
@@ -78,7 +73,8 @@ ${renderWorkflowTemplate(workflow, strictness)}`;
 
 export function renderCursorRule(workflow: AgentWorkflowName, strictness: StrictnessMode): string {
   const descriptions: Record<AgentWorkflowName, string> = {
-    feature: "Visp Kit feature workflow. Apply when the user asks to implement a feature through Visp Kit.",
+    feature:
+      "Visp Kit feature workflow. Apply when the user asks to implement a feature through Visp Kit.",
     task: "Visp Kit task workflow. Apply when the user asks to continue or implement the current Visp task.",
     fix: "Visp Kit fix workflow. Apply when Visp verification, review, or reconciliation failed.",
     review: "Visp Kit review workflow. Apply for review-only passes through Visp Kit.",
@@ -105,7 +101,10 @@ alwaysApply: true
 ${renderAgentsMarkdown({ target: "cursor", strictness: input.strictness })}`;
 }
 
-export function renderGeminiCommand(workflow: AgentWorkflowName, strictness: StrictnessMode): string {
+export function renderGeminiCommand(
+  workflow: AgentWorkflowName,
+  strictness: StrictnessMode
+): string {
   const descriptions: Record<AgentWorkflowName, string> = {
     feature: "Run the Visp Kit feature workflow for a raw feature request.",
     task: "Continue or implement the current Visp task only.",
@@ -259,9 +258,7 @@ function entrypointForTarget(target: AgentTargetName, workflow: AgentWorkflowNam
   }
 }
 
-export function buildWorkflowMap(input: {
-  readonly target: AgentTargetName;
-}): AgentWorkflowMap {
+export function buildWorkflowMap(input: { readonly target: AgentTargetName }): AgentWorkflowMap {
   return {
     workflows: [
       {
@@ -269,8 +266,19 @@ export function buildWorkflowMap(input: {
         name: "visp-feature",
         purpose: "Start or continue a feature through the full Visp workflow.",
         entrypointFile: entrypointForTarget(input.target, "feature"),
-        requiredVispCommands: ["visp status", "visp policy validate", "visp gate next", "visp context --next"],
-        hardStops: ["failed gate", "missing context", "failed verification", "failed review", "failed reconcile"],
+        requiredVispCommands: [
+          "visp status",
+          "visp policy validate",
+          "visp gate next",
+          "visp context --next"
+        ],
+        hardStops: [
+          "failed gate",
+          "missing context",
+          "failed verification",
+          "failed review",
+          "failed reconcile"
+        ],
         nextRecommendedCommand: "visp next"
       },
       {
@@ -278,7 +286,11 @@ export function buildWorkflowMap(input: {
         name: "visp-task",
         purpose: "Implement the next/current Visp task only.",
         entrypointFile: entrypointForTarget(input.target, "task"),
-        requiredVispCommands: ["visp status", "visp gate next", "visp gate implement --task <task-id>"],
+        requiredVispCommands: [
+          "visp status",
+          "visp gate next",
+          "visp gate implement --task <task-id>"
+        ],
         hardStops: ["failed gate", "missing context", "unclear task"],
         nextRecommendedCommand: "visp verify --task <task-id>"
       },
@@ -287,7 +299,12 @@ export function buildWorkflowMap(input: {
         name: "visp-fix",
         purpose: "Repair verification, review, or reconciliation failures.",
         entrypointFile: entrypointForTarget(input.target, "fix"),
-        requiredVispCommands: ["visp status", "visp verify --task <task-id>", "visp review --task <task-id>", "visp reconcile --task <task-id> --update-traceability"],
+        requiredVispCommands: [
+          "visp status",
+          "visp verify --task <task-id>",
+          "visp review --task <task-id>",
+          "visp reconcile --task <task-id> --update-traceability"
+        ],
         hardStops: ["unrelated scope", "unapproved dependency", "forbidden file"],
         nextRecommendedCommand: "visp next"
       },
@@ -296,7 +313,11 @@ export function buildWorkflowMap(input: {
         name: "visp-review",
         purpose: "Run a review-only pass.",
         entrypointFile: entrypointForTarget(input.target, "review"),
-        requiredVispCommands: ["visp status", "visp gate review --task <task-id>", "visp review --task <task-id>"],
+        requiredVispCommands: [
+          "visp status",
+          "visp gate review --task <task-id>",
+          "visp review --task <task-id>"
+        ],
         hardStops: ["failed review gate", "missing verification in strict mode"],
         nextRecommendedCommand: "visp reconcile --task <task-id> --update-traceability"
       },
@@ -313,9 +334,7 @@ export function buildWorkflowMap(input: {
   };
 }
 
-export function buildWorkflowMapForTargets(
-  targets: readonly AgentTargetName[]
-): AgentWorkflowMap {
+export function buildWorkflowMapForTargets(targets: readonly AgentTargetName[]): AgentWorkflowMap {
   return {
     workflows: targets.flatMap((target) => buildWorkflowMap({ target }).workflows)
   };

@@ -1,7 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["taskId", "condition", "modelId", "seed", "failToPassPassed", "passToPassPassed", "scopeViolation", "requirementsCovered", "humanCorrection", "inputTokens", "outputTokens", "wallTimeMs"],
+  "required": [
+    "taskId",
+    "condition",
+    "modelId",
+    "seed",
+    "failToPassPassed",
+    "passToPassPassed",
+    "scopeViolation",
+    "requirementsCovered",
+    "humanCorrection",
+    "inputTokens",
+    "outputTokens",
+    "wallTimeMs"
+  ],
   "properties": {
     "taskId": { "type": "string" },
     "condition": { "type": "string" },

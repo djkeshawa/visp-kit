@@ -25,10 +25,7 @@ import {
   installedTargetsPath,
   workflowMapPath
 } from "./agent-paths.js";
-import {
-  buildWorkflowMapForTargets,
-  renderAgentGuide
-} from "./agent-renderer.js";
+import { buildWorkflowMapForTargets, renderAgentGuide } from "./agent-renderer.js";
 import { agentCapabilitiesPlannedFile } from "./agent-capabilities.js";
 import {
   writeAgentPlannedFile,
@@ -149,7 +146,9 @@ function nextInstructions(target: AgentTargetName): string {
   }
 }
 
-function bucketActions(actions: readonly { readonly path: string; readonly action: AgentFileAction }[]): {
+function bucketActions(
+  actions: readonly { readonly path: string; readonly action: AgentFileAction }[]
+): {
   readonly createdFiles: readonly string[];
   readonly skippedFiles: readonly string[];
   readonly overwrittenFiles: readonly string[];
@@ -158,7 +157,9 @@ function bucketActions(actions: readonly { readonly path: string; readonly actio
   return {
     createdFiles: actions.filter((item) => item.action === "created").map((item) => item.path),
     skippedFiles: actions.filter((item) => item.action === "skipped").map((item) => item.path),
-    overwrittenFiles: actions.filter((item) => item.action === "overwritten").map((item) => item.path),
+    overwrittenFiles: actions
+      .filter((item) => item.action === "overwritten")
+      .map((item) => item.path),
     updatedFiles: actions.filter((item) => item.action === "updated").map((item) => item.path)
   };
 }
@@ -168,8 +169,17 @@ async function targetFiles(input: {
   readonly target: AgentTargetName;
   readonly strictness: StrictnessMode;
   readonly force: boolean;
-}): Promise<Result<{ readonly files: readonly AgentPlannedFile[]; readonly warnings: readonly string[] }, VispError>> {
-  const shouldPlanAgentsFile = input.target === "codex" || input.target === "generic" || input.target === "copilot" || input.target === "opencode";
+}): Promise<
+  Result<
+    { readonly files: readonly AgentPlannedFile[]; readonly warnings: readonly string[] },
+    VispError
+  >
+> {
+  const shouldPlanAgentsFile =
+    input.target === "codex" ||
+    input.target === "generic" ||
+    input.target === "copilot" ||
+    input.target === "opencode";
   const agentsExists = shouldPlanAgentsFile
     ? await pathExists(agentsMarkdownPath(input.targetPath))
     : input.target === "gemini"
@@ -236,9 +246,7 @@ function nextMetadata(input: {
   readonly targetFilePaths: readonly string[];
   readonly warnings: readonly string[];
 }): InstalledAgentTargets {
-  const existing = input.metadata.installedTargets.find(
-    (target) => target.target === input.target
-  );
+  const existing = input.metadata.installedTargets.find((target) => target.target === input.target);
   const nextTarget: InstalledAgentTarget = {
     target: input.target,
     strictnessMode: input.strictness,

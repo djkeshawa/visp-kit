@@ -33,6 +33,7 @@ type ReviewDecisionCommandOptions = {
   readonly feature?: string;
   readonly task: string;
   readonly reviewer: string;
+  readonly signKey?: string;
   readonly reason: string;
   readonly reviewedHotspot?: string[];
   readonly dryRun?: boolean;
@@ -101,6 +102,10 @@ export function createAssuranceCommand(dependencies: AssuranceCommandDependencie
       .requiredOption("--task <task-id>", "Task to review.")
       .requiredOption("--reviewer <reviewer-id>", "Self-declared accountable reviewer.")
       .requiredOption("--reason <reason>", "Meaningful review rationale.")
+      .option(
+        "--sign-key <path>",
+        "SSH private key that signs the decision hash. Without it the reviewer is only self-declared."
+      )
       .option("--feature <feature>", "Feature ID, slug, or folder name.")
       .option(
         "--reviewed-hotspot <hotspot-id>",
@@ -117,6 +122,7 @@ export function createAssuranceCommand(dependencies: AssuranceCommandDependencie
           feature: options.feature,
           taskId: options.task,
           reviewerId: options.reviewer,
+          signKeyPath: options.signKey,
           reason: options.reason,
           reviewedHotspotIds: options.reviewedHotspot ?? [],
           decision,

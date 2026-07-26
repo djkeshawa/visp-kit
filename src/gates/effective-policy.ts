@@ -2,7 +2,11 @@ import { policyArtifactPath } from "../artifacts/artifact-paths.js";
 import { type PolicyArtifact, type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { pathExists } from "../core/file-system.js";
 import { vispDir } from "../core/paths.js";
-import { createDefaultPolicy } from "../policy/policy-defaults.js";
+import {
+  createDefaultPolicy,
+  raisePolicyStrictness,
+  strictnessRank
+} from "../policy/policy-defaults.js";
 import { defaultPolicyStrictness, readPolicyFile } from "../policy/policy-loader.js";
 
 export type EffectiveGatePolicy = {
@@ -92,11 +96,34 @@ export async function loadEffectiveGatePolicy(input: {
     };
   }
 
+  // A runtime override may only raise strictness. Lowering it would let a
+  // single CLI flag void the policy file — including the non-overridable
+  // VSP023/VSP024 rules that the override system deliberately refuses to
+  // touch — with no reason, no audit record, and no overrides.json entry.
+  // Lowering must go through the policy file, which is reviewable.
+  if (strictnessRank(input.strictness) < strictnessRank(loaded.value.policy.strictnessMode)) {
+    errors.push(
+      `Runtime strictness ${input.strictness} is lower than the project policy ` +
+        `${loaded.value.policy.strictnessMode}. A runtime override cannot weaken policy; ` +
+        `change .visp/policy.json (visp policy set-strictness ${input.strictness}) instead.`
+    );
+    return {
+      initialized: true,
+      policy: loaded.value.policy,
+      policyExists: true,
+      policyValid: false,
+      policySource: "file",
+      warnings,
+      errors
+    };
+  }
+
   warnings.push(`Runtime strictness override active: ${input.strictness}.`);
   return {
     initialized: true,
-    policy: createDefaultPolicy({
-      strictnessMode: input.strictness,
+    policy: raisePolicyStrictness({
+      policy: loaded.value.policy,
+      mode: input.strictness,
       now: input.now
     }),
     policyExists: true,

@@ -58,8 +58,37 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     /^\.visp\/features\/[^/]+\/reconcile\.(json|md)$/.test(filePath) ||
     /^\.visp\/features\/[^/]+\/reconcile-prompt\.md$/.test(filePath) ||
     /^\.visp\/features\/[^/]+\/verification\.(json|md)$/.test(filePath) ||
-    /^\.visp\/features\/[^/]+\/assurance\/[^/]+\/(?:.+\/)?[^/]+\.(json|md)$/.test(filePath)
+    isGeneratedAssuranceFile(filePath)
   );
+}
+
+const generatedAssuranceFileNames = new Set([
+  "assurance-case.json",
+  "assurance-case.md",
+  "baseline-evidence.json",
+  "candidate-evidence.json",
+  "diff-snapshot.json",
+  "oracle-approval.json",
+  "oracle-lock.json",
+  "oracle-plan.json",
+  "review-decision.json"
+]);
+
+/**
+ * Only the files Visp itself writes under an assurance directory count as
+ * generated. A catch-all over the directory would also hide anything an agent
+ * dropped there from `codeIdentity`, `currentCodeMatches`, scope validation,
+ * the candidate workspace fingerprints, and the hotspot detectors.
+ */
+function isGeneratedAssuranceFile(filePath: string): boolean {
+  const assurance = /^\.visp\/features\/[^/]+\/assurance\/[^/]+\/(.+)$/.exec(filePath);
+
+  if (assurance === null) return false;
+
+  const remainder = assurance[1] ?? "";
+  const history = /^review-decisions\/([a-f0-9]{64})\.json$/.exec(remainder);
+
+  return history !== null || generatedAssuranceFileNames.has(remainder);
 }
 
 export function summarizeDiff(input: {

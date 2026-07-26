@@ -89,6 +89,12 @@ export type VerifyWorkflowOptions = {
   readonly traceability?: boolean;
   readonly scope?: boolean;
   readonly dependencies?: boolean;
+  /**
+   * Git ref to compare against in addition to the working tree. Without it
+   * scope validation only sees uncommitted work, so `git commit` hides an
+   * out-of-scope change from VSP011/VSP012.
+   */
+  readonly base?: string;
   readonly updateTaskStatus?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
@@ -519,6 +525,7 @@ export async function runVerifyWorkflow(
     checks.scope || checks.dependencies
       ? await getGitChangedFiles({
           targetPath,
+          base: options.base,
           commandRunner: options.commandRunner
         })
       : { changedFiles: [], warnings: [], errors: [] };

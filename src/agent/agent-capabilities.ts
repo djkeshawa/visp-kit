@@ -151,9 +151,15 @@ function capabilityFor(input: {
         canRunShellExpected: true,
         canEditFilesExpected: true,
         tokenUsageVisibility: "manual",
-        recommendedWorkflowTriggers: [".visp/prompts/agent-feature.prompt.md", ".visp/prompts/agent-task.prompt.md"],
+        recommendedWorkflowTriggers: [
+          ".visp/prompts/agent-feature.prompt.md",
+          ".visp/prompts/agent-task.prompt.md"
+        ],
         generatedFiles: [...input.files],
-        limitations: [...baseLimitations(), "OpenCode reads AGENTS.md-compatible guidance; prompts may need to be pasted into the active session."]
+        limitations: [
+          ...baseLimitations(),
+          "OpenCode reads AGENTS.md-compatible guidance; prompts may need to be pasted into the active session."
+        ]
       };
   }
 }

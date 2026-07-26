@@ -158,6 +158,12 @@ export const policyRuleDefinitions: readonly PolicyRuleDefinition[] = [
     key: "requireCurrentAssuranceDecisionBeforePr",
     name: "require_current_assurance_decision_before_pr",
     description: "PR readiness requires a current human assurance decision when applicable."
+  },
+  {
+    id: "VSP025",
+    key: "requireSignedAssuranceDecision",
+    name: "require_signed_assurance_decision",
+    description: "A human assurance decision must carry a verified signature, not a typed name."
   }
 ];
 
@@ -187,7 +193,8 @@ const allRulesOff: PolicyRules = {
   blockOnUnresolvedDrift: false,
   preventAssuranceProfileLowering: true,
   requireOracleLockBeforeImplementation: false,
-  requireCurrentAssuranceDecisionBeforePr: false
+  requireCurrentAssuranceDecisionBeforePr: false,
+  requireSignedAssuranceDecision: false
 };
 
 const strictRules: PolicyRules = {
@@ -214,7 +221,8 @@ const strictRules: PolicyRules = {
   blockOnUnresolvedDrift: true,
   preventAssuranceProfileLowering: true,
   requireOracleLockBeforeImplementation: false,
-  requireCurrentAssuranceDecisionBeforePr: true
+  requireCurrentAssuranceDecisionBeforePr: true,
+  requireSignedAssuranceDecision: true
 };
 
 const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {
@@ -281,33 +289,112 @@ const overridesByStrictness: Record<StrictnessMode, PolicyOverrides> = {
     requireReason: false,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   },
   standard: {
     allowed: true,
     requireReason: true,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   },
   strict: {
     allowed: true,
     requireReason: true,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   },
   locked: {
     allowed: false,
     requireReason: true,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   }
 };
 
 export function policyRulesForStrictness(mode: StrictnessMode): PolicyRules {
   return { ...rulesByStrictness[mode] };
+}
+
+export const strictnessOrder = ["relaxed", "standard", "strict", "locked"] as const;
+
+export function strictnessRank(mode: StrictnessMode): number {
+  return strictnessOrder.indexOf(mode);
+}
+
+function stricterRules(current: PolicyRules, target: PolicyRules): PolicyRules {
+  const merged: Record<string, boolean | undefined> = { ...target };
+
+  // Every rule is a "require"/"block" flag, so `true` is always the stricter
+  // value. A project that hand-enabled a rule its strictness preset leaves off
+  // keeps that rule when the mode is raised.
+  for (const key of policyRuleKeys) {
+    const currentValue = (current as Record<string, boolean | undefined>)[key];
+    const targetValue = (target as Record<string, boolean | undefined>)[key];
+
+    merged[key] =
+      currentValue === true || targetValue === true
+        ? true
+        : currentValue === undefined && targetValue === undefined
+          ? undefined
+          : false;
+  }
+
+  return merged as PolicyRules;
+}
+
+function stricterLimits(current: PolicyLimits, target: PolicyLimits): PolicyLimits {
+  const merged: Record<string, number> = {};
+
+  // Every limit is an upper bound, so the lower value is the stricter one.
+  for (const key of Object.keys(target)) {
+    const currentValue = (current as Record<string, number>)[key];
+    const targetValue = (target as Record<string, number>)[key];
+    merged[key] = Math.min(currentValue ?? targetValue, targetValue);
+  }
+
+  return merged as PolicyLimits;
+}
+
+/**
+ * Raise `policy` to `mode` without weakening anything it already declares.
+ *
+ * A runtime `--strictness` override must not silently discard project settings
+ * the strictness presets do not model — `assurance.profile` in particular, which
+ * is what makes VSP022 and VSP023 apply. Rules OR together, limits take the
+ * lower bound, and `nonOverridableRules` union.
+ */
+export function raisePolicyStrictness(input: {
+  readonly policy: PolicyArtifact;
+  readonly mode: StrictnessMode;
+  readonly now: string;
+}): PolicyArtifact {
+  const target = createDefaultPolicy({ strictnessMode: input.mode, now: input.now });
+  const { policy } = input;
+
+  return {
+    ...policy,
+    strictnessMode: input.mode,
+    rules: stricterRules(policy.rules, target.rules),
+    limits: stricterLimits(policy.limits, target.limits),
+    overrides: {
+      ...target.overrides,
+      allowed: policy.overrides.allowed && target.overrides.allowed,
+      allowedInLockedMode:
+        policy.overrides.allowedInLockedMode && target.overrides.allowedInLockedMode,
+      requireReason: policy.overrides.requireReason || target.overrides.requireReason,
+      recordInReports: policy.overrides.recordInReports || target.overrides.recordInReports,
+      nonOverridableRules: [
+        ...new Set([
+          ...target.overrides.nonOverridableRules,
+          ...policy.overrides.nonOverridableRules
+        ])
+      ].sort()
+    },
+    updatedAt: input.now
+  };
 }
 
 export function createDefaultPolicy(input: {

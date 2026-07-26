@@ -18,6 +18,12 @@ export type RunCommandOptions = {
   readonly executionMode?: CommandExecutionMode;
   readonly stdioMode?: CommandStdioMode;
   readonly shell?: boolean | string;
+  /**
+   * Written to the child's stdin, which is then closed. Only honored in the
+   * default "capture" stdio mode. Lets callers feed data to tools that read
+   * from stdin without shell redirection, and therefore without quoting.
+   */
+  readonly stdin?: string;
 };
 
 export type CommandResult = {
@@ -90,7 +96,7 @@ export async function runCommand(
         ? "inherit"
         : stdioMode === "file" && fileCapture !== undefined
           ? ["inherit", fileCapture.stdoutFd, fileCapture.stderrFd]
-          : ["ignore", "pipe", "pipe"];
+          : [options.stdin === undefined ? "ignore" : "pipe", "pipe", "pipe"];
 
     const child: ChildProcess = spawn(command, [...args], {
       cwd: options.cwd,
@@ -175,6 +181,13 @@ export async function runCommand(
               if (!settled) child.kill("SIGKILL");
             }, 250);
           }, options.timeoutMs);
+
+    if (options.stdin !== undefined && child.stdin !== null) {
+      // A child that exits before reading raises EPIPE here; the exit code is
+      // the meaningful signal, so do not fail the run on a broken pipe.
+      child.stdin.on("error", () => undefined);
+      child.stdin.end(options.stdin);
+    }
 
     child.stdout?.setEncoding("utf8");
     child.stderr?.setEncoding("utf8");
