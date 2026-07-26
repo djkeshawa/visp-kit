@@ -53,6 +53,7 @@ import { loadAssuranceInputs } from "../assurance/assurance-inputs.js";
 import { deriveCandidateStateSha } from "../assurance/assurance-semantics.js";
 import { hashOracleValue } from "../oracle/oracle-authorization.js";
 import { createReviewDecisionHash } from "./review-decision-hash.js";
+import { signDecisionHash, verifyDecisionSignature } from "./review-decision-signature.js";
 import { captureDiffSnapshot } from "../assurance/diff-snapshot.js";
 import { isGeneratedVispReviewFile } from "./diff-summary.js";
 
@@ -95,6 +96,11 @@ export type ReviewDecisionWorkflowOptions = {
   readonly reason?: string;
   readonly reviewedHotspotIds?: readonly string[];
   readonly decision: "accept" | "reject";
+  /**
+   * SSH private key used to sign the decision hash. Without it the decision is
+   * recorded as `self_declared`: the reviewer ID is whatever the caller typed.
+   */
+  readonly signKeyPath?: string;
   readonly dryRun?: boolean;
   readonly now?: string;
   readonly commandRunner?: CommandRunner;
@@ -907,6 +913,26 @@ async function evaluateLoadedCurrentReviewDecision(
       decisionHash: decision.decisionHash
     });
   }
+  // A decision that claims a signature must actually carry an intact one. This
+  // runs here rather than in the schema because ssh-keygen is a subprocess and
+  // Zod refinements are synchronous; see ADR 0003.
+  if (decision.signature !== undefined) {
+    const verified = await verifyDecisionSignature({
+      decisionHash: decision.decisionHash,
+      signature: decision.signature,
+      commandRunner: input.commandRunner
+    });
+    if (!verified.ok || !verified.value.verified) {
+      return ok({
+        status: "invalid",
+        reason: verified.ok
+          ? `Review decision signature is not valid. ${verified.value.reason}`
+          : `Review decision signature could not be verified. ${verified.error.message}`,
+        caseHash: assuranceCase.caseHash,
+        decisionHash: decision.decisionHash
+      });
+    }
+  }
   return ok({
     status: decision.decision === "reject" ? "rejected" : "current",
     reason:
@@ -1112,7 +1138,9 @@ export async function runReviewDecisionWorkflow(
     taskId: assuranceCase.taskId,
     assuranceProfile: assuranceCase.assuranceProfile,
     reviewerId,
-    identityAssurance: "self_declared" as const,
+    identityAssurance: (options.signKeyPath === undefined ? "self_declared" : "ssh_signed") as
+      | "self_declared"
+      | "ssh_signed",
     decision: options.decision,
     reason,
     reviewedHotspotIds: requestedHotspots,
@@ -1135,9 +1163,24 @@ export async function runReviewDecisionWorkflow(
     supersedesDecisionHash: previous.value?.decisionHash ?? null,
     decidedAt
   };
+  const decisionHash = createReviewDecisionHash(withoutHash);
+  // The signature covers `decisionHash`, which already commits to the whole
+  // canonical body, and is stored outside it so the content-addressed history
+  // filename stays derived from the hash alone.
+  const signature =
+    options.signKeyPath === undefined
+      ? undefined
+      : await signDecisionHash({
+          decisionHash,
+          keyPath: options.signKeyPath,
+          signedAt: decidedAt,
+          commandRunner: options.commandRunner
+        });
+  if (signature !== undefined && !signature.ok) return signature;
   const candidate = {
     ...withoutHash,
-    decisionHash: createReviewDecisionHash(withoutHash)
+    decisionHash,
+    ...(signature === undefined ? {} : { signature: signature.value })
   };
   const parsed = reviewDecisionSchema.safeParse(candidate);
   if (!parsed.success) {

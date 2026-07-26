@@ -158,6 +158,12 @@ export const policyRuleDefinitions: readonly PolicyRuleDefinition[] = [
     key: "requireCurrentAssuranceDecisionBeforePr",
     name: "require_current_assurance_decision_before_pr",
     description: "PR readiness requires a current human assurance decision when applicable."
+  },
+  {
+    id: "VSP025",
+    key: "requireSignedAssuranceDecision",
+    name: "require_signed_assurance_decision",
+    description: "A human assurance decision must carry a verified signature, not a typed name."
   }
 ];
 
@@ -187,7 +193,8 @@ const allRulesOff: PolicyRules = {
   blockOnUnresolvedDrift: false,
   preventAssuranceProfileLowering: true,
   requireOracleLockBeforeImplementation: false,
-  requireCurrentAssuranceDecisionBeforePr: false
+  requireCurrentAssuranceDecisionBeforePr: false,
+  requireSignedAssuranceDecision: false
 };
 
 const strictRules: PolicyRules = {
@@ -214,7 +221,8 @@ const strictRules: PolicyRules = {
   blockOnUnresolvedDrift: true,
   preventAssuranceProfileLowering: true,
   requireOracleLockBeforeImplementation: false,
-  requireCurrentAssuranceDecisionBeforePr: true
+  requireCurrentAssuranceDecisionBeforePr: true,
+  requireSignedAssuranceDecision: true
 };
 
 const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {
@@ -281,28 +289,28 @@ const overridesByStrictness: Record<StrictnessMode, PolicyOverrides> = {
     requireReason: false,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   },
   standard: {
     allowed: true,
     requireReason: true,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   },
   strict: {
     allowed: true,
     requireReason: true,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   },
   locked: {
     allowed: false,
     requireReason: true,
     recordInReports: true,
     allowedInLockedMode: false,
-    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024"]
+    nonOverridableRules: ["VSP019", "VSP020", "VSP023", "VSP024", "VSP025"]
   }
 };
 

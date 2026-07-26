@@ -1,4 +1,10 @@
-export const defaultNonOverridableRules = ["VSP019", "VSP020", "VSP023", "VSP024"] as const;
+export const defaultNonOverridableRules = [
+  "VSP019",
+  "VSP020",
+  "VSP023",
+  "VSP024",
+  "VSP025"
+] as const;
 
 export function nonOverridableMessage(ruleId: string): string {
   if (ruleId === "VSP019") {
@@ -15,6 +21,10 @@ export function nonOverridableMessage(ruleId: string): string {
 
   if (ruleId === "VSP024") {
     return "VSP024 cannot be overridden because PR readiness must use a current human assurance decision.";
+  }
+
+  if (ruleId === "VSP025") {
+    return "VSP025 cannot be overridden because a typed reviewer name is not an accountable human decision.";
   }
 
   return `${ruleId} cannot be overridden.`;

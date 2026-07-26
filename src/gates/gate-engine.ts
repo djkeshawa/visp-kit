@@ -186,6 +186,33 @@ async function reviewDecisionChecks(input: {
     ];
   }
   const { required, currentness } = evaluated.value;
+  const signatureRequired =
+    input.context.policy.policy.rules.requireSignedAssuranceDecision === true;
+  // Only meaningful once a decision exists; VSP024 already covers its absence.
+  const signatureChecks: GateEvaluation["checks"] =
+    signatureRequired && currentness.decision !== undefined
+      ? [
+          {
+            ruleId: "VSP025",
+            passed: currentness.decision.identityAssurance === "ssh_signed",
+            ...(currentness.decision.identityAssurance === "ssh_signed"
+              ? {}
+              : { severity: "error" as const }),
+            message:
+              currentness.decision.identityAssurance === "ssh_signed"
+                ? "The assurance decision carries a verified signature."
+                : "The assurance decision records a self-declared reviewer, not a verified signature.",
+            recommendation:
+              currentness.decision.identityAssurance === "ssh_signed"
+                ? "Continue."
+                : `Re-record the decision with visp assurance accept --task ${task.id} --sign-key <path-to-ssh-key>.`,
+            evidence:
+              currentness.decision.signature === undefined
+                ? `identityAssurance=${currentness.decision.identityAssurance}`
+                : `key=${currentness.decision.signature.keyFingerprint}`
+          }
+        ]
+      : [];
   const rejected = currentness.status === "rejected";
   const passed = required
     ? currentness.status === "current"
@@ -197,6 +224,7 @@ async function reviewDecisionChecks(input: {
         ? `Run visp assurance generate --task ${task.id}.`
         : `Run visp assurance accept --task ${task.id} --reviewer <id> --reason "<reason>" --reviewed-hotspot <id>.`;
   return [
+    ...signatureChecks,
     {
       ruleId: "VSP024",
       passed,

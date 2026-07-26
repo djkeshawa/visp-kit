@@ -32,7 +32,8 @@ export const policyRulesSchema = z
     blockOnUnresolvedDrift: z.boolean().optional(),
     preventAssuranceProfileLowering: z.boolean().optional(),
     requireOracleLockBeforeImplementation: z.boolean().optional(),
-    requireCurrentAssuranceDecisionBeforePr: z.boolean().optional()
+    requireCurrentAssuranceDecisionBeforePr: z.boolean().optional(),
+    requireSignedAssuranceDecision: z.boolean().optional()
   })
   .strict();
 
