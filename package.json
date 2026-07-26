@@ -28,14 +28,17 @@
     "visp": "dist/index.js"
   },
   "files": [
+    "AGENTS.md",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "SECURITY.md",
+    "TRADEMARKS.md",
     "dist",
     "docs",
     "examples",
     "schemas",
-    "scripts",
-    "README.md",
-    "AGENTS.md",
-    "LICENSE"
+    "scripts"
   ],
   "scripts": {
     "build": "tsup",
