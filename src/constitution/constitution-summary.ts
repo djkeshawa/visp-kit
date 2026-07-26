@@ -1,6 +1,7 @@
 import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { type CompactValidationResult } from "./validate-compact-constitution.js";
+import { isStale } from "../agent/agent-file-plan.js";
 
 export type ConstitutionFileAction = {
   readonly path: string;
@@ -14,6 +15,7 @@ export type ConstitutionSummary = {
   readonly budget: BudgetMode;
   readonly createdFiles: readonly string[];
   readonly skippedFiles: readonly string[];
+  readonly staleFiles: readonly string[];
   readonly overwrittenFiles: readonly string[];
   readonly dryRun: boolean;
   readonly validation: CompactValidationResult;
@@ -41,6 +43,7 @@ export function createConstitutionSummary(input: {
     skippedFiles: input.actions
       .filter((entry) => entry.action === "skipped")
       .map((entry) => entry.path),
+    staleFiles: input.actions.filter((entry) => isStale(entry.action)).map((entry) => entry.path),
     overwrittenFiles: input.actions
       .filter((entry) => entry.action === "overwritten")
       .map((entry) => entry.path),
@@ -61,6 +64,7 @@ export function formatConstitutionSummary(summary: ConstitutionSummary): string 
     "",
     formatKeyValue("Created", `${summary.createdFiles.length} files`),
     formatKeyValue("Skipped", `${summary.skippedFiles.length} files`),
+    formatKeyValue("Stale (needs --force)", `${summary.staleFiles.length} files`),
     formatKeyValue("Overwritten", `${summary.overwrittenFiles.length} files`),
     formatKeyValue("Validation", summary.validation.passed ? "passed" : "failed")
   ];

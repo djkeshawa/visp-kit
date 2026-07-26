@@ -2,6 +2,7 @@ import { type ProjectWorkflowState } from "../../artifacts/schemas/project.schem
 import { formatHeader, formatKeyValue } from "../../theme/terminal.js";
 import { type ActiveFeature } from "./active-feature.js";
 import { type WorkflowFileAction } from "./generated-files.js";
+import { isStale } from "../../agent/agent-file-plan.js";
 
 export type WorkflowValidation = {
   readonly passed: boolean;
@@ -21,6 +22,7 @@ export type TemplateWorkflowSummary = {
   };
   readonly createdFiles: readonly string[];
   readonly skippedFiles: readonly string[];
+  readonly staleFiles: readonly string[];
   readonly overwrittenFiles: readonly string[];
   readonly updatedFiles: readonly string[];
   readonly validated: boolean;
@@ -58,6 +60,7 @@ export function createTemplateWorkflowSummary(input: {
     skippedFiles: input.actions
       .filter((entry) => entry.action === "skipped")
       .map((entry) => entry.path),
+    staleFiles: input.actions.filter((entry) => isStale(entry.action)).map((entry) => entry.path),
     overwrittenFiles: input.actions
       .filter((entry) => entry.action === "overwritten")
       .map((entry) => entry.path),
@@ -90,6 +93,17 @@ export function formatTemplateWorkflowSummary(summary: TemplateWorkflowSummary):
 
   if (summary.skippedFiles.length > 0) {
     lines.push("", "Skipped:", ...summary.skippedFiles.map((file) => `  ${file}`));
+  }
+
+  if (summary.staleFiles.length > 0) {
+    lines.push(
+      "",
+      "Stale (kept superseded content, not regenerated):",
+      ...summary.staleFiles.map((file) => `  ${file}`),
+      "",
+      "These files exist but no longer match the current inputs. Downstream",
+      "commands will fail to bind to them. Re-run with --force to regenerate."
+    );
   }
 
   if (summary.overwrittenFiles.length > 0) {

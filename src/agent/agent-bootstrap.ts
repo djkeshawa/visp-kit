@@ -127,6 +127,7 @@ async function dryRunInstallSummary(input: {
     dryRun: true,
     createdFiles,
     skippedFiles: [],
+    staleFiles: [],
     overwrittenFiles: [],
     updatedFiles: [],
     warnings: useFallbackAgentsFile

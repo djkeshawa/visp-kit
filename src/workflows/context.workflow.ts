@@ -46,6 +46,7 @@ import {
   writeUpdatedGeneratedFiles
 } from "./shared/generated-files.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
+import { wroteFile } from "../agent/agent-file-plan.js";
 
 export type ContextWorkflowOptions = {
   readonly taskId?: string;
@@ -325,13 +326,13 @@ export async function runContextWorkflow(
     const contextMarkdownAction = actionFor(written.value, contextMarkdownDisplayPath);
     const contextJsonAction = actionFor(written.value, relativePath(targetPath, contextJson));
 
-    if (contextMarkdownAction !== undefined && contextMarkdownAction.action !== "skipped") {
+    if (contextMarkdownAction !== undefined && wroteFile(contextMarkdownAction.action)) {
       const rewriteMarkdown = await writeTextFile(contextMarkdown, enrichedMarkdown);
 
       if (!rewriteMarkdown.ok) return rewriteMarkdown;
     }
 
-    if (contextJsonAction !== undefined && contextJsonAction.action !== "skipped") {
+    if (contextJsonAction !== undefined && wroteFile(contextJsonAction.action)) {
       const rewriteJson = await writeArtifact(contextJson, contextPackSchema, enrichedPack, {
         artifactName: "context pack"
       });

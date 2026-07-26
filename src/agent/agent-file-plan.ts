@@ -4,11 +4,20 @@ import { type ZodType } from "zod";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { createArtifactValidationError } from "../artifacts/validation-error.js";
 import { type VispError } from "../core/errors.js";
-import { pathExists, writeTextFile } from "../core/file-system.js";
+import { pathExists, readTextFile, writeTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 
-export type AgentFileAction = "created" | "updated" | "overwritten" | "skipped";
+/**
+ * `skipped` means the file already held exactly what would have been written.
+ * `stale` means it exists, differs from what the current inputs produce, and was
+ * left alone because `--force` was absent.
+ *
+ * The distinction matters: silently skipping a stale artifact leaves a pack or
+ * plan bound to superseded inputs, and the failure then surfaces several
+ * commands later as an unexplained binding error. Callers must surface `stale`.
+ */
+export type AgentFileAction = "created" | "updated" | "overwritten" | "skipped" | "stale";
 
 export type AgentTextFile = {
   readonly kind: "text";
@@ -33,16 +42,49 @@ export type AgentWriteResult = {
   readonly action: AgentFileAction;
 };
 
+/** True when the action put bytes on disk. `skipped` and `stale` did not. */
+export function wroteFile(action: AgentFileAction): boolean {
+  return action !== "skipped" && action !== "stale";
+}
+
+/**
+ * A file left on disk holding superseded content. Callers must report these
+ * rather than treat them as no-ops.
+ */
+export function isStale(action: AgentFileAction): boolean {
+  return action === "stale";
+}
+
 function validateFile(file: AgentPlannedFile, displayPath: string): Result<void, VispError> {
   if (file.kind === "text") return ok(undefined);
 
   const validation = file.schema.safeParse(file.value);
 
   if (!validation.success) {
-    return err(createArtifactValidationError(validation.error, file.artifactName, displayPath));
+    return err(
+      createArtifactValidationError(validation.error, file.artifactName, displayPath, file.schema)
+    );
   }
 
   return ok(undefined);
+}
+
+/**
+ * Exactly what `writeAgentPlannedFile` would write for this file, so an existing
+ * file can be byte-compared against it. Returns `undefined` when the planned
+ * contents cannot be determined, which is treated as stale rather than as
+ * unchanged — an unknown answer must not read as "already correct".
+ */
+function plannedContents(file: AgentPlannedFile): string | undefined {
+  if (file.kind === "text") return file.contents;
+
+  const parsed = file.schema.safeParse(file.value);
+
+  if (!parsed.success) return undefined;
+
+  const serialized = JSON.stringify(parsed.data, null, 2);
+
+  return serialized === undefined ? undefined : `${serialized}\n`;
 }
 
 export async function writeAgentPlannedFile(
@@ -64,7 +106,19 @@ export async function writeAgentPlannedFile(
   if (!exists.ok) return exists;
 
   if (exists.value && !options.force && !options.alwaysUpdate) {
-    return ok({ path: displayPath, action: "skipped" });
+    // Distinguish "already correct" from "superseded". Byte-comparing against
+    // exactly what the writer would emit is what makes the answer trustworthy:
+    // writeArtifact serialises through the schema, so parse first and compare
+    // the parsed projection rather than the caller's raw value.
+    const planned = plannedContents(file);
+    const current = await readTextFile(file.path);
+
+    if (!current.ok) return current;
+
+    return ok({
+      path: displayPath,
+      action: planned !== undefined && current.value === planned ? "skipped" : "stale"
+    });
   }
 
   const action: AgentFileAction = exists.value

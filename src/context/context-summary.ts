@@ -1,6 +1,7 @@
 import { type BudgetMode } from "../artifacts/schemas/common.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { type WorkflowFileAction } from "../workflows/shared/generated-files.js";
+import { isStale, wroteFile } from "../agent/agent-file-plan.js";
 
 export type ContextSummary = {
   readonly success: boolean;
@@ -22,6 +23,7 @@ export type ContextSummary = {
   readonly recommendation: string;
   readonly createdFiles: readonly string[];
   readonly skippedFiles: readonly string[];
+  readonly staleFiles: readonly string[];
   readonly overwrittenFiles: readonly string[];
   readonly updatedFiles: readonly string[];
   readonly writtenFiles: readonly string[];
@@ -59,6 +61,9 @@ export function createContextSummary(input: {
     skippedFiles: input.actions
       .filter((action) => action.action === "skipped")
       .map((action) => action.path),
+    staleFiles: input.actions
+      .filter((action) => isStale(action.action))
+      .map((action) => action.path),
     overwrittenFiles: input.actions
       .filter((action) => action.action === "overwritten")
       .map((action) => action.path),
@@ -66,7 +71,7 @@ export function createContextSummary(input: {
       .filter((action) => action.action === "updated")
       .map((action) => action.path),
     writtenFiles: input.actions
-      .filter((action) => action.action !== "skipped")
+      .filter((action) => wroteFile(action.action))
       .map((action) => action.path),
     promptOnly: input.promptOnly,
     dryRun: input.dryRun,
@@ -98,6 +103,17 @@ export function formatContextSummary(summary: ContextSummary): string {
 
   if (summary.skippedFiles.length > 0) {
     lines.push("", "Skipped:", ...summary.skippedFiles.map((file) => `  ${file}`));
+  }
+
+  if (summary.staleFiles.length > 0) {
+    lines.push(
+      "",
+      "Stale (kept superseded content, not regenerated):",
+      ...summary.staleFiles.map((file) => `  ${file}`),
+      "",
+      "These files exist but no longer match the current inputs. Downstream",
+      "commands will fail to bind to them. Re-run with --force to regenerate."
+    );
   }
 
   if (summary.updatedFiles.length > 0) {

@@ -22,7 +22,8 @@ export async function writeArtifact<T>(
       createArtifactValidationError(
         result.error,
         options.artifactName ?? artifactPath,
-        artifactPath
+        artifactPath,
+        schema
       )
     );
   }

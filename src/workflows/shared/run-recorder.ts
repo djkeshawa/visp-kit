@@ -1,6 +1,7 @@
 import { type RunEvent } from "../../artifacts/schemas/run.schema.js";
 import { type WorkflowFileAction } from "./generated-files.js";
 import { recordRun } from "../../runs/run-store.js";
+import { wroteFile } from "../../agent/agent-file-plan.js";
 
 export type WorkflowRunRecordResult = {
   readonly runId?: string;
@@ -29,7 +30,7 @@ export async function recordWorkflowRun(input: {
   readonly dryRun: boolean;
 }): Promise<WorkflowRunRecordResult> {
   const artifactWrites = (input.actions ?? [])
-    .filter((action) => action.action !== "skipped")
+    .filter((action) => wroteFile(action.action))
     .map((action) => action.path);
   const run = await recordRun({
     targetPath: input.targetPath,

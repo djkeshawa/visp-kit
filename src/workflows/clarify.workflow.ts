@@ -130,6 +130,7 @@ export async function runClarifyWorkflow(
       },
       createdFiles: [],
       skippedFiles: [],
+      staleFiles: [],
       overwrittenFiles: [],
       updatedFiles: [],
       validated: true,

@@ -218,7 +218,12 @@ export function validateOracleLock(input: {
   if (!regenerated.ok) return regenerated;
 
   if (canonicalJsonV1(regenerated.value) !== canonicalJsonV1(input.lock)) {
-    return failure(`Oracle lock for task ${input.plan.taskId} is stale or has been modified.`);
+    return failure(
+      `Oracle lock for task ${input.plan.taskId} is stale or has been modified. ` +
+        "The lock no longer matches its oracle plan. Re-lock with " +
+        `\`visp oracle lock --task ${input.plan.taskId}\`; if the plan itself is also ` +
+        "stale, regenerate it with --force first."
+    );
   }
 
   return ok(input.lock);

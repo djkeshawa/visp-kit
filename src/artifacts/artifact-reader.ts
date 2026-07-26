@@ -42,7 +42,8 @@ export async function readArtifact<Output, Input = Output>(
       createArtifactValidationError(
         result.error,
         options.artifactName ?? artifactPath,
-        artifactPath
+        artifactPath,
+        schema
       )
     );
   }
