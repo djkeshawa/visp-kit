@@ -248,7 +248,7 @@ Or use a package-style install:
 ```bash
 pnpm build
 npm pack
-npm install -g ./visp-kit-0.1.1.tgz
+npm install -g ./visp-kit-0.2.0.tgz
 visp --help
 ```
 

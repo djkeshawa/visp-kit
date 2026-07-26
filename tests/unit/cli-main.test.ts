@@ -57,7 +57,7 @@ describe("createCli", () => {
       }
     }
 
-    expect(output.join("")).toContain("0.1.1");
+    expect(output.join("")).toContain("0.2.0");
   });
 
   it("prints drift command help", () => {

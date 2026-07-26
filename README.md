@@ -186,7 +186,7 @@ For package-style testing in other projects, install a local package tarball:
 
 ```bash
 npm pack
-npm install -g ./visp-kit-0.1.1.tgz
+npm install -g ./visp-kit-0.2.0.tgz
 visp --version
 visp --help
 ```
