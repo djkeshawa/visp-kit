@@ -204,6 +204,24 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
   return result("project", findings);
 }
 
+/**
+ * Artifacts `visp init` always writes, so their absence in an initialized
+ * project means something removed them.
+ *
+ * Deliberately narrow: everything else in the schema list is optional by
+ * design — overrides, evaluation reports, agent capabilities, and every
+ * feature-scoped artifact are absent until the workflow that writes them runs.
+ * Marking those required would report a healthy new project as broken.
+ */
+const REQUIRED_ARTIFACTS = new Set([
+  ".visp/project.json",
+  ".visp/config.json",
+  ".visp/status.json",
+  ".visp/policy.json",
+  ".visp/workflow.json",
+  ".visp/runs/index.json"
+]);
+
 export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResult> {
   const findings: DoctorFinding[] = [];
 
@@ -300,7 +318,28 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
   ];
 
   for (const [label, filePath, schema] of schemaChecks) {
-    if (!(await exists(filePath))) continue;
+    if (!(await exists(filePath))) {
+      // Deleting an artifact used to be quieter than corrupting one: a missing
+      // file was skipped while a malformed file was an error. An interrupted
+      // run leaves files missing rather than malformed, so it was exactly the
+      // case that slipped through.
+      if (REQUIRED_ARTIFACTS.has(label)) {
+        findings.push(
+          finding({
+            category: "schemas",
+            severity: "error",
+            title: "Required artifact missing",
+            description: `${label} is required for an initialized project but is not present.`,
+            file: label,
+            recommendation: "Restore the artifact from version control, or re-run visp init.",
+            autoFixable: false
+          })
+        );
+      }
+
+      continue;
+    }
+
     const artifact = await readArtifact(filePath, schema, { artifactName: label });
 
     if (!artifact.ok) {

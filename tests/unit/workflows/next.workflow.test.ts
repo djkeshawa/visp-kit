@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -91,5 +91,24 @@ describe("runNextWorkflow", () => {
     expect(defaultNext.action).toEqual(explicitV2.action);
     expect(defaultNext.action?.protocolVersion).toBe("2.0");
     expect(explicitV3.action?.protocolVersion).toBe("3.0");
+  });
+
+  it("refuses to advise from a corrupted core artifact (F-C1)", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+
+    const healthy = await runNextWorkflow({ targetPath: tempDir, commandRunner: runner() });
+
+    expect(healthy.ok).toBe(true);
+
+    await writeFile(path.join(tempDir, ".visp", "status.json"), "NOT JSON {{{\n");
+
+    const corrupted = await runNextWorkflow({ targetPath: tempDir, commandRunner: runner() });
+
+    // `next` is called every turn by an agent loop, so it is the worst place
+    // to answer confidently from state that could not be parsed. It used to
+    // return guidance identical to the healthy project.
+    expect(corrupted.ok).toBe(false);
+    if (corrupted.ok) throw new Error("Expected next to fail closed.");
+    expect(corrupted.error.message).toContain("project status is unreadable");
   });
 });

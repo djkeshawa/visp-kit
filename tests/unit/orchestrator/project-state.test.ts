@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -180,5 +180,32 @@ describe("project state loader", () => {
     expect(state.git.changedFiles).toEqual([...stagedFiles, ...unstagedFiles].sort());
     expect(calls).toContainEqual(["diff", "--cached", "--name-only", "-z", "--"]);
     expect(calls).toContainEqual(["diff", "--name-only", "-z", "--"]);
+  });
+
+  it("records a corrupt core artifact as an error, not a warning (F-C1)", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await writeFile(path.join(tempDir, ".visp", "status.json"), "NOT JSON {{{\n");
+
+    const state = expectOk(
+      await loadProjectState({ targetPath: tempDir, commandRunner: gitRunner() })
+    );
+
+    // A file that exists but cannot be parsed is not the same as one that was
+    // never written. Demoting it to a warning let a corrupted project read as
+    // a fresh one.
+    expect(state.errors.join(" ")).toContain("project status is unreadable");
+    expect(state.warnings.join(" ")).not.toContain("project status is unreadable");
+  });
+
+  it("still treats a genuinely absent optional artifact as absent", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await rm(path.join(tempDir, ".visp", "overrides.json"), { force: true });
+
+    const state = expectOk(
+      await loadProjectState({ targetPath: tempDir, commandRunner: gitRunner() })
+    );
+
+    // The fix must not turn every unwritten optional artifact into an error.
+    expect(state.errors).toEqual([]);
   });
 });

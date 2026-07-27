@@ -1,6 +1,6 @@
 import { type CommandRunner } from "../core/command-runner.js";
-import { type VispError } from "../core/errors.js";
-import { ok, type Result } from "../core/result.js";
+import { VispError } from "../core/errors.js";
+import { err, ok, type Result } from "../core/result.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
 import { recommendNextStep, type NextStep } from "../orchestrator/next-step.js";
 import { evaluatePolicyGate } from "../gates/policy-gate-summary.js";
@@ -37,6 +37,14 @@ export async function runNextWorkflow(
   const state = await loadProjectState(options);
 
   if (!state.ok) return state;
+
+  // `next` is the command an agent loop calls every turn, so it is the worst
+  // possible place to answer confidently from state that could not be read.
+  // `status` has always refused here; `next` did not, and returned identical
+  // guidance for a healthy and a corrupted project.
+  if (state.value.errors.length > 0) {
+    return err(new VispError("VALIDATION_FAILED", state.value.errors.join(" ")));
+  }
 
   const fallback = recommendNextStep({
     state: state.value,

@@ -169,6 +169,12 @@ async function readOptional<Output, Input = Output>(input: {
   readonly schema: ZodType<Output, ZodTypeDef, Input>;
   readonly artifactName: string;
   readonly warnings: string[];
+  /**
+   * Collector for artifacts whose corruption invalidates the whole state. When
+   * supplied, a file that exists but cannot be read is recorded here instead of
+   * as a warning.
+   */
+  readonly errors?: string[];
 }): Promise<Output | undefined> {
   if (!(await exists(input.filePath))) return undefined;
 
@@ -177,7 +183,16 @@ async function readOptional<Output, Input = Output>(input: {
   });
 
   if (artifact.ok) return artifact.value;
-  input.warnings.push(`${input.artifactName} is unreadable: ${artifact.error.message}`);
+
+  // An artifact that exists but cannot be parsed is not the same as one that
+  // was never written. Collapsing both to `undefined` lets a corrupted file
+  // read as a fresh project, so every downstream check that asks "has this
+  // been done yet?" gets the wrong answer from state nobody could read.
+  const message = `${input.artifactName} is unreadable: ${artifact.error.message}`;
+
+  if (input.errors === undefined) input.warnings.push(message);
+  else input.errors.push(message);
+
   return undefined;
 }
 
@@ -358,23 +373,29 @@ export async function loadProjectState(
     });
   }
 
+  // The three core state artifacts. Every routing decision below reads them,
+  // so corruption here is an error rather than a warning: advising from state
+  // that could not be parsed is worse than refusing to advise.
   const config = await readOptional({
     filePath: projectConfigArtifactPath(targetPath),
     schema: projectConfigSchema,
     artifactName: "project config",
-    warnings
+    warnings,
+    errors
   });
   const profile = await readOptional({
     filePath: projectProfileArtifactPath(targetPath),
     schema: projectProfileSchema,
     artifactName: "project profile",
-    warnings
+    warnings,
+    errors
   });
   const status = await readOptional({
     filePath: projectStatusArtifactPath(targetPath),
     schema: projectStatusSchema,
     artifactName: "project status",
-    warnings
+    warnings,
+    errors
   });
   const names = await featureNames(targetPath);
   const key = matchFeature(names, featureSelector(status, options.feature));
