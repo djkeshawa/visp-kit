@@ -86,17 +86,60 @@ export function validateSpec(input: {
     const tracedCriteria = new Set(
       input.traceability.entries.flatMap((entry) => entry.acceptanceCriterionIds)
     );
+    const missingRequirements = requirementIds.filter((id) => !tracedRequirements.has(id));
 
-    for (const requirementId of requirementIds) {
-      if (!tracedRequirements.has(requirementId)) {
-        errors.push(`Traceability is missing requirement ${requirementId}.`);
-      }
+    // Traceability is deliberately not auto-extended: deciding that a
+    // requirement is traced is the author's call, and silently writing the
+    // entry would satisfy the check without anyone making that decision.
+    // Printing the exact entry removes the guessing without removing the
+    // decision.
+    if (missingRequirements.length > 0) {
+      const additions = missingRequirements.map((requirementId) => ({
+        requirementId,
+        acceptanceCriterionIds: input.spec.acceptanceCriteria
+          .filter((criterion) => criterion.requirementId === requirementId)
+          .map((criterion) => criterion.id),
+        taskIds: [],
+        filePaths: [],
+        testPaths: [],
+        status: "missing"
+      }));
+
+      errors.push(
+        `Traceability is missing ${missingRequirements.join(", ")}. ` +
+          `Append to "entries" in traceability.json:\n${JSON.stringify(additions, null, 2)}`
+      );
     }
 
-    for (const criterionId of acceptanceCriterionIds) {
-      if (!tracedCriteria.has(criterionId)) {
-        errors.push(`Traceability is missing acceptance criterion ${criterionId}.`);
+    // A criterion can be missing while its requirement is already traced. That
+    // is a different repair — extend an existing entry rather than add one —
+    // so it is reported separately instead of being folded into the above.
+    const orphanedCriteria = input.spec.acceptanceCriteria.filter(
+      (criterion) =>
+        !tracedCriteria.has(criterion.id) && tracedRequirements.has(criterion.requirementId)
+    );
+
+    if (orphanedCriteria.length > 0) {
+      const byRequirement = new Map<string, string[]>();
+
+      for (const criterion of orphanedCriteria) {
+        byRequirement.set(criterion.requirementId, [
+          ...(byRequirement.get(criterion.requirementId) ?? []),
+          criterion.id
+        ]);
       }
+
+      const repairs = [...byRequirement.entries()]
+        .map(
+          ([requirementId, ids]) =>
+            `  ${requirementId}: add ${ids.join(", ")} to its acceptanceCriterionIds`
+        )
+        .join("\n");
+
+      errors.push(
+        `Traceability is missing acceptance criteria ` +
+          `${orphanedCriteria.map((criterion) => criterion.id).join(", ")}.\n${repairs}`
+      );
     }
   }
 

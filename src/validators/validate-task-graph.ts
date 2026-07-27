@@ -105,11 +105,20 @@ export function validateTaskGraph(input: {
 
   if (input.traceability !== undefined) {
     const tracedTasks = new Set(input.traceability.entries.flatMap((entry) => entry.taskIds));
+    const missingTasks = input.taskGraph.tasks.filter((task) => !tracedTasks.has(task.id));
 
-    for (const taskId of taskIds) {
-      if (!tracedTasks.has(taskId)) {
-        errors.push(`Traceability is missing task ${taskId}.`);
-      }
+    // A task belongs in the entry for each requirement it implements, and the
+    // task already names those requirements. Naming the exact entries turns a
+    // "go read two files and work out the correspondence" failure into a
+    // one-line edit.
+    if (missingTasks.length > 0) {
+      const repairs = missingTasks
+        .map((task) => `  ${task.id}: add to the taskIds of ${task.requirementIds.join(", ")}`)
+        .join("\n");
+
+      errors.push(
+        `Traceability is missing ${missingTasks.map((task) => task.id).join(", ")}.\n${repairs}`
+      );
     }
   }
 
