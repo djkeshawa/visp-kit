@@ -640,15 +640,23 @@ describe("assurance command", () => {
     const sourcePath = path.join(targetPath, "src", "notes.ts");
     const sourceBeforeDrift = await readFile(sourcePath, "utf8");
     await writeFile(sourcePath, `${sourceBeforeDrift}\nexport const drifted = true;\n`, "utf8");
-    expect(
-      expectOk(
-        await evaluateCurrentReviewDecision({
-          targetPath,
-          taskId: "T001",
-          now: "2026-07-25T03:45:00.000Z"
-        })
-      ).status
-    ).toBe("stale");
+    const drifted = expectOk(
+      await evaluateCurrentReviewDecision({
+        targetPath,
+        taskId: "T001",
+        now: "2026-07-25T03:45:00.000Z"
+      })
+    );
+
+    expect(drifted.status).toBe("stale");
+
+    // Staleness was always detected; only the fact was reported. The delta says
+    // what moved, so a returning reviewer does not have to re-read the whole
+    // case to find out.
+    expect(drifted.delta).toBeDefined();
+    expect(drifted.delta?.decisionStale).toBe(true);
+    expect(drifted.delta?.unchanged).toBe(false);
+    expect(drifted.delta?.changes.some((change) => change.kind === "code")).toBe(true);
     expect((await action32(targetPath, "2026-07-25T03:45:00.000Z")).assuranceSummary).toMatchObject(
       {
         state: "available",

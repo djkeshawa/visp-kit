@@ -96,6 +96,19 @@ export function computeAssuranceDelta(input: {
     });
   }
 
+  // The reviewed diff itself. This is the hash that moves when a file is
+  // edited without committing, so it catches the case a revision comparison
+  // alone would miss.
+  if (trusted.codeState.snapshotSha256 !== current.codeState.snapshotSha256) {
+    changes.push({
+      kind: "code",
+      label: "the reviewed diff",
+      trusted: trusted.codeState.snapshotSha256,
+      current: current.codeState.snapshotSha256,
+      invalidatesDecision: true
+    });
+  }
+
   // The state hash can move while the revision does not, because a workspace
   // comparison includes uncommitted work. Reporting it separately keeps
   // "someone committed" distinct from "someone edited without committing".

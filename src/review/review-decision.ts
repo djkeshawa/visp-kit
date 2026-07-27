@@ -3,6 +3,8 @@ import { mkdir, open, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { type ZodType } from "zod";
 
+import { computeAssuranceDelta, type AssuranceDelta } from "../assurance/assurance-delta.js";
+
 import {
   assuranceCaseArtifactPath,
   currentReviewDecisionArtifactPath,
@@ -85,7 +87,59 @@ export type ReviewDecisionCurrentness = {
   readonly caseHash?: string;
   readonly decisionHash?: string;
   readonly decision?: ReviewDecision;
+  /**
+   * What moved since the decision, when it is no longer current.
+   *
+   * Present only for `invalid` and `stale`; a current decision has nothing to
+   * report. `reason` says that something changed, this says what.
+   */
+  readonly delta?: AssuranceDelta;
 };
+
+/**
+ * Builds the delta between a decision and the state the assurance case now
+ * describes.
+ *
+ * The current values are read from the authoritative assurance case rather
+ * than recomputed, so the delta reports the same state the currentness check
+ * just compared against and the two can never disagree.
+ */
+function currentAssuranceDelta(input: {
+  readonly assuranceCase: {
+    readonly diff: ReviewDecision["codeState"];
+    readonly bindings: readonly {
+      readonly role: string;
+      readonly path?: string;
+      readonly sha256?: string;
+      readonly status: string;
+    }[];
+  };
+  readonly decision: ReviewDecision;
+  readonly policyBinding?: {
+    readonly path?: string;
+    readonly sha256?: string;
+    readonly status: string;
+  };
+  readonly freshnessInputs?: readonly ReviewDecision["freshnessInputs"][number][];
+}): AssuranceDelta {
+  return computeAssuranceDelta({
+    trusted: input.decision,
+    current: {
+      codeState: input.assuranceCase.diff,
+      policy: {
+        path: input.policyBinding?.path ?? input.decision.policy.path,
+        // A policy binding that is not available cannot be compared by hash, so
+        // it is reported as moved rather than silently matching. Falling back
+        // to the decision's own hash would make a missing policy look current.
+        sha256:
+          input.policyBinding?.status === "available" && input.policyBinding.sha256 !== undefined
+            ? input.policyBinding.sha256
+            : "unavailable"
+      },
+      freshnessInputs: input.freshnessInputs ?? input.decision.freshnessInputs
+    } as never
+  });
+}
 
 export type ReviewDecisionWorkflowOptions = {
   readonly targetPath?: string;
@@ -726,11 +780,18 @@ async function validateSupersessionChain(input: {
   return ok(undefined);
 }
 
+/**
+ * Whether the working tree still matches the state the decision was made
+ * against, and the freshly captured snapshot it was compared with.
+ *
+ * The snapshot is returned so callers can say *what* moved. Recomputing it
+ * outside would risk the explanation disagreeing with the verdict.
+ */
 async function currentCodeMatches(input: {
   readonly targetPath: string;
   readonly decision: ReviewDecision;
   readonly commandRunner?: CommandRunner;
-}): Promise<Result<boolean, VispError>> {
+}): Promise<Result<{ readonly matches: boolean; readonly snapshot?: DiffSnapshot }, VispError>> {
   const snapshot = await captureDiffSnapshot({
     targetPath: input.targetPath,
     mode: input.decision.codeState.mode,
@@ -748,7 +809,7 @@ async function currentCodeMatches(input: {
       cwd: input.targetPath
     });
     if (!head.ok || head.value.stdout.trim() !== input.decision.codeState.targetRevision) {
-      return ok(false);
+      return ok({ matches: false, snapshot: snapshot.value });
     }
     const status = await runner.run(
       "git",
@@ -764,7 +825,7 @@ async function currentCodeMatches(input: {
       const candidatePath = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1)! : rawPath;
       return !isGeneratedVispReviewFile(candidatePath);
     });
-    if (nonGenerated) return ok(false);
+    if (nonGenerated) return ok({ matches: false, snapshot: snapshot.value });
   }
   const stored = await readArtifact(
     resolvePath(
@@ -776,14 +837,16 @@ async function currentCodeMatches(input: {
     { artifactName: "stored diff snapshot" }
   );
   if (!stored.ok) return stored;
-  return ok(
-    stored.value.mode === snapshot.value.mode &&
+  return ok({
+    matches:
+      stored.value.mode === snapshot.value.mode &&
       stored.value.baseRevision === snapshot.value.baseRevision &&
       stored.value.targetRevision === snapshot.value.targetRevision &&
       stored.value.state.headRevision === snapshot.value.state.headRevision &&
       stored.value.state.indexTreeRevision === snapshot.value.state.indexTreeRevision &&
-      codeIdentity(stored.value) === codeIdentity(snapshot.value)
-  );
+      codeIdentity(stored.value) === codeIdentity(snapshot.value),
+    snapshot: snapshot.value
+  });
 }
 
 export async function evaluateCurrentReviewDecision(input: {
@@ -864,7 +927,11 @@ async function evaluateLoadedCurrentReviewDecision(
       status: "invalid",
       reason: "Review decision does not match the authoritative assurance case.",
       caseHash: assuranceCase.caseHash,
-      decisionHash: decision.decisionHash
+      decisionHash: decision.decisionHash,
+      // Staleness was already detected here; only the fact was reported, never
+      // the cause. The reviewer had to re-read the whole case to find out what
+      // moved, which is the work the case exists to remove.
+      delta: currentAssuranceDelta({ assuranceCase, decision, policyBinding })
     });
   }
   const freshness = await captureFreshnessInputs({
@@ -879,7 +946,13 @@ async function evaluateLoadedCurrentReviewDecision(
       status: "stale",
       reason: "Material assurance inputs changed after the review decision.",
       caseHash: assuranceCase.caseHash,
-      decisionHash: decision.decisionHash
+      decisionHash: decision.decisionHash,
+      delta: currentAssuranceDelta({
+        assuranceCase,
+        decision,
+        policyBinding,
+        freshnessInputs: freshness.value
+      })
     });
   }
   const reconstructed = await validateReconstructedAssuranceInputs({
@@ -903,14 +976,31 @@ async function evaluateLoadedCurrentReviewDecision(
     decision,
     commandRunner: input.commandRunner
   });
-  if (!codeMatches.ok || !codeMatches.value) {
+  if (!codeMatches.ok || !codeMatches.value.matches) {
     return ok({
       status: "stale",
       reason: codeMatches.ok
         ? "Code state changed after the review decision."
         : codeMatches.error.message,
       caseHash: assuranceCase.caseHash,
-      decisionHash: decision.decisionHash
+      decisionHash: decision.decisionHash,
+      // The freshly captured snapshot is the only place the *new* code state
+      // exists; the assurance case still holds the state the decision matched.
+      delta:
+        codeMatches.ok && codeMatches.value.snapshot !== undefined
+          ? currentAssuranceDelta({
+              assuranceCase: {
+                diff: {
+                  ...assuranceCase.diff,
+                  targetRevision: codeMatches.value.snapshot.targetRevision,
+                  snapshotSha256: codeMatches.value.snapshot.snapshotSha256
+                },
+                bindings: assuranceCase.bindings
+              },
+              decision,
+              policyBinding
+            })
+          : undefined
     });
   }
   // A decision that claims a signature must actually carry an intact one. This
@@ -1239,7 +1329,7 @@ export async function runReviewDecisionWorkflow(
     decision: parsed.data,
     commandRunner: options.commandRunner
   });
-  if (!codeMatches.ok || !codeMatches.value) {
+  if (!codeMatches.ok || !codeMatches.value.matches) {
     return err(
       new VispError(
         "VALIDATION_FAILED",
