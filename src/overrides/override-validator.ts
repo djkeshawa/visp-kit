@@ -16,6 +16,8 @@ export type OverrideValidation = {
     readonly active: number;
     readonly revoked: number;
     readonly expired: number;
+    /** Active overrides with no expiry — permanent exemptions, not break-glass. */
+    readonly perpetual: number;
   };
 };
 
@@ -79,6 +81,7 @@ export function validateOverrideArtifact(input: {
   let active = 0;
   let revoked = 0;
   let expired = 0;
+  let perpetual = 0;
 
   for (const override of input.artifact.overrides) {
     if (override.status === "revoked") revoked += 1;
@@ -115,6 +118,37 @@ export function validateOverrideArtifact(input: {
     ) {
       warnings.push(`${override.id}: locked mode disallows active overrides.`);
     }
+
+    // An override with no expiry is not break-glass; it is a permanent
+    // exemption that never comes back for review. Nothing previously said so —
+    // the expiry checks only asked whether a deadline had passed, never
+    // whether one had been set — so the quietest way to switch a rule off
+    // forever was to omit the field.
+    if (
+      override.status === "active" &&
+      (override.expiresAt === undefined || override.expiresAt === null)
+    ) {
+      perpetual += 1;
+
+      // Deliberately a warning in every mode, including strict and locked.
+      //
+      // Blocking here was the first instinct and it is wrong: some exemptions
+      // are legitimately permanent — a rule that cannot apply to this
+      // repository at all — and there is currently no way to say so. Erroring
+      // would leave those projects with no correct move, since revoking the
+      // override removes an exemption they actually need.
+      //
+      // The gap this closes is that nothing *said* anything: the expiry checks
+      // only asked whether a deadline had passed, never whether one had been
+      // set, so the quietest way to switch a rule off forever was to omit the
+      // field. Naming it is the fix available today. Enforcing it needs an
+      // explicit way to declare permanence, so that a forgotten expiry and an
+      // intentional one stop looking identical.
+      warnings.push(
+        `${override.id}: active override of ${override.ruleId} has no expiry, so it never ` +
+          `returns for review. Set expiresAt if this is temporary.`
+      );
+    }
   }
 
   return {
@@ -124,7 +158,8 @@ export function validateOverrideArtifact(input: {
     counts: {
       active,
       revoked,
-      expired
+      expired,
+      perpetual
     }
   };
 }

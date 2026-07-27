@@ -69,7 +69,10 @@ export function formatOverrideSummary(summary: OverrideWorkflowSummary): string 
       "Validation:",
       `  Active: ${summary.validation.counts.active}`,
       `  Revoked: ${summary.validation.counts.revoked}`,
-      `  Expired: ${summary.validation.counts.expired}`
+      `  Expired: ${summary.validation.counts.expired}`,
+      // Reported alongside the others because a perpetual override is the one
+      // an operator is least likely to remember and most likely to regret.
+      `  Never expire: ${summary.validation.counts.perpetual}`
     );
   }
 
