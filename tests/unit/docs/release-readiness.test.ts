@@ -106,10 +106,26 @@ describe("release documentation readiness", () => {
       files?: string[];
     };
 
-    expect(pkg.description).toContain("agent harness");
+    // The description is the one line shown in npm search results, so it is
+    // pinned for shape rather than for wording. Requiring a specific phrase
+    // froze the jargon it happened to start with and blocked plain English.
+    expect(pkg.description.length).toBeGreaterThan(40);
+    expect(pkg.description.length).toBeLessThan(300);
+
+    // The claim ceiling applies to package metadata too. No study has run, so
+    // a description promising speed or productivity would be an unsubstantiated
+    // claim in the most visible place the project has.
+    expect(pkg.description).not.toMatch(/faster|productivity|10x|boost|save time/iu);
     expect(pkg.bin?.visp).toBe("dist/index.js");
     expect(pkg.files).toEqual(
-      expect.arrayContaining(["dist", "docs", "examples", "README.md", "LICENSE"])
+      expect.arrayContaining([
+        "dist",
+        "docs",
+        "examples",
+        "README.md",
+        "LICENSE",
+        "CONTRIBUTING.md"
+      ])
     );
   });
 

@@ -1,29 +1,90 @@
 # Visp Kit
 
-The enforcement and evidence layer for AI-assisted software development. Plan
-with anything — including GitHub Spec Kit — and Visp Kit gates the execution:
-deterministic policy gates, mechanical enforcement hooks, small task-scoped
-context, and auditable evidence for every change. Built so that even
-mid-tier models follow the workflow accurately.
+**Stops AI-written code reaching review without proof.**
 
-Visp Kit turns vague feature ideas into a controlled local workflow:
+You point an AI coding tool at a task. It edits ten files when you asked for
+two, writes a test that passes whether or not the fix works, and hands you a
+diff you now have to fully re-read to trust.
 
-- intent
-- clarification
-- specification
-- plan
-- task graph
-- context pack
-- implementation prompt
-- verification
-- review
-- reconciliation
-- PR summary
-- run trace
-- feature timeline
-- deterministic evaluation
+Visp Kit makes the tool declare what it will change *before* it edits, blocks
+anything outside that, and records evidence you can check without reading every
+line.
 
-It is built for developers and teams who use AI coding tools but still need small context, clear requirements, deterministic gates, and auditable evidence.
+It never calls an LLM. It runs beside whatever tool you already use.
+
+---
+
+## Install
+
+```bash
+npm install -g visp-kit
+```
+
+Requires Node 22 or later, and Git.
+
+## First run
+
+Five commands, in a real project:
+
+```bash
+visp init .
+```
+
+```bash
+visp scan .
+```
+
+```bash
+visp feature "add password reset"
+```
+
+```bash
+visp next .
+```
+
+`visp next` is the one to remember. **It always tells you the single next
+command**, so you never have to memorise the workflow — run it whenever you are
+unsure what to do.
+
+```bash
+visp guard .
+```
+
+`visp guard` is the check. If the change went outside what the task declared, it
+fails here rather than in review.
+
+## What you get
+
+| | |
+|---|---|
+| **Scope declared up front** | The task names the files it may touch. Edits elsewhere are blocked, not flagged later. |
+| **Evidence that means something** | A test written by whoever made the change doesn't count as independent proof. Kit tracks the difference. |
+| **A reviewable summary** | An assurance case with the risky parts ranked, so review starts where it matters. |
+| **A record of the decision** | Who approved what, against which exact code and which policy. |
+| **Told what moved** | Come back a week later and Kit says what changed since you approved — not just that something did. |
+
+## Honest limits
+
+Read this before adopting it:
+
+- **No productivity claim.** Whether Visp makes teams faster or produces better
+  software is **unmeasured**. An evaluation protocol is frozen, but no study has
+  run. Any claim otherwise is a bug — please report it.
+- **Compatibility is proven pair by pair**, pinned to exact commits and package
+  hashes. It is not a version-range support window.
+- **Conformance is partial.** Some areas are proven and some are not; the
+  published report says which. Non-Linux systems are not yet covered.
+- **Assurance verdicts are often `inconclusive`.** That is deliberate — it means
+  the evidence did not establish the claim, not that the claim failed.
+
+## Where to get help
+
+- **Documentation, compatibility evidence, and issues:**
+  [visp-dev](https://github.com/djkeshawa/visp-dev)
+- **Security issues:** see `SECURITY.md`. Do not open a public issue.
+- **Contributing:** see `CONTRIBUTING.md`.
+
+---
 
 ## What Visp Kit Is
 
@@ -131,7 +192,7 @@ Observability and evaluation:
 - `.visp/runs/<run-id>/`
 - `.visp/features/<feature>/timeline.md`
 
-## Install
+## Install — all options
 
 Visp Kit is ready for local alpha use and internal pilots.
 
@@ -165,10 +226,10 @@ visp --help
 
 ### 3. Local Development Install
 
-If you are working from this repository instead of installing from npm:
+**The source repository is currently private**, so this path applies only if you
+already have a checkout. Everyone else should install from npm above.
 
 ```bash
-git clone https://github.com/djkeshawa/visp-kit.git
 cd visp-kit
 pnpm install
 pnpm build
@@ -276,7 +337,7 @@ Requirements:
 - pnpm 11+
 - Git for diff-based review, reconcile, and PR summaries
 
-## Quickstart
+## Quickstart — the full walkthrough
 
 Inside an existing project:
 

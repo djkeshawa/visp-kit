@@ -1,26 +1,23 @@
 {
   "name": "visp-kit",
   "version": "0.2.0",
-  "description": "Strict, token-efficient agent harness for gated AI-assisted implementation, scoped context, and evidence workflows.",
+  "description": "Stops AI-written code reaching review without proof. Declares scope before editing, blocks out-of-scope changes, and records evidence a human can check.",
   "type": "module",
   "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/djkeshawa/visp-kit.git"
-  },
   "bugs": {
-    "url": "https://github.com/djkeshawa/visp-kit/issues"
+    "url": "https://github.com/djkeshawa/visp-dev/issues"
   },
-  "homepage": "https://github.com/djkeshawa/visp-kit#readme",
+  "homepage": "https://github.com/djkeshawa/visp-dev#readme",
   "keywords": [
     "ai",
-    "codex",
-    "spec-driven",
-    "context-engineering",
-    "token-efficient",
-    "agent-native",
+    "ai-coding",
+    "code-review",
+    "code-quality",
     "policy-as-code",
     "gates",
+    "evidence",
+    "spec-driven",
+    "agent",
     "cli",
     "developer-tools"
   ],
