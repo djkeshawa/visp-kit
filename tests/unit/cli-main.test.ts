@@ -1,7 +1,18 @@
+import { readFileSync } from "node:fs";
+
 import { CommanderError } from "commander";
 import { describe, expect, it } from "vitest";
 
 import { createCli } from "../../src/cli/main.js";
+
+/**
+ * Read from the manifest rather than hardcoded. Pinning the literal made every
+ * version bump fail a test that was only ever meant to prove `--version`
+ * reports the real version.
+ */
+const packageVersion = JSON.parse(
+  readFileSync(new URL("../../package.json", import.meta.url), "utf8")
+).version as string;
 
 describe("createCli", () => {
   it("prints basic help for the visp command", () => {
@@ -57,7 +68,7 @@ describe("createCli", () => {
       }
     }
 
-    expect(output.join("")).toContain("0.2.0");
+    expect(output.join("")).toContain(packageVersion);
   });
 
   it("prints drift command help", () => {
