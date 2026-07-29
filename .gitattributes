@@ -1,0 +1,13 @@
+# Check every text file out with LF on every platform.
+#
+# Windows runners default to core.autocrlf=true, which rewrites the working tree
+# to CRLF at checkout. That is not cosmetic here: `schemas/` carries the
+# WorkflowAction JSON Schemas whose SHA-256 is negotiated with a host and pinned
+# in every compatibility claim, and `templates`-style guidance files are copied
+# verbatim into a user's project.
+#
+# A CRLF checkout would produce a different schema hash on Windows than on Linux
+# for the same commit, which would make an exact-pair compatibility claim
+# platform-dependent — and the published npm tarball, built from the committed
+# LF bytes, would match neither.
+* text=auto eol=lf
