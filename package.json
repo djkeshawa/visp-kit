@@ -25,7 +25,6 @@
     "visp": "dist/index.js"
   },
   "files": [
-    "AGENTS.md",
     "CONTRIBUTING.md",
     "LICENSE",
     "NOTICE",

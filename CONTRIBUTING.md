@@ -1,65 +1,77 @@
-# Contributing to Visp Kit
+# Contributing
 
-Thank you for your interest. Please read this before opening an issue or a pull
-request — it will save you time.
+Bug reports and pull requests are welcome.
 
-## Current status: not open for code contributions
+## What is most useful
 
-This repository is published as a package but developed privately. **Pull
-requests cannot currently be accepted**, because the source repository is not
-public and there is no contributor licence agreement in place.
+This project's whole claim is that it stops unproven work reaching review. So
+the most valuable report is one showing it failed at that:
 
-This is stated plainly rather than left implicit, so nobody writes a patch that
-has nowhere to go.
+- **It allowed something it should have blocked.** The most serious class of
+  defect, because it is a failure of the central claim.
+- **It blocked something correct and in scope.** Over-blocking is a real defect,
+  not an inconvenience to be tuned away.
+- **It gave confident guidance from state it could not read**, or reported a
+  problem without saying what to do about it.
 
-## What is welcome right now
+Documentation that overstates what this tool has been shown to do is also a bug.
+No productivity or correctness claim has been substantiated, so if you find one
+in the docs, report it.
 
-**Bug reports and correctness findings.** They are the most valuable thing you
-can send, and this project cares about them more than most:
+## Reporting a bug
 
-- A case where Visp **allowed** something it should have blocked. This is the
-  most serious class of defect. Kit exists to stop unproven work reaching
-  review, and a gap in that is a failure of the product's central claim.
-- A case where Visp **blocked** something correct and in scope. Over-blocking is
-  a real defect, not an inconvenience to be tuned away.
-- A case where Visp gave confident guidance derived from state it could not
-  read, or reported a problem without saying what to do about it.
+Include:
 
-**Documentation that is wrong**, including anything that overstates what this
-tool has been shown to do.
-
-## Reporting a security issue
-
-Do **not** open a public issue. Follow `SECURITY.md`.
-
-## What makes a good report
-
-The workflow is evidence-driven, so a report with evidence is far easier to act
-on:
-
-1. What you ran, exactly — the command and its arguments.
+1. The exact command and arguments.
 2. What you expected, and what happened.
-3. The relevant contents of `.visp/` if you can share them. Redact anything
-   private first; these artifacts describe your code.
-4. Versions: `visp --version`, your Node version, and your operating system.
+3. The relevant contents of `.visp/`, redacted as needed — those artifacts
+   describe your code.
+4. `visp --version`, your Node version, and your operating system.
 
-A report that says "the gate was wrong" without the artifacts is hard to act on.
-A report with the artifacts is usually reproducible immediately.
+## Security issues
+
+Do **not** open a public issue. Follow [SECURITY.md](SECURITY.md).
+
+## Pull requests
+
+```bash
+pnpm install
+pnpm build
+pnpm test
+```
+
+Node 22+ and pnpm 11+.
+
+Before opening a PR:
+
+- `pnpm typecheck`, `pnpm lint`, `pnpm schema:check`, and `pnpm test` all pass.
+- New behaviour has a test. A test written to match the code you just wrote is
+  weaker evidence than one written from the requirement — this project cares
+  about that distinction more than most.
+- The change is narrow. Unrelated cleanups in the same PR make review harder.
+
+### Three constraints that will not be relaxed
+
+A PR crossing any of these will be declined regardless of quality:
+
+1. **Visp Kit never calls an LLM** — no provider calls, no external
+   orchestrator. It runs beside your AI tool, not in place of it.
+2. **A user prompt is raw intent only.** Nothing typed into a prompt may widen a
+   task's scope, skip a gate, or approve a change.
+3. **Schemas are not weakened to let invalid artifacts through.** If an artifact
+   fails validation, fix the artifact.
+
+See [docs/development.md](docs/development.md) for architecture. The repository
+also carries an `AGENTS.md` at its root with the workflow rules that apply to
+coding agents working on Kit itself; it is not shipped in the package, because
+it is guidance for contributors rather than users.
 
 ## Honest limitations
 
-Before reporting something as a bug, it may already be a known limit:
+Before reporting something as a bug, it may be a known limit:
 
-- **Conformance is partial.** Some areas are proven and some are not; the
-  published conformance report says which.
+- **Conformance is partial.** Some areas are proven and some are not.
 - **Compatibility is proven pair by pair**, pinned to exact commits and package
   hashes. It is not a version-range support window.
-- **No performance or review-efficiency claim has been substantiated.** If you
-  see such a claim anywhere in the documentation, that is a documentation bug
-  and reporting it is welcome.
-
-## If this opens up later
-
-Should the source repository become public, this file will be replaced with real
-contribution instructions covering the development setup, the test suite, and
-the review process. Until then, the honest answer is the one above.
+- **`inconclusive` is a deliberate verdict.** It means the evidence did not
+  establish the claim, not that the claim failed.
