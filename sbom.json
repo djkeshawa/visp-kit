@@ -53,32 +53,36 @@
       ]
     },
     {
-      "bom-ref": "visp-kit@0.2.1",
+      "bom-ref": "visp-kit@0.2.2",
       "type": "library",
       "name": "visp-kit",
-      "version": "0.2.1",
+      "version": "0.2.2",
       "scope": "required",
       "description": "Stops AI-written code reaching review without proof. Declares scope before editing, blocks out-of-scope changes, and records evidence a human can check.",
-      "purl": "pkg:npm/visp-kit@0.2.1",
+      "purl": "pkg:npm/visp-kit@0.2.2",
       "properties": [],
       "externalReferences": [
         {
           "type": "distribution",
-          "url": "file:visp-kit-0.2.1.tgz"
+          "url": "file:visp-kit-0.2.2.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "git+https://github.com/djkeshawa/visp-kit.git"
         },
         {
           "type": "website",
-          "url": "https://github.com/djkeshawa/visp-dev#readme"
+          "url": "https://github.com/djkeshawa/visp-kit#readme"
         },
         {
           "type": "issue-tracker",
-          "url": "https://github.com/djkeshawa/visp-dev/issues"
+          "url": "https://github.com/djkeshawa/visp-kit/issues"
         }
       ],
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "c2d8e74aa86186dc79f58b8073907a16d71922b4ca3597fea5c7262f8facfbed87140b9fe3562eaf5d140cec5d7c4831644ce4bc3e8589030dc6022ed3cc14ae"
+          "content": "ecc3d205189024c2eec19bb02f77e26e86d8b618b80009f9eb01f20f12c4fd2a8385ee7a4cf9ff1a6df99a9456add7d2741d555a6c65a59bcbae1c57256264c2"
         }
       ],
       "licenses": [
@@ -136,7 +140,7 @@
     {
       "ref": "sbom-host@1.0.0",
       "dependsOn": [
-        "visp-kit@0.2.1"
+        "visp-kit@0.2.2"
       ]
     },
     {
@@ -144,7 +148,7 @@
       "dependsOn": []
     },
     {
-      "ref": "visp-kit@0.2.1",
+      "ref": "visp-kit@0.2.2",
       "dependsOn": [
         "commander@12.1.0",
         "zod@3.25.76"

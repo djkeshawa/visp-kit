@@ -1,13 +1,13 @@
 {
   "name": "visp-kit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Stops AI-written code reaching review without proof. Declares scope before editing, blocks out-of-scope changes, and records evidence a human can check.",
   "type": "module",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/djkeshawa/visp-dev/issues"
+    "url": "https://github.com/djkeshawa/visp-kit/issues"
   },
-  "homepage": "https://github.com/djkeshawa/visp-dev#readme",
+  "homepage": "https://github.com/djkeshawa/visp-kit#readme",
   "keywords": [
     "ai",
     "ai-coding",
@@ -65,5 +65,9 @@
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/djkeshawa/visp-kit.git"
   }
 }

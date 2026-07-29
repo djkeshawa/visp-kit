@@ -79,7 +79,9 @@ Read this before adopting it:
 
 ## Where to get help
 
-- **Documentation, compatibility evidence, and issues:**
+- **Source, issues, and pull requests:**
+  [visp-kit](https://github.com/djkeshawa/visp-kit)
+- **Compatibility evidence and conformance reports:**
   [visp-dev](https://github.com/djkeshawa/visp-dev)
 - **Security issues:** see `SECURITY.md`. Do not open a public issue.
 - **Contributing:** see `CONTRIBUTING.md`.
