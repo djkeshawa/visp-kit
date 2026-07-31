@@ -9,6 +9,7 @@ import {
   isTautologicalCriterion,
   placeholderFindings
 } from "./semantic-lint.js";
+import { blockingCriticFindings } from "./specification-critic.js";
 
 export function validateSpec(input: {
   readonly spec: SpecArtifact;
@@ -26,6 +27,10 @@ export function validateSpec(input: {
     errors.push("Specification must be marked ready before workflow advancement.");
   }
   errors.push(...placeholderFindings(input.spec, "spec"));
+  // P8-04. Only the blocking subset reaches this channel: findings whose
+  // false-positive rate is zero by construction because they read a
+  // contradiction between declared fields rather than judging prose.
+  errors.push(...blockingCriticFindings(input.spec));
 
   errors.push(
     ...concreteStrings({ values: input.spec.businessRules, label: "businessRules" }),
