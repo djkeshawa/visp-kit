@@ -29,6 +29,44 @@ export const presetSchema = z.enum([
   "rust",
   "generic"
 ]);
+/**
+ * Can the change be undone? (P8-05)
+ *
+ * Risk level says how much a mistake would cost; this says whether it can be
+ * taken back. Both reports build their entire autonomy model on the second
+ * question, and nothing in Kit asked it before: a `high` risk task that is
+ * trivially revertible and one that cannot be restored were indistinguishable.
+ *
+ * - `reversible`   — undo restores the prior state exactly (a branch edit).
+ * - `compensable`  — no true undo, but a defined compensating action exists,
+ *                    possibly with loss (a corrective migration).
+ * - `irreversible` — cannot be taken back, or restore is untested.
+ */
+export const reversibilityValues = ["reversible", "compensable", "irreversible"] as const;
+export const reversibilitySchema = z.enum(reversibilityValues);
+
+/**
+ * How far the effects reach (P8-05). Scope of consequence, distinct from
+ * probability of error.
+ *
+ * - `task`     — confined to this task's own workspace.
+ * - `project`  — other parts of this repository or its build.
+ * - `external` — anything outside it: published artifacts, shared data, other
+ *                people.
+ */
+export const blastRadiusValues = ["task", "project", "external"] as const;
+export const blastRadiusSchema = z.enum(blastRadiusValues);
+
+/**
+ * What a host must do before acting (P8-05).
+ *
+ * Derived by Kit and enforced by Hyper. Hyper never computes it — deriving it
+ * there would make Hyper a second authority on permission, which rule 3 of the
+ * workspace boundary forbids.
+ */
+export const approvalClassValues = ["autonomous", "checkpointed", "approval_required"] as const;
+export const approvalClassSchema = z.enum(approvalClassValues);
+
 export const riskLevelValues = ["low", "medium", "high"] as const;
 export const riskLevelSchema = z.enum(riskLevelValues);
 export const riskLevelSchemaV4 = z4.enum(riskLevelValues);
@@ -130,6 +168,9 @@ export type RiskFactorCode = z.infer<typeof riskFactorCodeSchema>;
 export type RiskFactor = z.infer<typeof riskFactorSchema>;
 export type FeatureStatus = z.infer<typeof featureStatusSchema>;
 export type RequirementSource = z.infer<typeof requirementSourceSchema>;
+export type Reversibility = z.infer<typeof reversibilitySchema>;
+export type BlastRadius = z.infer<typeof blastRadiusSchema>;
+export type ApprovalClass = z.infer<typeof approvalClassSchema>;
 export type RequirementPriority = z.infer<typeof requirementPrioritySchema>;
 export type ValidationMethod = z.infer<typeof validationMethodSchema>;
 export type TaskStatus = z.infer<typeof taskStatusSchema>;

@@ -6,6 +6,9 @@ import {
   isoDateTimeSchema,
   nonEmptyStringSchema,
   pathStringSchema,
+  approvalClassSchema,
+  blastRadiusSchema,
+  reversibilitySchema,
   riskFactorsSchema,
   riskLevelSchema,
   taskClassSchema,
@@ -28,7 +31,15 @@ export const taskSchema = z
     parallelizable: z.boolean(),
     riskLevel: riskLevelSchema,
     taskClass: taskClassSchema.optional(),
-    riskFactors: riskFactorsSchema.optional()
+    riskFactors: riskFactorsSchema.optional(),
+    /**
+     * P8-05. All three are optional and additive: a task graph written before
+     * this change stays valid, and `deriveApprovalClass` treats an absent
+     * declaration as the conservative default rather than as permission.
+     */
+    reversibility: reversibilitySchema.optional(),
+    blastRadius: blastRadiusSchema.optional(),
+    approvalClass: approvalClassSchema.optional()
   })
   .strict();
 
