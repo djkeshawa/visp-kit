@@ -1,6 +1,6 @@
 {
   "name": "visp-kit",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Stops AI-written code reaching review without proof. Declares scope before editing, blocks out-of-scope changes, and records evidence a human can check.",
   "type": "module",
   "license": "Apache-2.0",
