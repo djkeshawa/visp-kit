@@ -7,14 +7,20 @@ import {
   specArtifactPath,
   specMarkdownPath
 } from "../artifacts/artifact-paths.js";
-import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
+import {
+  planDraftArtifactSchema,
+  type PlanDraftArtifact
+} from "../artifacts/schemas/plan.schema.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, type Result } from "../core/result.js";
 import { renderPlanPrompt } from "../prompts/render-plan-prompt.js";
-import { createPlanDraftArtifact, renderPlanMarkdown } from "../templates/phase7-templates.js";
+import {
+  createPlanDraftArtifact,
+  renderPlanMarkdownFromArtifact
+} from "../templates/phase7-templates.js";
 import { validatePlan } from "../validators/validate-plan.js";
 import { validateSpec } from "../validators/validate-spec.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
@@ -35,7 +41,10 @@ import {
 async function validateExisting(input: {
   readonly targetPath: string;
   readonly featureKey: string;
-}): Promise<WorkflowValidation> {
+}): Promise<{
+  readonly validation: WorkflowValidation;
+  readonly artifact?: PlanDraftArtifact;
+}> {
   const markdownPath = planMarkdownPath(input.targetPath, input.featureKey);
   const artifactPath = planArtifactPath(input.targetPath, input.featureKey);
   const textErrors = await validateTextExists(
@@ -52,7 +61,10 @@ async function validateExisting(input: {
     artifact.value === undefined ? { passed: false, errors: [] } : validatePlan(artifact.value);
   const errors = [...textErrors, ...artifact.errors, ...semantic.errors];
 
-  return { passed: errors.length === 0, errors };
+  return {
+    validation: { passed: errors.length === 0, errors },
+    artifact: artifact.value
+  };
 }
 
 export async function runPlanWorkflow(
@@ -76,11 +88,29 @@ export async function runPlanWorkflow(
   const promptDisplayPath = relativePath(targetPath, promptPath);
 
   if (validateOnly) {
+    const validation = await validateExisting({
+      targetPath,
+      featureKey: feature.value.key
+    });
+
     return completeTemplateWorkflow({
       command: "plan",
       targetPath,
       feature: feature.value,
       files: [],
+      derivedFiles:
+        validation.artifact === undefined
+          ? []
+          : [
+              textGeneratedFile({
+                targetPath,
+                path: planMarkdownPath(targetPath, feature.value.key),
+                contents: renderPlanMarkdownFromArtifact({
+                  feature: feature.value,
+                  artifact: validation.artifact
+                })
+              })
+            ],
       promptFile: textGeneratedFile({
         targetPath,
         path: promptPath,
@@ -90,7 +120,7 @@ export async function runPlanWorkflow(
       dryRun,
       promptOnly,
       validateOnly,
-      validation: await validateExisting({ targetPath, featureKey: feature.value.key }),
+      validation: validation.validation,
       promptPath: promptDisplayPath,
       warnings: [],
       nextCommand: "visp tasks",
@@ -151,7 +181,10 @@ export async function runPlanWorkflow(
       textGeneratedFile({
         targetPath,
         path: planMarkdownPath(targetPath, feature.value.key),
-        contents: renderPlanMarkdown(feature.value)
+        contents: renderPlanMarkdownFromArtifact({
+          feature: feature.value,
+          artifact
+        })
       }),
       artifactGeneratedFile({
         targetPath,

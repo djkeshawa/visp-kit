@@ -13,7 +13,10 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
-import { taskGraphArtifactSchema } from "../artifacts/schemas/task.schema.js";
+import {
+  taskGraphArtifactSchema,
+  type TaskGraphArtifact
+} from "../artifacts/schemas/task.schema.js";
 import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
 import {
   traceabilityMatrixSchema,
@@ -27,8 +30,8 @@ import { renderTasksPrompt } from "../prompts/render-tasks-prompt.js";
 import {
   createTaskGraphArtifact,
   createTraceabilitySeed,
-  renderTasksMarkdown,
-  renderTraceabilityMarkdown,
+  renderTasksMarkdownFromArtifact,
+  renderTraceabilityMarkdownFromArtifact,
   traceabilityWithTasks
 } from "../templates/phase7-templates.js";
 import { validateTaskGraph } from "../validators/validate-task-graph.js";
@@ -88,6 +91,8 @@ async function validateExisting(input: {
 }): Promise<{
   readonly validation: WorkflowValidation;
   readonly warnings: readonly string[];
+  readonly taskGraph?: TaskGraphArtifact;
+  readonly traceability?: TraceabilityMatrix;
 }> {
   const tasksMd = tasksMarkdownPath(input.targetPath, input.featureKey);
   const taskGraphJson = taskGraphArtifactPath(input.targetPath, input.featureKey);
@@ -130,7 +135,9 @@ async function validateExisting(input: {
 
   return {
     validation: { passed: errors.length === 0, errors },
-    warnings: spec.warnings
+    warnings: spec.warnings,
+    taskGraph: taskGraph.value,
+    traceability: traceability.value
   };
 }
 
@@ -161,11 +168,39 @@ export async function runTasksWorkflow(
       dryRun
     });
 
+    const derivedFiles = [
+      ...(validation.taskGraph === undefined
+        ? []
+        : [
+            textGeneratedFile({
+              targetPath,
+              path: tasksMarkdownPath(targetPath, feature.value.key),
+              contents: renderTasksMarkdownFromArtifact({
+                feature: feature.value,
+                artifact: validation.taskGraph
+              })
+            })
+          ]),
+      ...(validation.traceability === undefined
+        ? []
+        : [
+            textGeneratedFile({
+              targetPath,
+              path: traceabilityMarkdownPath(targetPath, feature.value.key),
+              contents: renderTraceabilityMarkdownFromArtifact({
+                feature: feature.value,
+                traceability: validation.traceability
+              })
+            })
+          ])
+    ];
+
     const summary = await completeTemplateWorkflow({
       command: "tasks",
       targetPath,
       feature: feature.value,
       files: [],
+      derivedFiles,
       promptFile: textGeneratedFile({
         targetPath,
         path: promptPath,
@@ -285,7 +320,10 @@ export async function runTasksWorkflow(
       textGeneratedFile({
         targetPath,
         path: tasksMarkdownPath(targetPath, feature.value.key),
-        contents: renderTasksMarkdown(feature.value)
+        contents: renderTasksMarkdownFromArtifact({
+          feature: feature.value,
+          artifact: taskGraph
+        })
       }),
       artifactGeneratedFile({
         targetPath,
@@ -299,8 +337,8 @@ export async function runTasksWorkflow(
       textGeneratedFile({
         targetPath,
         path: traceabilityMarkdownPath(targetPath, feature.value.key),
-        contents: renderTraceabilityMarkdown({
-          title: feature.value.intent.title,
+        contents: renderTraceabilityMarkdownFromArtifact({
+          feature: feature.value,
           traceability
         })
       }),

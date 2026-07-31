@@ -13,10 +13,12 @@ Read:
 - .visp/memory/constitution.compact.md if present
 
 Update:
-- ${feature.relativePath}/spec.md
 - ${feature.relativePath}/spec.json
-- ${feature.relativePath}/traceability.md
 - ${feature.relativePath}/traceability.json
+
+Generated (do not edit):
+- ${feature.relativePath}/spec.md
+- ${feature.relativePath}/traceability.md
 
 Rules:
 - Produce requirements and acceptance criteria.
@@ -25,6 +27,7 @@ Rules:
 - Keep requirements testable.
 - Replace every placeholder and set status to "ready" only when the specification is complete.
 - ${editSeededJsonInstruction}
+- The files under Generated are rendered from the JSON by \`visp spec --validate\`; edits to them are discarded.
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.
 - Do not create plan or tasks.

@@ -112,6 +112,14 @@ export async function completeTemplateWorkflow(input: {
   readonly feature: ActiveFeature;
   readonly files: readonly GeneratedFile[];
   readonly updateFiles?: readonly GeneratedFile[];
+  /**
+   * Markdown projections of the validated JSON artifacts. Written on the
+   * validate path only, and only once validation passed, so an unparseable or
+   * schema-failing artifact never renders. They cannot travel through `files`
+   * or `updateFiles`: the validateOnly branch returns before either channel is
+   * consumed, so anything passed there would be silently discarded.
+   */
+  readonly derivedFiles?: readonly GeneratedFile[];
   readonly promptFile: GeneratedFile;
   readonly force: boolean;
   readonly dryRun: boolean;
@@ -126,6 +134,14 @@ export async function completeTemplateWorkflow(input: {
   if (input.validateOnly) {
     const actions: WorkflowFileAction[] = [];
     if (input.validation.passed && !input.dryRun && !input.promptOnly) {
+      const derived = await writeUpdatedGeneratedFiles(input.derivedFiles ?? [], {
+        dryRun: false
+      });
+
+      if (!derived.ok) return derived;
+
+      actions.push(...derived.value);
+
       const status = await updateWorkflowStatus({
         targetPath: input.targetPath,
         feature: input.feature,

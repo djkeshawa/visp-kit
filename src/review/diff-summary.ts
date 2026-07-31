@@ -46,6 +46,10 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     filePath === ".visp/memory/project-summary.md" ||
     /^\.visp\/prompts\/.+\.prompt\.md$/.test(filePath) ||
     /^\.visp\/features\/[^/]+\/timeline\.(json|md)$/.test(filePath) ||
+    // Feature markdown is a derived view of the validated JSON beside it: the
+    // validate paths and reconcile's task-status mutation regenerate it, so it
+    // is tool-owned and must not surface as an unattributed scope finding.
+    /^\.visp\/features\/[^/]+\/(spec|plan|tasks|clarifications|traceability)\.md$/.test(filePath) ||
     filePath === ".visp/prompts/review.prompt.md" ||
     filePath === ".visp/prompts/reconcile.prompt.md" ||
     /^\.visp\/features\/[^/]+\/context\/[^/]+\.implementation-checklist\.(json|md)$/.test(

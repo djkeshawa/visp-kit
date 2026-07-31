@@ -12,8 +12,10 @@ Read:
 - .visp/memory/project-summary.md if present
 
 Update:
-- ${feature.relativePath}/clarifications.md
 - ${feature.relativePath}/clarifications.json
+
+Generated (do not edit):
+- ${feature.relativePath}/clarifications.md
 
 Rules:
 - Ask only blocking implementation-relevant questions.
@@ -21,6 +23,7 @@ Rules:
 - Mark safe assumptions.
 - Set status to "ready" only after every blocking question is answered or its recommended default is explicitly accepted.
 - ${editSeededJsonInstruction}
+- The files under Generated are rendered from the JSON by \`visp clarify --validate\`; edits to them are discarded.
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.
 - Do not create spec, plan, or tasks.

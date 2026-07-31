@@ -69,21 +69,3 @@ export function updateTraceabilityForReconcile(input: {
     updatedAt: input.now
   };
 }
-
-export function renderTraceabilityMarkdown(matrix: TraceabilityMatrix): string {
-  const rows = matrix.entries
-    .map(
-      (entry) =>
-        `| ${entry.requirementId} | ${entry.acceptanceCriterionIds.join(", ") || "none"} | ${entry.taskIds.join(", ") || "none"} | ${entry.filePaths.join(", ") || "none"} | ${entry.testPaths.join(", ") || "none"} | ${entry.status} |`
-    )
-    .join("\n");
-
-  return `# Traceability Matrix
-
-Updated: ${matrix.updatedAt}
-
-| Requirement | Acceptance Criteria | Tasks | Files | Tests | Status |
-|-------------|---------------------|-------|-------|-------|--------|
-${rows || "| none | none | none | none | none | missing |"}
-`;
-}

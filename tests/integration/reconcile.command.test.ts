@@ -265,6 +265,62 @@ describe("visp reconcile command", { timeout: 30000 }, () => {
     expect(taskGraph.tasks[0]?.status).toBe("verified");
   });
 
+  it("re-renders tasks.md so it stays consistent with the mutated task graph", async () => {
+    await prepareReconcileFixture(tempDir);
+    const featurePath = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    const tasksMarkdownPath = path.join(featurePath, "tasks.md");
+    const before = await readFile(tasksMarkdownPath, "utf8");
+    const program = createCli({ writeOut: () => undefined });
+
+    expect(before).toContain("ready");
+    expect(before).not.toContain("verified");
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "reconcile",
+      tempDir,
+      "--task",
+      "T001",
+      "--update-task-status",
+      "--force"
+    ]);
+
+    const taskGraph = JSON.parse(
+      await readFile(path.join(featurePath, "task-graph.json"), "utf8")
+    ) as {
+      tasks: Array<{ id: string; title: string; status: string }>;
+    };
+    const after = await readFile(tasksMarkdownPath, "utf8");
+
+    expect(taskGraph.tasks[0]?.status).toBe("verified");
+    expect(after).toContain("verified");
+    expect(after).toContain(taskGraph.tasks[0]?.title ?? "");
+    expect(after).not.toBe(before);
+  });
+
+  it("leaves tasks.md untouched on a dry-run task status update", async () => {
+    await prepareReconcileFixture(tempDir);
+    const featurePath = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    const tasksMarkdownPath = path.join(featurePath, "tasks.md");
+    const before = await readFile(tasksMarkdownPath, "utf8");
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "reconcile",
+      tempDir,
+      "--task",
+      "T001",
+      "--update-task-status",
+      "--force",
+      "--dry-run"
+    ]);
+
+    expect(await readFile(tasksMarkdownPath, "utf8")).toBe(before);
+  });
+
   it("fails clearly when .visp is missing", async () => {
     const output: string[] = [];
     const program = createCli({ writeErr: (value) => output.push(value) });

@@ -18,10 +18,12 @@ Read:
 - .visp/cache/file-summaries.json if present
 
 Update:
-- ${feature.relativePath}/tasks.md
 - ${feature.relativePath}/task-graph.json
-- ${feature.relativePath}/traceability.md
 - ${feature.relativePath}/traceability.json
+
+Generated (do not edit):
+- ${feature.relativePath}/tasks.md
+- ${feature.relativePath}/traceability.md
 
 Rules:
 - Create a small dependency-aware task graph.
@@ -32,6 +34,7 @@ Rules:
 - Keep each task implementation-sized.
 - Set task-graph status to "ready" only after every placeholder is replaced and every task has concrete scope and validation commands.
 - ${editSeededJsonInstruction}
+- The files under Generated are rendered from the JSON by \`visp tasks --validate\`; edits to them are discarded.
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement any task.
 - Do not create context packs.

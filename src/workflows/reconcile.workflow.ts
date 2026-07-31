@@ -90,10 +90,11 @@ import {
   reconcileSummaryFromReport,
   type ReconcileSummary
 } from "../reconcile/reconcile-summary.js";
+import { updateTraceabilityForReconcile } from "../reconcile/reconcile-traceability.js";
 import {
-  renderTraceabilityMarkdown,
-  updateTraceabilityForReconcile
-} from "../reconcile/reconcile-traceability.js";
+  renderTasksMarkdownFromArtifact,
+  renderTraceabilityMarkdownFromArtifact
+} from "../templates/phase7-templates.js";
 import { loadGitDiff } from "../review/diff-loader.js";
 import {
   evaluatePolicyGate,
@@ -101,7 +102,7 @@ import {
   gateFailureMessages,
   gateWarningMessages
 } from "../gates/policy-gate-summary.js";
-import { resolveActiveFeature } from "./shared/active-feature.js";
+import { resolveActiveFeature, type ActiveFeature } from "./shared/active-feature.js";
 import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import { loadTaskGraph } from "./shared/task-graph-loader.js";
 import { recordWorkflowRun } from "./shared/run-recorder.js";
@@ -395,6 +396,7 @@ async function updateStatus(input: {
 
 async function updateTaskStatus(input: {
   readonly targetPath: string;
+  readonly feature: ActiveFeature;
   readonly featureKey: string;
   readonly taskGraph: TaskGraphArtifact;
   readonly task: Task;
@@ -423,6 +425,16 @@ async function updateTaskStatus(input: {
   );
 
   if (!write.ok) return write;
+
+  // tasks.md is a derived view of task-graph.json. Rewriting the graph without
+  // re-rendering the markdown desynchronizes the pair on the very next command
+  // after `visp tasks --validate` synchronized it.
+  const writeMarkdown = await writeTextFile(
+    tasksMarkdownPath(input.targetPath, input.featureKey),
+    renderTasksMarkdownFromArtifact({ feature: input.feature, artifact: nextGraph })
+  );
+
+  if (!writeMarkdown.ok) return writeMarkdown;
   return ok(undefined);
 }
 
@@ -795,7 +807,10 @@ export async function runReconcileWorkflow(
 
       const writeTraceMarkdown = await writeTextFile(
         traceabilityMarkdownPath(targetPath, feature.value.key),
-        renderTraceabilityMarkdown(nextTraceability)
+        renderTraceabilityMarkdownFromArtifact({
+          feature: feature.value,
+          traceability: nextTraceability
+        })
       );
 
       if (!writeTraceMarkdown.ok) return writeTraceMarkdown;
@@ -804,6 +819,7 @@ export async function runReconcileWorkflow(
     if (!options.promptOnly && options.updateTaskStatus && selectedTask !== undefined) {
       const update = await updateTaskStatus({
         targetPath,
+        feature: feature.value,
         featureKey: feature.value.key,
         taskGraph: taskGraph.value,
         task: selectedTask,

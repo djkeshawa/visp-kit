@@ -11,8 +11,11 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { clarificationArtifactSchema } from "../artifacts/schemas/clarification.schema.js";
-import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
-import { traceabilityMatrixSchema } from "../artifacts/schemas/traceability.schema.js";
+import { specArtifactSchema, type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
+import {
+  traceabilityMatrixSchema,
+  type TraceabilityMatrix
+} from "../artifacts/schemas/traceability.schema.js";
 import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, type Result } from "../core/result.js";
@@ -20,8 +23,8 @@ import { renderSpecPrompt } from "../prompts/render-spec-prompt.js";
 import {
   createSpecArtifact,
   createTraceabilitySeed,
-  renderSpecMarkdown,
-  renderTraceabilityMarkdown
+  renderSpecMarkdownFromArtifact,
+  renderTraceabilityMarkdownFromArtifact
 } from "../templates/phase7-templates.js";
 import { validateSpec } from "../validators/validate-spec.js";
 import { validateClarifications } from "../validators/validate-clarifications.js";
@@ -48,6 +51,8 @@ async function validateExisting(input: {
 }): Promise<{
   readonly validation: WorkflowValidation;
   readonly warnings: readonly string[];
+  readonly spec?: SpecArtifact;
+  readonly traceability?: TraceabilityMatrix;
 }> {
   const specMd = specMarkdownPath(input.targetPath, input.featureKey);
   const specJson = specArtifactPath(input.targetPath, input.featureKey);
@@ -77,7 +82,9 @@ async function validateExisting(input: {
 
   return {
     validation: { passed: errors.length === 0, errors },
-    warnings: spec.warnings
+    warnings: spec.warnings,
+    spec: spec.value,
+    traceability: traceability.value
   };
 }
 
@@ -108,11 +115,39 @@ export async function runSpecWorkflow(
       dryRun
     });
 
+    const derivedFiles = [
+      ...(validation.spec === undefined
+        ? []
+        : [
+            textGeneratedFile({
+              targetPath,
+              path: specMarkdownPath(targetPath, feature.value.key),
+              contents: renderSpecMarkdownFromArtifact({
+                feature: feature.value,
+                artifact: validation.spec
+              })
+            })
+          ]),
+      ...(validation.traceability === undefined
+        ? []
+        : [
+            textGeneratedFile({
+              targetPath,
+              path: traceabilityMarkdownPath(targetPath, feature.value.key),
+              contents: renderTraceabilityMarkdownFromArtifact({
+                feature: feature.value,
+                traceability: validation.traceability
+              })
+            })
+          ])
+    ];
+
     return completeTemplateWorkflow({
       command: "spec",
       targetPath,
       feature: feature.value,
       files: [],
+      derivedFiles,
       promptFile: textGeneratedFile({
         targetPath,
         path: promptPath,
@@ -188,7 +223,10 @@ export async function runSpecWorkflow(
       textGeneratedFile({
         targetPath,
         path: specMarkdownPath(targetPath, feature.value.key),
-        contents: renderSpecMarkdown(feature.value)
+        contents: renderSpecMarkdownFromArtifact({
+          feature: feature.value,
+          artifact: spec
+        })
       }),
       artifactGeneratedFile({
         targetPath,
@@ -200,8 +238,8 @@ export async function runSpecWorkflow(
       textGeneratedFile({
         targetPath,
         path: traceabilityMarkdownPath(targetPath, feature.value.key),
-        contents: renderTraceabilityMarkdown({
-          title: feature.value.intent.title,
+        contents: renderTraceabilityMarkdownFromArtifact({
+          feature: feature.value,
           traceability
         })
       }),

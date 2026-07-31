@@ -7,14 +7,17 @@ import {
   featureIntentMarkdownPath,
   promptArtifactPath
 } from "../artifacts/artifact-paths.js";
-import { clarificationArtifactSchema } from "../artifacts/schemas/clarification.schema.js";
+import {
+  clarificationArtifactSchema,
+  type ClarificationArtifact
+} from "../artifacts/schemas/clarification.schema.js";
 import { type VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { ok, type Result } from "../core/result.js";
 import { renderClarifyPrompt } from "../prompts/render-clarify-prompt.js";
 import {
   createClarificationArtifact,
-  renderClarificationsMarkdown
+  renderClarificationsMarkdownFromArtifact
 } from "../templates/phase7-templates.js";
 import { validateClarifications } from "../validators/validate-clarifications.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
@@ -35,7 +38,10 @@ import {
 async function validateExisting(input: {
   readonly targetPath: string;
   readonly featureKey: string;
-}): Promise<WorkflowValidation> {
+}): Promise<{
+  readonly validation: WorkflowValidation;
+  readonly artifact?: ClarificationArtifact;
+}> {
   const markdownPath = clarificationsMarkdownPath(input.targetPath, input.featureKey);
   const artifactPath = clarificationsArtifactPath(input.targetPath, input.featureKey);
   const textErrors = await validateTextExists(
@@ -54,7 +60,10 @@ async function validateExisting(input: {
       : validateClarifications(artifact.value);
   const errors = [...textErrors, ...artifact.errors, ...validation.errors];
 
-  return { passed: errors.length === 0, errors };
+  return {
+    validation: { passed: errors.length === 0, errors },
+    artifact: artifact.value
+  };
 }
 
 export async function runClarifyWorkflow(
@@ -88,6 +97,19 @@ export async function runClarifyWorkflow(
       targetPath,
       feature: feature.value,
       files: [],
+      derivedFiles:
+        validation.artifact === undefined
+          ? []
+          : [
+              textGeneratedFile({
+                targetPath,
+                path: clarificationsMarkdownPath(targetPath, feature.value.key),
+                contents: renderClarificationsMarkdownFromArtifact({
+                  feature: feature.value,
+                  artifact: validation.artifact
+                })
+              })
+            ],
       promptFile: textGeneratedFile({
         targetPath,
         path: promptPath,
@@ -97,7 +119,7 @@ export async function runClarifyWorkflow(
       dryRun,
       promptOnly,
       validateOnly,
-      validation,
+      validation: validation.validation,
       promptPath: promptDisplayPath,
       warnings: [],
       nextCommand: "visp spec",
@@ -153,7 +175,10 @@ export async function runClarifyWorkflow(
       textGeneratedFile({
         targetPath,
         path: clarificationsMarkdownPath(targetPath, feature.value.key),
-        contents: renderClarificationsMarkdown(feature.value)
+        contents: renderClarificationsMarkdownFromArtifact({
+          feature: feature.value,
+          artifact
+        })
       }),
       artifactGeneratedFile({
         targetPath,

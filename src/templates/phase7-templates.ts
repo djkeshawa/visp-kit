@@ -1,12 +1,44 @@
 import { type ClarificationArtifact } from "../artifacts/schemas/clarification.schema.js";
 import { type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
 import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
-import { type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
+import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 
 function request(feature: ActiveFeature): string {
   return feature.intent.rawUserRequest;
+}
+
+function tableText(value: string): string {
+  return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim() || "none";
+}
+
+function idList(values: readonly string[] | undefined): string {
+  return tableText((values ?? []).join(", "));
+}
+
+function bulletList(values: readonly string[] | undefined): string {
+  const items = (values ?? []).map((value) => value.trim()).filter((value) => value.length > 0);
+
+  return items.length === 0 ? "- none" : items.map((item) => `- ${item}`).join("\n");
+}
+
+function blockText(value: string | undefined): string {
+  const trimmed = (value ?? "").trim();
+
+  return trimmed.length === 0 ? "none" : trimmed;
+}
+
+function tableRows(rows: readonly string[], emptyRow: string): string {
+  return rows.length === 0 ? emptyRow : rows.join("\n");
+}
+
+function sections(blocks: readonly string[], empty: string): string {
+  return blocks.length === 0 ? empty : blocks.join("\n\n");
+}
+
+function yesNo(value: boolean): string {
+  return value ? "yes" : "no";
 }
 
 export function createClarificationArtifact(input: {
@@ -41,62 +73,6 @@ export function createClarificationArtifact(input: {
     createdAt: input.now,
     updatedAt: input.now
   };
-}
-
-export function renderClarificationsMarkdown(feature: ActiveFeature): string {
-  return `# Clarifications: ${feature.intent.title}
-
-## Feature
-
-- ID: ${feature.id}
-- Slug: ${feature.slug}
-- Title: ${feature.intent.title}
-- Budget mode: ${feature.intent.budgetMode}
-- Risk level: ${feature.intent.riskLevel}
-
-## Source Intent
-
-${request(feature)}
-
-## Blocking Questions
-
-Use this section for questions that materially affect implementation correctness.
-
-| ID | Question | Recommended Default | Reason | Status |
-|----|----------|---------------------|--------|--------|
-| CQ001 | TBD | TBD | TBD | unanswered |
-
-## Non-Blocking Assumptions
-
-Use this section for safe defaults that do not need to block the workflow.
-
-| ID | Assumption | Reason | Source |
-|----|------------|--------|--------|
-| CA001 | Follow existing project conventions. | Preserves consistency. | constitution |
-
-## Clarification Rules
-
-A clarification is blocking only if a wrong assumption could cause:
-- incorrect business behavior
-- security or permission issues
-- data model changes
-- API or event contract mismatch
-- migration risk
-- meaningful rework across modules
-
-Do not ask cosmetic questions unless the feature is explicitly UI, design, or brand-focused.
-
-## How to Use
-
-1. Use \`.visp/prompts/clarify.prompt.md\` with your AI coding tool to refine this file.
-2. Answer or accept defaults for blocking questions.
-3. Re-run \`visp clarify --validate\`.
-4. Run \`visp spec\`.
-`;
-}
-
-function tableText(value: string): string {
-  return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim() || "TBD";
 }
 
 export function renderClarificationsMarkdownFromArtifact(input: {
@@ -205,83 +181,126 @@ export function createSpecArtifact(input: {
   };
 }
 
-export function renderSpecMarkdown(feature: ActiveFeature): string {
-  return `# Specification: ${feature.intent.title}
+export function renderSpecMarkdownFromArtifact(input: {
+  readonly feature: ActiveFeature;
+  readonly artifact: SpecArtifact;
+}): string {
+  const spec = input.artifact;
+  const userStories = sections(
+    spec.userStories.map(
+      (story) =>
+        `### ${story.id}: ${story.title}
+
+As a ${story.actor}, I want ${story.capability}, so that ${story.outcome}.`
+    ),
+    "None recorded."
+  );
+  const requirements = sections(
+    spec.requirements.map(
+      (requirement) =>
+        `### ${requirement.id}: ${requirement.title}
+
+Feature:
+${requirement.featureId}
+
+Description:
+${blockText(requirement.description)}
+
+Priority:
+${requirement.priority}
+
+Source:
+${requirement.source}
+
+Acceptance Criteria:
+${bulletList(requirement.acceptanceCriteria.map((criterion) => `${criterion.id}: ${criterion.description}`))}
+
+Assumptions:
+${bulletList(requirement.assumptions.map((assumption) => `${assumption.id}: ${assumption.description}`))}
+
+Out of Scope:
+${bulletList(requirement.outOfScope)}`
+    ),
+    "None recorded."
+  );
+  const acceptanceCriteria = sections(
+    spec.acceptanceCriteria.map(
+      (criterion) =>
+        `### ${criterion.id}
+
+Requirement: ${criterion.requirementId}
+Description: ${tableText(criterion.description)}
+Validation method: ${criterion.validationMethod}
+Testable: ${yesNo(criterion.testable)}`
+    ),
+    "None recorded."
+  );
+
+  return `# Specification: ${spec.title}
 
 ## Feature
 
-- ID: ${feature.id}
-- Slug: ${feature.slug}
-- Status: draft
+- ID: ${spec.featureId}
+- Slug: ${spec.featureSlug}
+- Status: ${spec.status}
 
 ## Source Intent
 
-${request(feature)}
+${request(input.feature)}
 
-## Clarification Summary
+## Clarifications
 
-- TBD
+See \`${input.feature.relativePath}/clarifications.md\`.
 
 ## User Stories
 
-### US001: <story title>
-
-As a <user/actor>, I want <capability>, so that <outcome>.
+${userStories}
 
 ## Functional Requirements
 
-### REQ001: <requirement title>
-
-Description:
-TBD
-
-Priority:
-must
-
-Source:
-user
-
-Acceptance Criteria:
-- AC001: TBD
+${requirements}
 
 ## Acceptance Criteria
 
-### AC001
-
-Requirement: REQ001  
-Description: TBD  
-Validation method: unit  
-Testable: true
+${acceptanceCriteria}
 
 ## Business Rules
 
-- TBD
+${bulletList(spec.businessRules)}
 
 ## Non-Functional Requirements
 
-- Performance: TBD
-- Security: TBD
-- Accessibility: TBD
-- Reliability: TBD
-- Maintainability: TBD
+### Performance
+
+${bulletList(spec.nonFunctionalRequirements.performance)}
+
+### Security
+
+${bulletList(spec.nonFunctionalRequirements.security)}
+
+### Accessibility
+
+${bulletList(spec.nonFunctionalRequirements.accessibility)}
+
+### Reliability
+
+${bulletList(spec.nonFunctionalRequirements.reliability)}
+
+### Maintainability
+
+${bulletList(spec.nonFunctionalRequirements.maintainability)}
 
 ## Edge Cases
 
-- TBD
+${bulletList(spec.edgeCases)}
 
 ## Assumptions
 
-- TBD
+${bulletList(spec.assumptions.map((assumption) => `${assumption.id}: ${assumption.description}`))}
 
 ## Out of Scope
 
-- TBD
-
-## Traceability Seed
-
-| Requirement | Acceptance Criteria | Source | Notes |
-|-------------|---------------------|--------|-------|
-| REQ001 | AC001 | user | TBD |
+${bulletList(spec.outOfScope)}
 
 ## Next Step
 
@@ -314,21 +333,29 @@ export function createTraceabilitySeed(input: {
   };
 }
 
-export function renderTraceabilityMarkdown(input: {
-  readonly title: string;
+export function renderTraceabilityMarkdownFromArtifact(input: {
+  readonly feature: ActiveFeature;
   readonly traceability: TraceabilityMatrix;
 }): string {
-  const rows = input.traceability.entries
-    .map(
+  const rows = tableRows(
+    input.traceability.entries.map(
       (entry) =>
-        `| ${entry.requirementId} | ${entry.acceptanceCriterionIds.join(", ") || "TBD"} | ${entry.planDecisionIds?.join(", ") || "TBD"} | ${entry.taskIds.join(", ") || "TBD"} | ${entry.testRefs?.join(", ") || "TBD"} | ${entry.status} |`
-    )
-    .join("\n");
+        `| ${entry.requirementId} | ${idList(entry.acceptanceCriterionIds)} | ${idList(entry.planDecisionIds)} | ${idList(entry.taskIds)} | ${idList(entry.filePaths)} | ${idList(entry.testPaths)} | ${idList(entry.testRefs)} | ${entry.status} |`
+    ),
+    "| none | none | none | none | none | none | none | missing |"
+  );
 
-  return `# Traceability: ${input.title}
+  return `# Traceability: ${input.feature.intent.title}
 
-| Requirement | Acceptance Criteria | Plan Items | Tasks | Tests | Status |
-|-------------|---------------------|------------|-------|-------|--------|
+## Feature
+
+- ID: ${input.traceability.featureId}
+- Slug: ${input.traceability.featureSlug ?? input.feature.slug}
+
+## Matrix
+
+| Requirement | Acceptance Criteria | Plan Decisions | Tasks | Files | Tests | Test Refs | Status |
+|-------------|---------------------|----------------|-------|-------|-------|-----------|--------|
 ${rows}
 `;
 }
@@ -410,18 +437,73 @@ export function createPlanDraftArtifact(input: {
   };
 }
 
-export function renderPlanMarkdown(feature: ActiveFeature): string {
-  return `# Implementation Plan: ${feature.intent.title}
+export function renderPlanMarkdownFromArtifact(input: {
+  readonly feature: ActiveFeature;
+  readonly artifact: PlanDraftArtifact;
+}): string {
+  const plan = input.artifact;
+  const affectedModules = tableRows(
+    plan.affectedModules.map(
+      (module) =>
+        `| ${tableText(module.moduleOrFileArea)} | ${tableText(module.reason)} | ${tableText(module.evidence)} |`
+    ),
+    "| none | none | none |"
+  );
+  const testingStrategy = tableRows(
+    plan.testingStrategy.map(
+      (item) =>
+        `| ${tableText(item.level)} | ${tableText(item.whatToTest)} | ${tableText(item.validationCommand)} |`
+    ),
+    "| none | none | none |"
+  );
+  const alternatives = tableRows(
+    plan.alternatives.map(
+      (alternative) =>
+        `| ${tableText(alternative.option)} | ${tableText(alternative.decision)} | ${tableText(alternative.reason)} |`
+    ),
+    "| none | none | none |"
+  );
+  const risks = tableRows(
+    plan.risks.map(
+      (risk) =>
+        `| ${risk.id} | ${tableText(risk.description)} | ${risk.level} | ${tableText(risk.mitigation)} | ${idList(risk.requirementIds)} |`
+    ),
+    "| none | none | none | none | none |"
+  );
+  const decisions = sections(
+    plan.decisions.map(
+      (decision) =>
+        `### ${decision.id}: ${decision.title}
+
+Decision:
+${blockText(decision.decision)}
+
+Reason:
+${blockText(decision.reason)}
+
+Evidence:
+${blockText(decision.evidence)}
+
+Impacts:
+${blockText(decision.impacts)}
+
+Requirements:
+${bulletList(decision.requirementIds)}`
+    ),
+    "None recorded."
+  );
+
+  return `# Implementation Plan: ${input.feature.intent.title}
 
 ## Feature
 
-- ID: ${feature.id}
-- Slug: ${feature.slug}
-- Status: draft
+- ID: ${plan.featureId}
+- Slug: ${plan.featureSlug}
+- Status: ${plan.status}
 
 ## Inputs
 
-- Spec: \`${feature.relativePath}/spec.md\`
+- Spec: \`${input.feature.relativePath}/spec.md\`
 - Project profile: \`.visp/project.json\`
 - Project summary: \`.visp/memory/project-summary.md\`
 - Constitution: \`.visp/memory/constitution.compact.md\`
@@ -430,108 +512,93 @@ export function renderPlanMarkdown(feature: ActiveFeature): string {
 
 ### Known from user
 
-- ${request(feature)}
+${bulletList(plan.evidence.knownFromUser)}
 
 ### Known from specification
 
-- TBD
+${bulletList(plan.evidence.knownFromSpecification)}
 
 ### Known from codebase
 
-- TBD
+${bulletList(plan.evidence.knownFromCodebase)}
 
 ### Known from constitution
 
-- TBD
+${bulletList(plan.evidence.knownFromConstitution)}
 
 ### Inferred
 
-- TBD
+${bulletList(plan.evidence.inferred)}
 
 ### Assumed
 
-- TBD
+${bulletList(plan.evidence.assumed)}
 
 ### Unknown
 
-- TBD
-
-## Architecture Summary
-
-TBD
+${bulletList(plan.evidence.unknown)}
 
 ## Affected Modules
 
 | Module/File Area | Reason | Evidence |
 |------------------|--------|----------|
-| TBD | TBD | TBD |
+${affectedModules}
 
 ## Implementation Approach
 
-TBD
+${blockText(plan.implementationApproach)}
 
 ## Data Model Impact
 
-- None known / TBD
+- ${tableText(plan.impacts.dataModel)}
 
 ## API Impact
 
-- None known / TBD
+- ${tableText(plan.impacts.api)}
 
 ## UI Impact
 
-- None known / TBD
+- ${tableText(plan.impacts.ui)}
 
 ## Security and Privacy Impact
 
-- None known / TBD
+- ${tableText(plan.impacts.securityPrivacy)}
 
 ## Performance Impact
 
-- None known / TBD
+- ${tableText(plan.impacts.performance)}
 
 ## Testing Strategy
 
 | Level | What to Test | Validation Command |
 |-------|--------------|--------------------|
-| unit | TBD | TBD |
+${testingStrategy}
 
 ## Rollback Strategy
 
-TBD
+${blockText(plan.rollbackStrategy)}
 
 ## Alternatives Considered
 
 | Option | Decision | Reason |
 |--------|----------|--------|
-| TBD | rejected | TBD |
+${alternatives}
 
 ## Dependencies
 
-- New dependencies required: no
-- If yes, explain why and require approval.
+- New dependencies required: ${yesNo(plan.dependencies.newDependenciesRequired)}
+- Requires approval: ${yesNo(plan.dependencies.requiresApproval)}
+- Notes: ${tableText(plan.dependencies.notes)}
 
 ## Risks
 
-| ID | Risk | Level | Mitigation |
-|----|------|-------|------------|
-| RISK001 | TBD | medium | TBD |
+| ID | Risk | Level | Mitigation | Requirements |
+|----|------|-------|------------|--------------|
+${risks}
 
 ## Plan Decisions
 
-### PD001: <decision title>
-
-Decision:
-TBD
-
-Reason:
-TBD
-
-Evidence:
-TBD
-
-Impacts:
-TBD
+${decisions}
 
 ## Next Step
 
@@ -573,14 +640,125 @@ export function createTaskGraphArtifact(input: {
   };
 }
 
-export function renderTasksMarkdown(feature: ActiveFeature): string {
-  return `# Task Graph: ${feature.intent.title}
+function topologicalTaskOrder(tasks: readonly Task[]): readonly string[] {
+  const known = new Set<string>();
+  const pending: { readonly id: string; readonly dependsOn: readonly string[] }[] = [];
+
+  for (const task of tasks) {
+    if (known.has(task.id)) continue;
+    known.add(task.id);
+    pending.push({ id: task.id, dependsOn: task.dependsOn });
+  }
+
+  const ordered: string[] = [];
+  const emitted = new Set<string>();
+  let progressed = true;
+
+  while (pending.length > 0 && progressed) {
+    progressed = false;
+
+    for (let index = 0; index < pending.length; index += 1) {
+      const entry = pending[index];
+
+      if (entry === undefined) continue;
+
+      const ready = entry.dependsOn.every(
+        (dependency) => dependency === entry.id || !known.has(dependency) || emitted.has(dependency)
+      );
+
+      if (!ready) continue;
+
+      pending.splice(index, 1);
+      ordered.push(entry.id);
+      emitted.add(entry.id);
+      progressed = true;
+      break;
+    }
+  }
+
+  for (const entry of pending) ordered.push(entry.id);
+
+  return ordered;
+}
+
+export function renderTasksMarkdownFromArtifact(input: {
+  readonly feature: ActiveFeature;
+  readonly artifact: TaskGraphArtifact;
+}): string {
+  const graph = input.artifact;
+  const order = topologicalTaskOrder(graph.tasks);
+  const byId = new Map(graph.tasks.map((task) => [task.id, task]));
+  const orderedTasks = order
+    .map((id) => byId.get(id))
+    .filter((task): task is Task => task !== undefined);
+  const tasks = sections(
+    orderedTasks.map(
+      (task) =>
+        `### ${task.id}: ${task.title}
+
+Status:
+${task.status}
+
+Description:
+${blockText(task.description)}
+
+Requirements:
+${bulletList(task.requirementIds)}
+
+Acceptance Criteria:
+${bulletList(task.acceptanceCriterionIds)}
+
+Depends On:
+${bulletList(task.dependsOn)}
+
+Allowed Files:
+${bulletList(task.allowedFiles)}
+
+Expected Files:
+${bulletList(task.expectedFiles)}
+
+Forbidden Files:
+${bulletList(task.forbiddenFiles)}
+
+Validation Commands:
+${bulletList(task.validationCommands)}
+
+Parallelizable:
+${yesNo(task.parallelizable)}
+
+Task Class:
+${task.taskClass ?? "unspecified"}
+
+Risk Level:
+${task.riskLevel}
+
+Risk Factors:
+${bulletList((task.riskFactors ?? []).map((factor) => factor.code))}`
+    ),
+    "None recorded."
+  );
+  const implementationOrder =
+    order.length === 0 ? "- none" : order.map((id, index) => `${index + 1}. ${id}`).join("\n");
+  const firstTaskId = order[0];
+  const nextStep =
+    firstTaskId === undefined
+      ? `Add at least one task to \`${input.feature.relativePath}/task-graph.json\`, then run:
+
+visp tasks --validate`
+      : `Run:
+
+visp context ${firstTaskId}
+
+Note:
+Run \`visp context ${firstTaskId}\`, then use \`.visp/prompts/current-task.prompt.md\` with your agent to implement the selected task.`;
+
+  return `# Task Graph: ${input.feature.intent.title}
 
 ## Feature
 
-- ID: ${feature.id}
-- Slug: ${feature.slug}
-- Status: draft
+- ID: ${graph.featureId}
+- Slug: ${graph.featureSlug ?? input.feature.slug}
+- Status: ${graph.status ?? "unspecified"}
 
 ## Task Rules
 
@@ -595,59 +773,15 @@ export function renderTasksMarkdown(feature: ActiveFeature): string {
 
 ## Tasks
 
-### T001: <task title>
-
-Status:
-ready
-
-Description:
-TBD
-
-Requirements:
-- REQ001
-
-Acceptance Criteria:
-- AC001
-
-Depends On:
-- none
-
-Allowed Files:
-- TBD
-
-Expected Files:
-- TBD
-
-Forbidden Files:
-- Dependency manifests and lockfiles unless dependency approval is part of this task
-
-Validation Commands:
-- TBD
-
-Parallelizable:
-false
-
-Task Class:
-unknown
-
-Risk Level:
-medium
-
-Risk Factors:
-unknown
+${tasks}
 
 ## Suggested Implementation Order
 
-1. T001
+${implementationOrder}
 
 ## Next Step
 
-Run:
-
-visp context T001
-
-Note:
-Run \`visp context T001\`, then use \`.visp/prompts/current-task.prompt.md\` with your agent to implement the selected task.
+${nextStep}
 `;
 }
 

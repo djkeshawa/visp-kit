@@ -221,6 +221,19 @@ describe("phase 7 template commands", () => {
       expect(await exists(path.join(featureDir, file))).toBe(true);
     }
 
+    const specMarkdown = await readFile(path.join(featureDir, "spec.md"), "utf8");
+    const planMarkdown = await readFile(path.join(featureDir, "plan.md"), "utf8");
+    const tasksMarkdown = await readFile(path.join(featureDir, "tasks.md"), "utf8");
+
+    expect(specMarkdown).toContain("Persist note pin state");
+    expect(planMarkdown).toContain("Add pin state to the note store");
+    expect(tasksMarkdown).toContain("Implement note pin persistence and ordering");
+
+    for (const markdown of [specMarkdown, planMarkdown, tasksMarkdown]) {
+      expect(markdown).not.toContain("TBD");
+      expect(markdown).not.toContain("<placeholder>");
+    }
+
     for (const file of [
       "clarify.prompt.md",
       "spec.prompt.md",
@@ -405,7 +418,9 @@ describe("phase 7 template commands", () => {
     await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
 
     expect(process.exitCode).toBeUndefined();
-    expect(await readFile(path.join(featureDir, "tasks.md"), "utf8")).toContain("# Tasks");
+    expect(await readFile(path.join(featureDir, "tasks.md"), "utf8")).toContain(
+      "# Task Graph: Add note pinning"
+    );
   });
 
   it("skips existing generated files without force and overwrites with force", async () => {
@@ -425,6 +440,146 @@ describe("phase 7 template commands", () => {
     expect(await readFile(markdownPath, "utf8")).toBe("custom");
     await program.parseAsync(["node", "visp", "clarify", tempDir, "--force"]);
     expect(await readFile(markdownPath, "utf8")).toContain("# Clarifications");
+  });
+
+  it("regenerates hand-edited markdown from the validated JSON on the validate path", async () => {
+    await initializedFeature(tempDir);
+    const program = createCli({ writeOut: () => undefined });
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    const handEdited = "hand-edited prose that no artifact backs";
+    const markdownAt = (name: string): string => path.join(featureDir, name);
+
+    await program.parseAsync(["node", "visp", "clarify", tempDir]);
+    await completeClarification(featureDir);
+    await program.parseAsync([
+      "node",
+      "visp",
+      "clarify",
+      "answer",
+      "CQ001",
+      tempDir,
+      "--accept-default"
+    ]);
+
+    await writeFile(markdownAt("clarifications.md"), handEdited, "utf8");
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate"]);
+
+    const clarifications = await readFile(markdownAt("clarifications.md"), "utf8");
+    expect(process.exitCode).toBeUndefined();
+    expect(clarifications).not.toContain(handEdited);
+    expect(clarifications).toContain("# Clarifications");
+    expect(clarifications).toContain("Should pinned notes appear before unpinned notes?");
+
+    await program.parseAsync(["node", "visp", "spec", tempDir]);
+    await completeSpec(featureDir);
+    await writeFile(markdownAt("spec.md"), handEdited, "utf8");
+    await writeFile(markdownAt("traceability.md"), handEdited, "utf8");
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "spec", tempDir, "--validate"]);
+
+    const spec = await readFile(markdownAt("spec.md"), "utf8");
+    const traceabilityAfterSpec = await readFile(markdownAt("traceability.md"), "utf8");
+    expect(process.exitCode).toBeUndefined();
+    expect(spec).not.toContain(handEdited);
+    expect(spec).toContain("# Specification: Add note pinning");
+    expect(spec).toContain("Persist note pin state");
+    expect(traceabilityAfterSpec).not.toContain(handEdited);
+    expect(traceabilityAfterSpec).toContain("# Traceability: Add note pinning");
+
+    await program.parseAsync(["node", "visp", "plan", tempDir]);
+    await completePlan(featureDir);
+    await writeFile(markdownAt("plan.md"), handEdited, "utf8");
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "plan", tempDir, "--validate"]);
+
+    const plan = await readFile(markdownAt("plan.md"), "utf8");
+    expect(process.exitCode).toBeUndefined();
+    expect(plan).not.toContain(handEdited);
+    expect(plan).toContain("# Implementation Plan: Add note pinning");
+    expect(plan).toContain("Add pin state to the note store");
+
+    await program.parseAsync(["node", "visp", "tasks", tempDir]);
+    await completeTasks(featureDir);
+    await writeFile(markdownAt("tasks.md"), handEdited, "utf8");
+    await writeFile(markdownAt("traceability.md"), handEdited, "utf8");
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
+
+    const tasks = await readFile(markdownAt("tasks.md"), "utf8");
+    const traceabilityAfterTasks = await readFile(markdownAt("traceability.md"), "utf8");
+    expect(process.exitCode).toBeUndefined();
+    expect(tasks).not.toContain(handEdited);
+    expect(tasks).toContain("# Task Graph: Add note pinning");
+    expect(tasks).toContain("Implement note pin persistence and ordering");
+    expect(traceabilityAfterTasks).not.toContain(handEdited);
+    expect(traceabilityAfterTasks).toContain("T001");
+  });
+
+  it("reports the regenerated markdown as an updated file in --json output", async () => {
+    await initializedFeature(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+
+    await program.parseAsync(["node", "visp", "clarify", tempDir]);
+    await completeClarification(featureDir);
+    await program.parseAsync([
+      "node",
+      "visp",
+      "clarify",
+      "answer",
+      "CQ001",
+      tempDir,
+      "--accept-default"
+    ]);
+
+    output.length = 0;
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate", "--json"]);
+
+    const summary = JSON.parse(output.join("")) as {
+      success: boolean;
+      updatedFiles: string[];
+    };
+
+    expect(summary.success).toBe(true);
+    expect(summary.updatedFiles).toContain(".visp/features/001-add-note-pinning/clarifications.md");
+  });
+
+  it("leaves markdown untouched when validation fails, is dry run, or is prompt only", async () => {
+    await initializedFeature(tempDir);
+    const program = createCli({ writeOut: () => undefined, writeErr: () => undefined });
+    const featureDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning");
+    const markdownPath = path.join(featureDir, "clarifications.md");
+    const handEdited = "hand-edited prose that no artifact backs";
+
+    await program.parseAsync(["node", "visp", "clarify", tempDir]);
+    await completeClarification(featureDir);
+    await program.parseAsync([
+      "node",
+      "visp",
+      "clarify",
+      "answer",
+      "CQ001",
+      tempDir,
+      "--accept-default"
+    ]);
+
+    await writeFile(markdownPath, handEdited, "utf8");
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate", "--dry-run"]);
+    expect(await readFile(markdownPath, "utf8")).toBe(handEdited);
+
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate", "--prompt-only"]);
+    expect(await readFile(markdownPath, "utf8")).toBe(handEdited);
+
+    await writeFile(path.join(featureDir, "clarifications.json"), "{", "utf8");
+    process.exitCode = undefined;
+    await program.parseAsync(["node", "visp", "clarify", tempDir, "--validate"]);
+    expect(process.exitCode).toBe(1);
+    expect(await readFile(markdownPath, "utf8")).toBe(handEdited);
   });
 
   it("supports prompt-only, dry-run, and JSON validation output", async () => {
