@@ -232,6 +232,17 @@ Fix: repair the artifact named in the error, then run:
 visp doctor --check schemas
 ```
 
+## Review Decision Lock Remains
+
+Symptom: an assurance accept, reject, or repair command reports that another
+review decision pointer update is in progress and prints a `.lock` path.
+
+Fix: first confirm that no `visp assurance accept`, `visp assurance reject`, or
+`visp assurance repair` process is still running for that task. If none is
+running, remove only the exact stale lock entry printed by the error, then retry
+the original command. Never remove a broad `.visp/` directory or clear a lock
+merely because a live publication is taking longer than expected.
+
 ## Package Not Linked Globally
 
 Symptom: `visp` command is not found.

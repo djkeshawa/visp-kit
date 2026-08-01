@@ -115,6 +115,7 @@ Everything below ships with the package.
 | [Overrides](docs/overrides.md) | Recording a deliberate exception |
 | [Agent targets](docs/agent-targets.md) | Codex, Claude Code, Copilot, OpenCode |
 | [Agent-native workflows](docs/agent-native-workflows.md) | Driving Kit from inside an agent |
+| [Artifact reader](docs/artifact-reader.md) | Typed, validated reads of `.visp/` from `visp-kit/artifacts` |
 | [Token efficiency](docs/token-efficiency.md) | How context is kept small |
 | [Troubleshooting](docs/troubleshooting.md) | When something is blocked and you disagree |
 | [Company adoption](docs/company-adoption.md) | Rolling it out to a team |

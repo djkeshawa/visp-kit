@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { link, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -74,6 +74,42 @@ async function action32(targetPath: string, now: string) {
   }
   expect(result.action.nextCommand).toBe(result.nextCommand);
   return result.action;
+}
+
+function pairedCommandRunners(): readonly [CommandRunner, CommandRunner] {
+  const gates = new Map<
+    number,
+    {
+      arrivals: number;
+      readonly promise: Promise<void>;
+      readonly release: () => void;
+    }
+  >();
+
+  const createRunner = (): CommandRunner => {
+    let callIndex = 0;
+    return {
+      async run(command, args, options) {
+        const result = await defaultCommandRunner.run(command, args, options);
+        const index = callIndex++;
+        let gate = gates.get(index);
+        if (gate === undefined) {
+          let release: () => void = () => undefined;
+          const promise = new Promise<void>((resolve) => {
+            release = resolve;
+          });
+          gate = { arrivals: 0, promise, release };
+          gates.set(index, gate);
+        }
+        gate.arrivals += 1;
+        if (gate.arrivals === 2) gate.release();
+        await gate.promise;
+        return result;
+      }
+    };
+  };
+
+  return [createRunner(), createRunner()];
 }
 
 describe("assurance command", () => {
@@ -827,6 +863,63 @@ describe("assurance command", () => {
     const forkRepair = await runReviewDecisionRepair({ targetPath, taskId: "T001" });
     expect(forkRepair.ok).toBe(false);
     if (!forkRepair.ok) expect(forkRepair.error.message).toContain("fork");
+  }, 30_000);
+
+  it("keeps concurrent identical decisions bound to an existing immutable history", async () => {
+    const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-concurrent-"));
+    roots.push(targetPath);
+    await prepareAssuranceFixture(targetPath);
+    expect(
+      (
+        await runAssuranceWorkflow({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T01:00:00.000Z"
+        })
+      ).ok
+    ).toBe(true);
+
+    const [firstRunner, secondRunner] = pairedCommandRunners();
+    const shared = {
+      targetPath,
+      taskId: "T001",
+      reviewerId: "reviewer",
+      reason: "Concurrent identical review decision.",
+      decision: "reject" as const,
+      now: "2026-07-25T02:00:00.000Z"
+    };
+    const results = await Promise.all([
+      runReviewDecisionWorkflow({ ...shared, commandRunner: firstRunner }),
+      runReviewDecisionWorkflow({ ...shared, commandRunner: secondRunner })
+    ]);
+    const successful = results.filter((result) => result.ok);
+    const failed = results.filter((result) => !result.ok);
+
+    expect(successful).toHaveLength(1);
+    expect(failed).toHaveLength(1);
+    const winner = successful[0];
+    if (winner === undefined || !winner.ok) return;
+    const historyPath = path.join(targetPath, winner.value.historyPath);
+    const pointerPath = path.join(targetPath, winner.value.pointerPath);
+    expect(expectOk(await pathExists(historyPath))).toBe(true);
+    const crashResiduePath = path.join(
+      path.dirname(historyPath),
+      `.${path.basename(historyPath)}.${process.pid}.00000000-0000-4000-8000-000000000000.tmp`
+    );
+    await link(historyPath, crashResiduePath);
+    expect(JSON.parse(await readFile(pointerPath, "utf8"))).toMatchObject({
+      decisionHash: winner.value.decisionHash,
+      decisionPath: winner.value.historyPath
+    });
+    expect(
+      expectOk(
+        await evaluateCurrentReviewDecision({
+          targetPath,
+          taskId: "T001",
+          now: "2026-07-25T02:30:00.000Z"
+        })
+      )
+    ).toMatchObject({ status: "rejected", decisionHash: winner.value.decisionHash });
   }, 30_000);
 
   it("reconstructs authoritative inputs and applies override expiry at evaluation time", async () => {

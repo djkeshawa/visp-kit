@@ -91,8 +91,26 @@ function isGeneratedAssuranceFile(filePath: string): boolean {
 
   const remainder = assurance[1] ?? "";
   const history = /^review-decisions\/([a-f0-9]{64})\.json$/.exec(remainder);
+  const historyTemporary =
+    /^review-decisions\/\.[a-f0-9]{64}\.json\.\d+\.[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.tmp$/u.exec(
+      remainder
+    );
+  const pointerLockOwner =
+    /^review-decision\.json\.lock\/owner-\d+-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json$/u.test(
+      remainder
+    );
+  const pointerLockCandidateOwner =
+    /^\.review-decision\.json\.lock\.(\d+)\.([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.candidate\/owner-\1-\2\.json$/u.test(
+      remainder
+    );
 
-  return history !== null || generatedAssuranceFileNames.has(remainder);
+  return (
+    history !== null ||
+    historyTemporary !== null ||
+    pointerLockOwner ||
+    pointerLockCandidateOwner ||
+    generatedAssuranceFileNames.has(remainder)
+  );
 }
 
 export function summarizeDiff(input: {

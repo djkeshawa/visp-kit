@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, readdir, rename, rm } from "node:fs/promises";
+import { lstat, open, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { type ZodType } from "zod";
 
@@ -45,7 +45,13 @@ import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
 import { taskGraphArtifactSchema } from "../artifacts/schemas/task.schema.js";
 import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
 import { VispError, toVispError } from "../core/errors.js";
-import { pathExists, readTextFile } from "../core/file-system.js";
+import {
+  type ExclusiveFileIdentity,
+  pathExists,
+  readTextFile,
+  withExclusiveDirectoryLock,
+  writeTextFileExclusiveWithIdentity
+} from "../core/file-system.js";
 import { relativePath, resolvePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { canonicalJsonV1, compareUtf16CodeUnits } from "../integration/canonical-json.js";
@@ -471,33 +477,89 @@ function pointerFor(input: {
 async function writeImmutableDecision(
   historyPath: string,
   decision: ReviewDecision
-): Promise<Result<string, VispError>> {
+): Promise<
+  Result<
+    {
+      readonly path: string;
+      readonly createdIdentity?: ExclusiveFileIdentity;
+    },
+    VispError
+  >
+> {
   const serialized = `${JSON.stringify(decision, null, 2)}\n`;
+  const written = await writeTextFileExclusiveWithIdentity(historyPath, serialized);
+  if (written.ok) {
+    return ok({ path: written.value.path, createdIdentity: written.value.identity });
+  }
+
+  if ((written.error.cause as NodeJS.ErrnoException | undefined)?.code !== "EEXIST") {
+    return written;
+  }
+
+  const existing = await readArtifact(historyPath, reviewDecisionSchema, {
+    artifactName: "review decision history"
+  });
+  if (!existing.ok) return existing;
+  return canonicalJsonV1(existing.value) === canonicalJsonV1(decision)
+    ? ok({ path: historyPath })
+    : err(
+        new VispError(
+          "VALIDATION_FAILED",
+          "Content-addressed review decision history already contains different content."
+        )
+      );
+}
+
+async function withPointerLock<T>(
+  pointerPath: string,
+  operation: () => Promise<Result<T, VispError>>
+): Promise<Result<T, VispError>> {
+  return withExclusiveDirectoryLock(
+    `${pointerPath}.lock`,
+    "review decision pointer update",
+    operation
+  );
+}
+
+async function assertExpectedPointer(
+  pointerPath: string,
+  expectedPointerRaw: string | undefined
+): Promise<Result<void, VispError>> {
+  const currentExists = await pathExists(pointerPath);
+  if (!currentExists.ok) return currentExists;
+  const currentRaw = currentExists.value ? await readTextFile(pointerPath) : ok(undefined);
+  if (!currentRaw.ok) return currentRaw;
+  return currentRaw.value === expectedPointerRaw
+    ? ok(undefined)
+    : err(
+        new VispError(
+          "VALIDATION_FAILED",
+          "Current review decision pointer changed concurrently; retry the command."
+        )
+      );
+}
+
+async function replacePointer(
+  pointerPath: string,
+  pointer: CurrentReviewDecisionPointer
+): Promise<Result<string, VispError>> {
+  const tempPath = path.join(
+    path.dirname(pointerPath),
+    `.${path.basename(pointerPath)}.${process.pid}.${randomUUID()}.tmp`
+  );
   try {
-    await mkdir(path.dirname(historyPath), { recursive: true });
-    const handle = await open(historyPath, "wx");
+    const handle = await open(tempPath, "wx");
     try {
-      await handle.writeFile(serialized, "utf8");
+      await handle.writeFile(`${JSON.stringify(pointer, null, 2)}\n`, "utf8");
+      await handle.sync();
     } finally {
       await handle.close();
     }
-    return ok(historyPath);
+    await rename(tempPath, pointerPath);
+    return ok(pointerPath);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
-      return err(toVispError(error, "FILE_SYSTEM_ERROR"));
-    }
-    const existing = await readArtifact(historyPath, reviewDecisionSchema, {
-      artifactName: "review decision history"
-    });
-    if (!existing.ok) return existing;
-    return canonicalJsonV1(existing.value) === canonicalJsonV1(decision)
-      ? ok(historyPath)
-      : err(
-          new VispError(
-            "VALIDATION_FAILED",
-            "Content-addressed review decision history already contains different content."
-          )
-        );
+    await rm(tempPath, { force: true }).catch(() => undefined);
+    return err(toVispError(error, "FILE_SYSTEM_ERROR"));
   }
 }
 
@@ -515,50 +577,49 @@ async function writeAtomicPointer(
       )
     );
   }
-  const tempPath = path.join(
-    path.dirname(pointerPath),
-    `.${path.basename(pointerPath)}.${process.pid}.${randomUUID()}.tmp`
-  );
-  const lockPath = `${pointerPath}.lock`;
-  let lock: Awaited<ReturnType<typeof open>> | undefined;
+  return withPointerLock(pointerPath, async () => {
+    const expected = await assertExpectedPointer(pointerPath, expectedPointerRaw);
+    return expected.ok ? replacePointer(pointerPath, parsed.data) : expected;
+  });
+}
+
+async function removeCreatedHistory(
+  historyPath: string,
+  identity: ExclusiveFileIdentity
+): Promise<void> {
   try {
-    await mkdir(path.dirname(pointerPath), { recursive: true });
-    lock = await open(lockPath, "wx");
-    const currentExists = await pathExists(pointerPath);
-    if (!currentExists.ok) return currentExists;
-    const currentRaw = currentExists.value ? await readTextFile(pointerPath) : ok(undefined);
-    if (!currentRaw.ok) return currentRaw;
-    if (currentRaw.value !== expectedPointerRaw) {
-      return err(
-        new VispError(
-          "VALIDATION_FAILED",
-          "Current review decision pointer changed concurrently; retry the command."
-        )
-      );
+    const current = await lstat(historyPath);
+    if (current.dev === identity.device && current.ino === identity.inode) {
+      await rm(historyPath);
     }
-    const handle = await open(tempPath, "wx");
-    try {
-      await handle.writeFile(`${JSON.stringify(parsed.data, null, 2)}\n`, "utf8");
-    } finally {
-      await handle.close();
-    }
-    await rename(tempPath, pointerPath);
-    return ok(pointerPath);
   } catch (error) {
-    await rm(tempPath, { force: true }).catch(() => undefined);
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      return err(
-        new VispError(
-          "VALIDATION_FAILED",
-          "Another review decision pointer update is in progress; retry the command."
-        )
-      );
-    }
-    return err(toVispError(error, "FILE_SYSTEM_ERROR"));
-  } finally {
-    await lock?.close().catch(() => undefined);
-    if (lock !== undefined) await rm(lockPath, { force: true }).catch(() => undefined);
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+}
+
+async function publishDecisionAndPointer(input: {
+  readonly historyPath: string;
+  readonly decision: ReviewDecision;
+  readonly pointerPath: string;
+  readonly pointer: CurrentReviewDecisionPointer;
+  readonly expectedPointerRaw: string | undefined;
+}): Promise<Result<string, VispError>> {
+  return withPointerLock(input.pointerPath, async () => {
+    const expected = await assertExpectedPointer(input.pointerPath, input.expectedPointerRaw);
+    if (!expected.ok) return expected;
+
+    const history = await writeImmutableDecision(input.historyPath, input.decision);
+    if (!history.ok) return history;
+    const written = await replacePointer(input.pointerPath, input.pointer);
+    if (!written.ok && history.value.createdIdentity !== undefined) {
+      try {
+        await removeCreatedHistory(input.historyPath, history.value.createdIdentity);
+      } catch (error) {
+        return err(toVispError(error, "FILE_SYSTEM_ERROR"));
+      }
+    }
+    return written;
+  });
 }
 
 async function pointerRaw(pointerPath: string): Promise<Result<string | undefined, VispError>> {
@@ -572,6 +633,9 @@ type DecisionHistoryGraph = {
   readonly terminal?: ReviewDecision;
   readonly decisions: ReadonlyMap<string, ReviewDecision>;
 };
+
+const reviewDecisionTemporaryFilePattern =
+  /^\.[a-f0-9]{64}\.json\.\d+\.[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.tmp$/u;
 
 async function loadDecisionHistoryGraph(input: {
   readonly targetPath: string;
@@ -593,6 +657,11 @@ async function loadDecisionHistoryGraph(input: {
   for (const name of names) {
     const digest = /^([a-f0-9]{64})\.json$/u.exec(name)?.[1];
     if (digest === undefined) {
+      // Exclusive publication hard-links a complete sibling into place before
+      // removing the sibling. A crash in that committed two-name window may
+      // leave this exact internal residue, which carries no additional
+      // decision and must not invalidate the canonical history entry.
+      if (reviewDecisionTemporaryFilePattern.test(name)) continue;
       return err(
         new VispError("VALIDATION_FAILED", `Invalid review decision history filename: ${name}.`)
       );
@@ -1340,20 +1409,19 @@ export async function runReviewDecisionWorkflow(
     );
   }
   if (!(options.dryRun ?? false)) {
-    const historyExisted = await pathExists(historyPath);
-    if (!historyExisted.ok) return historyExisted;
-    const history = await writeImmutableDecision(historyPath, parsed.data);
-    if (!history.ok) return history;
     const pointer = pointerFor({
       targetPath: loaded.value.targetPath,
       featureKey: loaded.value.featureKey,
       decision: parsed.data
     });
-    const written = await writeAtomicPointer(pointerPath, pointer, initialPointerRaw.value);
-    if (!written.ok) {
-      if (!historyExisted.value) await rm(historyPath, { force: true }).catch(() => undefined);
-      return written;
-    }
+    const published = await publishDecisionAndPointer({
+      historyPath,
+      decision: parsed.data,
+      pointerPath,
+      pointer,
+      expectedPointerRaw: initialPointerRaw.value
+    });
+    if (!published.ok) return published;
   }
   return ok({
     success: true,

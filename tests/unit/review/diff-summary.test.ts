@@ -55,6 +55,21 @@ describe("diff summary helpers", () => {
         `.visp/features/001-example/assurance/T001/review-decisions/${"a".repeat(64)}.json`
       )
     ).toBe(true);
+    expect(
+      isGeneratedVispReviewFile(
+        `.visp/features/001-example/assurance/T001/review-decisions/.${"a".repeat(64)}.json.123.00000000-0000-4000-8000-000000000000.tmp`
+      )
+    ).toBe(true);
+    expect(
+      isGeneratedVispReviewFile(
+        ".visp/features/001-example/assurance/T001/review-decision.json.lock/owner-123-00000000-0000-4000-8000-000000000000.json"
+      )
+    ).toBe(true);
+    expect(
+      isGeneratedVispReviewFile(
+        ".visp/features/001-example/assurance/T001/.review-decision.json.lock.123.00000000-0000-4000-8000-000000000000.candidate/owner-123-00000000-0000-4000-8000-000000000000.json"
+      )
+    ).toBe(true);
   });
 
   it("does not treat arbitrary files under an assurance directory as generated", () => {
@@ -70,6 +85,21 @@ describe("diff summary helpers", () => {
     expect(
       isGeneratedVispReviewFile(
         ".visp/features/001-example/assurance/T001/review-decisions/not-a-digest.json"
+      )
+    ).toBe(false);
+    expect(
+      isGeneratedVispReviewFile(
+        `.visp/features/001-example/assurance/T001/review-decisions/.${"a".repeat(64)}.json.123.not-a-uuid.tmp`
+      )
+    ).toBe(false);
+    expect(
+      isGeneratedVispReviewFile(
+        ".visp/features/001-example/assurance/T001/review-decision.json.lock/arbitrary.json"
+      )
+    ).toBe(false);
+    expect(
+      isGeneratedVispReviewFile(
+        ".visp/features/001-example/assurance/T001/.review-decision.json.lock.123.00000000-0000-4000-8000-000000000000.candidate/owner-999-00000000-0000-4000-8000-000000000000.json"
       )
     ).toBe(false);
   });
