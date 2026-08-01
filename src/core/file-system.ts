@@ -24,8 +24,9 @@ type NodeError = Error & {
 };
 
 const WINDOWS_ATOMIC_RENAME_RETRY_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
-const WINDOWS_ATOMIC_RENAME_MAX_RETRIES = 6;
+const WINDOWS_ATOMIC_RENAME_MAX_RETRIES = 30;
 const WINDOWS_ATOMIC_RENAME_INITIAL_DELAY_MS = 10;
+const WINDOWS_ATOMIC_RENAME_MAX_DELAY_MS = 100;
 
 function isNodeError(error: unknown): error is NodeError {
   return error instanceof Error;
@@ -50,7 +51,12 @@ async function renameAtomicWrite(temporaryPath: string, destinationPath: string)
         WINDOWS_ATOMIC_RENAME_RETRY_CODES.has(error.code);
       if (!retryable || retries >= WINDOWS_ATOMIC_RENAME_MAX_RETRIES) throw error;
 
-      await sleep(WINDOWS_ATOMIC_RENAME_INITIAL_DELAY_MS * 2 ** retries);
+      await sleep(
+        Math.min(
+          WINDOWS_ATOMIC_RENAME_MAX_DELAY_MS,
+          WINDOWS_ATOMIC_RENAME_INITIAL_DELAY_MS * 2 ** retries
+        )
+      );
       retries += 1;
     }
   }

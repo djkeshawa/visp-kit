@@ -71,10 +71,10 @@ describe("Windows atomic rename retry", () => {
     renameMock.mockRejectedValue(renameError("EPERM"));
 
     expect((await writeTextFile(filePath, "after")).ok).toBe(false);
-    expect(renameMock).toHaveBeenCalledTimes(7);
+    expect(renameMock).toHaveBeenCalledTimes(31);
     expect(await readFile(filePath, "utf8")).toBe("before");
     expect(await readdir(tempDir)).toEqual(["status.json"]);
-  });
+  }, 10_000);
 
   it("does not apply the Windows retry policy on other platforms", async () => {
     vi.spyOn(process, "platform", "get").mockReturnValue("linux");
