@@ -66,14 +66,17 @@ describe("contained artifact reads during atomic replacement", () => {
       }
     });
 
-    for (const status of statuses.slice(1)) {
-      expect(await writeJsonFile(artifactPath, status)).toEqual({
-        ok: true,
-        value: artifactPath
-      });
+    try {
+      for (const status of statuses.slice(1)) {
+        expect(await writeJsonFile(artifactPath, status)).toEqual({
+          ok: true,
+          value: artifactPath
+        });
+      }
+    } finally {
+      replacementsComplete = true;
+      await Promise.all(readers);
     }
-    replacementsComplete = true;
-    await Promise.all(readers);
 
     expect(observations.length).toBeGreaterThan(0);
     expect(observations.filter((result) => result.state !== "present")).toEqual([]);

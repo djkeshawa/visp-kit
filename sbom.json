@@ -139,9 +139,7 @@
   "dependencies": [
     {
       "ref": "sbom-host@1.0.0",
-      "dependsOn": [
-        "visp-kit@0.2.3"
-      ]
+      "dependsOn": ["visp-kit@0.2.3"]
     },
     {
       "ref": "commander@12.1.0",
@@ -149,10 +147,7 @@
     },
     {
       "ref": "visp-kit@0.2.3",
-      "dependsOn": [
-        "commander@12.1.0",
-        "zod@3.25.76"
-      ]
+      "dependsOn": ["commander@12.1.0", "zod@3.25.76"]
     },
     {
       "ref": "zod@3.25.76",

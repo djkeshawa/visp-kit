@@ -23,8 +23,37 @@ type NodeError = Error & {
   readonly code?: string;
 };
 
+const WINDOWS_ATOMIC_RENAME_RETRY_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+const WINDOWS_ATOMIC_RENAME_MAX_RETRIES = 6;
+const WINDOWS_ATOMIC_RENAME_INITIAL_DELAY_MS = 10;
+
 function isNodeError(error: unknown): error is NodeError {
   return error instanceof Error;
+}
+
+function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+async function renameAtomicWrite(temporaryPath: string, destinationPath: string): Promise<void> {
+  let retries = 0;
+
+  while (true) {
+    try {
+      await rename(temporaryPath, destinationPath);
+      return;
+    } catch (error) {
+      const retryable =
+        process.platform === "win32" &&
+        isNodeError(error) &&
+        error.code !== undefined &&
+        WINDOWS_ATOMIC_RENAME_RETRY_CODES.has(error.code);
+      if (!retryable || retries >= WINDOWS_ATOMIC_RENAME_MAX_RETRIES) throw error;
+
+      await sleep(WINDOWS_ATOMIC_RENAME_INITIAL_DELAY_MS * 2 ** retries);
+      retries += 1;
+    }
+  }
 }
 
 function fileSystemError(error: unknown, message: string, filePath: string): VispError {
@@ -162,7 +191,7 @@ export async function writeTextFile(
     const mode = await existingFileMode(writePath);
     await writeSyncedTemporaryFile(temporaryPath, contents, mode);
 
-    await rename(temporaryPath, writePath);
+    await renameAtomicWrite(temporaryPath, writePath);
     await bestEffortSyncDirectory(directoryPath);
     return ok(filePath);
   } catch (error) {

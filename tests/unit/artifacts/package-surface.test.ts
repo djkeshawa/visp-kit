@@ -8,6 +8,18 @@ import { type CommandResult, runCommand } from "../../../src/core/command-runner
 
 const packageRoot = path.resolve(import.meta.dirname, "../../..");
 const artifactsBuild = path.join(packageRoot, "dist", "artifacts.js");
+const npmCliPath =
+  process.platform === "win32"
+    ? path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")
+    : path.resolve(
+        path.dirname(process.execPath),
+        "..",
+        "lib",
+        "node_modules",
+        "npm",
+        "bin",
+        "npm-cli.js"
+      );
 
 async function run(
   command: string,
@@ -52,13 +64,23 @@ function parseJsonOutput<T>(
 }
 
 describe("external package surface", () => {
-  let fixturePath: string;
+  let fixturePath: string | undefined;
+
+  function requireFixturePath(): string {
+    if (fixturePath === undefined) {
+      throw new Error("Package surface fixture setup did not complete.");
+    }
+    return fixturePath;
+  }
 
   beforeAll(async () => {
     try {
       await access(artifactsBuild);
     } catch {
-      await run("pnpm", ["build"], { cwd: packageRoot, timeoutMs: 300_000 });
+      await run(process.execPath, [npmCliPath, "run", "build"], {
+        cwd: packageRoot,
+        timeoutMs: 300_000
+      });
     }
 
     fixturePath = await mkdtemp(path.join(os.tmpdir(), "visp-kit-package-surface-"));
@@ -72,10 +94,13 @@ describe("external package surface", () => {
   }, 320_000);
 
   afterAll(async () => {
-    await rm(fixturePath, { recursive: true, force: true });
+    if (fixturePath !== undefined) {
+      await rm(fixturePath, { recursive: true, force: true });
+    }
   });
 
   it("resolves the new reader without hiding previously shipped package paths", async () => {
+    const fixtureRoot = requireFixturePath();
     const specifiers = [
       "visp-kit/artifacts",
       "visp-kit/package.json",
@@ -115,7 +140,7 @@ describe("external package surface", () => {
     `;
 
     const result = await run(process.execPath, ["--input-type=module", "--eval", program], {
-      cwd: fixturePath,
+      cwd: fixtureRoot,
       timeoutMs: 30_000
     });
     const resolved = parseJsonOutput<Record<string, string>>("external package resolver", result);
@@ -133,14 +158,15 @@ describe("external package surface", () => {
     };
     const cli = await run(
       process.execPath,
-      [path.join(fixturePath, "node_modules", "visp-kit", "dist", "index.js"), "--version"],
-      { cwd: fixturePath, timeoutMs: 30_000 }
+      [path.join(fixtureRoot, "node_modules", "visp-kit", "dist", "index.js"), "--version"],
+      { cwd: fixtureRoot, timeoutMs: 30_000 }
     );
     expect(cli.stdout.trim()).toBe(manifest.version);
   });
 
   it("typechecks a consumer through the built artifacts declaration", async () => {
-    const consumerPath = path.join(fixturePath, "consumer.mts");
+    const fixtureRoot = requireFixturePath();
+    const consumerPath = path.join(fixtureRoot, "consumer.mts");
     await writeFile(
       consumerPath,
       [
@@ -169,15 +195,19 @@ describe("external package surface", () => {
         "NodeNext",
         consumerPath
       ],
-      { cwd: fixturePath, timeoutMs: 60_000 }
+      { cwd: fixtureRoot, timeoutMs: 60_000 }
     );
   });
 
   it("includes the reader, declarations, schemas, metadata, and CLI in the tarball inventory", async () => {
-    const result = await run("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], {
-      cwd: packageRoot,
-      timeoutMs: 120_000
-    });
+    const result = await run(
+      process.execPath,
+      [npmCliPath, "pack", "--dry-run", "--json", "--ignore-scripts"],
+      {
+        cwd: packageRoot,
+        timeoutMs: 120_000
+      }
+    );
     const packed = parseJsonOutput<Array<{ files: Array<{ path: string }> }>>(
       "npm pack --dry-run",
       result

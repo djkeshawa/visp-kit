@@ -96,10 +96,16 @@ describe("P8-04 specification critic", () => {
       const artifact = spec({
         requirements: [
           requirement({
-            acceptanceCriteria: [criterion({ id: "AC001", testable: false }), criterion({ id: "AC002", testable: true })]
+            acceptanceCriteria: [
+              criterion({ id: "AC001", testable: false }),
+              criterion({ id: "AC002", testable: true })
+            ]
           })
         ],
-        acceptanceCriteria: [criterion({ id: "AC001", testable: false }), criterion({ id: "AC002", testable: true })]
+        acceptanceCriteria: [
+          criterion({ id: "AC001", testable: false }),
+          criterion({ id: "AC002", testable: true })
+        ]
       });
       expect(codes(artifact)).not.toContain("must_requirement_not_testable");
     });
@@ -185,7 +191,9 @@ describe("P8-04 specification critic", () => {
       // The match is whole-description on purpose: "works correctly when the
       // token has expired" names an observable condition and must survive.
       const artifact = spec({
-        acceptanceCriteria: [criterion({ description: "Works correctly when the token has expired." })]
+        acceptanceCriteria: [
+          criterion({ description: "Works correctly when the token has expired." })
+        ]
       });
       expect(codes(artifact)).not.toContain("criterion_not_observable");
     });

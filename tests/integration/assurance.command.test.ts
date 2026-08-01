@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { link, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { link, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -27,7 +27,9 @@ import {
 } from "../../src/review/review-decision.js";
 import { runAssuranceWorkflow } from "../../src/workflows/assurance.workflow.js";
 import { runNextWorkflow } from "../../src/workflows/next.workflow.js";
-import { createPhase8Fixture, expectOk } from "./phase8-fixture.js";
+import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
+
+const DECISION_TEST_TIMEOUT_MS = process.platform === "win32" ? 60_000 : 30_000;
 
 async function prepareAssuranceFixture(targetPath: string): Promise<void> {
   await createPhase8Fixture(targetPath);
@@ -112,12 +114,12 @@ function pairedCommandRunners(): readonly [CommandRunner, CommandRunner] {
   return [createRunner(), createRunner()];
 }
 
-describe("assurance command", () => {
+describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
   const roots: string[] = [];
 
   afterEach(() => {
     process.exitCode = undefined;
-    return Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+    return Promise.all(roots.splice(0).map((root) => removeTempDirWithRetry(root)));
   });
 
   it("routes generate options to the assurance workflow and prints JSON", async () => {
@@ -863,7 +865,7 @@ describe("assurance command", () => {
     const forkRepair = await runReviewDecisionRepair({ targetPath, taskId: "T001" });
     expect(forkRepair.ok).toBe(false);
     if (!forkRepair.ok) expect(forkRepair.error.message).toContain("fork");
-  }, 30_000);
+  });
 
   it("keeps concurrent identical decisions bound to an existing immutable history", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-concurrent-"));

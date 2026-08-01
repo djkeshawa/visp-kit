@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -376,10 +378,26 @@ describe("assuranceCaseSchema", () => {
   it("accepts a complete strict assurance case and exposes stable artifact paths", () => {
     expect(assuranceCaseSchema.parse(signedCase())).toEqual(signedCase());
     expect(assuranceCaseArtifactPath("/repo", "001-assurance", "T001")).toBe(
-      "/repo/.visp/features/001-assurance/assurance/T001/assurance-case.json"
+      path.join(
+        "/repo",
+        ".visp",
+        "features",
+        "001-assurance",
+        "assurance",
+        "T001",
+        "assurance-case.json"
+      )
     );
     expect(assuranceCaseMarkdownPath("/repo", "001-assurance", "T001")).toBe(
-      "/repo/.visp/features/001-assurance/assurance/T001/assurance-case.md"
+      path.join(
+        "/repo",
+        ".visp",
+        "features",
+        "001-assurance",
+        "assurance",
+        "T001",
+        "assurance-case.md"
+      )
     );
   });
 

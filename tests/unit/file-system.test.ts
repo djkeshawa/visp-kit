@@ -76,11 +76,14 @@ describe("filesystem helpers", () => {
       }
     })();
 
-    for (const payload of payloads.slice(1)) {
-      expect(await writeJsonFile(filePath, payload)).toEqual({ ok: true, value: filePath });
+    try {
+      for (const payload of payloads.slice(1)) {
+        expect(await writeJsonFile(filePath, payload)).toEqual({ ok: true, value: filePath });
+      }
+    } finally {
+      reading = false;
+      await reader;
     }
-    reading = false;
-    await reader;
 
     expect(observedRevisions.size).toBeGreaterThan(0);
   });

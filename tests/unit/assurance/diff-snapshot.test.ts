@@ -243,7 +243,7 @@ describe("captureDiffSnapshot", () => {
         expect.objectContaining({
           category: "mode",
           afterPath: "src/new-exec.sh",
-          afterMode: "100755"
+          afterMode: process.platform === "win32" ? "100644" : "100755"
         }),
         expect.objectContaining({
           category: "rename",

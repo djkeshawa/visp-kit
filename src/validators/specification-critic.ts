@@ -72,8 +72,12 @@ function unprovableMustRequirements(spec: SpecArtifact): CriticFinding[] {
  */
 function nonGoalContradictsRequirement(spec: SpecArtifact): CriticFinding[] {
   const findings: CriticFinding[] = [];
-  const byId = new Map(spec.requirements.map((requirement) => [requirement.id.toLowerCase(), requirement]));
-  const byTitle = new Map(spec.requirements.map((requirement) => [normalize(requirement.title), requirement]));
+  const byId = new Map(
+    spec.requirements.map((requirement) => [requirement.id.toLowerCase(), requirement])
+  );
+  const byTitle = new Map(
+    spec.requirements.map((requirement) => [normalize(requirement.title), requirement])
+  );
 
   for (const entry of spec.outOfScope) {
     const normalized = normalize(entry);

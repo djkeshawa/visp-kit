@@ -78,9 +78,6 @@ const STRENGTH: Record<ApprovalClass, number> = {
   approval_required: 2
 };
 
-export function approvalClassIsUnderstated(
-  declared: ApprovalClass,
-  input: ApprovalInput
-): boolean {
+export function approvalClassIsUnderstated(declared: ApprovalClass, input: ApprovalInput): boolean {
   return STRENGTH[declared] < STRENGTH[deriveApprovalClass(input)];
 }

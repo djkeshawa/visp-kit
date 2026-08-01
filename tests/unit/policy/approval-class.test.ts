@@ -22,7 +22,11 @@ describe("P8-05 approval class", () => {
   it("anything reaching outside the repository needs a human", () => {
     // Reversible and low risk is not enough when the effect leaves the project.
     expect(
-      deriveApprovalClass({ reversibility: "reversible", blastRadius: "external", riskLevel: "low" })
+      deriveApprovalClass({
+        reversibility: "reversible",
+        blastRadius: "external",
+        riskLevel: "low"
+      })
     ).toBe("approval_required");
   });
 
@@ -61,7 +65,10 @@ describe("P8-05 approval class", () => {
     // The dangerous direction of drift: the task claims autonomy while its own
     // fields say it cannot be undone.
     expect(
-      approvalClassIsUnderstated("autonomous", { reversibility: "irreversible", blastRadius: "task" })
+      approvalClassIsUnderstated("autonomous", {
+        reversibility: "irreversible",
+        blastRadius: "task"
+      })
     ).toBe(true);
   });
 
