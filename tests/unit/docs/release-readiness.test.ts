@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { createCli } from "../../../src/cli/main.js";
+
 const root = process.cwd();
 
 function read(relativePath: string): string {
@@ -58,6 +60,33 @@ describe("release documentation readiness", () => {
     ]) {
       expect(commands).toContain(`visp ${command}`);
     }
+  });
+
+  it("uses only registered top-level commands in the README first run", () => {
+    const readme = read("README.md");
+    const firstRunHeading = "## First run";
+    const firstRunStart = readme.indexOf(firstRunHeading);
+
+    expect(firstRunStart).toBeGreaterThanOrEqual(0);
+
+    const afterFirstRunHeading = readme.slice(firstRunStart + firstRunHeading.length);
+    const nextHeadingStart = afterFirstRunHeading.search(/^## /m);
+
+    expect(nextHeadingStart).toBeGreaterThan(0);
+
+    const firstRun = afterFirstRunHeading.slice(0, nextHeadingStart);
+    const documentedCommands = [...firstRun.matchAll(/^visp\s+([a-z][a-z0-9-]*)\b/gm)].map(
+      (match) => match[1]
+    );
+
+    expect(documentedCommands.length).toBeGreaterThan(0);
+
+    const registeredCommands = new Set(createCli().commands.map((command) => command.name()));
+    const unregisteredCommands = documentedCommands.filter(
+      (command) => !registeredCommands.has(command)
+    );
+
+    expect(unregisteredCommands).toEqual([]);
   });
 
   it("documents strict policy rules and overrides", () => {

@@ -24,7 +24,7 @@ Requires Node 22 or later, and Git.
 
 ## First run
 
-Five commands, in a real project:
+Four commands, in a real project:
 
 ```bash
 visp init .
@@ -45,13 +45,6 @@ visp next .
 `visp next` is the one to remember. **It always tells you the single next
 command**, so you never have to memorise the workflow — run it whenever you are
 unsure what to do.
-
-```bash
-visp guard .
-```
-
-`visp guard` is the check. If the change went outside what the task declared, it
-fails here rather than in review.
 
 ## What you get
 
