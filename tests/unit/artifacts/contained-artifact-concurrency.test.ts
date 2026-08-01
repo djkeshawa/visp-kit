@@ -59,27 +59,18 @@ describe("contained artifact reads during atomic replacement", () => {
 
     const reader = createArtifactReader(rootDir);
     const observations: ArtifactReadState<ProjectStatus>[] = [];
-    let replacementsComplete = false;
-    const readers = Array.from({ length: CONCURRENT_READER_COUNT }, async () => {
-      while (!replacementsComplete) {
-        observations.push(await reader.projectStatus());
-        // Windows cannot replace a destination while any reader has it open.
-        // Leave a bounded handle-free interval instead of manufacturing
-        // permanent writer starvation with back-to-back synthetic reads.
-        await new Promise((resolve) => setTimeout(resolve, 1));
-      }
-    });
+    for (const status of statuses.slice(1)) {
+      const write = writeJsonFile(artifactPath, status);
+      const reads = Promise.all(
+        Array.from({ length: CONCURRENT_READER_COUNT }, () => reader.projectStatus())
+      );
+      const [writeResult, readResults] = await Promise.all([write, reads]);
 
-    try {
-      for (const status of statuses.slice(1)) {
-        expect(await writeJsonFile(artifactPath, status)).toEqual({
-          ok: true,
-          value: artifactPath
-        });
-      }
-    } finally {
-      replacementsComplete = true;
-      await Promise.all(readers);
+      expect(writeResult).toEqual({
+        ok: true,
+        value: artifactPath
+      });
+      observations.push(...readResults);
     }
 
     expect(observations.length).toBeGreaterThan(0);
