@@ -63,6 +63,10 @@ describe("contained artifact reads during atomic replacement", () => {
     const readers = Array.from({ length: CONCURRENT_READER_COUNT }, async () => {
       while (!replacementsComplete) {
         observations.push(await reader.projectStatus());
+        // Windows cannot replace a destination while any reader has it open.
+        // Leave a bounded handle-free interval instead of manufacturing
+        // permanent writer starvation with back-to-back synthetic reads.
+        await new Promise((resolve) => setTimeout(resolve, 1));
       }
     });
 
