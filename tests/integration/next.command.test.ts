@@ -587,7 +587,7 @@ describe("visp next command", () => {
           error: {
             code: "UNSUPPORTED_WORKFLOW_ACTION_PROTOCOL",
             requested,
-            supported: ["2.0", "3.0", "3.1", "3.2"],
+            supported: ["2.0", "3.0", "3.1", "3.2", "3.4"],
             default: "2.0"
           }
         },

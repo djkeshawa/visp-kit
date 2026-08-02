@@ -28,9 +28,11 @@ import {
   createWorkflowActionId,
   createWorkflowActionIdV1_1,
   createWorkflowActionIdV1_2,
+  createWorkflowActionIdV1_3,
   type Sha256Hash
 } from "./canonical-json.js";
 import { selectCanonicalEvidence } from "./canonical-evidence.js";
+import { workflowActionHashProjectionV1_3 } from "./hash-projection.js";
 
 export type {
   RiskFactor,
@@ -286,6 +288,19 @@ export type CanonicalWorkflowActionV1_2 = CanonicalWorkflowActionV1_2IdentityInp
   readonly actionId: Sha256Hash;
 };
 
+// 1.3 carries the same fields as 1.2; only the identity computation changes:
+// the actionId hashes a projection that excludes command wording (D-119).
+export type CanonicalWorkflowActionV1_3IdentityInput = Omit<
+  CanonicalWorkflowActionV1_2IdentityInput,
+  "canonicalVersion"
+> & {
+  readonly canonicalVersion: "1.3";
+};
+
+export type CanonicalWorkflowActionV1_3 = CanonicalWorkflowActionV1_3IdentityInput & {
+  readonly actionId: Sha256Hash;
+};
+
 export type CanonicalWorkflowActionV2Presentation = {
   readonly writablePaths: readonly string[];
   readonly forbiddenPaths: readonly string[];
@@ -305,6 +320,11 @@ export type CanonicalWorkflowActionEnvelopeV1_1 = {
 
 export type CanonicalWorkflowActionEnvelopeV1_2 = {
   readonly action: CanonicalWorkflowActionV1_2;
+  readonly v2Presentation: CanonicalWorkflowActionV2Presentation;
+};
+
+export type CanonicalWorkflowActionEnvelopeV1_3 = {
+  readonly action: CanonicalWorkflowActionV1_3;
   readonly v2Presentation: CanonicalWorkflowActionV2Presentation;
 };
 
@@ -1488,6 +1508,31 @@ export function upgradeCanonicalWorkflowActionEnvelopeV1_2(input: {
       actionId: createWorkflowActionIdV1_2(identityInput),
       ...base,
       assuranceSummary: input.assuranceSummary
+    },
+    v2Presentation: input.envelope.v2Presentation
+  };
+}
+
+export function upgradeCanonicalWorkflowActionEnvelopeV1_3(input: {
+  readonly envelope: CanonicalWorkflowActionEnvelopeV1_2;
+}): CanonicalWorkflowActionEnvelopeV1_3 {
+  const {
+    actionId: _actionId,
+    canonicalVersion: _canonicalVersion,
+    ...base
+  } = input.envelope.action;
+  const identityInput: CanonicalWorkflowActionV1_3IdentityInput = {
+    canonicalVersion: "1.3",
+    ...base
+  };
+  return {
+    action: {
+      canonicalVersion: "1.3",
+      // Identity hashes the projection, not the full input: command wording
+      // (`nextCommand`, finding messages/recommendations/evidence) is excluded
+      // so a CLI rename can never move an action identity (D-119).
+      actionId: createWorkflowActionIdV1_3(workflowActionHashProjectionV1_3(identityInput)),
+      ...base
     },
     v2Presentation: input.envelope.v2Presentation
   };

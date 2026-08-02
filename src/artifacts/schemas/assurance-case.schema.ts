@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { createAssuranceCaseHash } from "../../assurance/assurance-case-hash.js";
+import {
+  createAssuranceCaseHash,
+  createAssuranceCaseHashV1_1
+} from "../../assurance/assurance-case-hash.js";
 import {
   deriveAssuranceVerdict,
   deriveCandidateStateSha,
@@ -345,7 +348,10 @@ export const assuranceCaseChallengerFindingSchema = z
 
 export const assuranceCaseWithoutHashSchema = z
   .object({
-    version: z.literal("1.0"),
+    // 1.0 hashes the full body under canonical-1.0; 1.1 hashes a projection
+    // that excludes `nextAction` under canonical-1.1 (D-119). Both generations
+    // stay readable: existing 1.0 files are never invalidated.
+    version: z.enum(["1.0", "1.1"]),
     actionId: oracleSha256Schema,
     featureId: idSchema,
     featureSlug: nonEmptyStringSchema,
@@ -743,7 +749,14 @@ export const assuranceCaseSchema = assuranceCaseWithoutHashSchema
     }
 
     const { caseHash, ...withoutHash } = assuranceCase;
-    if (caseHash !== createAssuranceCaseHash(withoutHash)) {
+    // Dual read (D-119): each generation verifies under the rule it was
+    // written with. 1.0 files hash their full stored bytes; 1.1 files hash the
+    // projection without `nextAction`, so command wording cannot invalidate.
+    const expectedHash =
+      withoutHash.version === "1.0"
+        ? createAssuranceCaseHash(withoutHash)
+        : createAssuranceCaseHashV1_1(withoutHash);
+    if (caseHash !== expectedHash) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["caseHash"],

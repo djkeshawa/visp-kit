@@ -16,14 +16,18 @@ import { canonicalJsonV1, compareUtf16CodeUnits, type Sha256Hash } from "./canon
 import {
   type CanonicalWorkflowAction,
   type CanonicalWorkflowActionV1_1,
-  type CanonicalWorkflowActionV1_2
+  type CanonicalWorkflowActionV1_2,
+  type CanonicalWorkflowActionV1_3
 } from "./canonical-workflow-action.js";
 
 export const SUPPORTED_WORKFLOW_ACTION_PROTOCOLS = Object.freeze([
   "2.0",
   "3.0",
   "3.1",
-  "3.2"
+  "3.2",
+  // 3.3 is reserved by ADR 0003 for additive signature fields and is never
+  // reused for anything else (D-119).
+  "3.4"
 ] as const);
 export const DEFAULT_WORKFLOW_ACTION_PROTOCOL = "2.0" as const;
 
@@ -450,15 +454,28 @@ export const workflowActionV32Schema = workflowActionV31Schema
   })
   .strict();
 
+// 3.4 carries the same fields as 3.2. What changes is identity: the actionId
+// hashes a canonical-1.3 projection that excludes command wording (D-119).
+// 3.3 is reserved by ADR 0003 and intentionally skipped.
+export const workflowActionV34Schema = workflowActionV31Schema
+  .extend({
+    protocolVersion: z.literal("3.4"),
+    canonicalVersion: z.literal("1.3"),
+    assuranceSummary: assuranceSummarySchema
+  })
+  .strict();
+
 export type WorkflowActionV2 = z.infer<typeof workflowActionV2Schema>;
 export type WorkflowActionV3 = z.infer<typeof workflowActionV3Schema>;
 export type WorkflowActionV31 = z.infer<typeof workflowActionV31Schema>;
 export type WorkflowActionV32 = z.infer<typeof workflowActionV32Schema>;
+export type WorkflowActionV34 = z.infer<typeof workflowActionV34Schema>;
 export type WorkflowAction =
   | WorkflowActionV2
   | WorkflowActionV3
   | WorkflowActionV31
-  | WorkflowActionV32;
+  | WorkflowActionV32
+  | WorkflowActionV34;
 export type WorkflowActionSchemaDocument = Readonly<Record<string, unknown>>;
 
 type WireShape<T> = T extends Sha256Hash
@@ -496,12 +513,22 @@ type _V32MatchesCanonical = Assert<
       : false
     : false
 >;
+type WorkflowActionV34Body = Omit<WorkflowActionV34, "protocolVersion">;
+type CanonicalV1_3WireBody = WireShape<CanonicalWorkflowActionV1_3>;
+type _V34MatchesCanonical = Assert<
+  WorkflowActionV34Body extends CanonicalV1_3WireBody
+    ? CanonicalV1_3WireBody extends WorkflowActionV34Body
+      ? true
+      : false
+    : false
+>;
 
 const schemaIds: Record<WorkflowActionProtocol, string> = {
   "2.0": "urn:visp:schema:workflow-action:2.0",
   "3.0": "urn:visp:schema:workflow-action:3.0",
   "3.1": "urn:visp:schema:workflow-action:3.1",
-  "3.2": "urn:visp:schema:workflow-action:3.2"
+  "3.2": "urn:visp:schema:workflow-action:3.2",
+  "3.4": "urn:visp:schema:workflow-action:3.4"
 };
 
 export function generateWorkflowActionSchemaDocument(
@@ -514,7 +541,9 @@ export function generateWorkflowActionSchemaDocument(
         ? workflowActionV3Schema
         : protocol === "3.1"
           ? workflowActionV31Schema
-          : workflowActionV32Schema;
+          : protocol === "3.2"
+            ? workflowActionV32Schema
+            : workflowActionV34Schema;
   const generated = z.toJSONSchema(schema, {
     target: "draft-2020-12",
     reused: "inline"
@@ -541,7 +570,8 @@ export const WORKFLOW_ACTION_SCHEMA_HASHES = Object.freeze({
   "2.0": "sha256:c63b279b1ce89f047b2be696a47e845a57adda7f8437892e211e3a4cfad39ed6",
   "3.0": "sha256:ceb45ad3a27a4172c4dbe7e7caacf473570f4578eda27744662a8ed094e96ce7",
   "3.1": "sha256:41ffa28fcd4476ea1812ff307df67a7ab7edb5b2cf4d6c11955d34d4aad74d4d",
-  "3.2": "sha256:77dcaba51ef8e1a78064680077f8bcc48c081d8025596c6cc8df9ea7873d68e9"
+  "3.2": "sha256:77dcaba51ef8e1a78064680077f8bcc48c081d8025596c6cc8df9ea7873d68e9",
+  "3.4": "sha256:bee85bf783a3557c99c9feb716e967997595dfa228380be71815da531f055ca5"
 } satisfies Record<WorkflowActionProtocol, Sha256Hash>);
 
 export function generatedWorkflowActionSchemaHash(protocol: WorkflowActionProtocol): Sha256Hash {

@@ -108,12 +108,12 @@ export async function runAssuranceWorkflow(
 
   const next = await runNextWorkflow({
     ...normalizedOptions,
-    protocol: "3.1"
+    protocol: "3.4"
   });
   if (!next.ok) return next;
   if (!("actionId" in next.value.action)) {
     return err(
-      new VispError("VALIDATION_FAILED", "Assurance requires workflow action protocol 3.1.")
+      new VispError("VALIDATION_FAILED", "Assurance requires workflow action protocol 3.4.")
     );
   }
   const initialInputIdentity = assuranceInputIdentity({
@@ -192,12 +192,12 @@ export async function runAssuranceWorkflow(
   if (!finalLoaded.ok) return finalLoaded;
   const finalNext = await runNextWorkflow({
     ...normalizedOptions,
-    protocol: "3.1"
+    protocol: "3.4"
   });
   if (!finalNext.ok) return finalNext;
   if (!("actionId" in finalNext.value.action)) {
     return err(
-      new VispError("VALIDATION_FAILED", "Assurance requires workflow action protocol 3.1.")
+      new VispError("VALIDATION_FAILED", "Assurance requires workflow action protocol 3.4.")
     );
   }
   if (

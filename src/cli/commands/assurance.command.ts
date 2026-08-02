@@ -12,6 +12,10 @@ import {
   type ReviewDecisionWorkflowOptions
 } from "../../review/review-decision.js";
 import { formatAssuranceDelta } from "../../assurance/assurance-delta-format.js";
+import {
+  formatAssuranceInventory,
+  runAssuranceInventoryWorkflow
+} from "../../workflows/assurance-inventory.workflow.js";
 import { writeWorkflowError } from "./shared/error-output.js";
 import { formatHeader } from "../../theme/terminal.js";
 
@@ -97,6 +101,32 @@ export function createAssuranceCommand(dependencies: AssuranceCommandDependencie
         options.json
           ? `${JSON.stringify(result.value, null, 2)}\n`
           : formatAssuranceSummary(result.value)
+      );
+    });
+  command
+    .command("inventory")
+    .description("Count stored assurance cases and approvals by hash generation.")
+    .argument("[path]", "Target project path.")
+    .option("--json", "Print a machine-readable summary.")
+    .action(async (targetPath: string | undefined, options: { readonly json?: boolean }) => {
+      const result = await runAssuranceInventoryWorkflow({
+        targetPath,
+        cwd: dependencies.cwd
+      });
+      if (!result.ok) {
+        writeWorkflowError({
+          error: result.error,
+          json: options.json ?? false,
+          writeOut,
+          writeErr
+        });
+        process.exitCode = 1;
+        return;
+      }
+      writeOut(
+        options.json
+          ? `${JSON.stringify(result.value, null, 2)}\n`
+          : formatAssuranceInventory(result.value)
       );
     });
   command

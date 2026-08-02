@@ -4,18 +4,22 @@ import {
   compareUtf16CodeUnits,
   createWorkflowActionId,
   createWorkflowActionIdV1_1,
-  createWorkflowActionIdV1_2
+  createWorkflowActionIdV1_2,
+  createWorkflowActionIdV1_3
 } from "./canonical-json.js";
+import { workflowActionHashProjectionV1_3 } from "./hash-projection.js";
 import { selectCanonicalAssuranceSummary } from "./canonical-assurance.js";
 import {
   buildCanonicalWorkflowActionEnvelope,
   canonicalFindingReference,
   upgradeCanonicalWorkflowActionEnvelopeV1_1,
   upgradeCanonicalWorkflowActionEnvelopeV1_2,
+  upgradeCanonicalWorkflowActionEnvelopeV1_3,
   type CanonicalWorkflowAction,
   type CanonicalWorkflowActionEnvelope,
   type CanonicalWorkflowActionEnvelopeV1_1,
   type CanonicalWorkflowActionEnvelopeV1_2,
+  type CanonicalWorkflowActionEnvelopeV1_3,
   type CanonicalWorkflowPhase,
   type Finding,
   type HashedReadRole
@@ -28,11 +32,13 @@ import {
   type WorkflowActionV3,
   type WorkflowActionV31,
   type WorkflowActionV32,
+  type WorkflowActionV34,
   isWorkflowActionProtocol,
   workflowActionV2Schema,
   workflowActionV3Schema,
   workflowActionV31Schema,
-  workflowActionV32Schema
+  workflowActionV32Schema,
+  workflowActionV34Schema
 } from "./workflow-action-schema.js";
 
 export {
@@ -45,12 +51,14 @@ export {
   type WorkflowActionV3,
   type WorkflowActionV31,
   type WorkflowActionV32,
+  type WorkflowActionV34,
   isWorkflowActionProtocol,
   workflowActionSchemaHash,
   workflowActionV2Schema,
   workflowActionV3Schema,
   workflowActionV31Schema,
-  workflowActionV32Schema
+  workflowActionV32Schema,
+  workflowActionV34Schema
 } from "./workflow-action-schema.js";
 
 const v2Phase: Record<CanonicalWorkflowPhase, WorkflowActionV2["phase"]> = {
@@ -301,6 +309,22 @@ export function projectWorkflowActionV32(
   });
 }
 
+export function projectWorkflowActionV34(
+  envelope: CanonicalWorkflowActionEnvelopeV1_3
+): WorkflowActionV34 {
+  const { actionId, ...identityInput } = envelope.action;
+  // 3.4 identity hashes the canonical-1.3 projection: command wording is
+  // excluded, so a CLI rename never moves an action identity (D-119).
+  if (createWorkflowActionIdV1_3(workflowActionHashProjectionV1_3(identityInput)) !== actionId) {
+    throw new TypeError("workflow-action-v3.4: canonical action identity is invalid");
+  }
+
+  return workflowActionV34Schema.parse({
+    protocolVersion: "3.4",
+    ...envelope.action
+  });
+}
+
 export async function buildWorkflowAction(input: {
   readonly state: ProjectState;
   readonly step: NextStep;
@@ -338,6 +362,22 @@ export async function buildWorkflowAction(input: {
             now: input.now ?? new Date().toISOString()
           })
         })
+      );
+    }
+    case "3.4": {
+      const v1_1 = await upgradeCanonicalWorkflowActionEnvelopeV1_1({
+        state: input.state,
+        envelope
+      });
+      const v1_2 = upgradeCanonicalWorkflowActionEnvelopeV1_2({
+        envelope: v1_1,
+        assuranceSummary: await selectCanonicalAssuranceSummary({
+          state: input.state,
+          now: input.now ?? new Date().toISOString()
+        })
+      });
+      return projectWorkflowActionV34(
+        upgradeCanonicalWorkflowActionEnvelopeV1_3({ envelope: v1_2 })
       );
     }
   }

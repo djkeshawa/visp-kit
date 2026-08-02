@@ -6,6 +6,10 @@ export type Sha256Hash = `sha256:${string}`;
 export const workflowActionIdentityDomain = "visp.workflow-action\0canonical-1.0\0";
 export const workflowActionIdentityDomainV1_1 = "visp.workflow-action\0canonical-1.1\0";
 export const workflowActionIdentityDomainV1_2 = "visp.workflow-action\0canonical-1.2\0";
+// canonical-1.3 hashes a projection that excludes command wording (D-119): the
+// identity input is projected before canonicalization, so renaming a CLI verb
+// can never move an action identity again.
+export const workflowActionIdentityDomainV1_3 = "visp.workflow-action\0canonical-1.3\0";
 
 export function compareUtf16CodeUnits(left: string, right: string): number {
   const length = Math.min(left.length, right.length);
@@ -157,4 +161,11 @@ export function createWorkflowActionIdV1_1(actionWithoutId: unknown): Sha256Hash
 
 export function createWorkflowActionIdV1_2(actionWithoutId: unknown): Sha256Hash {
   return createDomainSeparatedWorkflowActionId(workflowActionIdentityDomainV1_2, actionWithoutId);
+}
+
+export function createWorkflowActionIdV1_3(projectedActionWithoutId: unknown): Sha256Hash {
+  return createDomainSeparatedWorkflowActionId(
+    workflowActionIdentityDomainV1_3,
+    projectedActionWithoutId
+  );
 }

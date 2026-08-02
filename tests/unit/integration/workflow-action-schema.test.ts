@@ -241,7 +241,7 @@ function evidenceRequirement(overrides: Readonly<Record<string, unknown>> = {}) 
 
 describe("workflow-action runtime schemas", () => {
   it("keeps v2 permissiveness while exposing exact protocol constants", () => {
-    expect(SUPPORTED_WORKFLOW_ACTION_PROTOCOLS).toEqual(["2.0", "3.0", "3.1", "3.2"]);
+    expect(SUPPORTED_WORKFLOW_ACTION_PROTOCOLS).toEqual(["2.0", "3.0", "3.1", "3.2", "3.4"]);
     expect(DEFAULT_WORKFLOW_ACTION_PROTOCOL).toBe("2.0");
     expect(
       workflowActionV2Schema.parse({
@@ -909,7 +909,8 @@ describe("generated workflow-action schemas", () => {
       "2.0.schema.json",
       "3.0.schema.json",
       "3.1.schema.json",
-      "3.2.schema.json"
+      "3.2.schema.json",
+      "3.4.schema.json"
     ]);
   });
 
@@ -917,7 +918,8 @@ describe("generated workflow-action schemas", () => {
     "2.0",
     "3.0",
     "3.1",
-    "3.2"
+    "3.2",
+    "3.4"
   ] as const)("matches the committed %s artifact document", async (protocol) => {
     const filePath = path.join(
       process.cwd(),

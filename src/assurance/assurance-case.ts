@@ -9,7 +9,7 @@ import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
 import { compareUtf16CodeUnits } from "../integration/canonical-json.js";
-import { createAssuranceCaseHash } from "./assurance-case-hash.js";
+import { createAssuranceCaseHashV1_1 } from "./assurance-case-hash.js";
 import { deriveAssuranceVerdict, deriveCandidateStateSha } from "./assurance-semantics.js";
 import { assuranceChangeUnits } from "./diff-snapshot.js";
 
@@ -90,7 +90,9 @@ export function buildAssuranceCase(input: {
     return err(new VispError("VALIDATION_FAILED", "Candidate evidence binding is required."));
   }
   const withoutHash: AssuranceCaseWithoutHash = {
-    version: "1.0",
+    // 1.1: caseHash covers the projection without `nextAction` (D-119), so a
+    // command rename can never invalidate this case or its signed approval.
+    version: "1.1",
     actionId: input.actionId,
     featureId: input.featureId,
     featureSlug: input.featureSlug,
@@ -132,7 +134,7 @@ export function buildAssuranceCase(input: {
   };
   const assuranceCase = {
     ...withoutHash,
-    caseHash: createAssuranceCaseHash(withoutHash)
+    caseHash: createAssuranceCaseHashV1_1(withoutHash)
   };
   const parsed = assuranceCaseSchema.safeParse(assuranceCase);
   return parsed.success
