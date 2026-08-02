@@ -184,6 +184,48 @@ describe("runReviewWorkflow", () => {
     ).toContain("Visp Diff Review Prompt");
   });
 
+  // P10-US-02: check mode — reports written, no state moved.
+  it("check mode writes the report but leaves project status untouched", async () => {
+    await createReviewFixture(tempDir);
+
+    const statusPath = path.join(tempDir, ".visp", "status.json");
+    const statusBefore = await readFile(statusPath, "utf8");
+
+    const summary = expectOk(
+      await runReviewWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        statusUpdates: false,
+        commandRunner: gitRunner(),
+        now: timestamp
+      })
+    );
+
+    expect(summary.reportPath).toBe(".visp/features/001-add-note-pinning/review/T001.review.md");
+    // The review report exists (evidence), but project status is byte-identical
+    // and the review checklist tick never happened.
+    expect(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review", "T001.review.md"),
+        "utf8"
+      )
+    ).toContain("# Review Report");
+    expect(await readFile(statusPath, "utf8")).toBe(statusBefore);
+    await expect(
+      readFile(
+        path.join(
+          tempDir,
+          ".visp",
+          "features",
+          "001-add-note-pinning",
+          "context",
+          "T001.implementation-checklist.json"
+        ),
+        "utf8"
+      )
+    ).rejects.toThrow();
+  });
+
   it("dry-run writes nothing", async () => {
     await createReviewFixture(tempDir);
 

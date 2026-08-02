@@ -40,6 +40,8 @@ type VerifyCommandOptions = {
   readonly dependencies?: boolean;
   readonly base?: string;
   readonly updateTaskStatus?: boolean;
+  readonly statusUpdate?: boolean;
+  readonly requireCommandEvidence?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly json?: boolean;
@@ -65,6 +67,9 @@ function workflowOptions(
     dependencies: options.dependencies ?? false,
     base: options.base,
     updateTaskStatus: options.updateTaskStatus ?? false,
+    // Commander's --no-status-update sets statusUpdate to false; default true.
+    statusUpdates: options.statusUpdate ?? true,
+    requireCommandEvidence: options.requireCommandEvidence ?? false,
     force: options.force ?? false,
     dryRun: options.dryRun ?? false,
     jsonOutput: options.json ?? false
@@ -101,6 +106,14 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
       "Also compare against this Git ref, so committed changes are in scope."
     )
     .option("--update-task-status", "Mark selected task verified when verification passes.")
+    .option(
+      "--no-status-update",
+      "Write evidence reports without ticking the checklist or advancing task status (check mode)."
+    )
+    .option(
+      "--require-command-evidence",
+      "Fail unless at least one validation command actually executed."
+    )
     .option(
       "--force",
       "Downgrade gate blocks to warnings in relaxed/standard mode only; cannot bypass gate blocks in strict/locked mode."

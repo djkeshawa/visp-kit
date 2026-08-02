@@ -94,6 +94,11 @@ import { taskImplementMarkerPath } from "../gates/implement-marker.js";
 import { implementMarkerSchema } from "../artifacts/schemas/implement-marker.schema.js";
 
 export type ReviewWorkflowOptions = {
+  /**
+   * P10-US-02: when false, the review report and prompts are still written but
+   * no workflow state moves — no review-status update, no checklist tick.
+   */
+  readonly statusUpdates?: boolean;
   readonly targetPath?: string;
   readonly cwd?: string;
   readonly feature?: string;
@@ -661,7 +666,7 @@ export async function runReviewWorkflow(
       if (!writeChecklist.ok) return writeChecklist;
     }
 
-    if (parsed.data.success) {
+    if (options.statusUpdates !== false && parsed.data.success) {
       const statusUpdate = await updateReviewStatus({
         targetPath,
         featureId: feature.value.id,
@@ -702,7 +707,7 @@ export async function runReviewWorkflow(
     writtenFiles.push(paths.checklistPathRelative);
   }
 
-  if (!options.promptOnly && !options.checklistOnly) {
+  if (options.statusUpdates !== false && !options.promptOnly && !options.checklistOnly) {
     if (selectedTask !== undefined && parsed.data.result !== "failed") {
       const checklist = await markImplementationChecklistSteps({
         targetPath,

@@ -289,4 +289,109 @@ describe("runVerifyWorkflow", () => {
 
     expect(taskGraph.tasks[0]).toMatchObject({ id: "T001", status: "verified" });
   });
+
+  // P10-US-02: the non-mutating check mode. Evidence is written, failures are
+  // reported honestly, and no workflow state moves. This is NOT --dry-run,
+  // which suppresses writes and always reports success.
+  it("check mode writes evidence but never advances task status", async () => {
+    await createVerifyFixture(tempDir);
+
+    const summary = expectOk(
+      await runVerifyWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        artifacts: true,
+        updateTaskStatus: true,
+        statusUpdates: false,
+        commandRunner: passingRunner(),
+        now: timestamp
+      })
+    );
+
+    expect(summary.success).toBe(true);
+    expect(summary.reportPath).toBe(".visp/features/001-add-note-pinning/verification.md");
+
+    const taskGraph = JSON.parse(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "task-graph.json"),
+        "utf8"
+      )
+    ) as { tasks: Array<{ id: string; status: string }> };
+    // The task did NOT advance to verified, despite updateTaskStatus.
+    expect(taskGraph.tasks[0]).toMatchObject({ id: "T001", status: "ready" });
+    // The implementation checklist was never touched: check mode did not even
+    // create the artifact a verify tick would have written.
+    await expect(
+      readFile(
+        path.join(
+          tempDir,
+          ".visp",
+          "features",
+          "001-add-note-pinning",
+          "context",
+          "T001.implementation-checklist.json"
+        ),
+        "utf8"
+      )
+    ).rejects.toThrow();
+  });
+
+  it("check mode reports a failing command as failure, with state untouched", async () => {
+    await createVerifyFixture(tempDir);
+
+    const summary = expectOk(
+      await runVerifyWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        statusUpdates: false,
+        commandRunner: failingRunner(),
+        now: timestamp
+      })
+    );
+
+    expect(summary.success).toBe(false);
+    expect(summary.errors).toContain("Command failed: pnpm test");
+    const taskGraph = JSON.parse(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "task-graph.json"),
+        "utf8"
+      )
+    ) as { tasks: Array<{ id: string; status: string }> };
+    expect(taskGraph.tasks[0]).toMatchObject({ id: "T001", status: "ready" });
+  });
+
+  // D-115 measured the zero-command false pass: commands skipped, overall
+  // success true. requireCommandEvidence closes it; the contrast is pinned so
+  // the old behavior cannot silently return.
+  it("requireCommandEvidence fails when zero validation commands executed", async () => {
+    await createVerifyFixture(tempDir);
+
+    const withoutRequirement = expectOk(
+      await runVerifyWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        skipCommands: true,
+        statusUpdates: false,
+        commandRunner: passingRunner(),
+        now: timestamp
+      })
+    );
+    expect(withoutRequirement.success).toBe(true);
+
+    const withRequirement = expectOk(
+      await runVerifyWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        skipCommands: true,
+        statusUpdates: false,
+        requireCommandEvidence: true,
+        commandRunner: passingRunner(),
+        now: timestamp
+      })
+    );
+    expect(withRequirement.success).toBe(false);
+    expect(withRequirement.errors).toContain(
+      "No validation command was executed; at least one must run to count as evidence."
+    );
+  });
 });

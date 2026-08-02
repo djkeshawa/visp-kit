@@ -24,6 +24,7 @@ type ReviewCommandOptions = {
   readonly promptOnly?: boolean;
   readonly checklistOnly?: boolean;
   readonly skipVerification?: boolean;
+  readonly statusUpdate?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly json?: boolean;
@@ -46,6 +47,8 @@ function workflowOptions(
     promptOnly: options.promptOnly ?? false,
     checklistOnly: options.checklistOnly ?? false,
     skipVerification: options.skipVerification ?? false,
+    // Commander's --no-status-update sets statusUpdate to false; default true.
+    statusUpdates: options.statusUpdate ?? true,
     force: options.force ?? false,
     dryRun: options.dryRun ?? false
   };
@@ -68,6 +71,10 @@ export function createReviewCommand(dependencies: ReviewCommandDependencies = {}
     .option("--prompt-only", "Generate only review prompt files.")
     .option("--checklist-only", "Generate only the review checklist.")
     .option("--skip-verification", "Skip reading verification reports.")
+    .option(
+      "--no-status-update",
+      "Write review outputs without updating review status or ticking the checklist (check mode)."
+    )
     .option(
       "--force",
       "Downgrade gate blocks to warnings in relaxed/standard mode only; cannot bypass gate blocks in strict/locked mode."

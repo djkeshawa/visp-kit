@@ -96,6 +96,18 @@ export type VerifyWorkflowOptions = {
    */
   readonly base?: string;
   readonly updateTaskStatus?: boolean;
+  /**
+   * P10-US-02: when false, evidence reports are still written but no workflow
+   * state moves — no checklist tick, no task-status advance. This is the
+   * non-mutating `check` mode; it is NOT --dry-run, which suppresses writes
+   * and always reports success.
+   */
+  readonly statusUpdates?: boolean;
+  /**
+   * P10-US-02 / D-115: when true, verification fails unless at least one
+   * validation command actually executed. Closes the zero-command false pass.
+   */
+  readonly requireCommandEvidence?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly jsonOutput?: boolean;
@@ -576,8 +588,19 @@ export async function runVerifyWorkflow(
   const collectedWarnings = [
     ...new Set([...warnings, ...gateWarnings, ...collectWarnings(baseReport)])
   ];
+  const executedCommandCount = commandValidation.commands.filter(
+    (command) => !command.skipped
+  ).length;
+  const commandEvidenceErrors =
+    options.requireCommandEvidence === true && executedCommandCount === 0
+      ? ["No validation command was executed; at least one must run to count as evidence."]
+      : [];
   const collectedErrors = [
-    ...new Set([...collectErrors(baseReport), ...(gateBlocks ? gateMessages : [])])
+    ...new Set([
+      ...collectErrors(baseReport),
+      ...(gateBlocks ? gateMessages : []),
+      ...commandEvidenceErrors
+    ])
   ];
   const nextCommand =
     collectedErrors.length === 0
@@ -628,7 +651,13 @@ export async function runVerifyWorkflow(
     if (!writeMarkdown.ok) return writeMarkdown;
   }
 
-  if (options.updateTaskStatus && selectedTask !== undefined && parsed.data.success) {
+  const statusUpdates = options.statusUpdates !== false;
+  if (
+    statusUpdates &&
+    options.updateTaskStatus &&
+    selectedTask !== undefined &&
+    parsed.data.success
+  ) {
     const update = await updateTaskStatus({
       targetPath,
       featureKey: feature.value.key,
@@ -644,7 +673,7 @@ export async function runVerifyWorkflow(
     if (!update.ok) return update;
   }
 
-  if (selectedTask !== undefined && parsed.data.success) {
+  if (statusUpdates && selectedTask !== undefined && parsed.data.success) {
     const checklist = await markImplementationChecklistSteps({
       targetPath,
       featureKey: feature.value.key,
