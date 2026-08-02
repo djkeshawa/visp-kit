@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { claudeTargetFiles } from "../../../../src/agent/targets/claude.js";
 
 describe("claude target", () => {
-  it("renders the rules file and Claude command files with strict Visp guidance", () => {
+  // P10-US-06: Kit no longer renders `.claude/commands/visp-*.md` — installed
+  // slash commands are Hyper-owned, one file per verb, one owner. Kit's claude
+  // target is exactly its rules file plus hooks, which carry Kit's authority.
+  it("renders only the rules file and hooks — no slash commands", () => {
     const files = claudeTargetFiles({
       targetPath: "/repo",
       strictness: "strict"
@@ -13,23 +16,8 @@ describe("claude target", () => {
     expect(files.map((file) => file.path.replace(/\\/g, "/"))).toEqual([
       "/repo/.visp/prompts/visp-rules.md",
       "/repo/.visp/hooks/claude-pretooluse.mjs",
-      "/repo/.visp/hooks/README.md",
-      "/repo/.claude/commands/visp-feature.md",
-      "/repo/.claude/commands/visp-task.md",
-      "/repo/.claude/commands/visp-fix.md",
-      "/repo/.claude/commands/visp-review.md",
-      "/repo/.claude/commands/visp-pr.md"
+      "/repo/.visp/hooks/README.md"
     ]);
-
-    const commands = files.slice(3);
-
-    for (const file of commands) {
-      expect(file.contents).toContain("user prompt is raw intent");
-      expect(file.contents).toContain("visp-kit gate");
-      expect(file.contents).toContain("visp-kit done");
-      expect(file.contents).toContain("## Rules digest");
-      expect(file.contents).toContain(".visp/prompts/visp-rules.md");
-    }
 
     const rules = files[0]!;
 

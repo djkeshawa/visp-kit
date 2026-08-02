@@ -49,7 +49,9 @@ describe("visp-kit agent claude command", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it("installs Claude command files and passes doctor", async () => {
+  // P10-US-06: installed slash commands are Hyper-owned. Kit's claude target
+  // installs its rules file and hooks only, and never writes .claude/commands.
+  it("installs rules and hooks, writes no slash commands, and passes doctor", async () => {
     await initProject(tempDir);
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
@@ -57,16 +59,15 @@ describe("visp-kit agent claude command", () => {
     await program.parseAsync(["node", "visp", "agent", "install", "claude", tempDir]);
 
     expect(output.join("")).toContain("Visp agent installed");
-    for (const name of ["feature", "task", "fix", "review", "pr"]) {
-      expect(await exists(path.join(tempDir, ".claude", "commands", `visp-${name}.md`))).toBe(true);
-    }
+    expect(await exists(path.join(tempDir, ".visp", "prompts", "visp-rules.md"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".visp", "hooks", "claude-pretooluse.mjs"))).toBe(true);
+    expect(await exists(path.join(tempDir, ".claude", "commands"))).toBe(false);
 
-    const feature = await readFile(
-      path.join(tempDir, ".claude", "commands", "visp-feature.md"),
+    const rules = await readFile(
+      path.join(tempDir, ".visp", "prompts", "visp-rules.md"),
       "utf8"
     );
-    expect(feature).toContain("user prompt is raw intent");
-    expect(feature).toContain("visp-kit gate");
+    expect(rules).toContain("visp-kit verify");
 
     output.length = 0;
     await program.parseAsync(["node", "visp", "agent", "doctor", tempDir, "--target", "claude"]);
@@ -96,7 +97,8 @@ describe("visp-kit agent claude command", () => {
     };
     expect(summary.success).toBe(true);
     expect(summary.target).toBe("claude");
-    expect(summary.createdFiles).toContain(".claude/commands/visp-feature.md");
+    expect(summary.createdFiles).toContain(".visp/prompts/visp-rules.md");
+    expect(summary.createdFiles.some((file) => file.includes(".claude/commands"))).toBe(false);
     expect(await exists(path.join(tempDir, ".claude"))).toBe(false);
   });
 
@@ -105,10 +107,10 @@ describe("visp-kit agent claude command", () => {
     const program = createCli({ writeOut: () => undefined });
 
     await program.parseAsync(["node", "visp", "agent", "install", "claude", tempDir]);
-    const commandPath = path.join(tempDir, ".claude", "commands", "visp-task.md");
-    await writeFile(commandPath, "existing", "utf8");
+    const rulesPath = path.join(tempDir, ".visp", "prompts", "visp-rules.md");
+    await writeFile(rulesPath, "existing", "utf8");
     await program.parseAsync(["node", "visp", "agent", "install", "claude", tempDir]);
-    expect(await readFile(commandPath, "utf8")).toBe("existing");
+    expect(await readFile(rulesPath, "utf8")).toBe("existing");
 
     await program.parseAsync([
       "node",
@@ -120,6 +122,8 @@ describe("visp-kit agent claude command", () => {
       "claude",
       "--force"
     ]);
-    expect(await readFile(commandPath, "utf8")).toContain("visp-kit gate implement");
+    expect(await readFile(rulesPath, "utf8")).toContain("visp-kit verify");
+    // Hyper owns installed slash commands; a Kit refresh must not create them.
+    expect(await exists(path.join(tempDir, ".claude", "commands"))).toBe(false);
   });
 });

@@ -13,7 +13,6 @@ import {
   agentsMarkdownPath,
   agentsVispMarkdownPath,
   agentCapabilitiesPath,
-  claudeCommandPath,
   codexSkillPath,
   copilotInstructionsPath,
   copilotWorkflowInstructionPath,
@@ -246,7 +245,9 @@ async function checkTarget(input: {
           genericAgentPromptPath(input.targetPath, workflow)
         );
       case "claude":
-        return agentWorkflowNames.map((workflow) => claudeCommandPath(input.targetPath, workflow));
+        // P10-US-06: installed slash commands are Hyper-owned; Kit's claude
+        // target is rules + hooks only.
+        return [vispRulesFilePath(input.targetPath)];
       case "copilot":
         return [
           copilotInstructionsPath(input.targetPath),

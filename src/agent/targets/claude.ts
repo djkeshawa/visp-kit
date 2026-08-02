@@ -1,16 +1,17 @@
 import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
 import {
-  claudeCommandPath,
   claudePreToolUseHookPath,
   hooksReadmePath,
   vispRulesFilePath
 } from "../agent-paths.js";
-import { agentWorkflowNames } from "../agent-renderer.js";
 import { type AgentTextFile } from "../agent-file-plan.js";
-import { renderClaudeCommand } from "../templates/claude-command-template.js";
 import { renderVispRulesFile } from "../templates/visp-rules.js";
 import { renderClaudePreToolUseHook, renderHooksReadme } from "../hooks/hook-templates.js";
 
+// P10-US-06: Kit no longer renders `.claude/commands/visp-*.md`. Installed
+// slash commands are Hyper-owned — one file per verb, one owner — so no two
+// installed commands can share a verb word with different authority. Kit keeps
+// its rules file and hooks, which carry Kit's own authority.
 export function claudeTargetFiles(input: {
   readonly targetPath: string;
   readonly strictness: StrictnessMode;
@@ -30,11 +31,6 @@ export function claudeTargetFiles(input: {
       kind: "text" as const,
       path: hooksReadmePath(input.targetPath),
       contents: renderHooksReadme()
-    },
-    ...agentWorkflowNames.map((workflow) => ({
-      kind: "text" as const,
-      path: claudeCommandPath(input.targetPath, workflow),
-      contents: renderClaudeCommand(workflow, input.strictness)
-    }))
+    }
   ];
 }
