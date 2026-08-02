@@ -174,8 +174,8 @@ export async function runChecklistStatusWorkflow(
     warnings: summary.value.exists ? [] : ["Implementation checklist is missing."],
     nextCommand:
       summary.value.pendingRequired.length > 0 || summary.value.blockedRequired.length > 0
-        ? `visp checklist status --task ${resolved.value.taskId}`
-        : `visp verify --task ${resolved.value.taskId}`
+        ? `visp-kit checklist status --task ${resolved.value.taskId}`
+        : `visp-kit verify --task ${resolved.value.taskId}`
   });
 }
 
@@ -248,7 +248,7 @@ export async function runChecklistUpdateWorkflow(
     updatedItemId: item.value,
     dryRun: options.dryRun ?? false,
     warnings: [],
-    nextCommand: `visp checklist status --task ${resolved.value.taskId}`
+    nextCommand: `visp-kit checklist status --task ${resolved.value.taskId}`
   });
 }
 

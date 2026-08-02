@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -79,6 +79,66 @@ describe("runDoctorWorkflow", () => {
     expect(summary.reportPath).toBe(".visp/reports/doctor-report.md");
     expect(summary.fixesApplied.map((fix) => fix.path)).toContain(".visp/reports");
     expect(await exists(path.join(tempDir, ".visp", "reports", "doctor-report.md"))).toBe(true);
+  });
+
+  // D-118 decision 4: a CI workflow generated before the rename runs
+  // `visp ...` after installing visp-kit — it breaks at the user's next pull
+  // request, so doctor must name it as an error, not pass quietly.
+  it("names a stale pre-rename CI workflow as an error", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const workflowDir = path.join(tempDir, ".github", "workflows");
+    await mkdir(workflowDir, { recursive: true });
+    await writeFile(
+      path.join(workflowDir, "visp-evidence.yml"),
+      [
+        "name: visp-evidence",
+        "jobs:",
+        "  evidence:",
+        "    steps:",
+        "      - name: Install Visp Kit",
+        "        run: npm install -g visp-kit@0.2.3",
+        "      - name: Validate policy",
+        "        run: visp policy validate --json",
+        ""
+      ].join("\n"),
+      "utf8"
+    );
+
+    const summary = expectOk(
+      await runDoctorWorkflow({
+        targetPath: tempDir,
+        commandRunner: runner()
+      })
+    );
+
+    const ciFinding = summary.findings.find(
+      (item) => item.file === ".github/workflows/visp-evidence.yml"
+    );
+    expect(ciFinding).toBeDefined();
+    expect(ciFinding?.severity).toBe("error");
+    expect(ciFinding?.recommendation).toContain("visp-kit hooks ci --force");
+  });
+
+  it("does not flag a regenerated CI workflow", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const workflowDir = path.join(tempDir, ".github", "workflows");
+    await mkdir(workflowDir, { recursive: true });
+    await writeFile(
+      path.join(workflowDir, "visp-evidence.yml"),
+      "steps:\n  - run: visp-kit policy validate --json\n",
+      "utf8"
+    );
+
+    const summary = expectOk(
+      await runDoctorWorkflow({
+        targetPath: tempDir,
+        commandRunner: runner()
+      })
+    );
+
+    expect(
+      summary.findings.find((item) => item.file === ".github/workflows/visp-evidence.yml")
+    ).toBeUndefined();
   });
 
   it("dry-run does not write a report", async () => {

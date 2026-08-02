@@ -19,7 +19,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-describe("visp gate command", () => {
+describe("visp-kit gate command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -49,7 +49,7 @@ describe("visp gate command", () => {
 
     expect(errors.join("")).toBe("");
     expect(result.allowed).toBe(false);
-    expect(result.nextAllowedCommand).toBe("visp init");
+    expect(result.nextAllowedCommand).toBe("visp-kit init");
     expect(process.exitCode).toBe(1);
   });
 
@@ -65,7 +65,7 @@ describe("visp gate command", () => {
       nextAllowedCommand: string;
     };
 
-    expect(result.nextAllowedCommand).toBe("visp policy init --strictness strict");
+    expect(result.nextAllowedCommand).toBe("visp-kit policy init --strictness strict");
     expect(process.exitCode).toBe(1);
   });
 
@@ -91,7 +91,7 @@ describe("visp gate command", () => {
         expect.objectContaining({ ruleId: "VSP018", message: "Policy validation failed." })
       ])
     );
-    expect(result.nextCommand).toBe("visp policy validate");
+    expect(result.nextCommand).toBe("visp-kit policy validate");
     expect(result.blockedCommands).toEqual([
       expect.objectContaining({ command: "workflow progression", ruleId: "VSP018" })
     ]);
@@ -116,7 +116,7 @@ describe("visp gate command", () => {
       failedRules: Array<{ ruleId: string }>;
     };
 
-    expect(result.nextAllowedCommand).toBe("visp scan");
+    expect(result.nextAllowedCommand).toBe("visp-kit scan");
     expect(result.failedRules.map((rule) => rule.ruleId)).toContain("VSP001");
     expect(process.exitCode).toBe(1);
   });
@@ -360,14 +360,14 @@ describe("visp gate command", () => {
     };
 
     // The prose form is a full sentence; the bare form is a runnable command.
-    expect(result.nextAllowedCommand).toMatch(/^Run visp /);
+    expect(result.nextAllowedCommand).toMatch(/^Run visp-kit /);
     expect(result.nextCommand).toBeDefined();
     expect(result.nextCommand).not.toMatch(/^Run /);
     expect(result.nextCommand.endsWith(".")).toBe(false);
     expect(result.nextCommand).toBe(
       result.nextAllowedCommand.replace(/^Run /, "").replace(/\.$/, "")
     );
-    expect(result.nextCommand.startsWith("visp ")).toBe(true);
+    expect(result.nextCommand.startsWith("visp-kit ")).toBe(true);
   });
 
   it("dry-run writes no gate report", async () => {

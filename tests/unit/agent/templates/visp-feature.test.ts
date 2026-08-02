@@ -16,11 +16,11 @@ describe("visp-feature template", () => {
     expect(content).toContain(
       "feature -> clarify -> spec -> plan -> tasks -> context -> implement -> done (verify, review, reconcile) -> pr"
     );
-    expect(content).toContain("Loop: run `visp next`");
-    expect(content).toContain("visp clarify answer <question-id> --answer");
-    expect(content).toContain("visp gate implement --task <task-id>");
+    expect(content).toContain("Loop: run `visp-kit next`");
+    expect(content).toContain("visp-kit clarify answer <question-id> --answer");
+    expect(content).toContain("visp-kit gate implement --task <task-id>");
     expect(content).toContain("Result blocked -> do NOT edit code");
-    expect(content).toContain("visp done --task <task-id>");
+    expect(content).toContain("visp-kit done --task <task-id>");
     expect(content).toContain("## Stop conditions");
     expect(content).not.toContain("21. Run");
   });
@@ -34,17 +34,17 @@ describe("visp-task template", () => {
     expect(content).toContain("Result blocked -> run the command shown after `Next:`");
     expect(content).toContain("Result blocked -> do NOT edit code");
     expect(content).toContain(".visp/prompts/current-task.prompt.md");
-    expect(content).toContain("It ends with `visp done --task <task-id>`");
+    expect(content).toContain("It ends with `visp-kit done --task <task-id>`");
   });
 });
 
 describe("visp-fix template", () => {
-  it("repairs through visp done", () => {
+  it("repairs through visp-kit done", () => {
     const content = renderVispFixTemplate("strict");
 
     expect(content).toContain("## Rules digest");
     expect(content).toContain("Fix only the reported issues.");
-    expect(content).toContain("visp done --task <task-id>");
+    expect(content).toContain("visp-kit done --task <task-id>");
     expect(content).toContain("A step FAILED -> fix only the newly reported issues");
   });
 });
@@ -54,7 +54,7 @@ describe("visp-review template", () => {
     const content = renderVispReviewTemplate("strict");
 
     expect(content).toContain("## Rules digest");
-    expect(content).toContain("visp gate review --task <task-id>");
+    expect(content).toContain("visp-kit gate review --task <task-id>");
     expect(content).toContain("Result blocked -> stop");
     expect(content).toContain("Do not edit code unless the user explicitly asks for a fix.");
   });
@@ -65,7 +65,7 @@ describe("visp-pr template", () => {
     const content = renderVispPrTemplate("strict");
 
     expect(content).toContain("## Rules digest");
-    expect(content).toContain("visp gate pr");
+    expect(content).toContain("visp-kit gate pr");
     expect(content).toContain("Result blocked -> stop");
     expect(content).toContain("Do not call GitHub API.");
   });

@@ -12,19 +12,19 @@ describe("VispError", () => {
 
   it("formats errors with a recovery command", () => {
     const error = new VispError("VALIDATION_FAILED", "Spec is missing.", {
-      recovery: "visp spec"
+      recovery: "visp-kit spec"
     });
 
     expect(formatVispError(error)).toBe(
-      "[VALIDATION_FAILED] Spec is missing.\nRecover: run `visp spec`"
+      "[VALIDATION_FAILED] Spec is missing.\nRecover: run `visp-kit spec`"
     );
-    expect(error.recovery).toBe("visp spec");
+    expect(error.recovery).toBe("visp-kit spec");
   });
 
   it("preserves VispError instances through toVispError", () => {
-    const error = new VispError("VALIDATION_FAILED", "Original.", { recovery: "visp init" });
+    const error = new VispError("VALIDATION_FAILED", "Original.", { recovery: "visp-kit init" });
 
     expect(toVispError(error)).toBe(error);
-    expect(toVispError(error).recovery).toBe("visp init");
+    expect(toVispError(error).recovery).toBe("visp-kit init");
   });
 });

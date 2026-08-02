@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCli } from "../../src/cli/main.js";
 import { createPhase8Fixture, removeTempDirWithRetry } from "./phase8-fixture.js";
 
-describe("visp checklist command", () => {
+describe("visp-kit checklist command", () => {
   let tempDir: string;
 
   beforeEach(async () => {

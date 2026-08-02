@@ -33,7 +33,7 @@ describe("gate engine", () => {
     );
 
     expect(result.allowed).toBe(false);
-    expect(result.nextAllowedCommand).toBe("visp init");
+    expect(result.nextAllowedCommand).toBe("visp-kit init");
     expect(result.failedRules[0]?.ruleId).toBe("VSP018");
     expect(gateResultSchema.safeParse(result).success).toBe(true);
   });

@@ -197,7 +197,7 @@ export async function runOracleApproveWorkflow(
     artifactPath: relativePath(loaded.value.targetPath, artifactPath),
     action: written.value[0]?.action ?? "created",
     dryRun: options.dryRun ?? false,
-    nextCommand: `visp oracle lock --task ${loaded.value.plan.taskId}`
+    nextCommand: `visp-kit oracle lock --task ${loaded.value.plan.taskId}`
   });
 }
 
@@ -253,7 +253,7 @@ export async function runOracleRevokeWorkflow(
     artifactPath: relativePath(loaded.value.targetPath, artifactPath),
     action: written.value[0]?.action ?? "updated",
     dryRun: options.dryRun ?? false,
-    nextCommand: `visp oracle approve --task ${loaded.value.plan.taskId} --reviewer <id> --reason <reason>`
+    nextCommand: `visp-kit oracle approve --task ${loaded.value.plan.taskId} --reviewer <id> --reason <reason>`
   });
 }
 
@@ -347,8 +347,8 @@ export async function runOracleLockWorkflow(
     dryRun: options.dryRun ?? false,
     nextCommand:
       baselineEvidence === undefined
-        ? `visp verify --baseline --task ${loaded.value.plan.taskId}`
-        : `visp gate implement --task ${loaded.value.plan.taskId}`
+        ? `visp-kit verify --baseline --task ${loaded.value.plan.taskId}`
+        : `visp-kit gate implement --task ${loaded.value.plan.taskId}`
   });
 }
 
@@ -428,7 +428,7 @@ export async function loadOracleAuthorization(
       return err(
         new VispError(
           "VALIDATION_FAILED",
-          `Baseline cache inputs changed for task ${loaded.value.plan.taskId}. Run \`visp verify --baseline --task ${loaded.value.plan.taskId}\`.`
+          `Baseline cache inputs changed for task ${loaded.value.plan.taskId}. Run \`visp-kit verify --baseline --task ${loaded.value.plan.taskId}\`.`
         )
       );
     }
@@ -437,7 +437,7 @@ export async function loadOracleAuthorization(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        `Baseline evidence is not locked for task ${loaded.value.plan.taskId}. Run \`visp verify --baseline --task ${loaded.value.plan.taskId}\`.`
+        `Baseline evidence is not locked for task ${loaded.value.plan.taskId}. Run \`visp-kit verify --baseline --task ${loaded.value.plan.taskId}\`.`
       )
     );
   }

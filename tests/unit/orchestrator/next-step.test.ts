@@ -62,13 +62,13 @@ describe("next-step resolver", () => {
       state: state({ initialized: false, selectedFeature: undefined, selectedTask: undefined })
     });
 
-    expect(next.nextCommand).toBe("visp init");
+    expect(next.nextCommand).toBe("visp-kit init");
   });
 
   it("recommends scan when scan cache is missing", () => {
     const next = recommendNextStep({ state: state({ scanned: false }) });
 
-    expect(next.nextCommand).toBe("visp scan");
+    expect(next.nextCommand).toBe("visp-kit scan");
   });
 
   it("recommends feature when no active feature exists", () => {
@@ -76,13 +76,13 @@ describe("next-step resolver", () => {
       state: state({ selectedFeature: undefined, selectedTask: undefined })
     });
 
-    expect(next.nextCommand).toContain("visp feature");
+    expect(next.nextCommand).toContain("visp-kit feature");
   });
 
   it("recommends context before implementation", () => {
     const next = recommendNextStep({ state: state({}) });
 
-    expect(next.nextCommand).toBe("visp context --next");
+    expect(next.nextCommand).toBe("visp-kit context --next");
   });
 
   it("recommends verify when context exists and source changed", () => {
@@ -100,6 +100,6 @@ describe("next-step resolver", () => {
       })
     });
 
-    expect(next.nextCommand).toBe("visp verify --task T001");
+    expect(next.nextCommand).toBe("visp-kit verify --task T001");
   });
 });

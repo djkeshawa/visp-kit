@@ -64,7 +64,7 @@ export async function writeImplementMarker(input: {
 
   // Per-task marker enables concurrent task authorizations; the legacy single
   // marker stays dual-written for hooks generated before the directory form
-  // existed. Upgrade hooks with `visp hooks claude|git --force`.
+  // existed. Upgrade hooks with `visp-kit hooks claude|git --force`.
   const taskWrite = await writeArtifact(
     taskImplementMarkerPath(input.targetPath, input.task.id),
     implementMarkerSchema,

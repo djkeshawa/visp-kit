@@ -27,7 +27,7 @@ export async function ensureVispProject(targetPath: string): Promise<Result<void
 
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp-kit init` first.")
     );
   }
 
@@ -107,6 +107,6 @@ export async function loadEffectivePolicy(input: {
     policyPath,
     policyPathRelative: relativePath(input.targetPath, policyPath),
     exists: false,
-    warnings: ["Policy file is missing. Run `visp policy init` to persist it."]
+    warnings: ["Policy file is missing. Run `visp-kit policy init` to persist it."]
   });
 }

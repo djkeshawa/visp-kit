@@ -73,7 +73,7 @@ describe("runPrWorkflow", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("Expected PR workflow to fail.");
-    expect(result.error.message).toContain("visp init");
+    expect(result.error.message).toContain("visp-kit init");
   });
 
   it("writes PR markdown, JSON, prompt, and status when a feature is active", async () => {

@@ -39,7 +39,7 @@ async function readInstalledTargetNames(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "No installed agent targets found. Run `visp agent bootstrap codex` or `visp agent install <target>` first."
+        "No installed agent targets found. Run `visp-kit agent bootstrap codex` or `visp-kit agent install <target>` first."
       )
     );
   }
@@ -65,7 +65,7 @@ async function readInstalledTargetNames(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "No installed agent targets found. Run `visp agent bootstrap codex` or `visp agent install <target>` first."
+        "No installed agent targets found. Run `visp-kit agent bootstrap codex` or `visp-kit agent install <target>` first."
       )
     );
   }
@@ -83,7 +83,7 @@ export async function runAgentRefresh(
     return err(
       new VispError(
         initialized.error.code,
-        `${initialized.error.message} Recommended: visp init --strictness strict.`
+        `${initialized.error.message} Recommended: visp-kit init --strictness strict.`
       )
     );
   }
@@ -103,7 +103,7 @@ export async function runAgentRefresh(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        `Target ${options.target ?? "all"} is not installed. Run \`visp agent install ${options.target ?? "codex"}\` first.`
+        `Target ${options.target ?? "all"} is not installed. Run \`visp-kit agent install ${options.target ?? "codex"}\` first.`
       )
     );
   }

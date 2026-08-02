@@ -169,7 +169,7 @@ describe("canonical-json-v1", () => {
   it("domain-separates deterministic canonical 1.2 identities and binds summary mutations", () => {
     const action = {
       canonicalVersion: "1.2",
-      nextCommand: "visp assurance accept --task T001",
+      nextCommand: "visp-kit assurance accept --task T001",
       assuranceSummary: {
         state: "unavailable",
         reason: "Assurance case is missing.",
@@ -192,7 +192,7 @@ describe("canonical-json-v1", () => {
         reason: "Assurance case is missing.",
         state: "unavailable"
       },
-      nextCommand: "visp assurance accept --task T001",
+      nextCommand: "visp-kit assurance accept --task T001",
       canonicalVersion: "1.2"
     };
 

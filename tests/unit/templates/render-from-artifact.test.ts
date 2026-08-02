@@ -535,7 +535,7 @@ describe("phase 7 artifact renderers", () => {
         artifact: taskGraphWithTasks([task("T002", ["T001"]), task("T001", [])])
       });
 
-      expect(markdown).toContain("visp context T001");
+      expect(markdown).toContain("visp-kit context T001");
     });
   });
 });

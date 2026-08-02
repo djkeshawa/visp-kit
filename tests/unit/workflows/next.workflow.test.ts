@@ -51,7 +51,7 @@ describe("runNextWorkflow", () => {
       })
     );
 
-    expect(next.nextCommand).toBe("visp init");
+    expect(next.nextCommand).toBe("visp-kit init");
     expect(next.state).toBe("not-initialized");
   });
 
@@ -65,8 +65,8 @@ describe("runNextWorkflow", () => {
       })
     );
 
-    expect(next.nextCommand).toBe("visp scan");
-    expect(formatNextSummary(next, { commandOnly: true })).toBe("visp scan\n");
+    expect(next.nextCommand).toBe("visp-kit scan");
+    expect(formatNextSummary(next, { commandOnly: true })).toBe("visp-kit scan\n");
   });
 
   it("forwards the selected workflow-action protocol while retaining v2 by default", async () => {

@@ -86,7 +86,10 @@ export async function runClarifyAnswerWorkflow(
 
   if (!artifact.ok) {
     return err(
-      new VispError(artifact.error.code, `${artifact.error.message} Run \`visp clarify\` first.`)
+      new VispError(
+        artifact.error.code,
+        `${artifact.error.message} Run \`visp-kit clarify\` first.`
+      )
     );
   }
 
@@ -174,7 +177,7 @@ export async function runClarifyAnswerWorkflow(
     dryRun,
     updatedFiles,
     validation,
-    nextCommand: finalArtifact.status === "ready" ? "visp spec" : "visp clarify"
+    nextCommand: finalArtifact.status === "ready" ? "visp-kit spec" : "visp-kit clarify"
   });
 }
 

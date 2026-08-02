@@ -213,7 +213,7 @@ export async function runTasksWorkflow(
       validation: validation.validation,
       promptPath: promptDisplayPath,
       warnings: validation.warnings,
-      nextCommand: "visp context T001",
+      nextCommand: "visp-kit context T001",
       now
     });
 
@@ -258,8 +258,8 @@ export async function runTasksWorkflow(
 
   if (missing.length > 0) {
     return err(
-      new VispError("VALIDATION_FAILED", "Plan artifacts are missing. Run `visp plan` first.", {
-        recovery: "visp plan"
+      new VispError("VALIDATION_FAILED", "Plan artifacts are missing. Run `visp-kit plan` first.", {
+        recovery: "visp-kit plan"
       })
     );
   }
@@ -275,7 +275,7 @@ export async function runTasksWorkflow(
     if (!readiness.passed) {
       return err(
         new VispError("VALIDATION_FAILED", `Plan is incomplete: ${readiness.errors.join(" ")}`, {
-          recovery: "visp plan --validate"
+          recovery: "visp-kit plan --validate"
         })
       );
     }
@@ -362,7 +362,7 @@ export async function runTasksWorkflow(
     validation,
     promptPath: promptDisplayPath,
     warnings: spec.value.warnings,
-    nextCommand: "visp context T001",
+    nextCommand: "visp-kit context T001",
     now
   });
 

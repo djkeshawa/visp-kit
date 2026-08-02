@@ -35,7 +35,7 @@ export function evaluateProject(input: {
         severity: "error",
         title: "Project is not initialized",
         description: "The target path does not contain a .visp project.",
-        recommendation: "Run visp init.",
+        recommendation: "Run visp-kit init.",
         file: ".visp"
       })
     );
@@ -48,7 +48,7 @@ export function evaluateProject(input: {
         severity: input.strict ? "error" : "warning",
         title: "Scan cache is missing",
         description: "The project scan cache is incomplete or pending.",
-        recommendation: "Run visp scan.",
+        recommendation: "Run visp-kit scan.",
         file: ".visp/cache/scan-meta.json"
       })
     );
@@ -61,7 +61,7 @@ export function evaluateProject(input: {
         severity: input.strict ? "error" : "warning",
         title: "Compact constitution is missing",
         description: "The project constitution is not available to constrain agent behavior.",
-        recommendation: "Run visp constitution.",
+        recommendation: "Run visp-kit constitution.",
         file: ".visp/memory/constitution.compact.md"
       })
     );
@@ -74,7 +74,7 @@ export function evaluateProject(input: {
         severity: "warning",
         title: "No active feature",
         description: "Evaluation is limited because no active feature is selected.",
-        recommendation: 'Run visp feature "<idea>".',
+        recommendation: 'Run visp-kit feature "<idea>".',
         file: ".visp/status.json"
       })
     );
@@ -169,8 +169,8 @@ export function evaluateProject(input: {
         description: "Latest verification evidence reports failure.",
         recommendation:
           state.selectedTask === undefined
-            ? "Run visp verify."
-            : `Run visp verify --task ${state.selectedTask.id}.`,
+            ? "Run visp-kit verify."
+            : `Run visp-kit verify --task ${state.selectedTask.id}.`,
         file: state.selectedFeature?.relativePath ?? null,
         taskId: state.selectedTask?.id
       })
@@ -186,8 +186,8 @@ export function evaluateProject(input: {
         description: "Latest review report has blocking findings.",
         recommendation:
           state.selectedTask === undefined
-            ? "Run visp review."
-            : `Run visp review --task ${state.selectedTask.id}.`,
+            ? "Run visp-kit review."
+            : `Run visp-kit review --task ${state.selectedTask.id}.`,
         file: state.selectedFeature?.relativePath ?? null,
         taskId: state.selectedTask?.id
       })
@@ -203,8 +203,8 @@ export function evaluateProject(input: {
         description: "Latest reconciliation report has blocking drift.",
         recommendation:
           state.selectedTask === undefined
-            ? "Run visp reconcile."
-            : `Run visp reconcile --task ${state.selectedTask.id}.`,
+            ? "Run visp-kit reconcile."
+            : `Run visp-kit reconcile --task ${state.selectedTask.id}.`,
         file: state.selectedFeature?.relativePath ?? null,
         taskId: state.selectedTask?.id
       })
@@ -218,7 +218,7 @@ export function evaluateProject(input: {
         severity: "error",
         title: "PR summary has errors",
         description: "The generated PR artifact reports blocking issues.",
-        recommendation: "Fix the PR readiness issues and rerun visp pr.",
+        recommendation: "Fix the PR readiness issues and rerun visp-kit pr.",
         file: state.selectedFeature?.relativePath ?? null
       })
     );

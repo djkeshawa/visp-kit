@@ -13,7 +13,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-describe("visp budget command", () => {
+describe("visp-kit budget command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -35,7 +35,7 @@ describe("visp budget command", () => {
 
     expect(output.join("")).toContain("Visp budget estimate");
     expect(output.join("")).toContain("Tasks: 1");
-    expect(output.join("")).toContain("visp context --next");
+    expect(output.join("")).toContain("visp-kit context --next");
   });
 
   it("returns task-level JSON only", async () => {

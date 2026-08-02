@@ -11,8 +11,8 @@ Visp Kit can install strict workflow guidance for five targets:
 Install with:
 
 ```bash
-visp agent bootstrap <target>
-visp agent install <target>
+visp-kit agent bootstrap <target>
+visp-kit agent install <target>
 ```
 
 Use `bootstrap` in a fresh project. It initializes `.visp/` if needed and installs the selected target guidance.
@@ -20,13 +20,13 @@ Use `bootstrap` in a fresh project. It initializes `.visp/` if needed and instal
 Inspect with:
 
 ```bash
-visp agent doctor --target <target>
+visp-kit agent doctor --target <target>
 ```
 
 Refresh with:
 
 ```bash
-visp agent refresh --target <target> --force
+visp-kit agent refresh --target <target> --force
 ```
 
 ## Safe Write Behavior
@@ -42,7 +42,7 @@ visp agent refresh --target <target> --force
 Command:
 
 ```bash
-visp agent install codex
+visp-kit agent install codex
 ```
 
 Generated files:
@@ -71,7 +71,7 @@ Add note pinning.
 Command:
 
 ```bash
-visp agent install generic
+visp-kit agent install generic
 ```
 
 Generated files:
@@ -95,7 +95,7 @@ Use these prompt files by copying them into the active AI tool session.
 Command:
 
 ```bash
-visp agent install claude
+visp-kit agent install claude
 ```
 
 Generated files:
@@ -128,7 +128,7 @@ Claude Code setups vary. If a surface does not load these files automatically, c
 Command:
 
 ```bash
-visp agent install copilot
+visp-kit agent install copilot
 ```
 
 Generated files:
@@ -153,7 +153,7 @@ Copilot support varies by surface. These files provide repository guidance for C
 Command:
 
 ```bash
-visp agent install opencode
+visp-kit agent install opencode
 ```
 
 Generated files:

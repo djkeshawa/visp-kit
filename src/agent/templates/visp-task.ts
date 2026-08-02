@@ -9,19 +9,19 @@ Use this workflow when the user asks to continue with the next Visp task or impl
 
 ## Steps
 
-1. Run \`visp status\`.
-   - Output says Visp Kit is not initialized -> run \`visp agent bootstrap <target> --strictness strict\`, then restart at step 1.
-2. Run \`visp gate next\`.
+1. Run \`visp-kit status\`.
+   - Output says Visp Kit is not initialized -> run \`visp-kit agent bootstrap <target> --strictness strict\`, then restart at step 1.
+2. Run \`visp-kit gate next\`.
    - Result blocked -> run the command shown after \`Next:\`, then repeat step 2.
-   - The \`Next:\` command is \`visp context --next\` or \`visp context <task-id>\` -> run it.
-3. Run \`visp gate implement --task <task-id>\`.
+   - The \`Next:\` command is \`visp-kit context --next\` or \`visp-kit context <task-id>\` -> run it.
+3. Run \`visp-kit gate implement --task <task-id>\`.
    - Result blocked -> do NOT edit code. Run the command shown after \`Next:\`, then repeat step 3.
-4. Open \`.visp/prompts/current-task.prompt.md\` and follow its Steps section exactly. It ends with \`visp done --task <task-id>\`.
-5. Run \`visp next\` and report its output as your final status.
+4. Open \`.visp/prompts/current-task.prompt.md\` and follow its Steps section exactly. It ends with \`visp-kit done --task <task-id>\`.
+5. Run \`visp-kit next\` and report its output as your final status.
 
 ## What not to do
 
-- Do not create a new feature, spec, plan, or task graph unless \`visp next\` says it is missing.
+- Do not create a new feature, spec, plan, or task graph unless \`visp-kit next\` says it is missing.
 - Do not continue to another task unless the user explicitly asks to continue.
 `;
 }

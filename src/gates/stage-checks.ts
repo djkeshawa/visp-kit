@@ -30,7 +30,7 @@ function policyChecks(
         passed: false,
         severity: "error",
         message: "Visp Kit is not initialized.",
-        recommendation: "Run visp init.",
+        recommendation: "Run visp-kit init.",
         evidence: ".visp/ was not found."
       })
     );
@@ -44,7 +44,7 @@ function policyChecks(
         passed: false,
         severity: "error",
         message: "Policy validation failed.",
-        recommendation: "Run visp policy validate and fix .visp/policy.json.",
+        recommendation: "Run visp-kit policy validate and fix .visp/policy.json.",
         evidence: context.policy.errors.join(" ")
       })
     );
@@ -58,7 +58,7 @@ function policyChecks(
         passed: false,
         severity: missingPolicySeverity,
         message: "Policy file is missing.",
-        recommendation: "Run visp policy init --strictness strict.",
+        recommendation: "Run visp-kit policy init --strictness strict.",
         evidence: ".visp/policy.json was not found; default policy was used in memory."
       })
     );
@@ -87,7 +87,7 @@ function featureCheck(context: GateContext): GateCheck {
         passed: false,
         severity: "error",
         message: "No active feature is selected.",
-        recommendation: 'Run visp feature "<describe your feature>".',
+        recommendation: 'Run visp-kit feature "<describe your feature>".',
         evidence: ".visp/status.json does not identify an active feature."
       })
     : check({
@@ -99,7 +99,7 @@ function featureCheck(context: GateContext): GateCheck {
       });
 }
 
-function taskCheck(context: GateContext, recommendation = "Run visp tasks."): GateCheck {
+function taskCheck(context: GateContext, recommendation = "Run visp-kit tasks."): GateCheck {
   const task = context.state.selectedTask;
 
   return task === undefined
@@ -144,7 +144,7 @@ function taskMappingChecks(context: GateContext): readonly GateCheck[] {
           passed: false,
           severity: "error",
           message: "Task has no requirement mapping.",
-          recommendation: "Update task-graph.json, then run visp tasks --validate.",
+          recommendation: "Update task-graph.json, then run visp-kit tasks --validate.",
           evidence: `${task.id}.requirementIds is empty.`
         })
       : missingRequirements.length > 0
@@ -216,7 +216,7 @@ function validationCommandCheck(context: GateContext): GateCheck {
         passed: false,
         severity: "error",
         message: "No validation commands are available.",
-        recommendation: "Add validationCommands to the task graph or run visp scan.",
+        recommendation: "Add validationCommands to the task graph or run visp-kit scan.",
         evidence: "No task, context, or project-level validation commands were found."
       });
 }
@@ -231,7 +231,7 @@ function implementationChecklistCheck(context: GateContext): GateCheck {
       passed: false,
       severity: "error",
       message: "Implementation checklist evidence is missing.",
-      recommendation: `Run visp context ${taskId}.`,
+      recommendation: `Run visp-kit context ${taskId}.`,
       evidence: `.visp/features/<feature>/context/${taskId}.implementation-checklist.json was not found.`
     });
   }
@@ -253,7 +253,7 @@ function implementationChecklistCheck(context: GateContext): GateCheck {
         passed: false,
         severity: "error",
         message: "Required implementation checklist items are incomplete.",
-        recommendation: `Run visp checklist status --task ${taskId}.`,
+        recommendation: `Run visp-kit checklist status --task ${taskId}.`,
         evidence: incomplete.map((item) => `${item.id}:${item.status}`).join(", ")
       });
 }
@@ -272,7 +272,7 @@ function taskGraphCheck(context: GateContext): GateCheck {
         passed: false,
         severity: "error",
         message: "Task graph is missing.",
-        recommendation: "Run visp tasks.",
+        recommendation: "Run visp-kit tasks.",
         evidence: ".visp/features/<feature>/task-graph.json was not found."
       });
 }
@@ -282,16 +282,16 @@ function filteredChecks(context: GateContext, checks: readonly GateCheck[]): rea
 }
 
 function readyCommand(stage: GateStage, task: Task | undefined): string {
-  if (stage === "feature") return 'visp feature "<describe your feature>"';
+  if (stage === "feature") return 'visp-kit feature "<describe your feature>"';
   if (stage === "implement") {
     return "Read .visp/prompts/current-task.prompt.md and implement only the selected task.";
   }
   if (stage === "context")
-    return task === undefined ? "visp context --next" : `visp context ${task.id}`;
+    return task === undefined ? "visp-kit context --next" : `visp-kit context ${task.id}`;
   if (["verify", "review", "reconcile"].includes(stage)) {
     const taskFlag = task === undefined ? "" : ` --task ${task.id}`;
     return stage === "reconcile"
-      ? `visp reconcile${taskFlag} --update-traceability`
+      ? `visp-kit reconcile${taskFlag} --update-traceability`
       : `visp ${stage}${taskFlag}`;
   }
   return `visp ${stage}`;
@@ -301,15 +301,17 @@ function readyCommand(stage: GateStage, task: Task | undefined): string {
 // implement-ready state, whose sentence maps to running the current-task prompt.
 function readyCommandBare(stage: GateStage, task: Task | undefined): string {
   if (stage === "implement") {
-    return "visp context --next";
+    return "visp-kit context --next";
   }
   return readyCommand(stage, task);
 }
 
-// Reduce a recommendation sentence ("Run visp X.") to the bare command ("visp X").
-// Returns undefined when the recommendation is not a runnable `visp` command.
+// Reduce a recommendation sentence ("Run visp-kit X.") to the bare command
+// ("visp-kit X"). Returns undefined when the recommendation is not a runnable
+// command. Accepts both CLI names during the D-119 deprecation window —
+// recommendations can surface from artifacts written before the rename.
 export function bareCommandFromRecommendation(recommendation: string): string | undefined {
-  const match = /^Run (visp .+?)\.?$/.exec(recommendation.trim());
+  const match = /^Run (visp(?:-kit)? .+?)\.?$/.exec(recommendation.trim());
   return match?.[1];
 }
 
@@ -361,7 +363,8 @@ export function evaluateSetupGate(context: GateContext): GateEvaluation {
             passed: false,
             severity: "error",
             message: "Required setup artifacts are missing.",
-            recommendation: "Run visp init --force only if you intend to regenerate setup files.",
+            recommendation:
+              "Run visp-kit init --force only if you intend to regenerate setup files.",
             evidence: missing.join(", ")
           })
     );
@@ -379,7 +382,7 @@ export function evaluateFeatureGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Project scan is required before feature workflow.",
-          recommendation: "Run visp scan.",
+          recommendation: "Run visp-kit scan.",
           evidence: ".visp/cache/scan-meta.json is missing or incomplete."
         })
       : check({
@@ -395,7 +398,7 @@ export function evaluateFeatureGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Constitution is required before feature workflow.",
-          recommendation: "Run visp constitution.",
+          recommendation: "Run visp-kit constitution.",
           evidence: ".visp/memory/constitution.compact.md was not found."
         })
       : check({
@@ -433,7 +436,7 @@ export function evaluateSpecGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: context.policy.policy.strictnessMode === "relaxed" ? "warning" : "error",
           message: "Clarifications are missing.",
-          recommendation: "Run visp clarify.",
+          recommendation: "Run visp-kit clarify.",
           evidence: ".visp/features/<feature>/clarifications.json was not found."
         })
   ];
@@ -458,7 +461,7 @@ export function evaluatePlanGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Spec is missing or has no requirements.",
-          recommendation: "Run visp spec.",
+          recommendation: "Run visp-kit spec.",
           evidence: ".visp/features/<feature>/spec.json is missing or incomplete."
         })
   ];
@@ -483,7 +486,7 @@ export function evaluateTasksGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Spec is missing.",
-          recommendation: "Run visp spec.",
+          recommendation: "Run visp-kit spec.",
           evidence: ".visp/features/<feature>/spec.json was not found."
         }),
     context.state.artifactSummary.plan
@@ -499,7 +502,7 @@ export function evaluateTasksGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Plan is missing.",
-          recommendation: "Run visp plan.",
+          recommendation: "Run visp-kit plan.",
           evidence: ".visp/features/<feature>/plan.json was not found."
         })
   ];
@@ -512,7 +515,7 @@ export function evaluateContextGate(context: GateContext): GateEvaluation {
     ...policyChecks(context, "warning"),
     featureCheck(context),
     taskGraphCheck(context),
-    taskCheck(context, "Run visp tasks."),
+    taskCheck(context, "Run visp-kit tasks."),
     ...taskMappingChecks(context),
     validationCommandCheck(context)
   ];
@@ -534,7 +537,7 @@ export function evaluateImplementGate(context: GateContext): GateEvaluation {
         passed: false,
         severity: "error",
         message: "Implementation requires a context pack.",
-        recommendation: "Run visp context --next.",
+        recommendation: "Run visp-kit context --next.",
         evidence: "Task context JSON was not found."
       });
   const budgetCheck =
@@ -557,7 +560,7 @@ export function evaluateImplementGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Existing verification report failed.",
-          recommendation: `Run visp verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
+          recommendation: `Run visp-kit verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
           evidence: "verification.json success is false."
         })
       : undefined,
@@ -567,7 +570,7 @@ export function evaluateImplementGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Existing review report failed.",
-          recommendation: `Run visp review --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
+          recommendation: `Run visp-kit review --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
           evidence: "review result is failed."
         })
       : undefined,
@@ -577,7 +580,7 @@ export function evaluateImplementGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "error",
           message: "Existing reconciliation report failed.",
-          recommendation: `Run visp reconcile --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
+          recommendation: `Run visp-kit reconcile --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
           evidence: "reconcile result is failed."
         })
       : undefined
@@ -585,7 +588,7 @@ export function evaluateImplementGate(context: GateContext): GateEvaluation {
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
-    taskCheck(context, "Run visp context --next."),
+    taskCheck(context, "Run visp-kit context --next."),
     contextCheck,
     ...budgetCheck,
     ...taskMappingChecks(context),
@@ -628,7 +631,7 @@ function concurrentAuthorizationChecks(context: GateContext): readonly GateCheck
           passed: false,
           severity: strictModes ? "error" : "warning",
           message: `Task ${task.id} overlaps the active authorization for ${marker.taskId}.`,
-          recommendation: `Run visp done --task ${marker.taskId} first, or adjust the task scopes so they do not share files.`,
+          recommendation: `Run visp-kit done --task ${marker.taskId} first, or adjust the task scopes so they do not share files.`,
           evidence: `Shared files: ${overlap.join(", ")}.`
         })
       );
@@ -655,7 +658,7 @@ export function evaluateVerifyGate(context: GateContext): GateEvaluation {
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
-    taskCheck(context, "Run visp context --next."),
+    taskCheck(context, "Run visp-kit context --next."),
     context.state.artifactSummary.context
       ? check({
           ruleId: "VSP007",
@@ -669,7 +672,7 @@ export function evaluateVerifyGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: context.policy.policy.strictnessMode === "locked" ? "error" : "warning",
           message: "Context pack is missing.",
-          recommendation: `Run visp context ${context.state.selectedTask?.id ?? "--next"}.`,
+          recommendation: `Run visp-kit context ${context.state.selectedTask?.id ?? "--next"}.`,
           evidence: "Task context JSON was not found."
         }),
     validationCommandCheck(context),
@@ -701,14 +704,14 @@ export function evaluateReviewGate(context: GateContext): GateEvaluation {
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
-    taskCheck(context, "Run visp verify --task <task-id>."),
+    taskCheck(context, "Run visp-kit verify --task <task-id>."),
     verificationMissing
       ? check({
           ruleId: "VSP014",
           passed: false,
           severity: context.policy.policy.strictnessMode === "relaxed" ? "warning" : "error",
           message: "Verification report is missing.",
-          recommendation: `Run visp verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
+          recommendation: `Run visp-kit verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
           evidence: ".visp/features/<feature>/verification.json was not found."
         })
       : context.state.verification?.success === false
@@ -717,7 +720,7 @@ export function evaluateReviewGate(context: GateContext): GateEvaluation {
             passed: false,
             severity: "error",
             message: "Verification failed.",
-            recommendation: `Fix issues and rerun visp verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
+            recommendation: `Fix issues and rerun visp-kit verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
             evidence: "verification.json success is false."
           })
         : check({
@@ -736,14 +739,14 @@ export function evaluateReconcileGate(context: GateContext): GateEvaluation {
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
-    taskCheck(context, "Run visp review --task <task-id>."),
+    taskCheck(context, "Run visp-kit review --task <task-id>."),
     context.state.review === undefined
       ? check({
           ruleId: "VSP015",
           passed: false,
           severity: context.policy.policy.strictnessMode === "relaxed" ? "warning" : "error",
           message: "Review report is missing.",
-          recommendation: `Run visp review --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
+          recommendation: `Run visp-kit review --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
           evidence: ".visp/features/<feature>/review/<task>.review.json was not found."
         })
       : context.state.review.result === "failed"
@@ -768,7 +771,7 @@ export function evaluateReconcileGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: context.policy.policy.strictnessMode === "relaxed" ? "warning" : "error",
           message: "Passing verification evidence is missing.",
-          recommendation: `Run visp verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
+          recommendation: `Run visp-kit verify --task ${context.state.selectedTask?.id ?? "<task-id>"}.`,
           evidence:
             context.state.verification === undefined
               ? "verification.json missing."
@@ -787,7 +790,7 @@ export function evaluateReconcileGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: "warning",
           message: "Traceability artifact is missing.",
-          recommendation: "Run visp tasks or reconcile with --update-traceability.",
+          recommendation: "Run visp-kit tasks or reconcile with --update-traceability.",
           evidence: "traceability.json was not found."
         })
       : check({
@@ -832,7 +835,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: verificationSeverity,
           message: "Passing verification evidence is missing.",
-          recommendation: `Run visp verify --task ${taskId}.`,
+          recommendation: `Run visp-kit verify --task ${taskId}.`,
           evidence:
             context.state.verification === undefined
               ? "verification.json missing."
@@ -851,7 +854,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: reviewSeverity,
           message: "Passing review evidence is missing.",
-          recommendation: `Run visp review --task ${taskId}.`,
+          recommendation: `Run visp-kit review --task ${taskId}.`,
           evidence: context.state.review === undefined ? "review report missing." : "review failed."
         }),
     context.state.reconcile !== undefined && context.state.reconcile.result !== "failed"
@@ -867,7 +870,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: reconcileSeverity,
           message: "Passing reconciliation evidence is missing.",
-          recommendation: `Run visp reconcile --task ${taskId} --update-traceability.`,
+          recommendation: `Run visp-kit reconcile --task ${taskId} --update-traceability.`,
           evidence:
             context.state.reconcile === undefined
               ? "reconcile report missing."
@@ -886,7 +889,7 @@ export function evaluatePrGate(context: GateContext): GateEvaluation {
           passed: false,
           severity: traceabilitySeverity,
           message: "Traceability update evidence is missing.",
-          recommendation: `Run visp reconcile --task ${taskId} --update-traceability.`,
+          recommendation: `Run visp-kit reconcile --task ${taskId} --update-traceability.`,
           evidence: "reconcile report does not show traceabilityUpdate.performed."
         }),
     implementationChecklistCheck(context),
@@ -925,7 +928,7 @@ function driftChecks(context: GateContext): readonly GateCheck[] {
       passed: false,
       severity: strictModes ? "error" : "warning",
       message: "Context pack was grounded on artifacts that changed afterwards.",
-      recommendation: `Run visp drift, then regenerate the context pack: visp context ${taskId}.`,
+      recommendation: `Run visp-kit drift, then regenerate the context pack: visp-kit context ${taskId}.`,
       evidence: `Stale provenance: ${staleList}.`
     })
   ];
@@ -942,7 +945,7 @@ export function evaluateNextGate(context: GateContext): GateEvaluation {
         passed: false,
         severity: "error",
         message: "Visp Kit is not initialized.",
-        recommendation: "Run visp init.",
+        recommendation: "Run visp-kit init.",
         evidence: ".visp/ was not found."
       })
     );
@@ -953,7 +956,7 @@ export function evaluateNextGate(context: GateContext): GateEvaluation {
         passed: false,
         severity: "error",
         message: "Policy validation failed.",
-        recommendation: "Run visp policy validate.",
+        recommendation: "Run visp-kit policy validate.",
         evidence: context.policy.errors.join(" ")
       })
     );
@@ -964,7 +967,7 @@ export function evaluateNextGate(context: GateContext): GateEvaluation {
         passed: false,
         severity: "error",
         message: "Policy file is missing.",
-        recommendation: "Run visp policy init --strictness strict.",
+        recommendation: "Run visp-kit policy init --strictness strict.",
         evidence: ".visp/policy.json was not found."
       })
     );
@@ -975,7 +978,7 @@ export function evaluateNextGate(context: GateContext): GateEvaluation {
         passed: false,
         severity: "error",
         message: "Project scan is required.",
-        recommendation: "Run visp scan.",
+        recommendation: "Run visp-kit scan.",
         evidence: "Strict policy requires scan before feature workflow."
       })
     );
@@ -989,7 +992,7 @@ export function evaluateNextGate(context: GateContext): GateEvaluation {
         passed: false,
         severity: "error",
         message: "Project constitution is required.",
-        recommendation: "Run visp constitution.",
+        recommendation: "Run visp-kit constitution.",
         evidence: "Strict policy requires constitution before feature workflow."
       })
     );

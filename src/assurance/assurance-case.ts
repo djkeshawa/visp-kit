@@ -31,18 +31,18 @@ function nextAction(
 ): AssuranceCaseWithoutHash["nextAction"] {
   if (caseVerdict === "passed") {
     return {
-      command: `visp review --task ${taskId}`,
+      command: `visp-kit review --task ${taskId}`,
       reason: "The deterministic assurance case passed and is ready for review."
     };
   }
   if (caseVerdict === "failed") {
     return {
-      command: `visp verify --candidate --task ${taskId}`,
+      command: `visp-kit verify --candidate --task ${taskId}`,
       reason: "Candidate evidence regressed or failed and must be regenerated."
     };
   }
   return {
-    command: `visp assurance generate --task ${taskId}`,
+    command: `visp-kit assurance generate --task ${taskId}`,
     reason: "Resolve the reported uncertainty or mandatory hotspots, then regenerate assurance."
   };
 }

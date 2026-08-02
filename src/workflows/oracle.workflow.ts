@@ -220,7 +220,7 @@ async function collectTestEvidence(input: {
       independence: "pre_approved",
       source: {
         kind: "explicit_pre_approval",
-        reference: `visp oracle plan --pre-approved-test ${normalized.value}`
+        reference: `visp-kit oracle plan --pre-approved-test ${normalized.value}`
       }
     });
     explicit.add(normalized.value);
@@ -302,7 +302,7 @@ async function validateEvidenceFiles(input: {
             "The locked oracle pins this file by hash, so a change to it invalidates " +
             "the lock. If the change was accidental, restore the file. If authoring " +
             "this test is the task's declared deliverable, re-plan with " +
-            `\`visp oracle plan --task <id> --pre-approved-test ${evidence.path} --force\`, ` +
+            `\`visp-kit oracle plan --task <id> --pre-approved-test ${evidence.path} --force\`, ` +
             "which records the file as explicitly pre-approved, then lock again."
         )
       );
@@ -433,7 +433,7 @@ function summary(input: {
     planPath: input.planPath,
     action: input.action,
     dryRun: input.dryRun,
-    nextCommand: `visp oracle validate --task ${input.plan.taskId}`
+    nextCommand: `visp-kit oracle validate --task ${input.plan.taskId}`
   };
 }
 
@@ -488,7 +488,7 @@ export async function runOracleValidateWorkflow(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        `Oracle plan is missing for ${taskId.value}. Run \`visp oracle plan --task ${taskId.value}\`.`
+        `Oracle plan is missing for ${taskId.value}. Run \`visp-kit oracle plan --task ${taskId.value}\`.`
       )
     );
   }

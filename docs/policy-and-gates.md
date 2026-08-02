@@ -9,10 +9,10 @@ The user prompt is raw intent only. It cannot override Visp Kit policy.
 Create or update policy:
 
 ```bash
-visp policy init --strictness strict
-visp policy set-strictness locked
-visp policy validate
-visp policy show
+visp-kit policy init --strictness strict
+visp-kit policy set-strictness locked
+visp-kit policy validate
+visp-kit policy show
 ```
 
 Strictness modes:
@@ -27,10 +27,10 @@ Strictness modes:
 Examples:
 
 ```bash
-visp gate next
-visp gate implement --task T001
-visp gate review --task T001
-visp gate pr
+visp-kit gate next
+visp-kit gate implement --task T001
+visp-kit gate review --task T001
+visp-kit gate pr
 ```
 
 Allowed gates exit `0`. Blocked gates exit non-zero and report the next allowed command.
@@ -94,7 +94,7 @@ VSP021 is optional in `.visp/policy.json` for backward compatibility: policies
 written before it existed keep validating, and gates fall back to the
 strictness default (enforced in `strict` and `locked`). It fails the PR gate
 when the active context pack was grounded on artifacts (spec, plan, task
-graph, policy) that changed after the pack was compiled. Run `visp drift` for
+graph, policy) that changed after the pack was compiled. Run `visp-kit drift` for
 the full deterministic drift report.
 
 ## Assurance Profile Selection
@@ -146,7 +146,7 @@ Overrides do not hide the failure. They downgrade an overridable blocking rule t
 Generated agent guidance tells AI tools to run gates and stop when gates block. An agent should not implement code until:
 
 ```bash
-visp gate implement --task T001
+visp-kit gate implement --task T001
 ```
 
 allows implementation and `.visp/prompts/current-task.prompt.md` exists.

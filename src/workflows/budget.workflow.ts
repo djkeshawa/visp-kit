@@ -62,8 +62,8 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", {
-        recovery: "visp tasks"
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp-kit tasks` first.", {
+        recovery: "visp-kit tasks"
       })
     );
   }
@@ -372,8 +372,8 @@ export async function runBudgetWorkflow(
       reason: recordedUsage.status === "unavailable" ? recordedUsage.note : undefined,
       evidence:
         recordedUsage.status === "unavailable"
-          ? "visp budget --record-usage-unavailable"
-          : "visp budget --record-usage",
+          ? "visp-kit budget --record-usage-unavailable"
+          : "visp-kit budget --record-usage",
       dryRun
     });
 

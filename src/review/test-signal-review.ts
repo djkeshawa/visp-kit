@@ -113,7 +113,7 @@ export function reviewTestSignals(input: {
         title: "Validation commands missing",
         description: "Task, context, and project artifacts do not provide validation commands.",
         evidence: message,
-        recommendation: "Run visp scan or add validationCommands to the task graph.",
+        recommendation: "Run visp-kit scan or add validationCommands to the task graph.",
         relatedTaskId: input.task?.id ?? null
       })
     );

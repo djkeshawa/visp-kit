@@ -33,7 +33,7 @@ export function projectSummaryMarkdown(input: {
 
   return `# Project Summary
 
-Generated deterministically by \`visp scan\`.
+Generated deterministically by \`visp-kit scan\`.
 
 - Package manager: ${input.detection.packageManager}
 - Project name: ${input.detection.packageJson?.name ?? "Unknown"}
@@ -53,7 +53,7 @@ ${modules.length > 0 ? modules : "- No modules detected yet."}
 export function patternsMarkdown(detection: ProjectDetection): string {
   return `# Project Patterns
 
-Generated deterministically by \`visp scan\`.
+Generated deterministically by \`visp-kit scan\`.
 
 - Project type: ${frameworkText(detection.frameworks)}
 - Likely test framework: ${names(detection.testFrameworks)}
@@ -93,6 +93,6 @@ export function scanReportMarkdown(input: {
 - Deleted files: ${input.counts.deletedFiles}
 - Warnings: ${input.warnings.length === 0 ? "None" : input.warnings.join("; ")}
 
-Next suggested command: \`visp constitution\`
+Next suggested command: \`visp-kit constitution\`
 `;
 }

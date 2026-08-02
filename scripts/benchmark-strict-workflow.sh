@@ -84,7 +84,7 @@ git -C "$tmpdir" reset HEAD src/unrelated-module.ts
 rm -f "$tmpdir/src/unrelated-module.ts"
 
 # Category: drift detection. Edit the spec after the context pack was compiled
-# and prove visp drift fails closed in strict mode.
+# and prove visp-kit drift fails closed in strict mode.
 node -e "
 const fs = require('fs');
 const p = process.argv[1];
@@ -96,7 +96,7 @@ if "${VISP[@]}" drift "$tmpdir" --json > "$tmpdir/drift-output.json"; then
   echo "ERROR: drift was NOT detected" >&2
   exit 1
 else
-  echo "OK: stale context provenance was detected by visp drift"
+  echo "OK: stale context provenance was detected by visp-kit drift"
 fi
 
 # Refresh the pack so the final metrics reflect a clean state.

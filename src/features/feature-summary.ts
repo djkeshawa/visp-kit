@@ -30,7 +30,7 @@ export type FeatureSummary = {
   readonly branch: FeatureBranchSummary;
   readonly dryRun: boolean;
   readonly warnings: readonly string[];
-  readonly nextCommand: "visp clarify";
+  readonly nextCommand: "visp-kit clarify";
 };
 
 export function createFeatureSummary(input: {
@@ -60,7 +60,7 @@ export function createFeatureSummary(input: {
     branch: input.branch,
     dryRun: input.dryRun,
     warnings: input.warnings,
-    nextCommand: "visp clarify"
+    nextCommand: "visp-kit clarify"
   };
 }
 

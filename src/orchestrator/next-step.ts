@@ -110,7 +110,7 @@ export function recommendNextStep(input: {
   if (!state.initialized) {
     return output({
       state,
-      nextCommand: "visp init",
+      nextCommand: "visp-kit init",
       reason: "Visp Kit is not initialized.",
       confidence: "high",
       stateName: "not-initialized"
@@ -120,7 +120,7 @@ export function recommendNextStep(input: {
   if (!state.scanned || (input.strict && !state.scanned)) {
     return output({
       state,
-      nextCommand: "visp scan",
+      nextCommand: "visp-kit scan",
       reason: "Project scan cache is missing or incomplete.",
       stateName: "scan-needed"
     });
@@ -129,7 +129,7 @@ export function recommendNextStep(input: {
   if (!state.constitution || (input.strict && !state.constitution)) {
     return output({
       state,
-      nextCommand: "visp constitution",
+      nextCommand: "visp-kit constitution",
       reason: "Compact project constitution is missing.",
       stateName: "constitution-needed"
     });
@@ -138,7 +138,7 @@ export function recommendNextStep(input: {
   if (state.selectedFeature === undefined) {
     return output({
       state,
-      nextCommand: 'visp feature "<describe your feature>"',
+      nextCommand: 'visp-kit feature "<describe your feature>"',
       reason: "No active feature is selected.",
       stateName: "feature-needed"
     });
@@ -147,7 +147,7 @@ export function recommendNextStep(input: {
   if (!state.artifactSummary.clarifications) {
     return output({
       state,
-      nextCommand: "visp clarify",
+      nextCommand: "visp-kit clarify",
       reason: "Feature clarifications are missing.",
       stateName: "clarify-needed"
     });
@@ -156,7 +156,7 @@ export function recommendNextStep(input: {
   if (!state.artifactSummary.spec) {
     return output({
       state,
-      nextCommand: "visp spec",
+      nextCommand: "visp-kit spec",
       reason: "Feature specification is missing.",
       stateName: "spec-needed"
     });
@@ -165,7 +165,7 @@ export function recommendNextStep(input: {
   if (!state.artifactSummary.plan) {
     return output({
       state,
-      nextCommand: "visp plan",
+      nextCommand: "visp-kit plan",
       reason: "Implementation plan is missing.",
       stateName: "plan-needed"
     });
@@ -174,7 +174,7 @@ export function recommendNextStep(input: {
   if (!state.artifactSummary.taskGraph) {
     return output({
       state,
-      nextCommand: "visp tasks",
+      nextCommand: "visp-kit tasks",
       reason: "Task graph is missing.",
       stateName: "tasks-needed"
     });
@@ -188,7 +188,7 @@ export function recommendNextStep(input: {
   if (input.taskId !== undefined && selectedTask === undefined) {
     return output({
       state,
-      nextCommand: "visp tasks",
+      nextCommand: "visp-kit tasks",
       reason: `Task ${input.taskId} does not exist.`,
       blockers: [`Task not found: ${input.taskId}.`],
       confidence: "high",
@@ -199,7 +199,7 @@ export function recommendNextStep(input: {
   if (selectedTask === undefined) {
     return output({
       state,
-      nextCommand: "visp pr",
+      nextCommand: "visp-kit pr",
       reason: "No unfinished task is available.",
       confidence: "medium",
       stateName: "pr-needed"
@@ -213,7 +213,7 @@ export function recommendNextStep(input: {
       return output({
         state,
         task: nextTask,
-        nextCommand: `visp context ${nextTask.id}`,
+        nextCommand: `visp-kit context ${nextTask.id}`,
         reason: `${selectedTask.id} is complete enough for now; ${nextTask.id} is the next unfinished task.`,
         stateName: "next-task-needed"
       });
@@ -225,7 +225,9 @@ export function recommendNextStep(input: {
       state,
       task: selectedTask,
       nextCommand:
-        input.taskId === undefined ? "visp context --next" : `visp context ${selectedTask.id}`,
+        input.taskId === undefined
+          ? "visp-kit context --next"
+          : `visp-kit context ${selectedTask.id}`,
       reason: `No context pack exists for ${selectedTask.id}.`,
       stateName: "context-needed"
     });
@@ -246,7 +248,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: `visp verify --task ${selectedTask.id}`,
+      nextCommand: `visp-kit verify --task ${selectedTask.id}`,
       reason: `Context exists for ${selectedTask.id} and source changes were detected, but verification is missing.`,
       stateName: "verify-needed"
     });
@@ -256,7 +258,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: `visp verify --task ${selectedTask.id}`,
+      nextCommand: `visp-kit verify --task ${selectedTask.id}`,
       reason: "Latest verification failed.",
       blockers: ["Verification failed."],
       stateName: "verification-failed"
@@ -267,7 +269,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: `visp review --task ${selectedTask.id}`,
+      nextCommand: `visp-kit review --task ${selectedTask.id}`,
       reason: "Verification evidence exists, but review is missing.",
       stateName: "review-needed"
     });
@@ -277,7 +279,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: `visp review --task ${selectedTask.id}`,
+      nextCommand: `visp-kit review --task ${selectedTask.id}`,
       reason: "Latest review failed.",
       blockers: ["Review failed."],
       stateName: "review-failed"
@@ -288,7 +290,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: `visp reconcile --task ${selectedTask.id}`,
+      nextCommand: `visp-kit reconcile --task ${selectedTask.id}`,
       reason: "Review evidence exists, but reconciliation is missing.",
       stateName: "reconcile-needed"
     });
@@ -298,7 +300,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: `visp verify --task ${selectedTask.id}`,
+      nextCommand: `visp-kit verify --task ${selectedTask.id}`,
       reason: "Latest reconciliation failed.",
       blockers: ["Reconciliation failed."],
       stateName: "reconcile-failed"
@@ -309,7 +311,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: `visp reconcile --task ${selectedTask.id} --update-traceability`,
+      nextCommand: `visp-kit reconcile --task ${selectedTask.id} --update-traceability`,
       reason: "Reconciliation completed, but traceability has not been updated.",
       stateName: "traceability-update-needed"
     });
@@ -321,8 +323,8 @@ export function recommendNextStep(input: {
       task: selectedTask,
       nextCommand:
         state.implementationChecklist === undefined
-          ? `visp context ${selectedTask.id}`
-          : `visp checklist status --task ${selectedTask.id}`,
+          ? `visp-kit context ${selectedTask.id}`
+          : `visp-kit checklist status --task ${selectedTask.id}`,
       reason: `Required implementation checklist items are incomplete. Usage status: ${usageStatus(state)}.`,
       blockers: [
         "Required implementation checklist items must be done, unavailable, or not applicable before PR."
@@ -337,7 +339,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: nextTask,
-      nextCommand: `visp context ${nextTask.id}`,
+      nextCommand: `visp-kit context ${nextTask.id}`,
       reason: `${selectedTask.id} is reconciled; ${nextTask.id} is next.`,
       stateName: "next-task-needed"
     });
@@ -347,7 +349,7 @@ export function recommendNextStep(input: {
     return output({
       state,
       task: selectedTask,
-      nextCommand: "visp pr",
+      nextCommand: "visp-kit pr",
       reason: "All current task evidence is complete enough for a PR summary.",
       stateName: "pr-needed"
     });

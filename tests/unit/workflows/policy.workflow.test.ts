@@ -93,7 +93,7 @@ describe("policy workflow", () => {
 
     expect(summary.source).toBe("default");
     expect(summary.policy.strictnessMode).toBe("standard");
-    expect(summary.nextCommand).toBe("visp policy init");
+    expect(summary.nextCommand).toBe("visp-kit policy init");
   });
 
   it("validates existing policy and updates strictness", async () => {

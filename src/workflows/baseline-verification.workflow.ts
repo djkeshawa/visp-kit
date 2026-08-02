@@ -138,8 +138,8 @@ function summary(input: {
     })),
     nextCommand:
       input.evidence.outcome === "passed"
-        ? `visp gate implement --task ${input.evidence.taskId}`
-        : `visp verify --baseline --task ${input.evidence.taskId}`,
+        ? `visp-kit gate implement --task ${input.evidence.taskId}`
+        : `visp-kit verify --baseline --task ${input.evidence.taskId}`,
     dryRun: input.dryRun
   };
 }

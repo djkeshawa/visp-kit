@@ -342,7 +342,7 @@ export async function runOverrideListWorkflow(
       warnings: store.value.exists ? [] : ["No overrides file found."],
       errors: [],
       validation: null,
-      nextCommand: "visp override validate"
+      nextCommand: "visp-kit override validate"
     })
   );
 }
@@ -375,7 +375,7 @@ export async function runOverrideShowWorkflow(
       warnings: [],
       errors: [],
       validation: null,
-      nextCommand: "visp override list"
+      nextCommand: "visp-kit override list"
     })
   );
 }
@@ -412,7 +412,7 @@ export async function runOverrideRevokeWorkflow(
         warnings: [`${existing.id} is already revoked.`],
         errors: [],
         validation: null,
-        nextCommand: "visp override list --revoked"
+        nextCommand: "visp-kit override list --revoked"
       })
     );
   }
@@ -448,7 +448,7 @@ export async function runOverrideRevokeWorkflow(
       warnings: [],
       errors: [],
       validation: null,
-      nextCommand: "visp override validate"
+      nextCommand: "visp-kit override validate"
     })
   );
 }
@@ -492,8 +492,8 @@ export async function runOverrideValidateWorkflow(
       errors: validation.errors,
       validation,
       nextCommand: validation.passed
-        ? "visp override list"
-        : "Fix .visp/overrides.json and rerun visp override validate."
+        ? "visp-kit override list"
+        : "Fix .visp/overrides.json and rerun visp-kit override validate."
     })
   );
 }

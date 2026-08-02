@@ -22,7 +22,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-describe("visp scan command", () => {
+describe("visp-kit scan command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -75,7 +75,7 @@ describe("visp scan command", () => {
     await program.parseAsync(["node", "visp", "scan", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init");
+    expect(errors.join("")).toContain("visp-kit init");
     expect(output.join("")).toBe("");
     process.exitCode = undefined;
   });

@@ -677,7 +677,7 @@ describe("CanonicalWorkflowAction 1.0", () => {
         feature: null,
         task: null,
         state: "feature-needed",
-        nextCommand: 'visp feature "<describe your feature>"'
+        nextCommand: 'visp-kit feature "<describe your feature>"'
       })
     });
 
@@ -757,8 +757,8 @@ describe("CanonicalWorkflowAction 1.0", () => {
       step: actionStep(tempDir, {
         task: null,
         state: "tasks-needed",
-        nextCommand: "visp tasks",
-        nextAllowedCommand: "visp tasks"
+        nextCommand: "visp-kit tasks",
+        nextAllowedCommand: "visp-kit tasks"
       })
     });
 
@@ -798,8 +798,8 @@ describe("CanonicalWorkflowAction 1.0", () => {
       step: actionStep(tempDir, {
         task: null,
         state: "tasks-needed",
-        nextCommand: "visp tasks",
-        nextAllowedCommand: "visp tasks"
+        nextCommand: "visp-kit tasks",
+        nextAllowedCommand: "visp-kit tasks"
       })
     });
 
@@ -912,7 +912,7 @@ describe("CanonicalWorkflowAction 1.0", () => {
     });
     const commandMismatch = await buildCanonicalWorkflowAction({
       state: projectState(tempDir),
-      step: actionStep(tempDir, { nextAllowedCommand: "visp context T001" })
+      step: actionStep(tempDir, { nextAllowedCommand: "visp-kit context T001" })
     });
 
     expect(action.findings).toEqual(
@@ -971,7 +971,7 @@ describe("CanonicalWorkflowAction 1.0", () => {
     expect(transition).toMatchObject({
       state: "next-task-needed",
       task: { id: "T002", title: nextTask.title, status: "ready" },
-      nextCommand: "visp context T002"
+      nextCommand: "visp-kit context T002"
     });
 
     const valid = await buildCanonicalWorkflowAction({
@@ -1011,7 +1011,7 @@ describe("CanonicalWorkflowAction 1.0", () => {
     );
     expect(valid.validationCommands).toEqual(["pnpm test", "pnpm typecheck"]);
     expect(valid.goal).toBe(completedTask.description);
-    expect(valid.nextCommand).toBe("visp context T002");
+    expect(valid.nextCommand).toBe("visp-kit context T002");
     expect(valid.verdict).toBe("ready");
     for (const invalid of [staleTitle, wrongState, nonTerminal]) {
       expect(invalid.findings).toEqual(
@@ -1345,7 +1345,7 @@ describe("CanonicalWorkflowAction 1.0", () => {
       }),
       await buildCanonicalWorkflowAction({
         state: baseState,
-        step: actionStep(tempDir, { nextCommand: "visp context T001" })
+        step: actionStep(tempDir, { nextCommand: "visp-kit context T001" })
       })
     ];
 

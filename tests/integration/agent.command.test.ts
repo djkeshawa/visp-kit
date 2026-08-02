@@ -36,7 +36,7 @@ async function initProject(rootPath: string): Promise<void> {
   process.exitCode = undefined;
 }
 
-describe("visp agent command", () => {
+describe("visp-kit agent command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -106,7 +106,7 @@ describe("visp agent command", () => {
       "utf8"
     );
     expect(skill).toContain("user prompt is raw intent");
-    expect(skill).toContain("visp gate");
+    expect(skill).toContain("visp-kit gate");
 
     output.length = 0;
     await program.parseAsync(["node", "visp", "agent", "doctor", tempDir, "--target", "codex"]);
@@ -132,7 +132,7 @@ describe("visp agent command", () => {
       "utf8"
     );
     expect(prompt).toContain("user prompt is raw intent");
-    expect(prompt).toContain("visp gate");
+    expect(prompt).toContain("visp-kit gate");
 
     output.length = 0;
     await program.parseAsync(["node", "visp", "agent", "doctor", tempDir, "--target", "opencode"]);
@@ -165,7 +165,7 @@ describe("visp agent command", () => {
       true
     );
     expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toContain(
-      "visp agent bootstrap codex"
+      "visp-kit agent bootstrap codex"
     );
   });
 
@@ -287,7 +287,7 @@ describe("visp agent command", () => {
 
     expect(
       await readFile(path.join(tempDir, ".agents", "skills", "visp-pr", "SKILL.md"), "utf8")
-    ).toContain("visp gate pr");
+    ).toContain("visp-kit gate pr");
   });
 
   it("fails clearly when .visp is missing", async () => {
@@ -300,6 +300,6 @@ describe("visp agent command", () => {
     await program.parseAsync(["node", "visp", "agent", "install", "codex", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init --strictness strict");
+    expect(errors.join("")).toContain("visp-kit init --strictness strict");
   });
 });

@@ -69,7 +69,7 @@ export async function runDoctorWorkflow(
       warnings: [],
       errors: [`Unknown doctor check: ${check}.`],
       reportPath: null,
-      nextCommand: "visp doctor --check all"
+      nextCommand: "visp-kit doctor --check all"
     });
   }
 

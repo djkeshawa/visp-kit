@@ -79,7 +79,7 @@ export async function runDoneWorkflow(
   const dryRun = options.dryRun ?? false;
 
   if (taskId === undefined || taskId.length === 0) {
-    return err(new VispError("VALIDATION_FAILED", "visp done requires --task <task-id>."));
+    return err(new VispError("VALIDATION_FAILED", "visp-kit done requires --task <task-id>."));
   }
 
   const recordsUsage = options.inputTokens !== undefined || options.outputTokens !== undefined;
@@ -143,10 +143,10 @@ export async function runDoneWorkflow(
           name: "candidate",
           success: false,
           detail: candidate.error.message,
-          recovery: `visp verify --candidate --task ${taskId}`
+          recovery: `visp-kit verify --candidate --task ${taskId}`
         })
       );
-      return ok(summarize(`visp verify --candidate --task ${taskId}`));
+      return ok(summarize(`visp-kit verify --candidate --task ${taskId}`));
     }
 
     steps.push(
@@ -156,12 +156,14 @@ export async function runDoneWorkflow(
         detail: candidate.value.success
           ? "Candidate evidence passed the locked baseline/oracle comparison."
           : `Candidate evidence was ${candidate.value.outcome}.`,
-        recovery: candidate.value.success ? undefined : `visp verify --candidate --task ${taskId}`
+        recovery: candidate.value.success
+          ? undefined
+          : `visp-kit verify --candidate --task ${taskId}`
       })
     );
 
     if (!candidate.value.success) {
-      return ok(summarize(`visp verify --candidate --task ${taskId}`));
+      return ok(summarize(`visp-kit verify --candidate --task ${taskId}`));
     }
   }
 
@@ -177,10 +179,10 @@ export async function runDoneWorkflow(
         name: "verify",
         success: false,
         detail: verify.error.message,
-        recovery: `visp verify --task ${taskId}`
+        recovery: `visp-kit verify --task ${taskId}`
       })
     );
-    return ok(summarize(`visp verify --task ${taskId}`));
+    return ok(summarize(`visp-kit verify --task ${taskId}`));
   }
 
   steps.push(
@@ -190,12 +192,12 @@ export async function runDoneWorkflow(
       detail: verify.value.success
         ? "Verification passed."
         : `Verification failed: ${verify.value.errors.join("; ") || "fix the reported issues, then rerun."}`,
-      recovery: verify.value.success ? undefined : `visp verify --task ${taskId}`
+      recovery: verify.value.success ? undefined : `visp-kit verify --task ${taskId}`
     })
   );
 
   if (!verify.value.success) {
-    return ok(summarize(`visp verify --task ${taskId}`));
+    return ok(summarize(`visp-kit verify --task ${taskId}`));
   }
 
   if (recordsUsage || options.usageUnavailable === true) {
@@ -218,7 +220,7 @@ export async function runDoneWorkflow(
           name: "budget",
           success: false,
           detail: budget.error.message,
-          recovery: `visp budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report`
+          recovery: `visp-kit budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report`
         })
       );
       return ok(summarize(null));
@@ -251,10 +253,10 @@ export async function runDoneWorkflow(
         name: "review",
         success: false,
         detail: review.error.message,
-        recovery: `visp review --task ${taskId}`
+        recovery: `visp-kit review --task ${taskId}`
       })
     );
-    return ok(summarize(`visp review --task ${taskId}`));
+    return ok(summarize(`visp-kit review --task ${taskId}`));
   }
 
   steps.push(
@@ -264,12 +266,12 @@ export async function runDoneWorkflow(
       detail: review.value.success
         ? `Review ${review.value.result}.`
         : "Review failed. Fix the blocking findings, then rerun.",
-      recovery: review.value.success ? undefined : `visp review --task ${taskId}`
+      recovery: review.value.success ? undefined : `visp-kit review --task ${taskId}`
     })
   );
 
   if (!review.value.success) {
-    return ok(summarize(`visp review --task ${taskId}`));
+    return ok(summarize(`visp-kit review --task ${taskId}`));
   }
 
   const reconcile = await runReconcileWorkflow({
@@ -284,10 +286,10 @@ export async function runDoneWorkflow(
         name: "reconcile",
         success: false,
         detail: reconcile.error.message,
-        recovery: `visp reconcile --task ${taskId} --update-traceability`
+        recovery: `visp-kit reconcile --task ${taskId} --update-traceability`
       })
     );
-    return ok(summarize(`visp reconcile --task ${taskId} --update-traceability`));
+    return ok(summarize(`visp-kit reconcile --task ${taskId} --update-traceability`));
   }
 
   steps.push(
@@ -299,12 +301,12 @@ export async function runDoneWorkflow(
         : "Reconciliation failed. Fix the reported drift, then rerun.",
       recovery: reconcile.value.success
         ? undefined
-        : `visp reconcile --task ${taskId} --update-traceability`
+        : `visp-kit reconcile --task ${taskId} --update-traceability`
     })
   );
 
   if (!reconcile.value.success) {
-    return ok(summarize(`visp reconcile --task ${taskId} --update-traceability`));
+    return ok(summarize(`visp-kit reconcile --task ${taskId} --update-traceability`));
   }
 
   const checklist = await runChecklistStatusWorkflow(shared);
@@ -315,10 +317,10 @@ export async function runDoneWorkflow(
         name: "checklist",
         success: false,
         detail: checklist.error.message,
-        recovery: `visp checklist status --task ${taskId}`
+        recovery: `visp-kit checklist status --task ${taskId}`
       })
     );
-    return ok(summarize(`visp checklist status --task ${taskId}`));
+    return ok(summarize(`visp-kit checklist status --task ${taskId}`));
   }
 
   const pending = checklist.value.summary.pendingRequired.map((item) => item.id);
@@ -333,7 +335,7 @@ export async function runDoneWorkflow(
         : `Required checklist items are incomplete: ${[...pending, ...blocked].join(", ")}.`,
       recovery: checklist.value.success
         ? undefined
-        : `visp checklist update --task ${taskId} --item <item-id> --status done`
+        : `visp-kit checklist update --task ${taskId} --item <item-id> --status done`
     })
   );
 
@@ -349,10 +351,10 @@ export async function runDoneWorkflow(
         name: "next",
         success: false,
         detail: next.error.message,
-        recovery: "visp next"
+        recovery: "visp-kit next"
       })
     );
-    return ok(summarize("visp next"));
+    return ok(summarize("visp-kit next"));
   }
 
   steps.push(

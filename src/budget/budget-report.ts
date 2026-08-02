@@ -108,8 +108,8 @@ ${report.warnings.length === 0 ? "- No cache warnings." : report.warnings.map((w
 ## Recommendations
 
 - Add allowedFiles to tasks missing file scope.
-- Run visp scan if file summaries are missing.
-- Use visp context T001 --budget lean for low-risk tasks.
+- Run visp-kit scan if file summaries are missing.
+- Use visp-kit context T001 --budget lean for low-risk tasks.
 - Record actual usage after implementation, or record usage as unavailable when the agent surface does not expose token counts.
 - Split tasks that exceed budget.
 - Avoid full-file context unless needed.

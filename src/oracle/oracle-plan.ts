@@ -171,7 +171,7 @@ function validateInputs(input: OraclePlanGenerationInput): Result<void, VispErro
       `Context pack is not bound to authoritative task ${input.task.id}. ` +
         "The pack was generated from an earlier version of this task, most often " +
         "because the task graph was amended afterwards. Regenerate it with " +
-        `\`visp context ${input.task.id} --force\` and then re-plan and re-lock the oracle.`
+        `\`visp-kit context ${input.task.id} --force\` and then re-plan and re-lock the oracle.`
     );
   }
 
@@ -306,7 +306,7 @@ export function validateOraclePlan(
       `Oracle plan for task ${plan.taskId} is stale or has been modified. ` +
         "Its recorded inputs no longer match the current task, context pack, or " +
         "policy. Regenerate it with " +
-        `\`visp oracle plan --task ${plan.taskId} --force\` and then lock it again.`
+        `\`visp-kit oracle plan --task ${plan.taskId} --force\` and then lock it again.`
     );
   }
 

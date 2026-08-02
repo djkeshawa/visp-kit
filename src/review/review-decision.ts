@@ -756,7 +756,7 @@ async function loadCurrentDecision(input: {
       : err(
           new VispError(
             "VALIDATION_FAILED",
-            "Review decision pointer is missing while valid history exists; run visp assurance repair."
+            "Review decision pointer is missing while valid history exists; run visp-kit assurance repair."
           )
         );
   }
@@ -795,7 +795,7 @@ async function loadCurrentDecision(input: {
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Review decision pointer does not reference the unique terminal history decision; run visp assurance repair."
+        "Review decision pointer does not reference the unique terminal history decision; run visp-kit assurance repair."
       )
     );
   }
@@ -1195,7 +1195,7 @@ export async function runReviewDecisionRepair(input: {
     decisionHash: graph.value.terminal.decisionHash,
     pointerPath: relativePath(loaded.value.targetPath, pointerPath),
     dryRun: input.dryRun ?? false,
-    nextCommand: "visp gate pr"
+    nextCommand: "visp-kit gate pr"
   });
 }
 
@@ -1434,6 +1434,6 @@ export async function runReviewDecisionWorkflow(
     historyPath: relativePath(loaded.value.targetPath, historyPath),
     pointerPath: relativePath(loaded.value.targetPath, pointerPath),
     dryRun: options.dryRun ?? false,
-    nextCommand: "visp gate pr"
+    nextCommand: "visp-kit gate pr"
   });
 }

@@ -21,14 +21,14 @@ describe("cursor target", () => {
     ]);
 
     for (const file of files) {
-      expect(file.contents).toContain("visp gate");
+      expect(file.contents).toContain("visp-kit gate");
     }
 
     const baseRule = files[0]!;
 
     expect(baseRule.contents).toContain("alwaysApply: true");
     expect(baseRule.contents).toContain("user prompt is raw intent");
-    expect(baseRule.contents).toContain("visp done");
+    expect(baseRule.contents).toContain("visp-kit done");
 
     const workflowRules = files.slice(2);
 
@@ -36,7 +36,7 @@ describe("cursor target", () => {
       expect(file.contents).toContain("alwaysApply: false");
       expect(file.contents).toContain("description:");
       expect(file.contents).toContain("user prompt is raw intent");
-      expect(file.contents).toContain("visp done");
+      expect(file.contents).toContain("visp-kit done");
     }
   });
 });

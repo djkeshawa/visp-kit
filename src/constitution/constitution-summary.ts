@@ -20,7 +20,7 @@ export type ConstitutionSummary = {
   readonly dryRun: boolean;
   readonly validation: CompactValidationResult;
   readonly warnings: readonly string[];
-  readonly nextCommand: 'visp feature "Describe your feature"';
+  readonly nextCommand: 'visp-kit feature "Describe your feature"';
 };
 
 export function createConstitutionSummary(input: {
@@ -50,7 +50,7 @@ export function createConstitutionSummary(input: {
     dryRun: input.dryRun,
     validation: input.validation,
     warnings: input.warnings,
-    nextCommand: 'visp feature "Describe your feature"'
+    nextCommand: 'visp-kit feature "Describe your feature"'
   };
 }
 

@@ -225,8 +225,8 @@ describe("WorkflowAction 2.0", () => {
       step: actionStep(tempDir, {
         success: false,
         state: "context-needed",
-        nextCommand: "visp context T001",
-        nextAllowedCommand: "visp context T001",
+        nextCommand: "visp-kit context T001",
+        nextAllowedCommand: "visp-kit context T001",
         reason: "Policy gate selected the next allowed command.",
         blockers: ["VSP007: Implementation requires a context pack."],
         strictnessMode: "locked",
@@ -263,7 +263,7 @@ describe("WorkflowAction 2.0", () => {
       assuranceLevel: "kit_strict",
       verdict: "blocked",
       findings: ["VSP007: Implementation requires a context pack."],
-      nextCommand: "visp context T001"
+      nextCommand: "visp-kit context T001"
     });
     expect(action.assuranceLevel).not.toBe("local_checked");
   });
@@ -473,8 +473,8 @@ describe("WorkflowAction 2.0", () => {
       step: actionStep(tempDir, {
         task: null,
         state: "tasks-needed",
-        nextCommand: "visp tasks",
-        nextAllowedCommand: "visp tasks"
+        nextCommand: "visp-kit tasks",
+        nextAllowedCommand: "visp-kit tasks"
       })
     });
     const action = projectWorkflowActionV2(envelope);
@@ -509,7 +509,7 @@ describe("WorkflowAction 2.0", () => {
       assuranceLevel: "kit_strict",
       verdict: "ready",
       findings: [],
-      nextCommand: "visp tasks"
+      nextCommand: "visp-kit tasks"
     });
   });
 
@@ -650,7 +650,7 @@ describe("WorkflowAction 2.0", () => {
     ],
     [
       "next command",
-      { nextAllowedCommand: "visp context T001" },
+      { nextAllowedCommand: "visp-kit context T001" },
       "The evaluated next command disagrees with the authoritative allowed command."
     ],
     [
@@ -698,8 +698,8 @@ describe("WorkflowAction 2.0", () => {
       step: actionStep(tempDir, {
         task: { id: nextTask.id, title: nextTask.title, status: nextTask.status },
         state: "next-task-needed",
-        nextCommand: "visp context T002",
-        nextAllowedCommand: "visp context T002"
+        nextCommand: "visp-kit context T002",
+        nextAllowedCommand: "visp-kit context T002"
       })
     });
 
@@ -711,7 +711,7 @@ describe("WorkflowAction 2.0", () => {
       validationCommands: ["pnpm test"],
       verdict: "ready",
       findings: [],
-      nextCommand: "visp context T002"
+      nextCommand: "visp-kit context T002"
     });
     expect(action.requiredReads.map(({ path: readPath }) => readPath)).toContain(
       `${featurePath}/context/T001.context.json`
@@ -802,7 +802,7 @@ describe("WorkflowAction 2.0", () => {
   it.each([
     [
       "next command",
-      (action: CanonicalWorkflowAction) => ({ ...action, nextCommand: "visp verify" })
+      (action: CanonicalWorkflowAction) => ({ ...action, nextCommand: "visp-kit verify" })
     ],
     [
       "scope",

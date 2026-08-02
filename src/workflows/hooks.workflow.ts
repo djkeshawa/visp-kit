@@ -102,9 +102,13 @@ export async function runHooksWorkflow(
   if (!initialized.ok) return initialized;
   if (!initialized.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
-        recovery: "visp init"
-      })
+      new VispError(
+        "VALIDATION_FAILED",
+        "Visp Kit is not initialized. Run `visp-kit init` first.",
+        {
+          recovery: "visp-kit init"
+        }
+      )
     );
   }
 
@@ -120,7 +124,7 @@ export async function runHooksWorkflow(
   if (!readme.ok) return readme;
 
   let settingsSnippet: string | null = null;
-  let nextCommand = "visp status";
+  let nextCommand = "visp-kit status";
 
   if (options.kind === "claude") {
     const hook = await writeHookFile({
@@ -156,7 +160,7 @@ export async function runHooksWorkflow(
 
     if (!gitDir.value) {
       warnings.push(
-        ".git directory not found; wrote the check script only. Run `git init` and rerun `visp hooks git`."
+        ".git directory not found; wrote the check script only. Run `git init` and rerun `visp-kit hooks git`."
       );
     } else {
       const hookPath = gitPreCommitHookPath(targetPath);

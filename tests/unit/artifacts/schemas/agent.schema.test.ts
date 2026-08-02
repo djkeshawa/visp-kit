@@ -50,9 +50,9 @@ describe("agent schemas", () => {
           name: "visp-feature",
           purpose: "Start a feature",
           entrypointFile: ".agents/skills/visp-feature/SKILL.md",
-          requiredVispCommands: ["visp status"],
+          requiredVispCommands: ["visp-kit status"],
           hardStops: ["failed gate"],
-          nextRecommendedCommand: "visp next"
+          nextRecommendedCommand: "visp-kit next"
         }
       ]
     });

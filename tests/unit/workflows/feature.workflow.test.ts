@@ -156,7 +156,7 @@ describe("runFeatureWorkflow", () => {
     expect(isErr(result)).toBe(true);
 
     if (isErr(result)) {
-      expect(result.error.message).toContain("visp init");
+      expect(result.error.message).toContain("visp-kit init");
     }
   });
 

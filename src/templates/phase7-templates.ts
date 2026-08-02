@@ -121,7 +121,7 @@ ${assumptions}
 
 Run:
 
-visp spec
+visp-kit spec
 `;
 }
 
@@ -306,7 +306,7 @@ ${bulletList(spec.outOfScope)}
 
 Run:
 
-visp plan
+visp-kit plan
 `;
 }
 
@@ -604,7 +604,7 @@ ${decisions}
 
 Run:
 
-visp tasks
+visp-kit tasks
 `;
 }
 
@@ -744,13 +744,13 @@ ${bulletList((task.riskFactors ?? []).map((factor) => factor.code))}`
     firstTaskId === undefined
       ? `Add at least one task to \`${input.feature.relativePath}/task-graph.json\`, then run:
 
-visp tasks --validate`
+visp-kit tasks --validate`
       : `Run:
 
-visp context ${firstTaskId}
+visp-kit context ${firstTaskId}
 
 Note:
-Run \`visp context ${firstTaskId}\`, then use \`.visp/prompts/current-task.prompt.md\` with your agent to implement the selected task.`;
+Run \`visp-kit context ${firstTaskId}\`, then use \`.visp/prompts/current-task.prompt.md\` with your agent to implement the selected task.`;
 
   return `# Task Graph: ${input.feature.intent.title}
 

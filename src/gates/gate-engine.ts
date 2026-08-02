@@ -154,7 +154,7 @@ async function oracleAuthorizationChecks(input: {
           passed: false,
           severity: "error",
           message: "Oracle implementation authorization is missing, stale, or invalid.",
-          recommendation: `Run visp oracle plan --task ${input.context.state.selectedTask.id}, then visp oracle lock --task ${input.context.state.selectedTask.id}.`,
+          recommendation: `Run visp-kit oracle plan --task ${input.context.state.selectedTask.id}, then visp-kit oracle lock --task ${input.context.state.selectedTask.id}.`,
           evidence: authorization.error.message
         }
   ];
@@ -180,7 +180,7 @@ async function reviewDecisionChecks(input: {
         passed: false,
         severity: "error",
         message: "Current assurance decision could not be validated.",
-        recommendation: `Run visp assurance generate --task ${task.id}.`,
+        recommendation: `Run visp-kit assurance generate --task ${task.id}.`,
         evidence: evaluated.error.message
       }
     ];
@@ -205,7 +205,7 @@ async function reviewDecisionChecks(input: {
             recommendation:
               currentness.decision.identityAssurance === "ssh_signed"
                 ? "Continue."
-                : `Re-record the decision with visp assurance accept --task ${task.id} --sign-key <path-to-ssh-key>.`,
+                : `Re-record the decision with visp-kit assurance accept --task ${task.id} --sign-key <path-to-ssh-key>.`,
             evidence:
               currentness.decision.signature === undefined
                 ? `identityAssurance=${currentness.decision.identityAssurance}`
@@ -219,10 +219,10 @@ async function reviewDecisionChecks(input: {
     : currentness.status === "missing" || currentness.status === "current";
   const recommendation =
     currentness.status === "invalid" && /pointer|history/iu.test(currentness.reason)
-      ? `Run visp assurance repair --task ${task.id}.`
+      ? `Run visp-kit assurance repair --task ${task.id}.`
       : currentness.caseHash === undefined
-        ? `Run visp assurance generate --task ${task.id}.`
-        : `Run visp assurance accept --task ${task.id} --reviewer <id> --reason "<reason>" --reviewed-hotspot <id>.`;
+        ? `Run visp-kit assurance generate --task ${task.id}.`
+        : `Run visp-kit assurance accept --task ${task.id} --reviewer <id> --reason "<reason>" --reviewed-hotspot <id>.`;
   return [
     ...signatureChecks,
     {
@@ -337,9 +337,13 @@ export async function evaluateGate(
 
     if (!context.state.initialized && options.stage !== "setup" && options.stage !== "next") {
       return err(
-        new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
-          recovery: "visp init"
-        })
+        new VispError(
+          "VALIDATION_FAILED",
+          "Visp Kit is not initialized. Run `visp-kit init` first.",
+          {
+            recovery: "visp-kit init"
+          }
+        )
       );
     }
 

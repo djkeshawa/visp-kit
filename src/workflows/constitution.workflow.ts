@@ -97,7 +97,7 @@ async function validateExistingCompact(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Compact constitution not found. Run `visp constitution` first."
+        "Compact constitution not found. Run `visp-kit constitution` first."
       )
     );
   }
@@ -119,7 +119,7 @@ export async function runConstitutionWorkflow(
   if (!hasVisp.ok) return hasVisp;
   if (!hasVisp.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp-kit init` first.")
     );
   }
 

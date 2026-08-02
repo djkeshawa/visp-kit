@@ -211,7 +211,7 @@ export async function runAgentBootstrap(
     init: init?.value,
     install: install.value,
     warnings: [...(init?.value.warnings ?? []), ...install.value.warnings],
-    nextCommand: "visp gate next",
+    nextCommand: "visp-kit gate next",
     nextInstructions: install.value.nextInstructions
   });
 }

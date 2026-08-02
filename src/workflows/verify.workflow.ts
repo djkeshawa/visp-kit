@@ -246,8 +246,8 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", {
-        recovery: "visp tasks"
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp-kit tasks` first.", {
+        recovery: "visp-kit tasks"
       })
     );
   }
@@ -604,10 +604,10 @@ export async function runVerifyWorkflow(
   ];
   const nextCommand =
     collectedErrors.length === 0
-      ? "visp review --diff-only"
+      ? "visp-kit review --diff-only"
       : selectedTask === undefined
-        ? "visp verify"
-        : `visp verify --task ${selectedTask.id}`;
+        ? "visp-kit verify"
+        : `visp-kit verify --task ${selectedTask.id}`;
   const withMessages: Omit<VerificationReport, "summary"> = {
     ...baseReport,
     success: collectedErrors.length === 0,

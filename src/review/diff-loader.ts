@@ -538,7 +538,7 @@ async function ensureGitRepo(input: {
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "visp review requires Git diff data. Run it inside a Git repository."
+        "visp-kit review requires Git diff data. Run it inside a Git repository."
       )
     );
   }

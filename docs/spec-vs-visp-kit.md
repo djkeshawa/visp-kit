@@ -36,9 +36,9 @@ the Spec Kit integration for your coding surface. After that, bootstrap Visp Kit
 inside the same project:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
-visp policy validate
-visp gate next
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit policy validate
+visp-kit gate next
 ```
 
 Visp Kit does not vendor, install, wrap, or call Spec Kit. The two tools remain
@@ -54,11 +54,11 @@ adds that layer:
 | Concern | Spec Kit | Visp Kit |
 | --- | --- | --- |
 | Requirements and tasks | Yes | Yes |
-| Deterministic stage gates | No | `visp gate`, `visp next` |
+| Deterministic stage gates | No | `visp-kit gate`, `visp-kit next` |
 | Mechanical enforcement | No | Claude PreToolUse hook, git pre-commit, CI evidence check |
-| Task-scoped context with token budgets | No | `visp context`, `visp budget` |
-| Verification / review / reconciliation evidence | No | `visp done`, `.visp/` reports |
-| Traceability from requirement to diff | No | `visp reconcile --update-traceability` |
+| Task-scoped context with token budgets | No | `visp-kit context`, `visp-kit budget` |
+| Verification / review / reconciliation evidence | No | `visp-kit done`, `.visp/` reports |
+| Traceability from requirement to diff | No | `visp-kit reconcile --update-traceability` |
 | Audit trail (overrides, runs, timelines) | No | `.visp/overrides.json`, `.visp/runs/`, timelines |
 
 ## Visp Kit Additions
@@ -67,8 +67,8 @@ adds that layer:
 - compact project memory
 - task-specific context compilation
 - deterministic token estimates and budget modes
-- one-command evidence pipeline (`visp done`)
-- enforcement hooks (`visp hooks claude|git|ci`)
+- one-command evidence pipeline (`visp-kit done`)
+- enforcement hooks (`visp-kit hooks claude|git|ci`)
 - verification, review, and reconciliation reports
 - traceability updates and PR summaries grounded in evidence
 - `status`, `next`, and `doctor` orchestration

@@ -27,7 +27,7 @@ Rules:
 - Keep requirements testable.
 - Replace every placeholder and set status to "ready" only when the specification is complete.
 - ${editSeededJsonInstruction}
-- The files under Generated are rendered from the JSON by \`visp spec --validate\`; edits to them are discarded.
+- The files under Generated are rendered from the JSON by \`visp-kit spec --validate\`; edits to them are discarded.
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.
 - Do not create plan or tasks.
@@ -35,6 +35,6 @@ Rules:
 ${specFieldValuesSection()}
 
 After editing, run:
-visp spec --validate
+visp-kit spec --validate
 `;
 }

@@ -24,15 +24,15 @@ describe("copilot target", () => {
 
     for (const file of files) {
       expect(file.contents).toContain("user prompt is raw intent");
-      expect(file.contents).toContain("visp gate");
+      expect(file.contents).toContain("visp-kit gate");
     }
 
     const rules = files[1]!;
 
-    expect(rules.contents).toContain("visp verify");
-    expect(rules.contents).toContain("visp review");
-    expect(rules.contents).toContain("visp reconcile");
-    expect(rules.contents).toContain("visp done");
+    expect(rules.contents).toContain("visp-kit verify");
+    expect(rules.contents).toContain("visp-kit review");
+    expect(rules.contents).toContain("visp-kit reconcile");
+    expect(rules.contents).toContain("visp-kit done");
   });
 
   it("uses AGENTS.visp.md when fallback guidance is requested", () => {

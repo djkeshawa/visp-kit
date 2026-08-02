@@ -3,10 +3,10 @@
 Start with:
 
 ```bash
-visp status
-visp next --explain
-visp gate next --explain
-visp doctor
+visp-kit status
+visp-kit next --explain
+visp-kit gate next --explain
+visp-kit doctor
 ```
 
 ## `.visp/` Is Missing
@@ -18,38 +18,38 @@ Likely cause: the target project has not been initialized.
 Fix:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
 ```
 
 ## Policy Missing
 
-Symptom: gate output recommends `visp policy init --strictness strict`.
+Symptom: gate output recommends `visp-kit policy init --strictness strict`.
 
 Fix:
 
 ```bash
-visp policy init --strictness strict
-visp policy validate
+visp-kit policy init --strictness strict
+visp-kit policy validate
 ```
 
 ## Policy Invalid
 
-Symptom: `visp policy validate` fails.
+Symptom: `visp-kit policy validate` fails.
 
 Fix: repair `.visp/policy.json`, then run:
 
 ```bash
-visp policy validate
+visp-kit policy validate
 ```
 
 ## Gate Blocked
 
-Symptom: `visp gate <stage>` exits non-zero.
+Symptom: `visp-kit gate <stage>` exits non-zero.
 
 Fix:
 
 ```bash
-visp gate <stage> --task T001 --explain
+visp-kit gate <stage> --task T001 --explain
 ```
 
 Follow the next allowed command. A user prompt cannot override a blocked gate.
@@ -61,8 +61,8 @@ Symptom: implementation gate blocks with `VSP007`.
 Fix:
 
 ```bash
-visp context --next
-visp gate implement --task T001
+visp-kit context --next
+visp-kit gate implement --task T001
 ```
 
 ## Agent Files Missing
@@ -72,8 +72,8 @@ Symptom: an AI tool does not see Visp guidance.
 Fix:
 
 ```bash
-visp agent doctor --target codex
-visp agent refresh --target codex --force
+visp-kit agent doctor --target codex
+visp-kit agent refresh --target codex --force
 ```
 
 Use `generic`, `claude`, or `copilot` for other targets.
@@ -85,8 +85,8 @@ Likely cause: `.agents/skills/*/SKILL.md` was not generated, was skipped due to 
 Fix:
 
 ```bash
-visp agent install codex --force
-visp agent doctor --target codex
+visp-kit agent install codex --force
+visp-kit agent doctor --target codex
 ```
 
 ## Claude Commands Not Found
@@ -96,8 +96,8 @@ Likely cause: the active Claude Code surface does not load `.claude/commands` au
 Fix:
 
 ```bash
-visp agent install claude --force
-visp agent doctor --target claude
+visp-kit agent install claude --force
+visp-kit agent doctor --target claude
 ```
 
 If needed, copy `.claude/commands/visp-feature.md` into the session.
@@ -109,8 +109,8 @@ Likely cause: Copilot compatibility varies by surface.
 Fix:
 
 ```bash
-visp agent install copilot --force
-visp agent doctor --target copilot
+visp-kit agent install copilot --force
+visp-kit agent doctor --target copilot
 ```
 
 If needed, paste `.github/instructions/visp-feature.instructions.md` into the active Copilot chat/session.
@@ -129,20 +129,20 @@ Likely causes:
 Fix:
 
 ```bash
-visp override list --active
-visp override show OVR001
-visp override validate
-visp gate review --task T001 --explain
+visp-kit override list --active
+visp-kit override show OVR001
+visp-kit override validate
+visp-kit gate review --task T001 --explain
 ```
 
 ## Override Expired
 
-Symptom: `visp override validate` warns that an override has expired.
+Symptom: `visp-kit override validate` warns that an override has expired.
 
 Fix:
 
 ```bash
-visp override revoke OVR001 --reason "The temporary exception has expired."
+visp-kit override revoke OVR001 --reason "The temporary exception has expired."
 ```
 
 Create a new override only if the risk is still intentionally accepted.
@@ -177,7 +177,7 @@ Common causes:
 Fix:
 
 ```bash
-visp verify --task T001
+visp-kit verify --task T001
 ```
 
 ## Review Failed
@@ -191,8 +191,8 @@ Read:
 Fix blocking findings, then run:
 
 ```bash
-visp verify --task T001
-visp review --task T001
+visp-kit verify --task T001
+visp-kit review --task T001
 ```
 
 ## Reconcile Failed
@@ -206,9 +206,9 @@ Read:
 Fix drift or missing evidence, then run:
 
 ```bash
-visp verify --task T001
-visp review --task T001
-visp reconcile --task T001 --update-traceability
+visp-kit verify --task T001
+visp-kit review --task T001
+visp-kit reconcile --task T001 --update-traceability
 ```
 
 ## PR Blocked
@@ -218,8 +218,8 @@ Likely cause: verification, review, reconcile, traceability update, or policy ga
 Fix:
 
 ```bash
-visp gate pr --explain
-visp next --explain
+visp-kit gate pr --explain
+visp-kit next --explain
 ```
 
 ## JSON Artifact Invalid
@@ -229,7 +229,7 @@ Symptom: commands report schema validation errors.
 Fix: repair the artifact named in the error, then run:
 
 ```bash
-visp doctor --check schemas
+visp-kit doctor --check schemas
 ```
 
 ## Review Decision Lock Remains
@@ -237,8 +237,8 @@ visp doctor --check schemas
 Symptom: an assurance accept, reject, or repair command reports that another
 review decision pointer update is in progress and prints a `.lock` path.
 
-Fix: first confirm that no `visp assurance accept`, `visp assurance reject`, or
-`visp assurance repair` process is still running for that task. If none is
+Fix: first confirm that no `visp-kit assurance accept`, `visp-kit assurance reject`, or
+`visp-kit assurance repair` process is still running for that task. If none is
 running, remove only the exact stale lock entry printed by the error, then retry
 the original command. Never remove a broad `.visp/` directory or clear a lock
 merely because a live publication is taking longer than expected.

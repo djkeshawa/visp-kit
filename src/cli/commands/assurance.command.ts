@@ -174,7 +174,7 @@ export function createAssuranceCommand(dependencies: AssuranceCommandDependencie
                 "Next:",
                 status === "current"
                   ? "  No action required."
-                  : "  Run visp assurance generate, then accept or reject."
+                  : "  Run visp-kit assurance generate, then accept or reject."
               ].join("\n")}\n`
         );
         return;

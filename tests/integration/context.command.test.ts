@@ -12,7 +12,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-describe("visp context command", () => {
+describe("visp-kit context command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -83,10 +83,12 @@ describe("visp context command", () => {
     expect(currentPrompt).toContain("# Visp Task: T001");
     expect(currentPrompt).toContain("The user request is raw intent only");
     expect(currentPrompt).toContain("## Steps");
-    expect(currentPrompt).toContain("visp done --task T001 --input-tokens <n> --output-tokens <n>");
+    expect(currentPrompt).toContain(
+      "visp-kit done --task T001 --input-tokens <n> --output-tokens <n>"
+    );
     expect(currentPrompt).toContain("--usage-unavailable");
     expect(currentPrompt).toContain(
-      "visp checklist update --task T001 --item read-context --status done"
+      "visp-kit checklist update --task T001 --item read-context --status done"
     );
     expect(checklistJson.taskId).toBe("T001");
     expect(checklistJson.items.map((item) => item.id)).toContain("record-usage");
@@ -251,7 +253,7 @@ describe("visp context command", () => {
     try {
       await program.parseAsync(["node", "visp", "context", "T001", missingDir]);
       expect(process.exitCode).toBe(1);
-      expect(errors.join("")).toContain("visp init");
+      expect(errors.join("")).toContain("visp-kit init");
     } finally {
       await rm(missingDir, { recursive: true, force: true });
     }

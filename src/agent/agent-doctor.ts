@@ -111,16 +111,24 @@ async function guidanceText(
   });
 }
 
+/**
+ * Dual-vocabulary match (D-119 deprecation window): instruction files
+ * generated before the rename say `visp <cmd>`, files generated after it say
+ * `visp-kit <cmd>`. Both count as guidance — a pre-existing project must not
+ * fail its own health check because the binary was renamed out from under it.
+ */
+function hasCommand(lower: string, subcommand: string): boolean {
+  return lower.includes(`visp-kit ${subcommand}`) || lower.includes(`visp ${subcommand}`);
+}
+
 function containsRequiredGuidance(text: string): boolean {
   const lower = text.toLowerCase();
   const evidencePipeline =
-    lower.includes("visp done") ||
-    (lower.includes("visp verify") &&
-      lower.includes("visp review") &&
-      lower.includes("visp reconcile"));
+    hasCommand(lower, "done") ||
+    (hasCommand(lower, "verify") && hasCommand(lower, "review") && hasCommand(lower, "reconcile"));
 
   return (
-    lower.includes("user prompt is raw intent") && lower.includes("visp gate") && evidencePipeline
+    lower.includes("user prompt is raw intent") && hasCommand(lower, "gate") && evidencePipeline
   );
 }
 
@@ -170,7 +178,7 @@ async function checkFile(input: {
           title: input.title,
           description: `${relativePath(input.targetPath, input.filePath)} is missing.`,
           file: relativePath(input.targetPath, input.filePath),
-          recommendation: "Run `visp agent refresh --force`.",
+          recommendation: "Run `visp-kit agent refresh --force`.",
           autoFixable: true
         },
         input.findings.length + 1
@@ -202,7 +210,7 @@ async function checkTarget(input: {
               input.target === "gemini"
                 ? "GEMINI.md or GEMINI.visp.md is missing."
                 : "AGENTS.md or AGENTS.visp.md is missing.",
-            recommendation: `Run \`visp agent install ${input.target}\`.`,
+            recommendation: `Run \`visp-kit agent install ${input.target}\`.`,
             autoFixable: true
           },
           input.findings.length + 1
@@ -217,7 +225,7 @@ async function checkTarget(input: {
             title: "Agent guidance is incomplete",
             description: "Generated guidance is missing strict Visp policy wording.",
             file: guidance.value.path ?? undefined,
-            recommendation: `Run \`visp agent refresh --target ${input.target} --force\`.`,
+            recommendation: `Run \`visp-kit agent refresh --target ${input.target} --force\`.`,
             autoFixable: false
           },
           input.findings.length + 1
@@ -283,7 +291,7 @@ async function checkTarget(input: {
             title: `${input.target} agent file is incomplete`,
             description: `${relativePath(input.targetPath, filePath)} is missing strict Visp workflow guidance.`,
             file: relativePath(input.targetPath, filePath),
-            recommendation: `Run \`visp agent refresh --target ${input.target} --force\`.`,
+            recommendation: `Run \`visp-kit agent refresh --target ${input.target} --force\`.`,
             autoFixable: false
           },
           input.findings.length + 1
@@ -302,7 +310,7 @@ async function checkTarget(input: {
           description:
             "Visp verified repository Codex skill files. If `$visp-feature` or `$visp-task` is not visible in the active Codex session, reload the session or reference AGENTS.md and .agents/skills directly.",
           recommendation:
-            "Use `visp agent bootstrap codex` in new projects and run `visp agent doctor --target codex` after installation.",
+            "Use `visp-kit agent bootstrap codex` in new projects and run `visp-kit agent doctor --target codex` after installation.",
           autoFixable: false
         },
         input.findings.length + 1
@@ -324,7 +332,7 @@ export async function runAgentDoctor(
     return err(
       new VispError(
         initialized.error.code,
-        `${initialized.error.message} Recommended: visp init --strictness strict.`
+        `${initialized.error.message} Recommended: visp-kit init --strictness strict.`
       )
     );
   }
@@ -344,7 +352,7 @@ export async function runAgentDoctor(
           title: "Policy file missing",
           description: ".visp/policy.json is missing.",
           file: ".visp/policy.json",
-          recommendation: "Run `visp policy init --strictness strict`.",
+          recommendation: "Run `visp-kit policy init --strictness strict`.",
           autoFixable: false
         },
         findings.length + 1
@@ -373,7 +381,7 @@ export async function runAgentDoctor(
           title: "Agent capability profile missing",
           description: ".visp/agent/capabilities.json is missing.",
           file: ".visp/agent/capabilities.json",
-          recommendation: "Run `visp agent refresh --force`.",
+          recommendation: "Run `visp-kit agent refresh --force`.",
           autoFixable: true
         },
         findings.length + 1
@@ -396,7 +404,7 @@ export async function runAgentDoctor(
             description:
               parsedCapabilities.error.issues[0]?.message ?? "Invalid capabilities metadata.",
             file: ".visp/agent/capabilities.json",
-            recommendation: "Run `visp agent refresh --force`.",
+            recommendation: "Run `visp-kit agent refresh --force`.",
             autoFixable: true
           },
           findings.length + 1
@@ -417,7 +425,7 @@ export async function runAgentDoctor(
               title: "Agent capability profile is stale",
               description: `Capabilities are missing installed target(s): ${missingCapabilities.join(", ")}.`,
               file: ".visp/agent/capabilities.json",
-              recommendation: "Run `visp agent refresh --force`.",
+              recommendation: "Run `visp-kit agent refresh --force`.",
               autoFixable: true
             },
             findings.length + 1
@@ -437,7 +445,8 @@ export async function runAgentDoctor(
           severity: "warning",
           title: "No installed agent targets",
           description: ".visp/agent/installed-targets.json does not list any targets.",
-          recommendation: "Run `visp agent bootstrap codex` or `visp agent install <target>`.",
+          recommendation:
+            "Run `visp-kit agent bootstrap codex` or `visp-kit agent install <target>`.",
           autoFixable: false
         },
         findings.length + 1
@@ -454,7 +463,7 @@ export async function runAgentDoctor(
             severity: "warning",
             title: "Target metadata missing",
             description: `.visp/agent/installed-targets.json does not include ${target}.`,
-            recommendation: `Run \`visp agent install ${target}\`.`,
+            recommendation: `Run \`visp-kit agent install ${target}\`.`,
             autoFixable: true
           },
           findings.length + 1
@@ -501,7 +510,7 @@ export async function runAgentDoctor(
     fixesApplied,
     warnings,
     errors,
-    nextCommand: result === "passed" ? "visp agent refresh" : "visp agent refresh --force",
+    nextCommand: result === "passed" ? "visp-kit agent refresh" : "visp-kit agent refresh --force",
     dryRun: options.dryRun ?? false
   });
 }

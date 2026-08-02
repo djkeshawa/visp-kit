@@ -166,8 +166,8 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.", {
-        recovery: "visp tasks"
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp-kit tasks` first.", {
+        recovery: "visp-kit tasks"
       })
     );
   }
@@ -277,14 +277,14 @@ function nextCommand(
   const taskFlag = report.taskId === null ? "" : ` --task ${report.taskId}`;
 
   if (report.result === "failed") {
-    return `visp verify${taskFlag}`;
+    return `visp-kit verify${taskFlag}`;
   }
 
   if (!report.traceabilityUpdate.performed) {
-    return `visp reconcile${taskFlag} --update-traceability`;
+    return `visp-kit reconcile${taskFlag} --update-traceability`;
   }
 
-  return "visp next";
+  return "visp-kit next";
 }
 
 function traceabilityUpdateState(input: {
@@ -428,7 +428,7 @@ async function updateTaskStatus(input: {
 
   // tasks.md is a derived view of task-graph.json. Rewriting the graph without
   // re-rendering the markdown desynchronizes the pair on the very next command
-  // after `visp tasks --validate` synchronized it.
+  // after `visp-kit tasks --validate` synchronized it.
   const writeMarkdown = await writeTextFile(
     tasksMarkdownPath(input.targetPath, input.featureKey),
     renderTasksMarkdownFromArtifact({ feature: input.feature, artifact: nextGraph })
@@ -627,7 +627,7 @@ export async function runReconcileWorkflow(
               title: "Policy gate evaluation unavailable",
               description: policyGateUnavailable,
               evidence: policyGateUnavailable,
-              recommendation: "Run visp override validate.",
+              recommendation: "Run visp-kit override validate.",
               relatedTaskId: selectedTask?.id ?? null
             })
           ]

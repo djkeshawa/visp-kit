@@ -84,7 +84,7 @@ function validAction() {
     },
     findings: [],
     verdict: "ready",
-    nextCommand: "visp done --task T001"
+    nextCommand: "visp-kit done --task T001"
   } as const;
 }
 
@@ -309,7 +309,7 @@ describe("workflow-action runtime schemas", () => {
       "unknown summary field",
       () => ({
         ...validAction32(),
-        assuranceSummary: { ...validAction32().assuranceSummary, command: "visp pr" }
+        assuranceSummary: { ...validAction32().assuranceSummary, command: "visp-kit pr" }
       })
     ],
     [

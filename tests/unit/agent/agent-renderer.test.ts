@@ -13,14 +13,14 @@ describe("agent renderer", () => {
     expect(skill).toContain("---");
     expect(skill).toContain("name: visp-task");
     expect(skill).toContain("user prompt is raw intent");
-    expect(skill).toContain("visp gate");
+    expect(skill).toContain("visp-kit gate");
   });
 
   it("renders generic prompts with strict workflow rules", () => {
     const prompt = renderGenericPrompt("pr", "locked");
 
     expect(prompt).toContain("# Visp Agent Pr Prompt");
-    expect(prompt).toContain("visp gate pr");
+    expect(prompt).toContain("visp-kit gate pr");
     expect(prompt).toContain("Do not call GitHub API");
   });
 

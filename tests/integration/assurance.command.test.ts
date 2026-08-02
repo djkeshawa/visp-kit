@@ -134,7 +134,7 @@ describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
         snapshotHash: `sha256:${"b".repeat(64)}`,
         actions: [],
         dryRun: true,
-        nextCommand: "visp review --task T001"
+        nextCommand: "visp-kit review --task T001"
       })
     );
     const program = createCli({
@@ -187,7 +187,7 @@ describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
         historyPath: ".visp/history.json",
         pointerPath: ".visp/current.json",
         dryRun: true,
-        nextCommand: "visp gate pr"
+        nextCommand: "visp-kit gate pr"
       })
     );
     const program = createCli({

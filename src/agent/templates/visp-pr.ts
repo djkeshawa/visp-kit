@@ -9,10 +9,10 @@ Use this workflow when the user asks to prepare a PR.
 
 ## Steps
 
-1. Run \`visp status\`.
-2. Run \`visp gate pr\`.
+1. Run \`visp-kit status\`.
+2. Run \`visp-kit gate pr\`.
    - Result blocked -> stop. Report the exact missing steps from the gate output and the command shown after \`Next:\`.
-3. Run \`visp pr\`.
+3. Run \`visp-kit pr\`.
 4. Read \`.visp/features/<feature>/pr.md\` and summarize PR readiness honestly.
 
 ## PR rules
@@ -24,7 +24,7 @@ Use this workflow when the user asks to prepare a PR.
 
 ## What not to do
 
-- Do not create a normal PR summary when \`visp gate pr\` blocks.
+- Do not create a normal PR summary when \`visp-kit gate pr\` blocks.
 - Do not invent requirements, tests, or validation evidence.
 `;
 }

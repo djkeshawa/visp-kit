@@ -29,7 +29,7 @@ export async function loadEffectiveGatePolicy(input: {
   const initialized = await pathExists(vispDir(input.targetPath));
 
   if (!initialized.ok || !initialized.value) {
-    warnings.push("Visp Kit is not initialized. Run `visp init` first.");
+    warnings.push("Visp Kit is not initialized. Run `visp-kit init` first.");
     return {
       initialized: false,
       policy: createDefaultPolicy({
@@ -51,7 +51,7 @@ export async function loadEffectiveGatePolicy(input: {
     input.strictness ?? (configuredStrictness.ok ? configuredStrictness.value : "standard");
 
   if (!policyExists.ok || !policyExists.value) {
-    warnings.push("Policy file is missing. Run `visp policy init` to persist it.");
+    warnings.push("Policy file is missing. Run `visp-kit policy init` to persist it.");
     return {
       initialized: true,
       policy: createDefaultPolicy({
@@ -105,7 +105,7 @@ export async function loadEffectiveGatePolicy(input: {
     errors.push(
       `Runtime strictness ${input.strictness} is lower than the project policy ` +
         `${loaded.value.policy.strictnessMode}. A runtime override cannot weaken policy; ` +
-        `change .visp/policy.json (visp policy set-strictness ${input.strictness}) instead.`
+        `change .visp/policy.json (visp-kit policy set-strictness ${input.strictness}) instead.`
     );
     return {
       initialized: true,

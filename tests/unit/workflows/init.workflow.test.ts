@@ -153,7 +153,7 @@ describe("runInitWorkflow", () => {
     );
     expect(
       await readFile(path.join(tempDir, ".agents", "skills", "visp-task", "SKILL.md"), "utf8")
-    ).toContain("visp gate");
+    ).toContain("visp-kit gate");
   });
 
   it("creates generic agent guidance and portable prompts without Codex skills", async () => {

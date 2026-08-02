@@ -99,7 +99,7 @@ export async function runGateWorkflow(
       featureKey,
       taskId: parsed.data.taskId,
       steps: ["gate-implement"],
-      evidence: `visp gate implement --task ${parsed.data.taskId}`,
+      evidence: `visp-kit gate implement --task ${parsed.data.taskId}`,
       dryRun,
       now
     });

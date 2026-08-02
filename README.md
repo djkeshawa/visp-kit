@@ -22,27 +22,45 @@ npm install -g visp-kit
 
 Requires Node 22 or later, and Git.
 
+## Compatibility
+
+This package is the Visp engine — it decides what is allowed and what counts
+as proof. As of 0.4.0 it provides the **`visp-kit`** command and no longer
+provides `visp`; that top-level command belongs to
+[`visp-hyper-agent`](https://www.npmjs.com/package/visp-hyper-agent).
+
+- **With Hyper:** `visp-hyper-agent` >= 0.6.0 drives this engine and presents
+  its decisions; install both for the full surface. Approvals recorded before
+  the rename stay valid — identity hashes no longer contain command wording.
+- **With Memory:** this package does not talk to visp-memory directly; recall
+  flows through Hyper.
+- **With Visp Dev:** not required; machine setup and checks live there.
+
+Upgrading from a `visp`-era install: run `visp-kit agent refresh` and
+`visp-kit hooks ci --force` so generated instruction files and the CI
+workflow use the new command name. `visp-kit doctor` names anything stale.
+
 ## First run
 
 Four commands, in a real project:
 
 ```bash
-visp init .
+visp-kit init .
 ```
 
 ```bash
-visp scan .
+visp-kit scan .
 ```
 
 ```bash
-visp feature "add password reset"
+visp-kit feature "add password reset"
 ```
 
 ```bash
-visp next .
+visp-kit next .
 ```
 
-`visp next` is the one to remember. **It always tells you the single next
+`visp-kit next` is the one to remember. **It always tells you the single next
 command**, so you never have to memorise the workflow — run it whenever you are
 unsure what to do.
 

@@ -30,7 +30,7 @@ async function ensureVisp(targetPath: string): Promise<Result<void, VispError>> 
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp-kit init` first.")
     );
   }
 
@@ -57,7 +57,7 @@ function selectorFromStatus(status: ProjectStatus): Result<string, VispError> {
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        'No active feature found. Run `visp feature "<idea>"` first or pass --feature.'
+        'No active feature found. Run `visp-kit feature "<idea>"` first or pass --feature.'
       )
     );
   }

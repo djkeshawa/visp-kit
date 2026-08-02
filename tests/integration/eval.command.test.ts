@@ -12,7 +12,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-describe("visp eval command", () => {
+describe("visp-kit eval command", () => {
   let tempDir: string;
 
   beforeEach(async () => {

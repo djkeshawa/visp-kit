@@ -146,7 +146,7 @@ if (!existsSync(policyPath)) {
   if (existsSync(path.join(vispDir, "project.json"))) {
     block(
       "Visp gate: .visp/policy.json is missing from an initialized Visp project, so " +
-        "enforcement state is unknown. Restore it or run \`visp policy init\` before editing."
+        "enforcement state is unknown. Restore it or run \`visp-kit policy init\` before editing."
     );
   }
   allow();
@@ -158,7 +158,7 @@ try {
 } catch {
   block(
     "Visp gate: .visp/policy.json exists but cannot be read or parsed, so strictness " +
-      "is unknown. Fix the policy (\`visp policy validate\`) before editing."
+      "is unknown. Fix the policy (\`visp-kit policy validate\`) before editing."
   );
 }
 
@@ -166,7 +166,7 @@ const knownModes = new Set(["relaxed", "standard", "strict", "locked"]);
 if (typeof policy !== "object" || policy === null || !knownModes.has(policy.strictnessMode)) {
   block(
     "Visp gate: .visp/policy.json has an unknown strictnessMode, so enforcement state " +
-      "is unknown. Fix the policy (\`visp policy validate\`) before editing."
+      "is unknown. Fix the policy (\`visp-kit policy validate\`) before editing."
   );
 }
 if (policy.strictnessMode !== "strict" && policy.strictnessMode !== "locked") allow();
@@ -185,7 +185,7 @@ if (existsSync(markerDir)) {
     } catch {
       block(
         \`Visp gate: implement authorization marker \${name} is unreadable. \` +
-          "Re-run \`visp gate implement --task <task-id>\`."
+          "Re-run \`visp-kit gate implement --task <task-id>\`."
       );
     }
     if (typeof candidate === "object" && candidate !== null) markers.push(candidate);
@@ -198,7 +198,7 @@ if (existsSync(legacyMarkerPath)) {
   } catch {
     block(
       "Visp gate: the implement authorization marker is unreadable. " +
-        "Re-run \`visp gate implement --task <task-id>\`."
+        "Re-run \`visp-kit gate implement --task <task-id>\`."
     );
   }
   if (
@@ -212,7 +212,7 @@ if (existsSync(legacyMarkerPath)) {
 
 if (markers.length === 0) {
   block(
-    "Visp gate: no implement authorization found. Run \`visp gate implement --task <task-id>\` " +
+    "Visp gate: no implement authorization found. Run \`visp-kit gate implement --task <task-id>\` " +
       "and only edit code after it reports allowed."
   );
 }
@@ -242,14 +242,14 @@ for (const marker of markers) {
   } catch {
     block(
       \`Visp gate: oracle lock for task \${marker.taskId} is missing or unreadable. \` +
-        "Re-run \`visp gate implement --task <task-id>\`."
+        "Re-run \`visp-kit gate implement --task <task-id>\`."
     );
   }
   const fileHash = \`sha256:\${createHash("sha256").update(lockText, "utf8").digest("hex")}\`;
   if (fileHash !== authorization.lockFileSha256 || lock?.lockHash !== authorization.lockHash) {
     block(
       \`Visp gate: oracle lock for task \${marker.taskId} changed after authorization. \` +
-        "Re-run \`visp oracle lock --task <task-id>\` and the implement gate."
+        "Re-run \`visp-kit oracle lock --task <task-id>\` and the implement gate."
       );
   }
   if (lock?.baselineEvidence === undefined) {
@@ -340,7 +340,7 @@ if (!existsSync(policyPath)) {
   if (existsSync(path.join(vispDir, "project.json"))) {
     block(
       "Visp: .visp/policy.json is missing from an initialized Visp project, so " +
-        "enforcement state is unknown. Restore it or run \`visp policy init\` before committing."
+        "enforcement state is unknown. Restore it or run \`visp-kit policy init\` before committing."
     );
   }
   allow();
@@ -352,7 +352,7 @@ try {
 } catch {
   block(
     "Visp: .visp/policy.json exists but cannot be read or parsed, so strictness is " +
-      "unknown. Fix the policy (\`visp policy validate\`) before committing."
+      "unknown. Fix the policy (\`visp-kit policy validate\`) before committing."
   );
 }
 
@@ -360,7 +360,7 @@ const knownModes = new Set(["relaxed", "standard", "strict", "locked"]);
 if (typeof policy !== "object" || policy === null || !knownModes.has(policy.strictnessMode)) {
   block(
     "Visp: .visp/policy.json has an unknown strictnessMode, so enforcement state is " +
-      "unknown. Fix the policy (\`visp policy validate\`) before committing."
+      "unknown. Fix the policy (\`visp-kit policy validate\`) before committing."
   );
 }
 
@@ -392,7 +392,7 @@ const markers = [];
 function unreadableMarker(name) {
   const message =
     \`Visp: implement authorization marker \${name} is unreadable, so task scope is unknown. \` +
-    "Re-run \`visp gate implement --task <task-id>\` before committing.";
+    "Re-run \`visp-kit gate implement --task <task-id>\` before committing.";
   if (enforce) block(message);
   writeFileSync(2, \`Warning: \${message}\\n\`);
 }
@@ -516,7 +516,7 @@ if (markers.length === 0) {
   const message =
     "Visp: staged source changes have no implement authorization " +
     "(.visp/state/implement-allowed.json missing). " +
-    "Run \`visp gate implement --task <task-id>\` and \`visp done --task <task-id>\` before committing.";
+    "Run \`visp-kit gate implement --task <task-id>\` and \`visp-kit done --task <task-id>\` before committing.";
   if (enforce) block(message);
   writeFileSync(2, \`Warning: \${message}\\n\`);
   allow();
@@ -528,7 +528,7 @@ for (const marker of markers) {
   const invalid = (reason) => {
     const message =
       \`Visp: oracle authorization for task \${marker.taskId} is invalid: \${reason}. \` +
-      "Re-run \`visp oracle lock --task <task-id>\` and the implement gate.";
+      "Re-run \`visp-kit oracle lock --task <task-id>\` and the implement gate.";
     if (enforce) block(message);
     writeFileSync(2, \`Warning: \${message}\\n\`);
   };
@@ -624,7 +624,7 @@ allow();
 
 export function renderPreCommitWrapper(): string {
   return `#!/usr/bin/env bash
-# Generated by Visp Kit (visp hooks git). Delegates to the Visp pre-commit check.
+# Generated by Visp Kit (visp-kit hooks git). Delegates to the Visp pre-commit check.
 set -euo pipefail
 
 if [ -f .visp/hooks/visp-pre-commit.mjs ]; then
@@ -637,7 +637,7 @@ export function renderGithubEvidenceWorkflow(version: string = packageVersion())
   // Pin the Kit version that generated this workflow. An evidence gate that
   // installs whatever `latest` resolves to cannot produce reproducible
   // verdicts, and silently changes enforcement on an unrelated release.
-  // Re-run `visp hooks ci --force` after upgrading Visp Kit.
+  // Re-run `visp-kit hooks ci --force` after upgrading Visp Kit.
   return `name: visp-evidence
 
 on:
@@ -654,9 +654,9 @@ jobs:
       - name: Install Visp Kit
         run: npm install -g visp-kit@${version}
       - name: Validate policy
-        run: visp policy validate --json
+        run: visp-kit policy validate --json
       - name: Check PR gate
-        run: visp gate pr --json
+        run: visp-kit gate pr --json
 `;
 }
 
@@ -697,7 +697,7 @@ falls back to the non-enforcing \`standard\` default.
 ## Claude Code PreToolUse hook
 
 \`claude-pretooluse.mjs\` blocks Edit/Write tool calls before
-\`visp gate implement --task <task-id>\` has allowed implementation, and blocks
+\`visp-kit gate implement --task <task-id>\` has allowed implementation, and blocks
 edits outside the task's allowed files.
 
 Enable it by merging this into \`.claude/settings.json\` (or
@@ -713,7 +713,7 @@ ${renderClaudeSettingsSnippet()}
 implement authorization. Install the wrapper with:
 
 \`\`\`bash
-visp hooks git
+visp-kit hooks git
 \`\`\`
 
 ## CI evidence check
@@ -722,17 +722,17 @@ Generate a GitHub Actions workflow that validates policy and the PR gate on
 every pull request:
 
 \`\`\`bash
-visp hooks ci
+visp-kit hooks ci
 \`\`\`
 
 ## How authorization works
 
-\`visp gate implement --task <task-id>\` writes a per-task marker under
+\`visp-kit gate implement --task <task-id>\` writes a per-task marker under
 \`.visp/state/implement-allowed/<task-id>.json\` (plus the legacy
 \`.visp/state/implement-allowed.json\` for hooks generated before per-task
 markers existed) when the gate allows implementation. Multiple tasks can hold
 authorizations at once; the gate blocks a second task whose file scope
-overlaps an active one. \`visp done --task <task-id>\` clears that task's
+overlaps an active one. \`visp-kit done --task <task-id>\` clears that task's
 marker when every step passes, and a blocked implement gate clears it too.
 
 Hooks read every active marker: a file is editable when any active task allows

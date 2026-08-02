@@ -28,6 +28,8 @@ import {
 import { buildWorkflowMapForTargets, renderAgentGuide } from "./agent-renderer.js";
 import { agentCapabilitiesPlannedFile } from "./agent-capabilities.js";
 import {
+  generatedContentHash,
+  plannedFileContents,
   writeAgentPlannedFile,
   type AgentFileAction,
   type AgentPlannedFile
@@ -244,6 +246,7 @@ function nextMetadata(input: {
   readonly now: string;
   readonly metadata: InstalledAgentTargets;
   readonly targetFilePaths: readonly string[];
+  readonly fileHashes?: Readonly<Record<string, string>>;
   readonly warnings: readonly string[];
 }): InstalledAgentTargets {
   const existing = input.metadata.installedTargets.find((target) => target.target === input.target);
@@ -253,6 +256,7 @@ function nextMetadata(input: {
     installedAt: existing?.installedAt ?? input.now,
     refreshedAt: input.now,
     files: [...input.targetFilePaths],
+    ...(input.fileHashes === undefined ? {} : { fileHashes: { ...input.fileHashes } }),
     version: "1.0",
     warnings: [...input.warnings]
   };
@@ -272,6 +276,7 @@ function metadataFiles(input: {
   readonly now: string;
   readonly metadata: InstalledAgentTargets;
   readonly targetFilePaths: readonly string[];
+  readonly fileHashes?: Readonly<Record<string, string>>;
   readonly warnings: readonly string[];
 }): readonly AgentPlannedFile[] {
   const metadata = nextMetadata(input);
@@ -321,7 +326,7 @@ export async function runAgentInstall(
     return err(
       new VispError(
         initialized.error.code,
-        `${initialized.error.message} Recommended: visp init --strictness strict.`
+        `${initialized.error.message} Recommended: visp-kit init --strictness strict.`
       )
     );
   }
@@ -367,14 +372,34 @@ export async function runAgentInstall(
 
   if (!metadata.ok) return metadata;
 
+  const existingTarget = metadata.value.installedTargets.find(
+    (installed) => installed.target === options.target
+  );
+  const nextFileHashes: Record<string, string> = {};
   for (const file of plan.value.files) {
+    const relPath = relativePath(targetPath, file.path);
     const write = await writeAgentPlannedFile(targetPath, file, {
       force,
-      dryRun
+      dryRun,
+      // D-118 decision 4: bytes still matching what we last generated mean
+      // the user never touched the file, so a changed template regenerates
+      // silently. Anything else divergent is refused as `stale`.
+      recordedHash: existingTarget?.fileHashes?.[relPath]
     });
 
     if (!write.ok) return write;
     actions.push(write.value);
+    const planned = plannedFileContents(file);
+    if (planned !== undefined) {
+      if (write.value.action === "stale") {
+        // Keep the previous record: the disk bytes are the user's, and a
+        // later run must still be able to recognize an untouched revert.
+        const previous = existingTarget?.fileHashes?.[relPath];
+        if (previous !== undefined) nextFileHashes[relPath] = previous;
+      } else {
+        nextFileHashes[relPath] = generatedContentHash(planned);
+      }
+    }
   }
 
   const metadataPlan = metadataFiles({
@@ -384,6 +409,7 @@ export async function runAgentInstall(
     now,
     metadata: metadata.value,
     targetFilePaths: plan.value.files.map((file) => relativePath(targetPath, file.path)),
+    fileHashes: nextFileHashes,
     warnings
   });
 

@@ -9,94 +9,94 @@ const principles = [
 const stages: readonly Omit<WorkflowStage, "purpose">[] = [
   {
     name: "setup",
-    command: "visp init",
+    command: "visp-kit init",
     gateStage: "setup",
     requiredArtifacts: [],
     generatedArtifacts: [".visp/project.json", ".visp/config.json", ".visp/status.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp scan"
+    nextCommand: "visp-kit scan"
   },
   {
     name: "scan",
-    command: "visp scan",
+    command: "visp-kit scan",
     requiredArtifacts: [".visp/project.json"],
     generatedArtifacts: [".visp/cache/file-index.json", ".visp/cache/scan-meta.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp constitution"
+    nextCommand: "visp-kit constitution"
   },
   {
     name: "constitution",
-    command: "visp constitution",
+    command: "visp-kit constitution",
     requiredArtifacts: [".visp/project.json"],
     generatedArtifacts: [".visp/memory/constitution.md", ".visp/memory/constitution.compact.md"],
     sourceEditsAllowed: false,
-    nextCommand: "visp policy validate"
+    nextCommand: "visp-kit policy validate"
   },
   {
     name: "policy",
-    command: "visp policy validate",
+    command: "visp-kit policy validate",
     gateStage: "setup",
     requiredArtifacts: [".visp/policy.json"],
     generatedArtifacts: [],
     sourceEditsAllowed: false,
-    nextCommand: "visp agent install codex"
+    nextCommand: "visp-kit agent install codex"
   },
   {
     name: "agent",
-    command: "visp agent install <target>",
+    command: "visp-kit agent install <target>",
     requiredArtifacts: [".visp/policy.json"],
     generatedArtifacts: [".visp/agent/installed-targets.json", ".visp/agent/capabilities.json"],
     sourceEditsAllowed: false,
-    nextCommand: 'visp feature "<idea>"'
+    nextCommand: 'visp-kit feature "<idea>"'
   },
   {
     name: "feature",
-    command: 'visp feature "<idea>"',
+    command: 'visp-kit feature "<idea>"',
     gateStage: "feature",
     requiredArtifacts: [".visp/project.json"],
     generatedArtifacts: [".visp/features/<feature>/intent.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp clarify"
+    nextCommand: "visp-kit clarify"
   },
   {
     name: "clarify",
-    command: "visp clarify",
+    command: "visp-kit clarify",
     gateStage: "clarify",
     requiredArtifacts: [".visp/features/<feature>/intent.json"],
     generatedArtifacts: [".visp/features/<feature>/clarifications.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp spec"
+    nextCommand: "visp-kit spec"
   },
   {
     name: "spec",
-    command: "visp spec",
+    command: "visp-kit spec",
     gateStage: "spec",
     requiredArtifacts: [".visp/features/<feature>/clarifications.json"],
     generatedArtifacts: [".visp/features/<feature>/spec.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp plan"
+    nextCommand: "visp-kit plan"
   },
   {
     name: "plan",
-    command: "visp plan",
+    command: "visp-kit plan",
     gateStage: "plan",
     requiredArtifacts: [".visp/features/<feature>/spec.json"],
     generatedArtifacts: [".visp/features/<feature>/plan.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp tasks"
+    nextCommand: "visp-kit tasks"
   },
   {
     name: "tasks",
-    command: "visp tasks",
+    command: "visp-kit tasks",
     gateStage: "tasks",
     requiredArtifacts: [".visp/features/<feature>/plan.json"],
     generatedArtifacts: [".visp/features/<feature>/task-graph.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp context --next"
+    nextCommand: "visp-kit context --next"
   },
   {
     name: "context",
-    command: "visp context --next",
+    command: "visp-kit context --next",
     gateStage: "context",
     requiredArtifacts: [".visp/features/<feature>/task-graph.json"],
     generatedArtifacts: [
@@ -104,7 +104,7 @@ const stages: readonly Omit<WorkflowStage, "purpose">[] = [
       ".visp/prompts/current-task.prompt.md"
     ],
     sourceEditsAllowed: false,
-    nextCommand: "visp gate implement --task <task-id>"
+    nextCommand: "visp-kit gate implement --task <task-id>"
   },
   {
     name: "implement",
@@ -113,30 +113,30 @@ const stages: readonly Omit<WorkflowStage, "purpose">[] = [
     requiredArtifacts: [".visp/prompts/current-task.prompt.md"],
     generatedArtifacts: [],
     sourceEditsAllowed: true,
-    nextCommand: "visp verify --task <task-id>",
+    nextCommand: "visp-kit verify --task <task-id>",
     agentInstruction: "Implement only the selected task."
   },
   {
     name: "verify",
-    command: "visp verify --task <task-id>",
+    command: "visp-kit verify --task <task-id>",
     gateStage: "verify",
     requiredArtifacts: [".visp/features/<feature>/context/<task>.context.json"],
     generatedArtifacts: [".visp/features/<feature>/verification.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp review --task <task-id>"
+    nextCommand: "visp-kit review --task <task-id>"
   },
   {
     name: "review",
-    command: "visp review --task <task-id>",
+    command: "visp-kit review --task <task-id>",
     gateStage: "review",
     requiredArtifacts: [".visp/features/<feature>/verification.json"],
     generatedArtifacts: [".visp/features/<feature>/review/<task>.review.json"],
     sourceEditsAllowed: false,
-    nextCommand: "visp reconcile --task <task-id>"
+    nextCommand: "visp-kit reconcile --task <task-id>"
   },
   {
     name: "reconcile",
-    command: "visp reconcile --task <task-id> --update-traceability",
+    command: "visp-kit reconcile --task <task-id> --update-traceability",
     gateStage: "reconcile",
     requiredArtifacts: [".visp/features/<feature>/review/<task>.review.json"],
     generatedArtifacts: [
@@ -144,11 +144,11 @@ const stages: readonly Omit<WorkflowStage, "purpose">[] = [
       ".visp/features/<feature>/traceability.json"
     ],
     sourceEditsAllowed: false,
-    nextCommand: "visp next"
+    nextCommand: "visp-kit next"
   },
   {
     name: "pr",
-    command: "visp pr",
+    command: "visp-kit pr",
     gateStage: "pr",
     requiredArtifacts: [".visp/features/<feature>/traceability.json"],
     generatedArtifacts: [".visp/features/<feature>/pr.json"],

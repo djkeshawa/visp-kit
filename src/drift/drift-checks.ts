@@ -40,7 +40,7 @@ export function checkStaleContextProvenance(
           expectedHash: provenance.hash,
           actualHash: null,
           evidence: `Context pack for ${pack.taskId} was grounded on ${provenance.label} (${provenance.path}), which no longer exists.`,
-          recommendation: `Regenerate the context pack: visp context ${pack.taskId}.`
+          recommendation: `Regenerate the context pack: visp-kit context ${pack.taskId}.`
         })
       ];
     }
@@ -55,7 +55,7 @@ export function checkStaleContextProvenance(
           expectedHash: provenance.hash,
           actualHash: actual,
           evidence: `${provenance.label} (${provenance.path}) changed after the context pack for ${pack.taskId} was compiled.`,
-          recommendation: `Regenerate the context pack: visp context ${pack.taskId}.`
+          recommendation: `Regenerate the context pack: visp-kit context ${pack.taskId}.`
         })
       ];
     }
@@ -90,7 +90,7 @@ export function checkCodeChangedAfterContext(
         recommendation:
           pack.selectedTask.status === "done" || pack.selectedTask.status === "verified"
             ? `Task ${pack.taskId} is complete; regenerate context before reusing it.`
-            : `Refresh the context pack (visp context ${pack.taskId}) so the agent works from current code.`
+            : `Refresh the context pack (visp-kit context ${pack.taskId}) so the agent works from current code.`
       })
     ];
   });
@@ -176,7 +176,7 @@ export function checkMappedTestMissing(input: {
           expectedHash: null,
           actualHash: null,
           evidence: `Test file ${path} from the scan test map no longer exists.`,
-          recommendation: "Run visp scan to refresh the cache."
+          recommendation: "Run visp-kit scan to refresh the cache."
         })
       );
     }
@@ -195,7 +195,7 @@ export function checkMappedTestMissing(input: {
             expectedHash: null,
             actualHash: null,
             evidence: `Traceability maps ${entry.requirementId} to test ${path}, which no longer exists.`,
-            recommendation: "Run visp reconcile --update-traceability to refresh the mapping."
+            recommendation: "Run visp-kit reconcile --update-traceability to refresh the mapping."
           })
         );
       }
@@ -221,7 +221,7 @@ export function checkSpecEditedAfterTasks(input: {
       expectedHash: null,
       actualHash: null,
       evidence: `Spec was updated at ${input.spec.updatedAt}, after the task graph (${input.taskGraph.updatedAt}).`,
-      recommendation: "Re-run visp tasks so the task graph reflects the current spec."
+      recommendation: "Re-run visp-kit tasks so the task graph reflects the current spec."
     })
   ];
 }
@@ -244,7 +244,7 @@ export function checkMarkerTaskMismatch(input: {
         expectedHash: null,
         actualHash: null,
         evidence: `Implement authorization exists for ${input.marker.taskId}, but that task is not in the task graph.`,
-        recommendation: `Re-run visp gate implement --task <task-id> for a current task.`
+        recommendation: `Re-run visp-kit gate implement --task <task-id> for a current task.`
       })
     ];
   }
@@ -259,7 +259,7 @@ export function checkMarkerTaskMismatch(input: {
         expectedHash: null,
         actualHash: null,
         evidence: `Task ${task.id} scope changed after its implement authorization was granted.`,
-        recommendation: `Re-run visp gate implement --task ${task.id} to authorize the current scope.`
+        recommendation: `Re-run visp-kit gate implement --task ${task.id} to authorize the current scope.`
       })
     ];
   }
@@ -300,7 +300,7 @@ export function checkEvidencePredatesChange(input: {
       expectedHash: null,
       actualHash: null,
       evidence: `Verification evidence ended at ${input.verification.endedAt}, before the task graph changed (${input.taskGraph.updatedAt}).`,
-      recommendation: "Re-run visp verify so evidence covers the current task definitions."
+      recommendation: "Re-run visp-kit verify so evidence covers the current task definitions."
     })
   ];
 }

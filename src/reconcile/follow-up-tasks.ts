@@ -20,11 +20,11 @@ export function followUpSuggestions(input: {
   }
 
   if (input.findings.some((finding) => finding.driftType === "verification_missing")) {
-    suggestions.add(`Run visp verify${taskSuffix}.`);
+    suggestions.add(`Run visp-kit verify${taskSuffix}.`);
   }
 
   if (input.findings.some((finding) => finding.driftType === "review_missing")) {
-    suggestions.add(`Run visp review${taskSuffix}.`);
+    suggestions.add(`Run visp-kit review${taskSuffix}.`);
   }
 
   if (

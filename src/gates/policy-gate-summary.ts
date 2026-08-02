@@ -20,7 +20,7 @@ function policyStatusFromGate(result: GateResult): PolicyStatus {
   if (
     hasPolicyFailure("Policy file is missing.") ||
     result.warnings.some(
-      (warning) => warning === "Policy file is missing. Run `visp policy init` to persist it."
+      (warning) => warning === "Policy file is missing. Run `visp-kit policy init` to persist it."
     )
   ) {
     return "missing";

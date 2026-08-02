@@ -99,13 +99,14 @@ export type CliDependencies = AgentCommandDependencies &
   WorkflowCliDependencies;
 
 const cliMetadataSchema = z.object({
-  name: z.literal("visp"),
+  // P10-US-04: Kit released the top-level `visp` name to Hyper (ADR 0005).
+  name: z.literal("visp-kit"),
   version: z.string().min(1),
   description: z.string().min(1)
 });
 
 const cliMetadata = cliMetadataSchema.parse({
-  name: "visp",
+  name: "visp-kit",
   version: packageVersion(),
   description: "Small context. Clear specs. Accurate code."
 });

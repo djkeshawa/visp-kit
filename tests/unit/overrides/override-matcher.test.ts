@@ -10,7 +10,7 @@ const rule: GateRuleFinding = {
   ruleId: "VSP014",
   severity: "error",
   message: "Verification report is missing.",
-  recommendation: "Run visp verify --task T001.",
+  recommendation: "Run visp-kit verify --task T001.",
   evidence: "verification.json missing."
 };
 

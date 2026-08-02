@@ -24,6 +24,9 @@ import {
 const sha = (character: string) => `sha256:${character.repeat(64)}`;
 
 describe("workflowActionHashProjectionV1_3", () => {
+  // DELIBERATE OLD VOCABULARY — do not mechanically rename. This input plays
+  // the pre-rename artifact; the test below contrasts it against the renamed
+  // form, and renaming both sides would make the invariance check trivial.
   const identityInput = {
     canonicalVersion: "1.3",
     phase: "implement",
@@ -99,6 +102,7 @@ describe("workflowActionHashProjectionV1_3", () => {
 });
 
 describe("assurance case hash generations", () => {
+  // DELIBERATE OLD VOCABULARY — the pre-rename side of the contrast below.
   const caseBody = {
     version: "1.1",
     actionId: sha("0"),
@@ -132,7 +136,7 @@ describe("assurance case hash generations", () => {
       ...(caseBody as Record<string, unknown>),
       version: "1.0",
       nextAction: { command: "visp-kit review --task T001", reason: "renamed" }
-    } as never;
+    } as never; // renamed relative to caseBody's old-vocabulary nextAction
     const original = { ...(caseBody as Record<string, unknown>), version: "1.0" } as never;
     expect(createAssuranceCaseHash(renamed)).not.toBe(createAssuranceCaseHash(original));
   });

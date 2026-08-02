@@ -64,7 +64,7 @@ async function initGitBaseline(rootPath: string): Promise<void> {
   );
 }
 
-describe("visp verify command", () => {
+describe("visp-kit verify command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -293,7 +293,7 @@ describe("visp verify command", () => {
         (error) => /override/i.test(error) && /(unavailable|evaluat)/i.test(error)
       )
     ).toBe(true);
-    expect(summary.nextCommand).not.toBe("visp review --diff-only");
+    expect(summary.nextCommand).not.toBe("visp-kit review --diff-only");
 
     const taskGraph = JSON.parse(
       await readFile(
@@ -312,6 +312,6 @@ describe("visp verify command", () => {
     await program.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001"]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init");
+    expect(errors.join("")).toContain("visp-kit init");
   });
 });

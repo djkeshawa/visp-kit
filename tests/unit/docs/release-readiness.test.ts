@@ -58,7 +58,7 @@ describe("release documentation readiness", () => {
       "agent",
       "override"
     ]) {
-      expect(commands).toContain(`visp ${command}`);
+      expect(commands).toContain(`visp-kit ${command}`);
     }
   });
 
@@ -75,7 +75,7 @@ describe("release documentation readiness", () => {
     expect(nextHeadingStart).toBeGreaterThan(0);
 
     const firstRun = afterFirstRunHeading.slice(0, nextHeadingStart);
-    const documentedCommands = [...firstRun.matchAll(/^visp\s+([a-z][a-z0-9-]*)\b/gm)].map(
+    const documentedCommands = [...firstRun.matchAll(/^visp-kit\s+([a-z][a-z0-9-]*)\b/gm)].map(
       (match) => match[1]
     );
 
@@ -107,7 +107,7 @@ describe("release documentation readiness", () => {
     const readme = read("README.md");
 
     for (const target of ["codex", "generic", "claude", "copilot", "opencode"]) {
-      expect(targets).toContain(`visp agent install ${target}`);
+      expect(targets).toContain(`visp-kit agent install ${target}`);
     }
 
     expect(readme).toContain("does not call");
@@ -145,7 +145,10 @@ describe("release documentation readiness", () => {
     // a description promising speed or productivity would be an unsubstantiated
     // claim in the most visible place the project has.
     expect(pkg.description).not.toMatch(/faster|productivity|10x|boost|save time/iu);
-    expect(pkg.bin?.visp).toBe("dist/index.js");
+    // P10-US-04 / ADR 0005: Kit provides `visp-kit` and must never declare
+    // `visp` again — that name belongs to visp-hyper-agent.
+    expect(pkg.bin?.["visp-kit"]).toBe("dist/index.js");
+    expect(pkg.bin?.visp).toBeUndefined();
     expect(pkg.files).toEqual(
       expect.arrayContaining([
         "dist",

@@ -56,7 +56,7 @@ describe("implementation checklist updater", () => {
 
     expect(updated).toContain("- [x] Record actual token usage");
     expect(updated).toContain("- [x] Run validation commands");
-    expect(updated).toContain("- [ ] Run `visp review --task T001`.");
+    expect(updated).toContain("- [ ] Run `visp-kit review --task T001`.");
     expect(updatedJson.items.find((item) => item.id === "record-usage")?.status).toBe("done");
     expect(updatedJson.items.find((item) => item.id === "verify")?.status).toBe("done");
   });

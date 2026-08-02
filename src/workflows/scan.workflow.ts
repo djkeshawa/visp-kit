@@ -95,7 +95,7 @@ function createSummary(input: {
     ...input.counts,
     writtenFiles: input.writtenFiles,
     warnings: input.warnings,
-    nextCommand: "visp constitution"
+    nextCommand: "visp-kit constitution"
   };
 }
 
@@ -115,7 +115,7 @@ export async function runScanWorkflow(
   if (!hasVisp.ok) return hasVisp;
   if (!hasVisp.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp-kit init` first.")
     );
   }
 

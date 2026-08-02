@@ -121,7 +121,7 @@ async function expectedPhase8Action(
     assuranceLevel: "advisory",
     verdict: "ready",
     findings: [],
-    nextCommand: "visp context --next",
+    nextCommand: "visp-kit context --next",
     ...overrides
   };
 }
@@ -163,7 +163,7 @@ function expectedPhase8Findings(
         severity: "error",
         effect: "none",
         message: "Implementation requires a context pack.",
-        recommendation: "Run visp context --next.",
+        recommendation: "Run visp-kit context --next.",
         evidence: ["Task context JSON was not found."]
       },
       {
@@ -172,7 +172,7 @@ function expectedPhase8Findings(
         severity: "error",
         effect: "none",
         message: "Implementation checklist evidence is missing.",
-        recommendation: "Run visp context T001.",
+        recommendation: "Run visp-kit context T001.",
         evidence: [
           ".visp/features/<feature>/context/T001.implementation-checklist.json was not found."
         ]
@@ -203,7 +203,7 @@ function expectedPhase8Findings(
       workflowFinding("VISP.WORKFLOW.WARNING", "Git repository unavailable."),
       workflowFinding(
         "VISP.WORKFLOW.WARNING",
-        "Policy file is missing. Run `visp policy init` to persist it."
+        "Policy file is missing. Run `visp-kit policy init` to persist it."
       ),
       {
         code: "VSP007",
@@ -211,7 +211,7 @@ function expectedPhase8Findings(
         severity: "error",
         effect: "blocks",
         message: "Implementation requires a context pack.",
-        recommendation: "Run visp context --next.",
+        recommendation: "Run visp-kit context --next.",
         evidence: ["Task context JSON was not found."]
       },
       {
@@ -220,7 +220,7 @@ function expectedPhase8Findings(
         severity: "error",
         effect: "blocks",
         message: "Policy file is missing.",
-        recommendation: "Run visp policy init --strictness strict.",
+        recommendation: "Run visp-kit policy init --strictness strict.",
         evidence: [".visp/policy.json was not found."]
       },
       {
@@ -229,7 +229,7 @@ function expectedPhase8Findings(
         severity: "warning",
         effect: "none",
         message: "Policy file is missing.",
-        recommendation: "Run visp policy init --strictness strict.",
+        recommendation: "Run visp-kit policy init --strictness strict.",
         evidence: [".visp/policy.json was not found; default policy was used in memory."]
       },
       {
@@ -238,7 +238,7 @@ function expectedPhase8Findings(
         severity: "error",
         effect: "blocks",
         message: "Implementation checklist evidence is missing.",
-        recommendation: "Run visp context T001.",
+        recommendation: "Run visp-kit context T001.",
         evidence: [
           ".visp/features/<feature>/context/T001.implementation-checklist.json was not found."
         ]
@@ -258,7 +258,7 @@ function expectedPhase8Findings(
       effect: "uncertain",
       message: "The next-step input does not contain a coherent permission decision.",
       recommendation: "Re-evaluate the authoritative Kit gate for the exact next action.",
-      evidence: ["visp override validate"]
+      evidence: ["visp-kit override validate"]
     },
     workflowFinding("VISP.WORKFLOW.STATE_BLOCKER", inconclusiveFinding),
     workflowFinding("VISP.WORKFLOW.WARNING", "Git repository unavailable.")
@@ -295,10 +295,10 @@ async function expectedPhase8ActionV3(
   );
   const nextCommand =
     scenario === "ready"
-      ? "visp context --next"
+      ? "visp-kit context --next"
       : scenario === "blocked"
-        ? "visp policy init --strictness strict"
-        : "visp override validate";
+        ? "visp-kit policy init --strictness strict"
+        : "visp-kit override validate";
   const findings = expectedPhase8Findings(scenario, nextCommand, inconclusiveFinding);
   const writablePaths = [`${featurePath}/task-graph.json`, `${featurePath}/traceability.json`];
   const identityInput = {
@@ -418,7 +418,7 @@ async function captureNextAction(
   return { stdout: output.join(""), stderr: errors.join(""), exitCode: process.exitCode };
 }
 
-describe("visp next command", () => {
+describe("visp-kit next command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -437,7 +437,7 @@ describe("visp next command", () => {
 
     await program.parseAsync(["node", "visp", "next", tempDir]);
 
-    expect(output.join("")).toContain("visp init");
+    expect(output.join("")).toContain("visp-kit init");
   });
 
   it("recommends scan after initialization", async () => {
@@ -447,7 +447,7 @@ describe("visp next command", () => {
 
     await program.parseAsync(["node", "visp", "next", tempDir, "--explain"]);
 
-    expect(output.join("")).toContain("visp scan");
+    expect(output.join("")).toContain("visp-kit scan");
     expect(output.join("")).toContain("Reason:");
   });
 
@@ -458,7 +458,7 @@ describe("visp next command", () => {
 
     await program.parseAsync(["node", "visp", "next", tempDir, "--command-only"]);
 
-    expect(output.join("")).toBe("visp context --next\n");
+    expect(output.join("")).toBe("visp-kit context --next\n");
   });
 
   it("returns JSON only", async () => {
@@ -482,7 +482,7 @@ describe("visp next command", () => {
 
     expect(errors.join("")).toBe("");
     expect(summary.success).toBe(true);
-    expect(summary.nextCommand).toBe("visp context --next");
+    expect(summary.nextCommand).toBe("visp-kit context --next");
     expect(summary.strictnessMode).toBe("standard");
     expect(summary.implementationAllowed).toBe(false);
     expect(summary.blockedCommands.some((item) => item.ruleId === "VSP007")).toBe(true);
@@ -504,7 +504,7 @@ describe("visp next command", () => {
     expect(action.verdict).toBe("ready");
     expect(action.assuranceLevel).toBe("advisory");
     expect(action.requiredReads.every((item) => item.sha256.length === 64)).toBe(true);
-    expect(action.nextCommand).toBe("visp context --next");
+    expect(action.nextCommand).toBe("visp-kit context --next");
   });
 
   it("keeps omitted, explicit v2, and Hyper-shaped v2 output byte-identical", async () => {
@@ -688,7 +688,7 @@ describe("visp next command", () => {
       await expectedPhase8Action(tempDir, {
         verdict: "blocked",
         findings,
-        nextCommand: "visp policy init --strictness strict"
+        nextCommand: "visp-kit policy init --strictness strict"
       })
     );
     const v3Result = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
@@ -701,7 +701,7 @@ describe("visp next command", () => {
     expect(action).toMatchObject({
       protocolVersion: "2.0",
       verdict: "blocked",
-      nextCommand: "visp policy init --strictness strict"
+      nextCommand: "visp-kit policy init --strictness strict"
     });
     expect(action.findings).toEqual(
       expect.arrayContaining([
@@ -723,7 +723,7 @@ describe("visp next command", () => {
     expect(action.verdict).toBe("blocked");
     expect(process.exitCode).toBe(1);
     expect(action.findings).toEqual(expect.arrayContaining(["VSP018: Policy validation failed."]));
-    expect(action.nextCommand).toBe("visp policy validate");
+    expect(action.nextCommand).toBe("visp-kit policy validate");
     expect(action.verdict).not.toBe("ready");
   });
 
@@ -754,7 +754,7 @@ describe("visp next command", () => {
       await expectedPhase8Action(tempDir, {
         verdict: "inconclusive",
         findings: [finding],
-        nextCommand: "visp override validate"
+        nextCommand: "visp-kit override validate"
       })
     );
     const v3Result = await captureNextAction(tempDir, ["--format", "json", "--protocol", "3.0"]);
@@ -772,7 +772,7 @@ describe("visp next command", () => {
         (finding) => /override/i.test(finding) && /(unavailable|evaluat)/i.test(finding)
       )
     ).toBe(true);
-    expect(action.nextCommand).toBe("visp override validate");
+    expect(action.nextCommand).toBe("visp-kit override validate");
     expect(action.verdict).not.toBe("ready");
   });
 

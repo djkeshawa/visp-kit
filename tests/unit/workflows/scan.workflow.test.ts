@@ -89,7 +89,7 @@ describe("runScanWorkflow", () => {
     expect(isErr(result)).toBe(true);
 
     if (isErr(result)) {
-      expect(result.error.message).toContain("visp init");
+      expect(result.error.message).toContain("visp-kit init");
     }
   });
 
@@ -215,7 +215,7 @@ describe("runScanWorkflow", () => {
     expect(summary.dryRun).toBe(true);
     expect(await exists(path.join(tempDir, ".visp", "cache", "file-index.json"))).toBe(true);
     const raw = await readFile(path.join(tempDir, ".visp", "cache", "file-index.json"), "utf8");
-    expect(raw).toContain('"populatedBy": "visp scan"');
+    expect(raw).toContain('"populatedBy": "visp-kit scan"');
   });
 
   it("indexes large files and skips their summaries", async () => {

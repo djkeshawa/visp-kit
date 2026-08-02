@@ -190,8 +190,8 @@ function summary(input: {
     })),
     nextCommand:
       input.evidence.outcome === "passed"
-        ? `visp review --task ${input.evidence.taskId}`
-        : `visp verify --candidate --task ${input.evidence.taskId}`,
+        ? `visp-kit review --task ${input.evidence.taskId}`
+        : `visp-kit verify --candidate --task ${input.evidence.taskId}`,
     dryRun: input.dryRun
   };
 }

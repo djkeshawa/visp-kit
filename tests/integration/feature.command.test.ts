@@ -23,7 +23,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-describe("visp feature command", () => {
+describe("visp-kit feature command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -136,7 +136,7 @@ describe("visp feature command", () => {
     await program.parseAsync(["node", "visp", "feature", "Add note pinning", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init");
+    expect(errors.join("")).toContain("visp-kit init");
   });
 
   it("dry-run writes nothing", async () => {

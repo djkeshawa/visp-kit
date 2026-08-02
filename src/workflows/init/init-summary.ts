@@ -20,7 +20,7 @@ export type InitSummary = {
   readonly overwrittenFiles: readonly string[];
   readonly dryRun: boolean;
   readonly success: boolean;
-  readonly nextCommand: "visp scan";
+  readonly nextCommand: "visp-kit scan";
   readonly warnings: readonly string[];
 };
 
@@ -49,7 +49,7 @@ export function createInitSummary(input: {
       .map((entry) => entry.path),
     dryRun: input.dryRun,
     success: true,
-    nextCommand: "visp scan",
+    nextCommand: "visp-kit scan",
     warnings: input.warnings
   };
 }

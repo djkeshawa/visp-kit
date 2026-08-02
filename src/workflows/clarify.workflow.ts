@@ -122,7 +122,7 @@ export async function runClarifyWorkflow(
       validation: validation.validation,
       promptPath: promptDisplayPath,
       warnings: [],
-      nextCommand: "visp spec",
+      nextCommand: "visp-kit spec",
       now
     });
   }
@@ -160,7 +160,7 @@ export async function runClarifyWorkflow(
       dryRun,
       promptPath: promptDisplayPath,
       warnings: [],
-      nextCommand: "visp spec"
+      nextCommand: "visp-kit spec"
     });
   }
 
@@ -200,7 +200,7 @@ export async function runClarifyWorkflow(
     validation,
     promptPath: promptDisplayPath,
     warnings: [],
-    nextCommand: "visp spec",
+    nextCommand: "visp-kit spec",
     now
   });
 }

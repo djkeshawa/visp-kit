@@ -240,7 +240,7 @@ function completeCase(): AssuranceCaseWithoutHash {
     ],
     verdict: "passed",
     nextAction: {
-      command: "visp review --task T001",
+      command: "visp-kit review --task T001",
       reason: "The assurance case passed."
     }
   };
@@ -816,7 +816,7 @@ describe("assuranceCaseSchema", () => {
       "next action",
       (value: AssuranceCaseWithoutHash) => ({
         ...value,
-        nextAction: { command: "visp verify T001", reason: "Resolve uncertainty." }
+        nextAction: { command: "visp-kit verify T001", reason: "Resolve uncertainty." }
       })
     ]
   ])("rejects the old hash when %s drift", (_section, mutate) => {

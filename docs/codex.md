@@ -5,8 +5,8 @@ Visp Kit works with Codex without running Codex automatically.
 Install Codex guidance:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
-visp agent doctor --target codex
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit agent doctor --target codex
 ```
 
 Generated files include:
@@ -36,7 +36,7 @@ Codex should run Visp commands, generate artifacts, compile task context, and im
 When clarifications are needed, Codex should ask the user and then record answers:
 
 ```bash
-visp clarify answer CQ001 --answer "<user answer>"
+visp-kit clarify answer CQ001 --answer "<user answer>"
 ```
 
 ## Continue Task
@@ -59,10 +59,10 @@ and implement only the selected task.
 Run:
 
 ```bash
-visp verify --task T001
-visp review --task T001
-visp reconcile --task T001 --update-traceability
-visp next
+visp-kit verify --task T001
+visp-kit review --task T001
+visp-kit reconcile --task T001 --update-traceability
+visp-kit next
 ```
 
 ## Fix Mode
@@ -90,4 +90,4 @@ $visp-pr
 Prepare the Visp PR summary.
 ```
 
-Codex should run `visp gate pr`, stop if blocked, and never call GitHub, commit, push, tag, or publish.
+Codex should run `visp-kit gate pr`, stop if blocked, and never call GitHub, commit, push, tag, or publish.

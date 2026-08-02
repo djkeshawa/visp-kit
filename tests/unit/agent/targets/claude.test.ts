@@ -25,17 +25,17 @@ describe("claude target", () => {
 
     for (const file of commands) {
       expect(file.contents).toContain("user prompt is raw intent");
-      expect(file.contents).toContain("visp gate");
-      expect(file.contents).toContain("visp done");
+      expect(file.contents).toContain("visp-kit gate");
+      expect(file.contents).toContain("visp-kit done");
       expect(file.contents).toContain("## Rules digest");
       expect(file.contents).toContain(".visp/prompts/visp-rules.md");
     }
 
     const rules = files[0]!;
 
-    expect(rules.contents).toContain("visp verify");
-    expect(rules.contents).toContain("visp review");
-    expect(rules.contents).toContain("visp reconcile");
+    expect(rules.contents).toContain("visp-kit verify");
+    expect(rules.contents).toContain("visp-kit review");
+    expect(rules.contents).toContain("visp-kit reconcile");
     expect(rules.contents).toContain("Reading gate output");
 
     const hook = files[1]!;

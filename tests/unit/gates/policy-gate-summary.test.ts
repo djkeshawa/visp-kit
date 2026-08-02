@@ -11,7 +11,7 @@ const policyValidationFailure = {
   ruleId: "VSP018",
   severity: "error" as const,
   message: "Policy validation failed.",
-  recommendation: "Run visp policy validate.",
+  recommendation: "Run visp-kit policy validate.",
   evidence: ".visp/policy.json could not be parsed."
 };
 
@@ -30,15 +30,15 @@ function gateResult(overrides: Partial<GateResult> = {}): GateResult {
     warnings: [],
     blockedCommands: [
       {
-        command: "visp verify",
+        command: "visp-kit verify",
         reason: "Policy validation failed.",
         ruleId: "VSP018"
       }
     ],
     overriddenRules: [],
     appliedOverrides: [],
-    nextAllowedCommand: "Run visp policy validate.",
-    nextCommand: "visp policy validate",
+    nextAllowedCommand: "Run visp-kit policy validate.",
+    nextCommand: "visp-kit policy validate",
     reportPath: ".visp/gate-report.md",
     evaluatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides
@@ -56,7 +56,7 @@ function blockedSummary(mode: StrictnessMode): PolicyGateSummary {
         ruleId: "VSP007",
         severity: "error",
         message: "Implementation requires a context pack.",
-        recommendation: "Run visp context --next.",
+        recommendation: "Run visp-kit context --next.",
         evidence: "Task context JSON was not found."
       }
     ],
@@ -70,7 +70,7 @@ function blockedSummary(mode: StrictnessMode): PolicyGateSummary {
     overriddenRules: [],
     appliedOverrides: [],
     warnings: [],
-    nextAllowedCommand: "Run visp context --next.",
+    nextAllowedCommand: "Run visp-kit context --next.",
     evaluatedAt: "2026-01-01T00:00:00.000Z"
   };
 }
@@ -89,7 +89,7 @@ describe("gateBlocksWorkflow", () => {
         allowed: true,
         failedRules: [],
         blockedCommands: [],
-        warnings: ["Policy file is missing. Run `visp policy init` to persist it."]
+        warnings: ["Policy file is missing. Run `visp-kit policy init` to persist it."]
       })
     );
 
@@ -127,8 +127,8 @@ describe("gateBlocksWorkflow", () => {
           ruleId: "VSP018"
         }
       ],
-      nextAllowedCommand: "Run visp policy validate.",
-      nextCommand: "visp policy validate"
+      nextAllowedCommand: "Run visp-kit policy validate.",
+      nextCommand: "visp-kit policy validate"
     };
 
     expect(gateBlocksWorkflow({ gate: invalidGate, force: false })).toBe(true);
@@ -170,7 +170,7 @@ describe("gateBlocksWorkflow", () => {
             ruleId: "VSP024",
             severity: "error",
             message: "Current assurance decision is required.",
-            recommendation: "Run visp assurance accept.",
+            recommendation: "Run visp-kit assurance accept.",
             evidence: "missing"
           }
         ]

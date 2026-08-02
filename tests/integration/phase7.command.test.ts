@@ -259,7 +259,7 @@ describe("phase 7 template commands", () => {
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init");
+    expect(errors.join("")).toContain("visp-kit init");
 
     process.exitCode = undefined;
     errors.length = 0;
@@ -269,7 +269,7 @@ describe("phase 7 template commands", () => {
     await program.parseAsync(["node", "visp", "clarify", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp feature");
+    expect(errors.join("")).toContain("visp-kit feature");
   });
 
   it("does not let force bypass missing clarifications", async () => {
@@ -283,8 +283,8 @@ describe("phase 7 template commands", () => {
     await program.parseAsync(["node", "visp", "spec", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp clarify");
-    expect(errors.join("")).toContain("Recover: run `visp clarify`");
+    expect(errors.join("")).toContain("visp-kit clarify");
+    expect(errors.join("")).toContain("Recover: run `visp-kit clarify`");
 
     process.exitCode = undefined;
     const jsonOutput: string[] = [];
@@ -300,7 +300,7 @@ describe("phase 7 template commands", () => {
     };
 
     expect(envelope.success).toBe(false);
-    expect(envelope.recovery).toBe("visp clarify");
+    expect(envelope.recovery).toBe("visp-kit clarify");
 
     process.exitCode = undefined;
     await program.parseAsync(["node", "visp", "spec", tempDir, "--force"]);

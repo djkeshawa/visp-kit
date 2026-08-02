@@ -4,7 +4,7 @@ Most commands accept an optional `[path]`. If omitted, Visp Kit uses the current
 
 Use `--json` for machine-readable output. JSON mode prints JSON only.
 
-## `visp init [path]`
+## `visp-kit init [path]`
 
 Purpose: initialize `.visp/`, project config, status, policy, and optional starter guidance.
 
@@ -20,9 +20,9 @@ Common flags:
 
 If `--preset` is omitted, Visp Kit auto-detects from project manifests.
 
-Next: `visp scan`
+Next: `visp-kit scan`
 
-## `visp scan [path]`
+## `visp-kit scan [path]`
 
 Purpose: scan project files and update `.visp/cache/`.
 
@@ -33,9 +33,9 @@ Common flags:
 - `--dry-run`
 - `--json`
 
-Next: `visp constitution`
+Next: `visp-kit constitution`
 
-## `visp constitution [path]`
+## `visp-kit constitution [path]`
 
 Purpose: create or validate compact project rules.
 
@@ -48,9 +48,9 @@ Common flags:
 - `--dry-run`
 - `--json`
 
-Next: `visp policy validate`
+Next: `visp-kit policy validate`
 
-## `visp feature "idea" [path]`
+## `visp-kit feature "idea" [path]`
 
 Purpose: create a feature workspace from raw intent.
 
@@ -65,9 +65,9 @@ Common flags:
 - `--dry-run`
 - `--json`
 
-Next: `visp clarify`
+Next: `visp-kit clarify`
 
-## `visp clarify [path]`
+## `visp-kit clarify [path]`
 
 Purpose: generate or validate clarification artifacts.
 
@@ -82,7 +82,7 @@ Common flags:
 
 Subcommands:
 
-- `visp clarify answer <question-id> [path]`
+- `visp-kit clarify answer <question-id> [path]`
 
 Answer flags:
 
@@ -92,9 +92,9 @@ Answer flags:
 - `--dry-run`
 - `--json`
 
-Next: `visp spec`
+Next: `visp-kit spec`
 
-## `visp spec [path]`
+## `visp-kit spec [path]`
 
 Purpose: generate or validate specification artifacts.
 
@@ -107,9 +107,9 @@ Common flags:
 - `--json`
 - `--prompt-only`
 
-Next: `visp plan`
+Next: `visp-kit plan`
 
-## `visp plan [path]`
+## `visp-kit plan [path]`
 
 Purpose: generate or validate implementation plan artifacts.
 
@@ -122,9 +122,9 @@ Common flags:
 - `--json`
 - `--prompt-only`
 
-Next: `visp tasks`
+Next: `visp-kit tasks`
 
-## `visp tasks [path]`
+## `visp-kit tasks [path]`
 
 Purpose: generate or validate task graph artifacts.
 
@@ -137,9 +137,9 @@ Common flags:
 - `--json`
 - `--prompt-only`
 
-Next: `visp context --next`
+Next: `visp-kit context --next`
 
-## `visp context [task-id] [path]`
+## `visp-kit context [task-id] [path]`
 
 Purpose: compile a task-specific context pack and current task prompt.
 
@@ -155,19 +155,19 @@ Common flags:
 - `--dry-run`
 - `--json`
 
-Related gate: `visp gate implement --task T001`
+Related gate: `visp-kit gate implement --task T001`
 
-## `visp oracle`
+## `visp-kit oracle`
 
 Purpose: generate, approve, lock, and validate task-bound implementation assurance.
 
 Subcommands:
 
-- `visp oracle plan [path] --task T001`
-- `visp oracle validate [path] --task T001`
-- `visp oracle approve [path] --task T001 --reviewer <id> --reason <reason>`
-- `visp oracle revoke [path] --task T001 --reason <reason>`
-- `visp oracle lock [path] --task T001`
+- `visp-kit oracle plan [path] --task T001`
+- `visp-kit oracle validate [path] --task T001`
+- `visp-kit oracle approve [path] --task T001 --reviewer <id> --reason <reason>`
+- `visp-kit oracle revoke [path] --task T001 --reason <reason>`
+- `visp-kit oracle lock [path] --task T001`
 
 Plan flags:
 
@@ -190,14 +190,14 @@ providers, and any Git-proven pre-existing or explicitly pre-approved test
 hashes. `validate` fails when a bound input, base commit, or test file changes.
 Critical plans cannot be locked until a human approval is active. Revoked,
 expired, stale, or modified approvals and locks fail closed. When assurance is
-active, run `visp verify --baseline --task <id>` after the initial lock. The
+active, run `visp-kit verify --baseline --task <id>` after the initial lock. The
 accepted baseline is bound into the final implementation lock, which
-`visp gate implement` binds into the implementation marker. Strict edit and
+`visp-kit gate implement` binds into the implementation marker. Strict edit and
 commit hooks reject that marker if the lock or baseline later changes. Projects
 without an assurance policy or oracle plan keep their prior
 implementation-gate behavior.
 
-## `visp budget [path]`
+## `visp-kit budget [path]`
 
 Purpose: estimate feature or task context token usage.
 
@@ -223,7 +223,7 @@ Common flags:
 Actual usage example:
 
 ```bash
-visp budget --task T001 \
+visp-kit budget --task T001 \
   --record-usage \
   --input-tokens 1200 \
   --output-tokens 300 \
@@ -236,21 +236,21 @@ Recorded usage is also reflected in run traces and feature timelines when workfl
 Unavailable usage example:
 
 ```bash
-visp budget --task T001 \
+visp-kit budget --task T001 \
   --record-usage-unavailable \
   --model codex \
   --usage-note "Agent surface did not expose numeric token usage." \
   --write-report
 ```
 
-## `visp checklist`
+## `visp-kit checklist`
 
 Purpose: inspect and update the machine-readable implementation checklist generated for each task context.
 
 Subcommands:
 
-- `visp checklist status [path] --task T001`
-- `visp checklist update [path] --task T001 --item <id> --status <status>`
+- `visp-kit checklist status [path] --task T001`
+- `visp-kit checklist update [path] --task T001 --item <id> --status <status>`
 
 Common flags:
 
@@ -268,14 +268,14 @@ Generated/read artifacts:
 - `.visp/features/<feature>/context/<task>.implementation-checklist.json`
 - `.visp/features/<feature>/context/<task>.implementation-checklist.md`
 
-## `visp workflow`
+## `visp-kit workflow`
 
 Purpose: inspect and validate the effective Visp workflow manifest.
 
 Subcommands:
 
-- `visp workflow show [path]`
-- `visp workflow validate [path]`
+- `visp-kit workflow show [path]`
+- `visp-kit workflow validate [path]`
 
 Flags:
 
@@ -287,7 +287,7 @@ Generated/read artifact:
 
 Use this when an agent or teammate needs to understand allowed stages, required artifacts, related gates, next commands, and whether source edits are allowed.
 
-## `visp eval [path]`
+## `visp-kit eval [path]`
 
 Purpose: run deterministic workflow-quality evaluation.
 
@@ -307,7 +307,7 @@ Generated artifacts:
 
 Evaluation checks workflow completeness, policy/gate health, traceability, context budget, implementation checklist progress, evidence reports, overrides, and PR readiness. It does not call an LLM.
 
-## `visp verify [path]`
+## `visp-kit verify [path]`
 
 Purpose: validate artifacts, traceability, commands, scope, and dependencies.
 
@@ -356,7 +356,7 @@ evidence also requires a Git-proven pre-existing or explicitly pre-approved
 test-strength signal. Candidate artifacts carry a deterministic content hash,
 current authorization/baseline bindings, and complete provider results.
 
-## `visp review [path]`
+## `visp-kit review [path]`
 
 Purpose: run deterministic Git diff review.
 
@@ -382,7 +382,7 @@ Generated artifacts:
 - `.visp/features/<feature>/review/T001.review-prompt.md`
 - `.visp/features/<feature>/review/T001.review-checklist.md`
 
-## `visp reconcile [path]`
+## `visp-kit reconcile [path]`
 
 Purpose: compare spec, plan, tasks, context, evidence, traceability, and Git diff.
 
@@ -406,7 +406,7 @@ Generated artifacts:
 - `.visp/features/<feature>/reconcile/T001.reconcile.json`
 - `.visp/features/<feature>/reconcile/T001.reconcile-prompt.md`
 
-## `visp done [path]`
+## `visp-kit done [path]`
 
 Purpose: run the full post-implementation pipeline for one task in order.
 When assurance is active it first runs candidate evidence, then ordinary
@@ -429,24 +429,24 @@ Common flags:
 Example:
 
 ```bash
-visp done --task T001 --input-tokens 18000 --output-tokens 4200 --model codex
+visp-kit done --task T001 --input-tokens 18000 --output-tokens 4200 --model codex
 ```
 
-## `visp hooks <claude|git|ci> [path]`
+## `visp-kit hooks <claude|git|ci> [path]`
 
 Purpose: install enforcement hooks that make gates mechanical instead of
 advisory. See [enforcement.md](enforcement.md).
 
-- `visp hooks claude` — Claude Code PreToolUse hook that blocks edits before
-  `visp gate implement` allows them; prints the settings snippet to merge.
-- `visp hooks git` — pre-commit check of staged source files against the
+- `visp-kit hooks claude` — Claude Code PreToolUse hook that blocks edits before
+  `visp-kit gate implement` allows them; prints the settings snippet to merge.
+- `visp-kit hooks git` — pre-commit check of staged source files against the
   active implement authorization.
-- `visp hooks ci` — GitHub Actions workflow running `visp policy validate`
-  and `visp gate pr` on pull requests.
+- `visp-kit hooks ci` — GitHub Actions workflow running `visp-kit policy validate`
+  and `visp-kit gate pr` on pull requests.
 
 Common flags: `--force`, `--dry-run`, `--json`.
 
-## `visp status [path]`
+## `visp-kit status [path]`
 
 Purpose: show project, policy, feature, task, evidence, override, and next-step state.
 
@@ -458,7 +458,7 @@ Common flags:
 - `--write-report`
 - `--json`
 
-## `visp next [path]`
+## `visp-kit next [path]`
 
 Purpose: recommend the next deterministic workflow step.
 
@@ -503,11 +503,11 @@ evaluation. Public schemas are packaged at
 `schemas/workflow-action/3.1.schema.json`, and
 `schemas/workflow-action/3.2.schema.json`.
 
-`--json` instead emits the `visp next` command/workflow summary, which includes
+`--json` instead emits the `visp-kit next` command/workflow summary, which includes
 the action alongside the command decision. Without `--json`, `--format text`
 uses the normal human-readable summary.
 
-## `visp doctor [path]`
+## `visp-kit doctor [path]`
 
 Purpose: diagnose project health, artifacts, agent files, Git, cache, schemas, policy, and overrides.
 
@@ -519,13 +519,13 @@ Common flags:
 - `--verbose`
 - `--json`
 
-## `visp integration`
+## `visp-kit integration`
 
 Purpose: expose a stable, read-only integration contract for orchestrators such as Visp Hyper Agent.
 
 Subcommands:
 
-- `visp integration contract [path]`
+- `visp-kit integration contract [path]`
 
 The current integration contract is `2.0`. It includes Kit identity and version,
 target and active-work state, canonical argument arrays for the supported
@@ -557,7 +557,7 @@ Common flags:
 
 - `--json`
 
-## `visp pr [path]`
+## `visp-kit pr [path]`
 
 Purpose: generate local PR Markdown, JSON, and prompt files. This does not call GitHub.
 
@@ -574,18 +574,18 @@ Common flags:
 - `--dry-run`
 - `--json`
 
-## `visp policy`
+## `visp-kit policy`
 
 Purpose: manage `.visp/policy.json`.
 
 Subcommands:
 
-- `visp policy init [path] --strictness relaxed|standard|strict|locked`
-- `visp policy show [path]`
-- `visp policy validate [path]`
-- `visp policy set-strictness <mode> [path]`
+- `visp-kit policy init [path] --strictness relaxed|standard|strict|locked`
+- `visp-kit policy show [path]`
+- `visp-kit policy validate [path]`
+- `visp-kit policy set-strictness <mode> [path]`
 
-## `visp gate <stage> [path]`
+## `visp-kit gate <stage> [path]`
 
 Purpose: evaluate deterministic policy gates.
 
@@ -616,25 +616,25 @@ Common flags:
 
 Blocked gates exit non-zero.
 
-## `visp agent`
+## `visp-kit agent`
 
 Purpose: install, inspect, and refresh agent-native workflow files.
 
 Subcommands:
 
-- `visp agent list [path]`
-- `visp agent bootstrap codex [path]`
-- `visp agent bootstrap generic [path]`
-- `visp agent bootstrap claude [path]`
-- `visp agent bootstrap copilot [path]`
-- `visp agent bootstrap opencode [path]`
-- `visp agent install codex [path]`
-- `visp agent install generic [path]`
-- `visp agent install claude [path]`
-- `visp agent install copilot [path]`
-- `visp agent install opencode [path]`
-- `visp agent doctor [path]`
-- `visp agent refresh [path]`
+- `visp-kit agent list [path]`
+- `visp-kit agent bootstrap codex [path]`
+- `visp-kit agent bootstrap generic [path]`
+- `visp-kit agent bootstrap claude [path]`
+- `visp-kit agent bootstrap copilot [path]`
+- `visp-kit agent bootstrap opencode [path]`
+- `visp-kit agent install codex [path]`
+- `visp-kit agent install generic [path]`
+- `visp-kit agent install claude [path]`
+- `visp-kit agent install copilot [path]`
+- `visp-kit agent install opencode [path]`
+- `visp-kit agent doctor [path]`
+- `visp-kit agent refresh [path]`
 
 Common install flags:
 
@@ -661,17 +661,17 @@ Refresh flags:
 - `--dry-run`
 - `--json`
 
-## `visp override`
+## `visp-kit override`
 
 Purpose: create, list, show, revoke, and validate explicit policy overrides.
 
 Subcommands:
 
-- `visp override create <rule-id> [path]`
-- `visp override list [path]`
-- `visp override show <override-id> [path]`
-- `visp override revoke <override-id> [path]`
-- `visp override validate [path]`
+- `visp-kit override create <rule-id> [path]`
+- `visp-kit override list [path]`
+- `visp-kit override show <override-id> [path]`
+- `visp-kit override revoke <override-id> [path]`
+- `visp-kit override validate [path]`
 
 Create flags:
 

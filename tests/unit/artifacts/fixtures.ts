@@ -323,7 +323,7 @@ export const validVerificationReport: VerificationReport = {
   },
   warnings: [],
   errors: [],
-  nextCommand: "visp review --diff-only"
+  nextCommand: "visp-kit review --diff-only"
 };
 
 export const validReviewReport: ReviewReport = {
@@ -436,7 +436,7 @@ export const validReviewReport: ReviewReport = {
   promptPath: ".visp/features/001-note-pinning/review/T001.review-prompt.md",
   reportPath: ".visp/features/001-note-pinning/review/T001.review.md",
   checklistPath: ".visp/features/001-note-pinning/review/T001.review-checklist.md",
-  nextCommand: "visp reconcile --task T001"
+  nextCommand: "visp-kit reconcile --task T001"
 };
 
 export const validReconcileReport: ReconcileReport = {
@@ -560,7 +560,7 @@ export const validReconcileReport: ReconcileReport = {
   errors: [],
   reportPath: ".visp/features/001-note-pinning/reconcile/T001.reconcile.md",
   promptPath: ".visp/features/001-note-pinning/reconcile/T001.reconcile-prompt.md",
-  nextCommand: "visp reconcile --task T001 --update-traceability"
+  nextCommand: "visp-kit reconcile --task T001 --update-traceability"
 };
 
 export const validTraceabilityMatrix: TraceabilityMatrix = {
@@ -661,7 +661,7 @@ export const validPrArtifact: PrArtifact = {
         label: "Record actual token usage, or mark it unavailable with a reason.",
         status: "unavailable",
         required: true,
-        evidence: "visp budget --record-usage-unavailable",
+        evidence: "visp-kit budget --record-usage-unavailable",
         reason: "Agent surface did not expose numeric token usage.",
         updatedAt: timestamp
       }

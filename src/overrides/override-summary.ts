@@ -32,9 +32,9 @@ export function defaultNextCommand(input: {
 }): string {
   if (input.stage !== undefined) {
     return input.taskId === undefined
-      ? `visp gate ${input.stage}`
-      : `visp gate ${input.stage} --task ${input.taskId}`;
+      ? `visp-kit gate ${input.stage}`
+      : `visp-kit gate ${input.stage} --task ${input.taskId}`;
   }
 
-  return "visp gate next";
+  return "visp-kit gate next";
 }

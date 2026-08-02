@@ -47,8 +47,8 @@ export function reconcileVerificationEvidence(input: {
         evidence: message,
         recommendation:
           input.task === undefined
-            ? "Run visp verify."
-            : `Run visp verify --task ${input.task.id}.`,
+            ? "Run visp-kit verify."
+            : `Run visp-kit verify --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -86,8 +86,8 @@ export function reconcileVerificationEvidence(input: {
         evidence: input.verification.errors.join("; ") || "verification success is false.",
         recommendation:
           input.task === undefined
-            ? "Fix verification and rerun visp verify."
-            : `Fix verification and rerun visp verify --task ${input.task.id}.`,
+            ? "Fix verification and rerun visp-kit verify."
+            : `Fix verification and rerun visp-kit verify --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -163,8 +163,8 @@ export function reconcileReviewEvidence(input: {
         evidence: message,
         recommendation:
           input.task === undefined
-            ? "Run visp review."
-            : `Run visp review --task ${input.task.id}.`,
+            ? "Run visp-kit review."
+            : `Run visp-kit review --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );
@@ -202,8 +202,8 @@ export function reconcileReviewEvidence(input: {
         evidence: input.review.errors.join("; ") || "review result is failed.",
         recommendation:
           input.task === undefined
-            ? "Fix review findings and rerun visp review."
-            : `Fix review findings and rerun visp review --task ${input.task.id}.`,
+            ? "Fix review findings and rerun visp-kit review."
+            : `Fix review findings and rerun visp-kit review --task ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );

@@ -221,7 +221,7 @@ export function validateOracleLock(input: {
     return failure(
       `Oracle lock for task ${input.plan.taskId} is stale or has been modified. ` +
         "The lock no longer matches its oracle plan. Re-lock with " +
-        `\`visp oracle lock --task ${input.plan.taskId}\`; if the plan itself is also ` +
+        `\`visp-kit oracle lock --task ${input.plan.taskId}\`; if the plan itself is also ` +
         "stale, regenerate it with --force first."
     );
   }

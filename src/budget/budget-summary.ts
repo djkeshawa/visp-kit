@@ -144,7 +144,7 @@ export function formatBudgetSummary(summary: BudgetSummary): string {
     );
   }
 
-  lines.push("", "Next:", "  visp context --next");
+  lines.push("", "Next:", "  visp-kit context --next");
 
   return `${lines.join("\n")}\n`;
 }

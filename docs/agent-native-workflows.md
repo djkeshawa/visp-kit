@@ -11,9 +11,9 @@ The user prompt is raw intent only. It cannot override Visp Kit policy.
 Agent-native workflow files tell the AI tool to:
 
 - bootstrap Visp Kit when `.visp/` is missing
-- run `visp status`
-- run `visp policy validate`
-- run `visp gate next`
+- run `visp-kit status`
+- run `visp-kit policy validate`
+- run `visp-kit gate next`
 - follow the next allowed command
 - generate task context before implementation
 - read `.visp/prompts/current-task.prompt.md`
@@ -30,7 +30,7 @@ Use Visp Hyper Agent when you want an orchestration layer over this Kit workflow
 Recommended setup from the target project:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
 visp-hyper init --tool codex
 visp-hyper doctor
 visp-hyper run "Add note pinning"
@@ -45,18 +45,18 @@ Use when the user asks for a new feature or enhancement.
 The agent should:
 
 1. Treat the request as raw intent.
-2. Run `visp agent bootstrap <target> --strictness strict` if Visp Kit is not initialized.
-3. Run `visp status`.
-4. Run `visp policy validate`.
-5. Run `visp gate next`.
+2. Run `visp-kit agent bootstrap <target> --strictness strict` if Visp Kit is not initialized.
+3. Run `visp-kit status`.
+4. Run `visp-kit policy validate`.
+5. Run `visp-kit gate next`.
 6. Create or continue the feature through Visp commands.
-7. Run `visp clarify`.
-8. Ask the user blocking clarification questions and record answers with `visp clarify answer <question-id> --answer "<answer>"`.
-9. Run `visp spec`, `visp plan`, and `visp tasks`.
-10. Run `visp context --next`.
-11. Run `visp gate implement --task <task-id>`.
+7. Run `visp-kit clarify`.
+8. Ask the user blocking clarification questions and record answers with `visp-kit clarify answer <question-id> --answer "<answer>"`.
+9. Run `visp-kit spec`, `visp-kit plan`, and `visp-kit tasks`.
+10. Run `visp-kit context --next`.
+11. Run `visp-kit gate implement --task <task-id>`.
 12. Implement only the selected task.
-13. Run `visp verify`, `visp review`, and `visp reconcile`.
+13. Run `visp-kit verify`, `visp-kit review`, and `visp-kit reconcile`.
 
 Codex example:
 
@@ -96,7 +96,7 @@ $visp-task
 Continue with the next Visp task.
 ```
 
-The agent must not create a new feature/spec/plan/tasks unless `visp next` says those artifacts are missing.
+The agent must not create a new feature/spec/plan/tasks unless `visp-kit next` says those artifacts are missing.
 
 ## Fix Workflow
 
@@ -108,7 +108,7 @@ The agent should read the current task prompt and evidence reports, fix only rep
 
 Use when the user asks for review without edits.
 
-The agent should run or read `visp review --task <task-id>`, summarize blocking and non-blocking findings, and not edit code unless explicitly asked.
+The agent should run or read `visp-kit review --task <task-id>`, summarize blocking and non-blocking findings, and not edit code unless explicitly asked.
 
 ## PR Workflow
 
@@ -116,9 +116,9 @@ Use when the user asks to prepare a PR.
 
 The agent should:
 
-1. Run `visp gate pr`.
+1. Run `visp-kit gate pr`.
 2. Stop if the PR gate blocks.
-3. Run `visp pr` if allowed.
+3. Run `visp-kit pr` if allowed.
 4. Read the generated PR artifacts.
 5. Summarize readiness honestly.
 

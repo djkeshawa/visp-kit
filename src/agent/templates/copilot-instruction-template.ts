@@ -7,9 +7,9 @@ export function renderCopilotInstructions(strictness: StrictnessMode): string {
 ${strictPolicySection(strictness)}
 ## Before implementation
 
-1. Check \`visp status\`.
-2. Check \`visp next\`.
-3. Run \`visp gate implement --task <task-id>\` before coding.
+1. Check \`visp-kit status\`.
+2. Check \`visp-kit next\`.
+3. Run \`visp-kit gate implement --task <task-id>\` before coding.
 4. Do not implement until \`.visp/prompts/current-task.prompt.md\` exists.
 5. Read \`.visp/prompts/current-task.prompt.md\`.
 6. Implement only the selected task.

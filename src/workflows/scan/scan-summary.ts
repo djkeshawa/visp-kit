@@ -18,7 +18,7 @@ export type ScanSummary = ScanCounts & {
   readonly testRoots: readonly string[];
   readonly writtenFiles: readonly string[];
   readonly warnings: readonly string[];
-  readonly nextCommand: "visp constitution";
+  readonly nextCommand: "visp-kit constitution";
 };
 
 function names(values: readonly { readonly name: string }[]): string {

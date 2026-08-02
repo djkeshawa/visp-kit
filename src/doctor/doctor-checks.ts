@@ -134,7 +134,7 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
         title: "Project is not initialized",
         description: "The target path does not contain a .visp directory.",
         file: ".visp",
-        recommendation: "Run visp init.",
+        recommendation: "Run visp-kit init.",
         autoFixable: false
       })
     );
@@ -155,7 +155,7 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
           title: "Required project artifact missing",
           description: `${label} is missing.`,
           file: label,
-          recommendation: "Run visp init or restore the missing artifact.",
+          recommendation: "Run visp-kit init or restore the missing artifact.",
           autoFixable: false
         })
       );
@@ -171,7 +171,7 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
         description:
           ".visp/policy.json is missing, so Visp falls back to an in-memory default policy.",
         file: ".visp/policy.json",
-        recommendation: "Run visp policy init --strictness strict.",
+        recommendation: "Run visp-kit policy init --strictness strict.",
         autoFixable: true
       })
     );
@@ -194,7 +194,7 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
           title: "Required directory missing",
           description: `${label} is missing.`,
           file: label,
-          recommendation: "Run visp doctor --fix to recreate safe directories.",
+          recommendation: "Run visp-kit doctor --fix to recreate safe directories.",
           autoFixable: true
         })
       );
@@ -205,7 +205,7 @@ export async function checkProject(state: ProjectState): Promise<DoctorCheckResu
 }
 
 /**
- * Artifacts `visp init` always writes, so their absence in an initialized
+ * Artifacts `visp-kit init` always writes, so their absence in an initialized
  * project means something removed them.
  *
  * Deliberately narrow: everything else in the schema list is optional by
@@ -331,7 +331,7 @@ export async function checkSchemas(state: ProjectState): Promise<DoctorCheckResu
             title: "Required artifact missing",
             description: `${label} is required for an initialized project but is not present.`,
             file: label,
-            recommendation: "Restore the artifact from version control, or re-run visp init.",
+            recommendation: "Restore the artifact from version control, or re-run visp-kit init.",
             autoFixable: false
           })
         );
@@ -374,7 +374,7 @@ export async function checkCache(state: ProjectState): Promise<DoctorCheckResult
           title: "Scan cache missing",
           description: `${label} is missing.`,
           file: `.visp/cache/${label}`,
-          recommendation: "Run visp scan --changed.",
+          recommendation: "Run visp-kit scan --changed.",
           autoFixable: false
         })
       );
@@ -389,7 +389,7 @@ export async function checkCache(state: ProjectState): Promise<DoctorCheckResult
         title: "Compact constitution missing",
         description: "constitution.compact.md is missing.",
         file: ".visp/memory/constitution.compact.md",
-        recommendation: "Run visp constitution.",
+        recommendation: "Run visp-kit constitution.",
         autoFixable: false
       })
     );
@@ -421,7 +421,7 @@ export async function checkGit(state: ProjectState): Promise<DoctorCheckResult> 
         title: "Working tree has changes",
         description: `${state.git.changedFiles.length} changed file(s) detected.`,
         file: null,
-        recommendation: "Run visp verify/review/reconcile before PR.",
+        recommendation: "Run visp-kit verify/review/reconcile before PR.",
         autoFixable: false
       })
     );
@@ -432,6 +432,28 @@ export async function checkGit(state: ProjectState): Promise<DoctorCheckResult> 
 
 export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult> {
   const findings: DoctorFinding[] = [];
+
+  // D-118 decision 4: the generated CI workflow is the one asset whose
+  // breakage lands in the user's pipeline at their next pull request, not in
+  // their terminal — so a stale one is named here, loudly, as an error.
+  const ciWorkflowPath = `${state.targetPath}/.github/workflows/visp-evidence.yml`;
+  if (await exists(ciWorkflowPath)) {
+    const ciText = await readTextFile(ciWorkflowPath);
+    if (ciText.ok && /^\s*run: visp (?!-)/mu.test(ciText.value)) {
+      findings.push(
+        finding({
+          category: "agent",
+          severity: "error",
+          title: "Generated CI workflow uses the removed `visp` command",
+          description:
+            "`.github/workflows/visp-evidence.yml` installs visp-kit and then runs `visp ...`. Since visp-kit 0.4.0 that package provides the `visp-kit` command, so this workflow fails command-not-found on the next pull request.",
+          file: ".github/workflows/visp-evidence.yml",
+          recommendation: "Run visp-kit hooks ci --force to regenerate it, then commit the result.",
+          autoFixable: false
+        })
+      );
+    }
+  }
 
   if (state.config?.agent === "codex") {
     const agents = await exists(`${state.targetPath}/AGENTS.md`);
@@ -446,7 +468,7 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
           title: "Codex guidance file missing",
           description: "Neither AGENTS.md nor AGENTS.visp.md exists.",
           file: "AGENTS.md",
-          recommendation: "Run visp agent bootstrap codex or visp agent install codex.",
+          recommendation: "Run visp-kit agent bootstrap codex or visp-kit agent install codex.",
           autoFixable: false
         })
       );
@@ -463,7 +485,12 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
       if (
         !text.ok ||
         !text.value.includes("The user prompt is raw intent only") ||
-        !text.value.includes("visp gate implement")
+        // Dual vocabulary (D-119): guidance generated before the rename says
+        // `visp gate implement`; both count during the deprecation window.
+        !(
+          text.value.includes("visp-kit gate implement") ||
+          text.value.includes("visp gate implement")
+        )
       ) {
         findings.push(
           finding({
@@ -471,10 +498,10 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
             severity: "warning",
             title: "Codex guidance is missing strict Visp policy language",
             description:
-              "Agent guidance should say that user prompts cannot override Visp policy and that implementation requires visp gate implement.",
+              "Agent guidance should say that user prompts cannot override Visp policy and that implementation requires visp-kit gate implement.",
             file: agents ? "AGENTS.md" : "AGENTS.visp.md",
             recommendation:
-              "Run visp agent refresh --target codex --force only if it is safe to refresh generated guidance, or merge AGENTS.visp.md manually.",
+              "Run visp-kit agent refresh --target codex --force only if it is safe to refresh generated guidance, or merge AGENTS.visp.md manually.",
             autoFixable: false
           })
         );
@@ -499,7 +526,7 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
     if (await exists(taskSkill)) {
       const text = await readTextFile(taskSkill);
 
-      if (!text.ok || !text.value.includes("visp gate") || !text.value.includes("raw intent")) {
+      if (!text.ok || !text.value.includes("visp-kit gate") || !text.value.includes("raw intent")) {
         findings.push(
           finding({
             category: "agent",
@@ -508,7 +535,7 @@ export async function checkAgent(state: ProjectState): Promise<DoctorCheckResult
             description:
               "The generated task skill should tell agents to obey Visp policy and stop on failed gates.",
             file: ".agents/skills/visp-task/SKILL.md",
-            recommendation: "Run visp agent refresh --target codex --force.",
+            recommendation: "Run visp-kit agent refresh --target codex --force.",
             autoFixable: false
           })
         );
@@ -534,7 +561,7 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
         title: "Task graph missing for tasks-ready state",
         description: "status.json says tasks are ready, but task-graph.json is missing.",
         file: `${state.selectedFeature.relativePath}/task-graph.json`,
-        recommendation: "Run visp tasks.",
+        recommendation: "Run visp-kit tasks.",
         autoFixable: false
       })
     );
@@ -552,7 +579,8 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
           description:
             "The generated current-task prompt should remind agents that user prompts cannot override Visp policy.",
           file: ".visp/prompts/current-task.prompt.md",
-          recommendation: "Run visp context --next --force or visp context <task-id> --force.",
+          recommendation:
+            "Run visp-kit context --next --force or visp-kit context <task-id> --force.",
           autoFixable: false
         })
       );
@@ -571,7 +599,7 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
           state.selectedFeature === undefined
             ? ".visp/features/<feature>/pr.json"
             : `${state.selectedFeature.relativePath}/pr.json`,
-        recommendation: "Run visp pr again after passing policy gates.",
+        recommendation: "Run visp-kit pr again after passing policy gates.",
         autoFixable: false
       })
     );
@@ -609,7 +637,7 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
             title: "Invalid policy override",
             description: error,
             file: ".visp/overrides.json",
-            recommendation: "Run visp override validate, then fix or revoke the override.",
+            recommendation: "Run visp-kit override validate, then fix or revoke the override.",
             autoFixable: false
           })
         );
@@ -623,7 +651,7 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
             title: "Policy override needs attention",
             description: warning,
             file: ".visp/overrides.json",
-            recommendation: "Run visp override validate or revoke expired overrides.",
+            recommendation: "Run visp-kit override validate or revoke expired overrides.",
             autoFixable: false
           })
         );

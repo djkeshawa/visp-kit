@@ -155,10 +155,10 @@ ${strictPolicySection(input.strictness)}
 ## Required before implementation
 
 Before editing code:
-1. Run \`visp status\`.
-   - It reports that Visp Kit is not initialized -> run \`visp agent bootstrap ${input.target} --strictness strict\`.
-2. Loop: run \`visp next\` and execute the command it prints after \`Next:\` until it points at implementation.
-3. Run \`visp gate implement --task <task-id>\`.
+1. Run \`visp-kit status\`.
+   - It reports that Visp Kit is not initialized -> run \`visp-kit agent bootstrap ${input.target} --strictness strict\`.
+2. Loop: run \`visp-kit next\` and execute the command it prints after \`Next:\` until it points at implementation.
+3. Run \`visp-kit gate implement --task <task-id>\`.
    - Result blocked -> do NOT edit code. Run the command shown after \`Next:\`, then repeat this step.
 4. Read \`.visp/prompts/current-task.prompt.md\` and follow its Steps section exactly.
 5. Implement only the selected task.
@@ -167,11 +167,11 @@ ${blockingRulesSection()}
 ${gateReadingSection()}
 ## After implementation
 
-Run \`visp done --task <task-id> --input-tokens <n> --output-tokens <n>\` (or \`--usage-unavailable --model <agent> --usage-note "<reason>"\` when token counts are unavailable). It runs verify, review, reconcile, the checklist check, and \`visp next\` in order, stopping at the first failure with a recovery command.
+Run \`visp-kit done --task <task-id> --input-tokens <n> --output-tokens <n>\` (or \`--usage-unavailable --model <agent> --usage-note "<reason>"\` when token counts are unavailable). It runs verify, review, reconcile, the checklist check, and \`visp-kit next\` in order, stopping at the first failure with a recovery command.
 
-The granular commands remain available: \`visp verify\`, \`visp review\`, \`visp reconcile --update-traceability\`, \`visp budget\`, \`visp checklist\`, \`visp next\`.
+The granular commands remain available: \`visp-kit verify\`, \`visp-kit review\`, \`visp-kit reconcile --update-traceability\`, \`visp-kit budget\`, \`visp-kit checklist\`, \`visp-kit next\`.
 
-Do not claim a task is complete until \`visp done\` reports every step passed or the user explicitly accepts recorded warnings.
+Do not claim a task is complete until \`visp-kit done\` reports every step passed or the user explicitly accepts recorded warnings.
 
 Full shared rules: ${vispRulesDisplayPath}
 `;
@@ -218,7 +218,7 @@ ${trigger}
 
 ## Continue a Task
 
-Use the installed \`visp-task\` workflow or prompt. It must run \`visp gate implement --task <task-id>\` before editing code.
+Use the installed \`visp-task\` workflow or prompt. It must run \`visp-kit gate implement --task <task-id>\` before editing code.
 
 ## Fix Failures
 
@@ -230,7 +230,7 @@ Use the installed \`visp-review\` workflow or prompt. It must not edit code unle
 
 ## Prepare PR
 
-Use the installed \`visp-pr\` workflow or prompt. It must run \`visp gate pr\` and must not call GitHub APIs, commit, push, tag, or publish.
+Use the installed \`visp-pr\` workflow or prompt. It must run \`visp-kit gate pr\` and must not call GitHub APIs, commit, push, tag, or publish.
 
 ## Compatibility Notes
 
@@ -267,10 +267,10 @@ export function buildWorkflowMap(input: { readonly target: AgentTargetName }): A
         purpose: "Start or continue a feature through the full Visp workflow.",
         entrypointFile: entrypointForTarget(input.target, "feature"),
         requiredVispCommands: [
-          "visp status",
-          "visp policy validate",
-          "visp gate next",
-          "visp context --next"
+          "visp-kit status",
+          "visp-kit policy validate",
+          "visp-kit gate next",
+          "visp-kit context --next"
         ],
         hardStops: [
           "failed gate",
@@ -279,7 +279,7 @@ export function buildWorkflowMap(input: { readonly target: AgentTargetName }): A
           "failed review",
           "failed reconcile"
         ],
-        nextRecommendedCommand: "visp next"
+        nextRecommendedCommand: "visp-kit next"
       },
       {
         target: input.target,
@@ -287,12 +287,12 @@ export function buildWorkflowMap(input: { readonly target: AgentTargetName }): A
         purpose: "Implement the next/current Visp task only.",
         entrypointFile: entrypointForTarget(input.target, "task"),
         requiredVispCommands: [
-          "visp status",
-          "visp gate next",
-          "visp gate implement --task <task-id>"
+          "visp-kit status",
+          "visp-kit gate next",
+          "visp-kit gate implement --task <task-id>"
         ],
         hardStops: ["failed gate", "missing context", "unclear task"],
-        nextRecommendedCommand: "visp verify --task <task-id>"
+        nextRecommendedCommand: "visp-kit verify --task <task-id>"
       },
       {
         target: input.target,
@@ -300,13 +300,13 @@ export function buildWorkflowMap(input: { readonly target: AgentTargetName }): A
         purpose: "Repair verification, review, or reconciliation failures.",
         entrypointFile: entrypointForTarget(input.target, "fix"),
         requiredVispCommands: [
-          "visp status",
-          "visp verify --task <task-id>",
-          "visp review --task <task-id>",
-          "visp reconcile --task <task-id> --update-traceability"
+          "visp-kit status",
+          "visp-kit verify --task <task-id>",
+          "visp-kit review --task <task-id>",
+          "visp-kit reconcile --task <task-id> --update-traceability"
         ],
         hardStops: ["unrelated scope", "unapproved dependency", "forbidden file"],
-        nextRecommendedCommand: "visp next"
+        nextRecommendedCommand: "visp-kit next"
       },
       {
         target: input.target,
@@ -314,21 +314,21 @@ export function buildWorkflowMap(input: { readonly target: AgentTargetName }): A
         purpose: "Run a review-only pass.",
         entrypointFile: entrypointForTarget(input.target, "review"),
         requiredVispCommands: [
-          "visp status",
-          "visp gate review --task <task-id>",
-          "visp review --task <task-id>"
+          "visp-kit status",
+          "visp-kit gate review --task <task-id>",
+          "visp-kit review --task <task-id>"
         ],
         hardStops: ["failed review gate", "missing verification in strict mode"],
-        nextRecommendedCommand: "visp reconcile --task <task-id> --update-traceability"
+        nextRecommendedCommand: "visp-kit reconcile --task <task-id> --update-traceability"
       },
       {
         target: input.target,
         name: "visp-pr",
         purpose: "Prepare a PR summary from Visp evidence.",
         entrypointFile: entrypointForTarget(input.target, "pr"),
-        requiredVispCommands: ["visp status", "visp gate pr", "visp pr"],
+        requiredVispCommands: ["visp-kit status", "visp-kit gate pr", "visp-kit pr"],
         hardStops: ["failed PR gate", "missing reconcile", "missing traceability update"],
-        nextRecommendedCommand: "visp pr"
+        nextRecommendedCommand: "visp-kit pr"
       }
     ]
   };

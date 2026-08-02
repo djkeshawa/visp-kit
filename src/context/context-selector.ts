@@ -506,7 +506,7 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
   }
 
   if (input.fileIndex === undefined || input.fileSummaries === undefined) {
-    warnings.push("Scan cache is incomplete; run `visp scan` for better file context.");
+    warnings.push("Scan cache is incomplete; run `visp-kit scan` for better file context.");
   }
 
   const requirements = selectRequirements({

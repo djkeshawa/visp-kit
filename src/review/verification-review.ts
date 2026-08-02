@@ -29,7 +29,8 @@ export function reviewVerification(input: {
         title: "Verification review skipped",
         description: "The review was run with --skip-verification.",
         evidence: "--skip-verification was provided.",
-        recommendation: "Run visp verify before final approval if deterministic gates are needed.",
+        recommendation:
+          "Run visp-kit verify before final approval if deterministic gates are needed.",
         relatedTaskId: input.taskId ?? null
       })
     );
@@ -49,7 +50,7 @@ export function reviewVerification(input: {
 
   if (input.verification === undefined) {
     const command =
-      input.taskId === undefined ? "visp verify" : `visp verify --task ${input.taskId}`;
+      input.taskId === undefined ? "visp-kit verify" : `visp-kit verify --task ${input.taskId}`;
 
     warnings.push("Verification report is missing.");
     findings.push(
@@ -104,7 +105,7 @@ export function reviewVerification(input: {
         title: "Verification failed",
         description: "The latest verification report did not pass.",
         evidence: input.verification.errors.join("; ") || "verification success is false.",
-        recommendation: "Fix verification errors and rerun visp verify before proceeding.",
+        recommendation: "Fix verification errors and rerun visp-kit verify before proceeding.",
         relatedTaskId: input.taskId ?? null
       })
     );

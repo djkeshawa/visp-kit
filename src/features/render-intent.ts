@@ -90,6 +90,6 @@ ${sectionList(defaultUnknowns)}
 
 Run:
 
-visp clarify
+visp-kit clarify
 `;
 }

@@ -19,7 +19,7 @@ describe("renderIntentMarkdown", () => {
     expect(markdown).toContain("## Known Constraints");
     expect(markdown).toContain("Follow the existing project architecture.");
     expect(markdown).toContain("## Unknowns");
-    expect(markdown).toContain("visp clarify");
+    expect(markdown).toContain("visp-kit clarify");
     expect(markdown).not.toContain("## Acceptance Criteria");
   });
 

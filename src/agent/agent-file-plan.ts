@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { type ZodType } from "zod";
 
@@ -87,6 +88,15 @@ function plannedContents(file: AgentPlannedFile): string | undefined {
   return serialized === undefined ? undefined : `${serialized}\n`;
 }
 
+export function generatedContentHash(contents: string): string {
+  return `sha256:${createHash("sha256").update(contents, "utf8").digest("hex")}`;
+}
+
+/** The exact bytes this plan would write, for refuse-and-report messages. */
+export function plannedFileContents(file: AgentPlannedFile): string | undefined {
+  return plannedContents(file);
+}
+
 export async function writeAgentPlannedFile(
   targetPath: string,
   file: AgentPlannedFile,
@@ -94,6 +104,13 @@ export async function writeAgentPlannedFile(
     readonly force: boolean;
     readonly dryRun: boolean;
     readonly alwaysUpdate?: boolean;
+    /**
+     * D-118 decision 4: sha256 of this file's bytes as previously generated.
+     * When the on-disk bytes still match it, the user never touched the file
+     * and a changed template regenerates silently. When they differ, the file
+     * carries user edits and is refused (`stale`) — never overwritten.
+     */
+    readonly recordedHash?: string;
   }
 ): Promise<Result<AgentWriteResult, VispError>> {
   const displayPath = relativePath(targetPath, file.path);
@@ -115,10 +132,30 @@ export async function writeAgentPlannedFile(
 
     if (!current.ok) return current;
 
-    return ok({
-      path: displayPath,
-      action: planned !== undefined && current.value === planned ? "skipped" : "stale"
-    });
+    if (planned !== undefined && current.value === planned) {
+      return ok({ path: displayPath, action: "skipped" });
+    }
+
+    // Unmodified-but-superseded: the disk bytes are exactly what a previous
+    // version generated, so there is nothing of the user's to preserve.
+    if (
+      planned !== undefined &&
+      options.recordedHash !== undefined &&
+      generatedContentHash(current.value) === options.recordedHash
+    ) {
+      if (!options.dryRun) {
+        const write =
+          file.kind === "artifact"
+            ? await writeArtifact(file.path, file.schema, file.value, {
+                artifactName: file.artifactName
+              })
+            : await writeTextFile(file.path, file.contents);
+        if (!write.ok) return write;
+      }
+      return ok({ path: displayPath, action: "updated" });
+    }
+
+    return ok({ path: displayPath, action: "stale" });
   }
 
   const action: AgentFileAction = exists.value

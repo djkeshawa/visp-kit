@@ -100,7 +100,7 @@ async function ensureInitialized(targetPath: string): Promise<Result<void, VispE
   if (!hasVisp.ok) return hasVisp;
   if (!hasVisp.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.")
+      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp-kit init` first.")
     );
   }
 

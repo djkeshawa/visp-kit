@@ -20,7 +20,7 @@ async function prepareContext(targetPath: string): Promise<void> {
   expect(process.exitCode).toBeUndefined();
 }
 
-describe("visp oracle command", () => {
+describe("visp-kit oracle command", () => {
   let tempDir: string;
 
   beforeEach(async () => {

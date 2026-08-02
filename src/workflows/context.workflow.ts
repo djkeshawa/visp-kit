@@ -72,7 +72,7 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.")
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp-kit tasks` first.")
     );
   }
 
@@ -134,7 +134,7 @@ function selectedTaskError(options: ContextWorkflowOptions): Result<string, Visp
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Task ID is required. Use `visp context T001` or `visp context --next`."
+        "Task ID is required. Use `visp-kit context T001` or `visp-kit context --next`."
       )
     );
   }

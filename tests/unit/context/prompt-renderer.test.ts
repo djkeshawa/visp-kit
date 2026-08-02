@@ -49,18 +49,20 @@ describe("prompt renderer", () => {
 
     for (const step of agentMarkedChecklistSteps) {
       expect(implementationChecklistSteps).toContain(step);
-      expect(prompt).toContain(`visp checklist update --task T001 --item ${step} --status done`);
+      expect(prompt).toContain(
+        `visp-kit checklist update --task T001 --item ${step} --status done`
+      );
     }
   });
 
-  it("finishes through visp done with both usage variants", () => {
+  it("finishes through visp-kit done with both usage variants", () => {
     const prompt = renderTaskPrompt({
       contextPath: "context.md",
       pack: validContextPack
     });
 
-    expect(prompt).toContain("visp done --task T001 --input-tokens <n> --output-tokens <n>");
-    expect(prompt).toContain("visp done --task T001 --usage-unavailable");
+    expect(prompt).toContain("visp-kit done --task T001 --input-tokens <n> --output-tokens <n>");
+    expect(prompt).toContain("visp-kit done --task T001 --usage-unavailable");
   });
 
   it("does not authorize implementation when the gate is blocked", () => {
@@ -79,7 +81,7 @@ describe("prompt renderer", () => {
               ruleId: "VSP007",
               severity: "error",
               message: "Implementation requires a context pack.",
-              recommendation: "Run visp context --next.",
+              recommendation: "Run visp-kit context --next.",
               evidence: "Context pack missing."
             }
           ],
@@ -93,7 +95,7 @@ describe("prompt renderer", () => {
           overriddenRules: [],
           appliedOverrides: [],
           warnings: [],
-          nextAllowedCommand: "visp context --next",
+          nextAllowedCommand: "visp-kit context --next",
           evaluatedAt: "2026-01-01T00:00:00.000Z"
         }
       }
@@ -101,7 +103,7 @@ describe("prompt renderer", () => {
 
     expect(prompt).toContain("does not authorize implementation");
     expect(prompt).toContain("VSP007");
-    expect(prompt).toContain("Next allowed command: visp context --next");
+    expect(prompt).toContain("Next allowed command: visp-kit context --next");
     expect(prompt).toContain("Strictness mode: locked");
   });
 

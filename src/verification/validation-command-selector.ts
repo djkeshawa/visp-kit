@@ -61,7 +61,7 @@ export function selectValidationCommands(input: {
 
   if (commands.length === 0) {
     warnings.push(
-      "No validation commands found. Run visp scan or add validationCommands to the task graph."
+      "No validation commands found. Run visp-kit scan or add validationCommands to the task graph."
     );
   }
 

@@ -79,7 +79,7 @@ async function corruptOverrideStore(rootPath: string): Promise<void> {
   await writeFile(path.join(rootPath, ".visp", "overrides.json"), "{ malformed overrides", "utf8");
 }
 
-describe("visp review command", () => {
+describe("visp-kit review command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -328,7 +328,7 @@ describe("visp review command", () => {
     await program.parseAsync(["node", "visp", "review", tempDir, "--task", "T001"]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init");
+    expect(errors.join("")).toContain("visp-kit init");
   });
 
   it("fails clearly when target is not a Git repo", async () => {
@@ -434,7 +434,7 @@ describe("visp review command", () => {
           /(unavailable|evaluat)/i.test(finding.title)
       )
     ).toBe(true);
-    expect(summary.nextCommand).not.toBe("visp reconcile --task T001");
+    expect(summary.nextCommand).not.toBe("visp-kit reconcile --task T001");
 
     const status = JSON.parse(
       await readFile(path.join(tempDir, ".visp", "status.json"), "utf8")

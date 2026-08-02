@@ -23,8 +23,8 @@ describe("gemini target", () => {
 
     for (const file of files) {
       expect(file.contents).toContain("user prompt is raw intent");
-      expect(file.contents).toContain("visp gate");
-      expect(file.contents).toContain("visp done");
+      expect(file.contents).toContain("visp-kit gate");
+      expect(file.contents).toContain("visp-kit done");
     }
 
     const guidance = files[0]!;

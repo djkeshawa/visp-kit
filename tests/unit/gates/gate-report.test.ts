@@ -21,7 +21,7 @@ const result: GateResult = {
       ruleId: "VSP007",
       severity: "error",
       message: "Implementation requires a context pack.",
-      recommendation: "Run visp context --next.",
+      recommendation: "Run visp-kit context --next.",
       evidence: "Task context JSON was not found."
     }
   ],
@@ -35,7 +35,7 @@ const result: GateResult = {
   ],
   overriddenRules: [],
   appliedOverrides: [],
-  nextAllowedCommand: "Run visp context --next.",
+  nextAllowedCommand: "Run visp-kit context --next.",
   reportPath: ".visp/reports/gate-report.md",
   evaluatedAt: "2026-01-01T00:00:00.000Z"
 };
@@ -46,7 +46,7 @@ describe("gate report renderer", () => {
 
     expect(markdown).toContain("# Gate Report");
     expect(markdown).toContain("VSP007");
-    expect(markdown).toContain("Run visp context --next.");
+    expect(markdown).toContain("Run visp-kit context --next.");
   });
 
   it("formats compact terminal output", () => {

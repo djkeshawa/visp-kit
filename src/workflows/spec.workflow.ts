@@ -160,7 +160,7 @@ export async function runSpecWorkflow(
       validation: validation.validation,
       promptPath: promptDisplayPath,
       warnings: validation.warnings,
-      nextCommand: "visp plan",
+      nextCommand: "visp-kit plan",
       now
     });
   }
@@ -182,8 +182,8 @@ export async function runSpecWorkflow(
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        "Clarification artifacts are missing. Run `visp clarify` first.",
-        { recovery: "visp clarify" }
+        "Clarification artifacts are missing. Run `visp-kit clarify` first.",
+        { recovery: "visp-kit clarify" }
       )
     );
   }
@@ -200,7 +200,7 @@ export async function runSpecWorkflow(
         new VispError(
           "VALIDATION_FAILED",
           `Clarifications are incomplete: ${readiness.errors.join(" ")}`,
-          { recovery: "visp clarify --validate" }
+          { recovery: "visp-kit clarify --validate" }
         )
       );
     }
@@ -263,7 +263,7 @@ export async function runSpecWorkflow(
     validation,
     promptPath: promptDisplayPath,
     warnings,
-    nextCommand: "visp plan",
+    nextCommand: "visp-kit plan",
     now
   });
 }

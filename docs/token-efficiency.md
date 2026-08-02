@@ -18,7 +18,7 @@ Small, traceable context helps agents implement one task at a time.
 
 ## Context Compiler
 
-`visp context` builds a context pack for one task.
+`visp-kit context` builds a context pack for one task.
 
 It includes:
 
@@ -44,7 +44,7 @@ It avoids:
 
 ## Scan Cache
 
-`visp scan` writes compact cache artifacts:
+`visp-kit scan` writes compact cache artifacts:
 
 ```text
 .visp/cache/file-index.json
@@ -64,7 +64,7 @@ Budget mode controls context size. Policy strictness controls workflow enforceme
 You can use lean context with strict policy:
 
 ```bash
-visp init --budget lean --strictness strict
+visp-kit init --budget lean --strictness strict
 ```
 
 Modes:
@@ -76,15 +76,15 @@ Modes:
 ## Useful Commands
 
 ```bash
-visp context T001 --budget lean
-visp context T001 --max-tokens 6000
-visp budget
-visp budget --task T001
-visp budget --write-report
-visp budget --task T001 --record-usage --input-tokens 1200 --output-tokens 300 --write-report
+visp-kit context T001 --budget lean
+visp-kit context T001 --max-tokens 6000
+visp-kit budget
+visp-kit budget --task T001
+visp-kit budget --write-report
+visp-kit budget --task T001 --record-usage --input-tokens 1200 --output-tokens 300 --write-report
 ```
 
-`visp budget` estimates context before implementation. Visp also refreshes `.visp/reports/budget-report.md` automatically after key feature workflow milestones such as `visp tasks`, `visp context`, `visp verify`, `visp review`, `visp reconcile`, and `visp pr`.
+`visp-kit budget` estimates context before implementation. Visp also refreshes `.visp/reports/budget-report.md` automatically after key feature workflow milestones such as `visp-kit tasks`, `visp-kit context`, `visp-kit verify`, `visp-kit review`, `visp-kit reconcile`, and `visp-kit pr`.
 
 Visp cannot know true agent token usage unless the AI tool exposes it. After implementation, record actual usage with `--record-usage` when available. The value is stored in `.visp/budget.json` and shown in `.visp/reports/budget-report.md`.
 
@@ -113,6 +113,6 @@ This improves token efficiency because the agent should not read broad repositor
 - Keep `allowedFiles` and `expectedFiles` accurate.
 - Split over-budget tasks.
 - Use snippets before full files.
-- Run `visp scan --changed` after major repository changes.
-- Use `visp review --diff-only` for focused diff inspection.
+- Run `visp-kit scan --changed` after major repository changes.
+- Use `visp-kit review --diff-only` for focused diff inspection.
 - Prefer `lean` until the task actually needs broader context.

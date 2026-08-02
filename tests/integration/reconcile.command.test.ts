@@ -105,7 +105,7 @@ async function prepareReconcileFixture(rootPath: string): Promise<void> {
 
 // These suites spawn git and run the full pipeline, which is slow on Windows
 // CI; raise the per-hook/test timeout above the 5s default.
-describe("visp reconcile command", { timeout: 30000 }, () => {
+describe("visp-kit reconcile command", { timeout: 30000 }, () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -328,7 +328,7 @@ describe("visp reconcile command", { timeout: 30000 }, () => {
     await program.parseAsync(["node", "visp", "reconcile", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(output.join("")).toContain("visp init");
+    expect(output.join("")).toContain("visp-kit init");
   });
 
   it("fails clearly when target is not a Git repository", async () => {
@@ -466,7 +466,7 @@ describe("visp reconcile command", { timeout: 30000 }, () => {
       )
     ).toBe(true);
     expect(summary.traceabilityUpdate.performed).toBe(false);
-    expect(summary.nextCommand).not.toBe("visp next");
+    expect(summary.nextCommand).not.toBe("visp-kit next");
     expect(await readFile(traceabilityPath, "utf8")).toBe(originalTraceability);
 
     const taskGraph = JSON.parse(

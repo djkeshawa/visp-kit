@@ -34,7 +34,7 @@ async function classifyReadyTask(tempDir: string): Promise<void> {
   await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
 }
 
-describe("visp status command", () => {
+describe("visp-kit status command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -103,8 +103,8 @@ describe("visp status command", () => {
       status: "ready"
     });
     expect(summary.featureState).toBe("tasks_ready");
-    expect(summary.nextCommand).toBe("visp context --next");
-    expect(summary.nextAllowedCommand).toBe("visp context --next");
+    expect(summary.nextCommand).toBe("visp-kit context --next");
+    expect(summary.nextAllowedCommand).toBe("visp-kit context --next");
     expect(summary.implementationAllowed).toBe(false);
     expect(summary.prAllowed).toBe(false);
     expect(summary.blockedCommands).toContainEqual({
@@ -158,6 +158,6 @@ describe("visp status command", () => {
     await program.parseAsync(["node", "visp", "status", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init");
+    expect(errors.join("")).toContain("visp-kit init");
   });
 });

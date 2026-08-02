@@ -32,12 +32,12 @@ Rules:
 - Avoid broad refactors and unapproved dependencies.
 - Replace every placeholder and set status to "ready" only when the plan has concrete codebase evidence and validation commands.
 - ${editSeededJsonInstruction}
-- The files under Generated are rendered from the JSON by \`visp plan --validate\`; edits to them are discarded.
+- The files under Generated are rendered from the JSON by \`visp-kit plan --validate\`; edits to them are discarded.
 - ${budgetInstruction(feature.intent.budgetMode)}
 
 ${planFieldValuesSection()}
 
 After editing, run:
-visp plan --validate
+visp-kit plan --validate
 `;
 }

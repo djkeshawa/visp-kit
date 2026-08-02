@@ -36,7 +36,7 @@ async function initProject(rootPath: string): Promise<void> {
   process.exitCode = undefined;
 }
 
-describe("visp agent claude command", () => {
+describe("visp-kit agent claude command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -66,7 +66,7 @@ describe("visp agent claude command", () => {
       "utf8"
     );
     expect(feature).toContain("user prompt is raw intent");
-    expect(feature).toContain("visp gate");
+    expect(feature).toContain("visp-kit gate");
 
     output.length = 0;
     await program.parseAsync(["node", "visp", "agent", "doctor", tempDir, "--target", "claude"]);
@@ -120,6 +120,6 @@ describe("visp agent claude command", () => {
       "claude",
       "--force"
     ]);
-    expect(await readFile(commandPath, "utf8")).toContain("visp gate implement");
+    expect(await readFile(commandPath, "utf8")).toContain("visp-kit gate implement");
   });
 });

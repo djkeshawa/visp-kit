@@ -69,6 +69,6 @@ describe("runStatusWorkflow", () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("Expected status to fail.");
-    expect(result.error.message).toContain("visp init");
+    expect(result.error.message).toContain("visp-kit init");
   });
 });

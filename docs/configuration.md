@@ -20,11 +20,11 @@ Supported presets:
 Example:
 
 ```bash
-visp init --preset typescript
-visp constitution --preset typescript
+visp-kit init --preset typescript
+visp-kit constitution --preset typescript
 ```
 
-If `--preset` is omitted during `visp init` or `visp agent bootstrap`, Visp Kit auto-detects a preset from project manifests such as `package.json`, `go.mod`, `pom.xml`, `pyproject.toml`, or `Cargo.toml`.
+If `--preset` is omitted during `visp-kit init` or `visp-kit agent bootstrap`, Visp Kit auto-detects a preset from project manifests such as `package.json`, `go.mod`, `pom.xml`, `pyproject.toml`, or `Cargo.toml`.
 
 Use `--preset generic` to force generic behavior.
 
@@ -39,8 +39,8 @@ Supported budget modes:
 Example:
 
 ```bash
-visp init --budget lean
-visp context T001 --budget balanced
+visp-kit init --budget lean
+visp-kit context T001 --budget balanced
 ```
 
 ## Strictness Modes
@@ -55,16 +55,16 @@ Strictness is stored in `.visp/policy.json`.
 Example:
 
 ```bash
-visp init --strictness strict
-visp policy set-strictness locked
-visp policy validate
+visp-kit init --strictness strict
+visp-kit policy set-strictness locked
+visp-kit policy validate
 ```
 
 Budget mode controls context size. Strictness controls workflow enforcement.
 
 ## Agent Modes
 
-`visp init --agent` supports starter guidance modes:
+`visp-kit init --agent` supports starter guidance modes:
 
 - `generic`
 - `codex`
@@ -73,7 +73,7 @@ Budget mode controls context size. Strictness controls workflow enforcement.
 Example:
 
 ```bash
-visp init --agent codex
+visp-kit init --agent codex
 ```
 
 `codex` creates Codex-oriented guidance where safe. `none` creates no agent guidance files.
@@ -81,11 +81,11 @@ visp init --agent codex
 For full native workflow packs, use the agent installer after init:
 
 ```bash
-visp agent bootstrap codex
-visp agent install codex
-visp agent install generic
-visp agent install claude
-visp agent install copilot
+visp-kit agent bootstrap codex
+visp-kit agent install codex
+visp-kit agent install generic
+visp-kit agent install claude
+visp-kit agent install copilot
 ```
 
 Claude and Copilot support varies by AI tool surface. Generated files are strict repository guidance and can also be copied into the active session.
@@ -95,8 +95,8 @@ Claude and Copilot support varies by AI tool surface. Generated files are strict
 Overrides live in `.visp/overrides.json` and are managed with:
 
 ```bash
-visp override create VSP014 --scope project --reason "Manual validation is documented for this temporary alpha task."
-visp override validate
+visp-kit override create VSP014 --scope project --reason "Manual validation is documented for this temporary alpha task."
+visp-kit override validate
 ```
 
 Overrides require meaningful reasons. `VSP019` and `VSP020` are non-overridable.
@@ -113,8 +113,8 @@ Most commands use the active feature from `.visp/status.json`.
 Override it with:
 
 ```bash
-visp status --feature 001-add-note-pinning
-visp context T001 --feature add-note-pinning
+visp-kit status --feature 001-add-note-pinning
+visp-kit context T001 --feature add-note-pinning
 ```
 
 Task-specific commands accept:
@@ -126,7 +126,7 @@ Task-specific commands accept:
 or positional task IDs where supported:
 
 ```bash
-visp context T001
+visp-kit context T001
 ```
 
 ## JSON Output

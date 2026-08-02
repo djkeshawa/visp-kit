@@ -61,6 +61,6 @@ describe("status report renderer", () => {
     });
 
     expect(markdown).toContain("001-add-note-pinning");
-    expect(markdown).toContain("visp context");
+    expect(markdown).toContain("visp-kit context");
   });
 });

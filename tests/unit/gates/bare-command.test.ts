@@ -4,13 +4,13 @@ import { bareCommandFromRecommendation } from "../../../src/gates/stage-checks.j
 
 describe("bareCommandFromRecommendation", () => {
   it("strips the Run prefix and trailing period from a visp command sentence", () => {
-    expect(bareCommandFromRecommendation("Run visp tasks.")).toBe("visp tasks");
+    expect(bareCommandFromRecommendation("Run visp-kit tasks.")).toBe("visp-kit tasks");
   });
 
   it("preserves flags in the extracted command", () => {
     expect(
-      bareCommandFromRecommendation("Run visp reconcile --task T001 --update-traceability.")
-    ).toBe("visp reconcile --task T001 --update-traceability");
+      bareCommandFromRecommendation("Run visp-kit reconcile --task T001 --update-traceability.")
+    ).toBe("visp-kit reconcile --task T001 --update-traceability");
   });
 
   it("returns undefined for non-runnable prose", () => {
@@ -23,6 +23,6 @@ describe("bareCommandFromRecommendation", () => {
   });
 
   it("tolerates a missing trailing period", () => {
-    expect(bareCommandFromRecommendation("Run visp scan")).toBe("visp scan");
+    expect(bareCommandFromRecommendation("Run visp-kit scan")).toBe("visp-kit scan");
   });
 });

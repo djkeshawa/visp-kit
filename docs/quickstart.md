@@ -112,10 +112,10 @@ Visp Kit bootstrap in the same project.
 From the target project root:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
-visp scan
-visp constitution
-visp policy validate
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit scan
+visp-kit constitution
+visp-kit policy validate
 ```
 
 This creates local Visp artifacts, a strict policy, scan cache, compact project rules, and Codex guidance files.
@@ -123,16 +123,16 @@ This creates local Visp artifacts, a strict policy, scan cache, compact project 
 ## Create A Feature
 
 ```bash
-visp feature "Add note pinning"
-visp clarify
-visp clarify answer CQ001 --answer "<answer any blocking clarification>"
-visp spec
-visp plan
-visp tasks
-visp context --next
+visp-kit feature "Add note pinning"
+visp-kit clarify
+visp-kit clarify answer CQ001 --answer "<answer any blocking clarification>"
+visp-kit spec
+visp-kit plan
+visp-kit tasks
+visp-kit context --next
 ```
 
-`visp context --next` writes:
+`visp-kit context --next` writes:
 
 ```text
 .visp/features/<feature>/context/T001.context.md
@@ -163,38 +163,38 @@ For a manual session, read:
 After implementation:
 
 ```bash
-visp checklist status --task T001
-visp budget --task T001 --record-usage --input-tokens <actual> --output-tokens <actual> --write-report
-visp verify --task T001
-visp review --task T001
-visp reconcile --task T001 --update-traceability
-visp pr
+visp-kit checklist status --task T001
+visp-kit budget --task T001 --record-usage --input-tokens <actual> --output-tokens <actual> --write-report
+visp-kit verify --task T001
+visp-kit review --task T001
+visp-kit reconcile --task T001 --update-traceability
+visp-kit pr
 ```
 
 If your AI tool does not expose numeric token usage, record that explicitly:
 
 ```bash
-visp budget --task T001 \
+visp-kit budget --task T001 \
   --record-usage-unavailable \
   --model codex \
   --usage-note "Agent surface did not expose numeric token usage." \
   --write-report
 ```
 
-`visp context --next` also writes a machine-readable implementation checklist:
+`visp-kit context --next` also writes a machine-readable implementation checklist:
 
 ```text
 .visp/features/<feature>/context/T001.implementation-checklist.json
 ```
 
-Use `visp checklist status --task T001` and `visp checklist update --task T001 --item <id> --status <status>` when the agent cannot update checklist evidence automatically.
+Use `visp-kit checklist status --task T001` and `visp-kit checklist update --task T001 --item <id> --status <status>` when the agent cannot update checklist evidence automatically.
 
 If a command fails, read the generated report and run:
 
 ```bash
-visp next --explain
-visp gate next --explain
-visp doctor
+visp-kit next --explain
+visp-kit gate next --explain
+visp-kit doctor
 ```
 
 ## Optional Override
@@ -202,7 +202,7 @@ visp doctor
 Overrides are explicit and auditable. Use them only when a human intentionally accepts a policy exception:
 
 ```bash
-visp override create VSP014 \
+visp-kit override create VSP014 \
   --scope task \
   --feature 001 \
   --task T001 \
@@ -212,5 +212,5 @@ visp override create VSP014 \
 Then validate:
 
 ```bash
-visp override validate
+visp-kit override validate
 ```

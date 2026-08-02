@@ -23,7 +23,7 @@ Rules:
 - Mark safe assumptions.
 - Set status to "ready" only after every blocking question is answered or its recommended default is explicitly accepted.
 - ${editSeededJsonInstruction}
-- The files under Generated are rendered from the JSON by \`visp clarify --validate\`; edits to them are discarded.
+- The files under Generated are rendered from the JSON by \`visp-kit clarify --validate\`; edits to them are discarded.
 - ${budgetInstruction(feature.intent.budgetMode)}
 - Do not implement code.
 - Do not create spec, plan, or tasks.
@@ -32,6 +32,6 @@ Rules:
 ${clarifyFieldValuesSection()}
 
 After editing, run:
-visp clarify --validate
+visp-kit clarify --validate
 `;
 }

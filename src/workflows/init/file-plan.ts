@@ -85,7 +85,7 @@ function jsonText(value: unknown): string {
 }
 
 function cachePlaceholder(kind: string): unknown {
-  return { kind, populatedBy: "visp scan", items: [] };
+  return { kind, populatedBy: "visp-kit scan", items: [] };
 }
 
 function baseDirectories(targetPath: string): readonly string[] {
@@ -202,7 +202,7 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
     textFile(
       input.targetPath,
       path.join(cacheDir, "scan-meta.json"),
-      jsonText({ status: "pending", populatedBy: "visp scan", updatedAt: null })
+      jsonText({ status: "pending", populatedBy: "visp-kit scan", updatedAt: null })
     ),
     textFile(
       input.targetPath,

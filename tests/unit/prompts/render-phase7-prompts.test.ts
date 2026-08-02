@@ -96,26 +96,26 @@ describe("phase 7 prompt renderers", () => {
     const cases = [
       {
         prompt: renderClarifyPrompt(feature),
-        command: "visp clarify --validate",
+        command: "visp-kit clarify --validate",
         generated: ["clarifications.md"],
         updated: ["clarifications.json"]
       },
       {
         prompt: renderSpecPrompt(feature),
-        command: "visp spec --validate",
+        command: "visp-kit spec --validate",
         generated: ["spec.md", "traceability.md"],
         updated: ["spec.json", "traceability.json"]
       },
       {
         prompt: renderPlanPrompt(feature),
-        command: "visp plan --validate",
+        command: "visp-kit plan --validate",
         generated: ["plan.md"],
         updated: ["plan.json"]
       },
       {
         prompt: renderTasksPrompt(feature),
-        command: "visp tasks --validate",
-        // traceability.json stays under Update: — `visp tasks --validate` reads and
+        command: "visp-kit tasks --validate",
+        // traceability.json stays under Update: — `visp-kit tasks --validate` reads and
         // validates it but never regenerates it, and missing task coverage is a hard
         // error (validate-task-graph.ts). Listing it as generated would forbid the one
         // edit that clears the failure.

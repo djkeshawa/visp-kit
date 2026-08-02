@@ -5,20 +5,20 @@ Visp Kit is designed for teams that want AI assistance without losing scope cont
 Recommended pilot default:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
 ```
 
 ## Rollout Plan
 
 1. Pilot in one repository.
 2. Use `lean` budget and `strict` policy.
-3. Run `visp scan` and `visp constitution`.
+3. Run `visp-kit scan` and `visp-kit constitution`.
 4. Commit `.visp/policy.json`.
 5. Decide which `.visp/` artifacts to commit for auditability.
 6. Install or bootstrap the agent target used by the team.
-7. Require `visp verify`, `visp review`, and `visp reconcile` before PR.
+7. Require `visp-kit verify`, `visp-kit review`, and `visp-kit reconcile` before PR.
 8. Use overrides only with a recorded reason.
-9. Use `visp pr` for factual PR summaries.
+9. Use `visp-kit pr` for factual PR summaries.
 
 ## What To Commit
 
@@ -41,17 +41,17 @@ Commit cache if reproducibility and lower context setup cost matter. Keep it loc
 Use the team tool:
 
 ```bash
-visp agent bootstrap codex
-visp agent install codex
-visp agent install generic
-visp agent install claude
-visp agent install copilot
+visp-kit agent bootstrap codex
+visp-kit agent install codex
+visp-kit agent install generic
+visp-kit agent install claude
+visp-kit agent install copilot
 ```
 
 Then check:
 
 ```bash
-visp agent doctor --target codex
+visp-kit agent doctor --target codex
 ```
 
 Use the matching target name for other tools.
@@ -90,7 +90,7 @@ Overrides should be rare and reviewed.
 Good override:
 
 ```bash
-visp override create VSP014 \
+visp-kit override create VSP014 \
   --scope task \
   --feature 001 \
   --task T001 \

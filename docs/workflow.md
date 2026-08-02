@@ -18,7 +18,7 @@ agent bootstrap -> scan -> constitution -> policy
 Command:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
 ```
 
 Purpose:
@@ -35,7 +35,7 @@ The agent must not implement code just because bootstrap completed.
 Command:
 
 ```bash
-visp scan
+visp-kit scan
 ```
 
 Purpose:
@@ -47,7 +47,7 @@ Purpose:
 Related gate:
 
 ```bash
-visp gate feature
+visp-kit gate feature
 ```
 
 ## 3. Constitution
@@ -55,7 +55,7 @@ visp gate feature
 Command:
 
 ```bash
-visp constitution
+visp-kit constitution
 ```
 
 Purpose:
@@ -71,8 +71,8 @@ The constitution is deterministic project guidance, not an AI-generated permissi
 Commands:
 
 ```bash
-visp policy validate
-visp gate next
+visp-kit policy validate
+visp-kit gate next
 ```
 
 Purpose:
@@ -86,7 +86,7 @@ Purpose:
 Command:
 
 ```bash
-visp agent install codex
+visp-kit agent install codex
 ```
 
 Purpose:
@@ -94,7 +94,7 @@ Purpose:
 - generate strict local instructions for the selected AI tool target
 - install workflow files without calling the AI tool
 
-Use this when `.visp/` already exists. For a fresh project, prefer `visp agent bootstrap <target>`.
+Use this when `.visp/` already exists. For a fresh project, prefer `visp-kit agent bootstrap <target>`.
 
 The AI tool must still run Visp commands inside its own session.
 
@@ -103,7 +103,7 @@ The AI tool must still run Visp commands inside its own session.
 Command:
 
 ```bash
-visp feature "Add note pinning"
+visp-kit feature "Add note pinning"
 ```
 
 Inputs:
@@ -123,7 +123,7 @@ The feature idea is raw intent. It is not permission to skip clarification, spec
 Command:
 
 ```bash
-visp clarify
+visp-kit clarify
 ```
 
 Purpose:
@@ -134,13 +134,13 @@ Purpose:
 If a blocking question needs user input, the agent should ask the user and record the answer:
 
 ```bash
-visp clarify answer CQ001 --answer "<user answer>"
+visp-kit clarify answer CQ001 --answer "<user answer>"
 ```
 
 Gate involvement:
 
 ```bash
-visp gate spec
+visp-kit gate spec
 ```
 
 Strict and locked modes block spec generation when required clarification evidence is missing.
@@ -150,7 +150,7 @@ Strict and locked modes block spec generation when required clarification eviden
 Command:
 
 ```bash
-visp spec
+visp-kit spec
 ```
 
 Outputs:
@@ -166,7 +166,7 @@ The agent must not invent requirements outside the artifact.
 Command:
 
 ```bash
-visp plan
+visp-kit plan
 ```
 
 Purpose:
@@ -178,7 +178,7 @@ Purpose:
 Related gate:
 
 ```bash
-visp gate tasks
+visp-kit gate tasks
 ```
 
 ## 10. Tasks
@@ -186,7 +186,7 @@ visp gate tasks
 Command:
 
 ```bash
-visp tasks
+visp-kit tasks
 ```
 
 Outputs:
@@ -206,7 +206,7 @@ for task class.
 Command:
 
 ```bash
-visp context --next
+visp-kit context --next
 ```
 
 Outputs:
@@ -223,7 +223,7 @@ The prompt includes strict policy headers, selected task scope, requirements, ac
 Before editing code:
 
 ```bash
-visp gate implement --task T001
+visp-kit gate implement --task T001
 ```
 
 If the gate blocks, stop and follow the next allowed command.
@@ -241,7 +241,7 @@ The agent should:
 Command:
 
 ```bash
-visp verify --task T001
+visp-kit verify --task T001
 ```
 
 Purpose:
@@ -262,7 +262,7 @@ Outputs:
 Command:
 
 ```bash
-visp review --task T001
+visp-kit review --task T001
 ```
 
 Purpose:
@@ -284,7 +284,7 @@ Outputs:
 Command:
 
 ```bash
-visp reconcile --task T001 --update-traceability
+visp-kit reconcile --task T001 --update-traceability
 ```
 
 Purpose:
@@ -298,7 +298,7 @@ Purpose:
 Command:
 
 ```bash
-visp next --explain
+visp-kit next --explain
 ```
 
 Purpose:
@@ -311,7 +311,7 @@ Purpose:
 Command:
 
 ```bash
-visp pr
+visp-kit pr
 ```
 
 Purpose:
@@ -341,9 +341,9 @@ Feature timelines summarize artifact progress, evidence, blockers, and token est
 Use these commands for deterministic workflow inspection:
 
 ```bash
-visp workflow show
-visp workflow validate
-visp eval
+visp-kit workflow show
+visp-kit workflow validate
+visp-kit eval
 ```
 
-`visp eval` checks local artifacts, gates, reports, traceability, context budget, overrides, and PR readiness. It does not call an LLM.
+`visp-kit eval` checks local artifacts, gates, reports, traceability, context budget, overrides, and PR readiness. It does not call an LLM.

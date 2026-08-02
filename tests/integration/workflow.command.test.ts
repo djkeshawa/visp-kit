@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCli } from "../../src/cli/main.js";
 import { createPhase8Fixture } from "./phase8-fixture.js";
 
-describe("visp workflow command", () => {
+describe("visp-kit workflow command", () => {
   let tempDir: string;
 
   beforeEach(async () => {

@@ -42,7 +42,7 @@ async function runClaudeHookWithStdin(rootPath: string, hookInput: unknown): Pro
   });
 }
 
-describe("visp hooks command", () => {
+describe("visp-kit hooks command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -113,8 +113,8 @@ describe("visp hooks command", () => {
 
     expect(await exists(workflowPath)).toBe(true);
     const contents = await readFile(workflowPath, "utf8");
-    expect(contents).toContain("visp policy validate --json");
-    expect(contents).toContain("visp gate pr --json");
+    expect(contents).toContain("visp-kit policy validate --json");
+    expect(contents).toContain("visp-kit gate pr --json");
     // An evidence gate that installs `latest` cannot produce reproducible
     // verdicts and changes enforcement on an unrelated release.
     expect(contents).toContain(`npm install -g visp-kit@${packageVersion()}`);
@@ -139,7 +139,7 @@ describe("visp hooks command", () => {
     await program.parseAsync(["node", "visp", "hooks", "git", tempDir]);
 
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("visp init");
+    expect(errors.join("")).toContain("visp-kit init");
   });
 });
 
@@ -173,7 +173,7 @@ describe("claude pretooluse hook script", () => {
     });
 
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("visp gate implement");
+    expect(result.stderr).toContain("visp-kit gate implement");
   });
 
   it("allows edits to .visp artifacts and non-edit tools", async () => {
@@ -249,7 +249,7 @@ describe("claude pretooluse hook script", () => {
     });
 
     expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("visp policy validate");
+    expect(result.stderr).toContain("visp-kit policy validate");
   });
 
   it("blocks when policy.json declares an unknown strictness mode", async () => {
@@ -689,7 +689,7 @@ describe("pre-commit hook script", () => {
     const result = await runPreCommitHook();
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toMatch(/visp gate implement|could not read staged files/u);
+    expect(result.stderr).toMatch(/visp-kit gate implement|could not read staged files/u);
   });
 
   it("blocks when policy.json exists but cannot be parsed", async () => {
@@ -699,7 +699,7 @@ describe("pre-commit hook script", () => {
     const result = await runPreCommitHook();
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("visp policy validate");
+    expect(result.stderr).toContain("visp-kit policy validate");
   });
 
   it("blocks when the implement marker is unreadable in strict mode", async () => {

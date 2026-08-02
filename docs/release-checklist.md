@@ -48,41 +48,41 @@ scripts/benchmark-strict-workflow.sh
 ```
 
 The benchmark script additionally proves the pre-commit hook blocks
-out-of-scope commits, `visp drift` fails closed on stale context, and the
+out-of-scope commits, `visp-kit drift` fails closed on stale context, and the
 deterministic benchmark metrics render (see docs/benchmarks.md).
 
 Or manually verify:
 
-- [ ] temp project can run `visp init --strictness strict`
-- [ ] `visp policy validate` passes
-- [ ] `visp agent bootstrap codex` works on a fresh temp project.
-- [ ] `visp agent install codex` works on an initialized project.
-- [ ] `visp agent doctor --target codex` works
-- [ ] feature workflow reaches `visp context T001`
-- [ ] `visp gate implement --task T001` is allowed after context exists
-- [ ] `visp budget` runs
-- [ ] `visp status`, `visp next`, and `visp doctor` run
+- [ ] temp project can run `visp-kit init --strictness strict`
+- [ ] `visp-kit policy validate` passes
+- [ ] `visp-kit agent bootstrap codex` works on a fresh temp project.
+- [ ] `visp-kit agent install codex` works on an initialized project.
+- [ ] `visp-kit agent doctor --target codex` works
+- [ ] feature workflow reaches `visp-kit context T001`
+- [ ] `visp-kit gate implement --task T001` is allowed after context exists
+- [ ] `visp-kit budget` runs
+- [ ] `visp-kit status`, `visp-kit next`, and `visp-kit doctor` run
 - [ ] override create/list/validate work
 - [ ] no external AI tool is called
 
 ## Agent Targets
 
-- [ ] `visp agent list` shows `codex`, `generic`, `claude`, and `copilot`.
-- [ ] `visp agent bootstrap codex --dry-run` writes nothing.
-- [ ] `visp agent install codex --dry-run` writes nothing.
-- [ ] `visp agent install generic --dry-run` writes nothing.
-- [ ] `visp agent install claude --dry-run` writes nothing.
-- [ ] `visp agent install copilot --dry-run` writes nothing.
+- [ ] `visp-kit agent list` shows `codex`, `generic`, `claude`, and `copilot`.
+- [ ] `visp-kit agent bootstrap codex --dry-run` writes nothing.
+- [ ] `visp-kit agent install codex --dry-run` writes nothing.
+- [ ] `visp-kit agent install generic --dry-run` writes nothing.
+- [ ] `visp-kit agent install claude --dry-run` writes nothing.
+- [ ] `visp-kit agent install copilot --dry-run` writes nothing.
 - [ ] Agent doctor passes after install for each target.
 
 ## Policy, Gates, Overrides
 
-- [ ] `visp policy init --strictness strict` creates valid policy.
-- [ ] `visp gate next` recommends the next allowed command.
-- [ ] `visp gate implement --task T001` blocks before context and allows after context.
-- [ ] `visp gate pr` blocks when required evidence is missing.
-- [ ] `visp override create` requires a meaningful reason.
-- [ ] `visp override validate` catches invalid overrides.
+- [ ] `visp-kit policy init --strictness strict` creates valid policy.
+- [ ] `visp-kit gate next` recommends the next allowed command.
+- [ ] `visp-kit gate implement --task T001` blocks before context and allows after context.
+- [ ] `visp-kit gate pr` blocks when required evidence is missing.
+- [ ] `visp-kit override create` requires a meaningful reason.
+- [ ] `visp-kit override validate` catches invalid overrides.
 - [ ] Non-overridable rules cannot be overridden.
 
 ## Documentation

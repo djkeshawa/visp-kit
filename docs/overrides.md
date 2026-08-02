@@ -51,7 +51,7 @@ Locked mode also blocks overrides unless `.visp/policy.json` explicitly allows t
 Project scope:
 
 ```bash
-visp override create VSP014 \
+visp-kit override create VSP014 \
   --scope project \
   --reason "Legacy project has no automated tests yet; manual verification is required."
 ```
@@ -59,7 +59,7 @@ visp override create VSP014 \
 Feature scope:
 
 ```bash
-visp override create VSP014 \
+visp-kit override create VSP014 \
   --scope feature \
   --feature 001 \
   --reason "This feature is documentation-only and verification is manual."
@@ -68,7 +68,7 @@ visp override create VSP014 \
 Task scope:
 
 ```bash
-visp override create VSP012 \
+visp-kit override create VSP012 \
   --scope task \
   --feature 001 \
   --task T003 \
@@ -78,7 +78,7 @@ visp override create VSP012 \
 Stage scope:
 
 ```bash
-visp override create VSP017 \
+visp-kit override create VSP017 \
   --scope stage \
   --stage pr \
   --reason "Traceability update is deferred for an experimental spike branch."
@@ -91,7 +91,7 @@ Reasons must be meaningful. Placeholder reasons such as `test`, `skip`, `none`, 
 Use ISO datetime:
 
 ```bash
-visp override create VSP014 \
+visp-kit override create VSP014 \
   --scope project \
   --expires 2026-07-01T00:00:00Z \
   --reason "Temporary manual verification period for alpha dogfooding."
@@ -100,7 +100,7 @@ visp override create VSP014 \
 Or a simple day duration:
 
 ```bash
-visp override create VSP014 \
+visp-kit override create VSP014 \
   --scope project \
   --expires 7d \
   --reason "Temporary manual verification period for alpha dogfooding."
@@ -111,11 +111,11 @@ Expired overrides do not apply.
 ## List, Show, Revoke, Validate
 
 ```bash
-visp override list
-visp override list --revoked
-visp override show OVR001
-visp override revoke OVR001 --reason "Automated verification is now available."
-visp override validate
+visp-kit override list
+visp-kit override list --revoked
+visp-kit override show OVR001
+visp-kit override revoke OVR001 --reason "Automated verification is now available."
+visp-kit override validate
 ```
 
 Revoked overrides are not deleted. They stay in `.visp/overrides.json` as audit history.

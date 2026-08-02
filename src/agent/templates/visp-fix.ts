@@ -9,14 +9,14 @@ Use this workflow when verification, review, or reconciliation failed.
 
 ## Steps
 
-1. Run \`visp status\` and identify the active feature and selected task.
+1. Run \`visp-kit status\` and identify the active feature and selected task.
 2. Read \`.visp/prompts/current-task.prompt.md\`.
 3. Read the failing reports that exist:
    - \`.visp/features/<feature>/verification.md\`
    - \`.visp/features/<feature>/review/<task>.review.md\`
    - \`.visp/features/<feature>/reconcile/<task>.reconcile.md\`
 4. Fix only the reported issues.
-5. Run \`visp done --task <task-id>\`.
+5. Run \`visp-kit done --task <task-id>\`.
    - A step FAILED -> fix only the newly reported issues, then repeat step 5.
 
 ## Repair rules

@@ -14,7 +14,7 @@ async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
 
-describe("visp override command", () => {
+describe("visp-kit override command", () => {
   let tempDir: string;
 
   beforeEach(async () => {

@@ -22,7 +22,7 @@ Yes. The prompts are Markdown files and the artifacts are local JSON/Markdown.
 
 ## What if context is over budget?
 
-Run `visp budget` and split the task, reduce file scope, or use a smaller budget mode.
+Run `visp-kit budget` and split the task, reduce file scope, or use a smaller budget mode.
 
 A context pack is flagged over budget when its estimated input tokens exceed the
 budget-mode limit plus the policy's tolerance. The tolerance is

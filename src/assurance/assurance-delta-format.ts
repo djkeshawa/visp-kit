@@ -60,7 +60,7 @@ export function formatAssuranceDelta(delta: AssuranceDelta): string {
     "",
     "Next:",
     delta.decisionStale
-      ? "  Re-review, then run visp assurance accept or reject."
+      ? "  Re-review, then run visp-kit assurance accept or reject."
       : "  No action required. Re-review only if the new evidence changes your view."
   );
 

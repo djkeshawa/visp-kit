@@ -151,9 +151,13 @@ export async function runDriftWorkflow(
 
   if (!state.value.initialized) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
-        recovery: "visp init"
-      })
+      new VispError(
+        "VALIDATION_FAILED",
+        "Visp Kit is not initialized. Run `visp-kit init` first.",
+        {
+          recovery: "visp-kit init"
+        }
+      )
     );
   }
 
@@ -229,9 +233,9 @@ export async function runDriftWorkflow(
     jsonPath: dryRun ? null : jsonPath,
     nextCommand:
       result === "passed"
-        ? "visp next"
+        ? "visp-kit next"
         : ((findings.find((finding) => finding.severity === "error") ?? findings[0])
-            ?.recommendation ?? "visp next")
+            ?.recommendation ?? "visp-kit next")
   };
 
   if (!dryRun) {

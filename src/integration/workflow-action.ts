@@ -200,7 +200,7 @@ function legacyFindings(envelope: CanonicalWorkflowActionEnvelope): string[] {
   const represented = new Set(envelope.v2Presentation.findingOrder);
   const authorityCoveredByBlocker =
     envelope.action.verdict === "inconclusive" &&
-    envelope.action.nextCommand === "visp override validate" &&
+    envelope.action.nextCommand === "visp-kit override validate" &&
     envelope.action.findings.some(
       (finding) => finding.code === "VISP.CONTRACT.AUTHORITY_UNAVAILABLE"
     ) &&

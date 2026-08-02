@@ -69,7 +69,7 @@ describe("a task's own declared test is not independent evidence", () => {
       path: "tests/x.spec.js",
       sha256: `sha256:${"d".repeat(64)}`,
       independence: "pre_approved" as const,
-      source: { kind: "explicit_pre_approval" as const, reference: "visp oracle plan" }
+      source: { kind: "explicit_pre_approval" as const, reference: "visp-kit oracle plan" }
     };
     const result = evaluateCandidateTestStrength({
       assuranceProfile: "behavioral",

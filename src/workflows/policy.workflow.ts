@@ -116,7 +116,7 @@ function invalidSummary(input: {
       errors: input.errors
     },
     warnings: input.warnings ?? [],
-    nextCommand: "Fix .visp/policy.json and run `visp policy validate`."
+    nextCommand: "Fix .visp/policy.json and run `visp-kit policy validate`."
   };
 }
 
@@ -138,7 +138,10 @@ async function requirePolicyFile(targetPath: string): Promise<Result<void, VispE
 
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Policy file is missing. Run `visp policy init` first.")
+      new VispError(
+        "VALIDATION_FAILED",
+        "Policy file is missing. Run `visp-kit policy init` first."
+      )
     );
   }
 
@@ -193,7 +196,7 @@ export async function runPolicyInitWorkflow(
       dryRun,
       created: !exists.value,
       updated: exists.value && force,
-      nextCommand: "visp policy validate"
+      nextCommand: "visp-kit policy validate"
     })
   );
 }
@@ -217,7 +220,7 @@ export async function runPolicyShowWorkflow(
       created: false,
       updated: false,
       warnings: loaded.value.warnings,
-      nextCommand: loaded.value.exists ? "visp policy validate" : "visp policy init"
+      nextCommand: loaded.value.exists ? "visp-kit policy validate" : "visp-kit policy init"
     })
   );
 }
@@ -265,7 +268,7 @@ export async function runPolicyValidateWorkflow(
           dryRun: false,
           created: false,
           updated: false,
-          nextCommand: "visp policy show"
+          nextCommand: "visp-kit policy show"
         })
       : invalidSummary({
           mode: "validate",
@@ -315,7 +318,7 @@ export async function runPolicySetStrictnessWorkflow(
       dryRun,
       created: false,
       updated: true,
-      nextCommand: "visp policy validate"
+      nextCommand: "visp-kit policy validate"
     })
   );
 }

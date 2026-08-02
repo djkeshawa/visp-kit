@@ -56,7 +56,7 @@ describe("assurance delta formatting", () => {
     // Consequential first. Folding these together would make gaining evidence
     // read as a problem, which is the wrong incentive.
     expect(invalidatingAt).toBeLessThan(informationalAt);
-    expect(output).toContain("Re-review, then run visp assurance accept or reject.");
+    expect(output).toContain("Re-review, then run visp-kit assurance accept or reject.");
   });
 
   it("does not demand re-review when nothing invalidating moved", () => {

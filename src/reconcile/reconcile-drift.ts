@@ -115,8 +115,8 @@ export function reconcileTaskAlignment(input: {
         evidence: "context/T001.context.json is missing or unreadable.",
         recommendation:
           input.task === undefined
-            ? "Run visp context for the task."
-            : `Run visp context ${input.task.id}.`,
+            ? "Run visp-kit context for the task."
+            : `Run visp-kit context ${input.task.id}.`,
         relatedTaskId: input.task?.id ?? null
       })
     );

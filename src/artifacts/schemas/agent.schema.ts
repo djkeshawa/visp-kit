@@ -20,6 +20,10 @@ export const installedAgentTargetSchema = z
     installedAt: isoDateTimeSchema,
     refreshedAt: isoDateTimeSchema,
     files: z.array(z.string().min(1)),
+    // D-118 decision 4: sha256 of each file's bytes as generated, keyed by
+    // relative path. Lets a later install distinguish "user never touched
+    // this" (regenerate silently) from "user modified it" (refuse, report).
+    fileHashes: z.record(z.string().min(1), z.string().regex(/^sha256:[a-f0-9]{64}$/u)).optional(),
     version: z.string().min(1).optional(),
     warnings: z.array(z.string()).default([])
   })

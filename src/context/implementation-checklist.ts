@@ -46,18 +46,18 @@ type ChecklistIdentity = {
 
 const itemLabels: Record<ImplementationChecklistStep, string> = {
   "read-context":
-    "Read the context pack and current task prompt. Mark done: `visp checklist update --task <task-id> --item read-context --status done`",
-  "gate-implement": "Confirm `visp gate implement --task <task-id>` allows implementation.",
+    "Read the context pack and current task prompt. Mark done: `visp-kit checklist update --task <task-id> --item read-context --status done`",
+  "gate-implement": "Confirm `visp-kit gate implement --task <task-id>` allows implementation.",
   "implement-selected-task":
-    "Implement only <task-id>. Mark done: `visp checklist update --task <task-id> --item implement-selected-task --status done`",
+    "Implement only <task-id>. Mark done: `visp-kit checklist update --task <task-id> --item implement-selected-task --status done`",
   "scope-check":
-    "Keep changes inside allowed/expected files. Mark done: `visp checklist update --task <task-id> --item scope-check --status done`",
+    "Keep changes inside allowed/expected files. Mark done: `visp-kit checklist update --task <task-id> --item scope-check --status done`",
   "tests-updated":
-    "Update or add tests when behavior changes. Mark done: `visp checklist update --task <task-id> --item tests-updated --status done`",
+    "Update or add tests when behavior changes. Mark done: `visp-kit checklist update --task <task-id> --item tests-updated --status done`",
   "record-usage": "Record actual token usage, or mark it unavailable with a reason.",
   verify: "Run validation commands or report why they could not run.",
-  review: "Run `visp review --task <task-id>`.",
-  reconcile: "Run `visp reconcile --task <task-id> --update-traceability`."
+  review: "Run `visp-kit review --task <task-id>`.",
+  reconcile: "Run `visp-kit reconcile --task <task-id> --update-traceability`."
 };
 
 export const implementationChecklistSteps: readonly ImplementationChecklistStep[] = [
@@ -255,8 +255,8 @@ export async function updateImplementationChecklistItem(input: {
       return err(
         new VispError(
           "VALIDATION_FAILED",
-          `Implementation checklist is missing for ${input.taskId}. Run \`visp context ${input.taskId}\` first.`,
-          { recovery: `visp context ${input.taskId}` }
+          `Implementation checklist is missing for ${input.taskId}. Run \`visp-kit context ${input.taskId}\` first.`,
+          { recovery: `visp-kit context ${input.taskId}` }
         )
       );
     }

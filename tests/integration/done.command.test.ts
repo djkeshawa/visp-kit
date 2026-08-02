@@ -103,7 +103,7 @@ async function prepareImplementedTask(
 
 // These suites spawn git and run the full post-implementation pipeline, which
 // is slow on Windows CI; raise the per-hook/test timeout above the 5s default.
-describe("visp done command", { timeout: 30000 }, () => {
+describe("visp-kit done command", { timeout: 30000 }, () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -177,7 +177,7 @@ describe("visp done command", { timeout: 30000 }, () => {
     expect(summary.steps).toHaveLength(1);
     expect(summary.steps[0]?.name).toBe("verify");
     expect(summary.steps[0]?.success).toBe(false);
-    expect(summary.steps[0]?.recovery).toBe("visp verify --task T001");
+    expect(summary.steps[0]?.recovery).toBe("visp-kit verify --task T001");
     expect(process.exitCode).toBe(1);
   });
 
@@ -252,7 +252,7 @@ describe("visp done command", { timeout: 30000 }, () => {
       expect.objectContaining({
         name: "candidate",
         success: false,
-        recovery: "visp verify --candidate --task T001"
+        recovery: "visp-kit verify --candidate --task T001"
       })
     ]);
     expect(process.exitCode).toBe(1);

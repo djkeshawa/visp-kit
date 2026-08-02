@@ -88,7 +88,7 @@ export async function runNextWorkflow(
         : undefined;
 
   if (gateEvaluationError !== undefined) {
-    const nextCommand = "visp override validate";
+    const nextCommand = "visp-kit override validate";
     const finding = `Override or gate evaluation is unavailable: ${gateEvaluationError.message}`;
     const summary: NextStep = {
       ...fallback,
@@ -166,19 +166,21 @@ export async function runNextWorkflow(
       : []),
     ...(prGate?.ok && !prGate.value.allowed ? prGate.value.failedRules : [])
   ];
-  const existingPreparationCommands = new Set(["visp scan", "visp constitution"]);
+  const existingPreparationCommands = new Set(["visp-kit scan", "visp-kit constitution"]);
   const assuranceDecisionFailure = prGate?.ok
     ? prGate.value.failedRules.find((rule) => rule.ruleId === "VSP024")
     : undefined;
   const assuranceRemediation =
     assuranceDecisionFailure === undefined
       ? undefined
-      : /^Run (visp .+?)\.?$/u.exec(assuranceDecisionFailure.recommendation)?.[1];
+      : // Dual vocabulary (D-119): recommendations may carry either CLI name
+        // during the deprecation window.
+        /^Run (visp(?:-kit)? .+?)\.?$/u.exec(assuranceDecisionFailure.recommendation)?.[1];
   const nextCommand =
-    fallback.nextCommand === "visp pr" && assuranceRemediation !== undefined
+    fallback.nextCommand === "visp-kit pr" && assuranceRemediation !== undefined
       ? assuranceRemediation
       : existingPreparationCommands.has(fallback.nextCommand) &&
-          nextGate.value.nextAllowedCommand !== "visp policy init --strictness strict"
+          nextGate.value.nextAllowedCommand !== "visp-kit policy init --strictness strict"
         ? fallback.nextCommand
         : nextGate.value.nextAllowedCommand;
   const implementationAllowed = implementationGate?.ok ? implementationGate.value.allowed : false;
@@ -189,7 +191,7 @@ export async function runNextWorkflow(
     success:
       nextGate.value.allowed &&
       fallback.success &&
-      !(fallback.nextCommand === "visp pr" && assuranceDecisionFailure !== undefined),
+      !(fallback.nextCommand === "visp-kit pr" && assuranceDecisionFailure !== undefined),
     nextCommand,
     reason:
       nextCommand === fallback.nextCommand

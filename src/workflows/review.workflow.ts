@@ -125,7 +125,7 @@ async function ensureTaskGraph(input: {
   if (!exists.ok) return exists;
   if (!exists.value) {
     return err(
-      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp tasks` first.")
+      new VispError("VALIDATION_FAILED", "Task graph is missing. Run `visp-kit tasks` first.")
     );
   }
 
@@ -217,10 +217,12 @@ function collectMessages(input: {
 
 function nextCommand(report: Pick<ReviewReport, "result" | "taskId">): string {
   if (report.result === "failed") {
-    return report.taskId === null ? "visp verify" : `visp verify --task ${report.taskId}`;
+    return report.taskId === null ? "visp-kit verify" : `visp-kit verify --task ${report.taskId}`;
   }
 
-  return report.taskId === null ? "visp reconcile" : `visp reconcile --task ${report.taskId}`;
+  return report.taskId === null
+    ? "visp-kit reconcile"
+    : `visp-kit reconcile --task ${report.taskId}`;
 }
 
 function outputPaths(input: {
@@ -514,7 +516,7 @@ export async function runReviewWorkflow(
               title: "Policy gate evaluation unavailable",
               description: policyGateUnavailable,
               evidence: policyGateUnavailable,
-              recommendation: "Run visp override validate.",
+              recommendation: "Run visp-kit override validate.",
               relatedTaskId: selectedTask?.id ?? null
             })
           ]

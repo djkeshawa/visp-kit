@@ -111,17 +111,21 @@ export async function runPrWorkflow(
   if (!state.ok) return state;
   if (!state.value.initialized) {
     return err(
-      new VispError("VALIDATION_FAILED", "Visp Kit is not initialized. Run `visp init` first.", {
-        recovery: "visp init"
-      })
+      new VispError(
+        "VALIDATION_FAILED",
+        "Visp Kit is not initialized. Run `visp-kit init` first.",
+        {
+          recovery: "visp-kit init"
+        }
+      )
     );
   }
   if (state.value.selectedFeature === undefined) {
     return err(
       new VispError(
         "VALIDATION_FAILED",
-        'No active feature found. Run `visp feature "<idea>"` first or pass --feature.',
-        { recovery: 'visp feature "<describe your feature>"' }
+        'No active feature found. Run `visp-kit feature "<idea>"` first or pass --feature.',
+        { recovery: 'visp-kit feature "<describe your feature>"' }
       )
     );
   }
@@ -338,7 +342,7 @@ export async function runPrWorkflow(
     errors: parsed.data.errors,
     nextCommand: parsed.data.success
       ? "Review pr.md and use it in your pull request."
-      : (policyGate?.nextAllowedCommand ?? "Resolve policy readiness errors and rerun visp pr.")
+      : (policyGate?.nextAllowedCommand ?? "Resolve policy readiness errors and rerun visp-kit pr.")
   });
 }
 
