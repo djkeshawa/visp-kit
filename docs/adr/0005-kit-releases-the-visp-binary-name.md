@@ -1,7 +1,8 @@
 # ADR 0005: Kit Releases the `visp` Binary Name
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-31
+- **Accepted:** 2026-08-02 under D-116
 - **Workspace decision:** D-106
 
 ## Context
