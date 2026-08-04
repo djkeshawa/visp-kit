@@ -38,7 +38,7 @@ export type IntegrationContractSummary = {
   };
   readonly kit: {
     readonly packageName: "visp-kit";
-    readonly cliName: "visp";
+    readonly cliName: "visp-kit";
     readonly version: string;
   };
   readonly targetPath: string;
@@ -277,7 +277,12 @@ export async function runIntegrationContractWorkflow(
     protocols: PROTOCOLS,
     kit: {
       packageName: "visp-kit",
-      cliName: "visp",
+      // The command this package actually installs. It said "visp" until 0.4.0
+      // released that name to visp-hyper-agent (ADR 0005) — after which the
+      // contract was telling every consumer to spawn a command this package no
+      // longer provides, and which now belongs to the coordinator. A contract
+      // that misreports its own entry point is worse than one that omits it.
+      cliName: "visp-kit",
       version: packageVersion()
     },
     targetPath,

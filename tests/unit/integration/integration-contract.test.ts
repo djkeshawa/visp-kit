@@ -262,7 +262,10 @@ describe("integration contract workflow", () => {
       expect(legacyContract.contractVersion).toBe("2.0");
       expect(legacyContract.kit).toEqual({
         packageName: "visp-kit",
-        cliName: "visp",
+        // P12: must name the command this package INSTALLS. It reported
+        // "visp" after 0.4.0 gave that name away, telling consumers to spawn
+        // the coordinator while believing they were spawning the engine.
+        cliName: "visp-kit",
         version: pkg.version
       });
       expect(legacyContract.kit.version).toMatch(/^\d+\.\d+\.\d+/u);
