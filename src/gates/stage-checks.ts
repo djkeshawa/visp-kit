@@ -2,11 +2,18 @@ import { type GateStage } from "../artifacts/schemas/gate.schema.js";
 import { type PolicyRules } from "../artifacts/schemas/policy.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { hasValidationFallback, sourceChangedFiles } from "./artifact-presence.js";
+import {
+  clarificationsReadiness,
+  planReadiness,
+  readinessEvidence,
+  specReadiness,
+  type ArtifactReadiness
+} from "./artifact-readiness.js";
 import { type GateContext } from "./gate-context.js";
 import { nextAllowedCommand } from "./next-command.js";
 import { ruleById, type GateRuleId } from "./gate-rules.js";
 import { type GateCheck, type GateEvaluation } from "./gate-result.js";
-import { isBehaviorTask, taskScopeChecks } from "./task-gate-checks.js";
+import { concreteScopePaths, isBehaviorTask, taskScopeChecks } from "./task-gate-checks.js";
 
 function enabled(rules: PolicyRules, ruleId: GateRuleId): boolean {
   const rule = ruleById(ruleId);
@@ -97,6 +104,61 @@ function featureCheck(context: GateContext): GateCheck {
         recommendation: "Continue.",
         evidence: `${feature.id}-${feature.slug}`
       });
+}
+
+/**
+ * Turn an upstream artifact's readiness into a gate check.
+ *
+ * The three outcomes are three different repairs, so they must not collapse
+ * into one message. Missing means run the generating command. Incomplete means
+ * the file is there and the placeholders still need filling in — telling that
+ * reader to "run visp-kit spec" sends them to a command that will refuse to
+ * overwrite their own work. Ready continues.
+ *
+ * `evidence` carries the validator's actual reasons rather than a restatement
+ * of the verdict, because the whole failure being repaired here was a check
+ * whose evidence described something other than what it tested.
+ */
+function readinessCheck(input: {
+  readonly ruleId: GateRuleId;
+  readonly readiness: ArtifactReadiness;
+  readonly artifactPath: string;
+  /** The command that WRITES this artifact — `visp-kit spec` for spec.json. */
+  readonly ownerCommand: string;
+  readonly missingMessage: string;
+  readonly incompleteMessage: string;
+  readonly readyMessage: string;
+  readonly severity: "error" | "warning";
+}): GateCheck {
+  if (input.readiness.state === "ready") {
+    return check({
+      ruleId: input.ruleId,
+      passed: true,
+      message: input.readyMessage,
+      recommendation: "Continue.",
+      evidence: `${input.artifactPath} passed the same validation ${input.ownerCommand} applies.`
+    });
+  }
+
+  if (input.readiness.state === "missing") {
+    return check({
+      ruleId: input.ruleId,
+      passed: false,
+      severity: input.severity,
+      message: input.missingMessage,
+      recommendation: `Run ${input.ownerCommand}.`,
+      evidence: `${input.artifactPath} was not found or could not be read.`
+    });
+  }
+
+  return check({
+    ruleId: input.ruleId,
+    passed: false,
+    severity: input.severity,
+    message: input.incompleteMessage,
+    recommendation: `Run ${input.ownerCommand} --validate.`,
+    evidence: readinessEvidence(input.readiness.errors)
+  });
 }
 
 function taskCheck(context: GateContext, recommendation = "Run visp-kit tasks."): GateCheck {
@@ -281,8 +343,31 @@ function filteredChecks(context: GateContext, checks: readonly GateCheck[]): rea
   return checks.filter((item) => item.passed || enabled(context.policy.policy.rules, item.ruleId));
 }
 
-function readyCommand(stage: GateStage, task: Task | undefined): string {
+/**
+ * The command to run once this stage is allowed.
+ *
+ * Every command Kit emits must name `visp-kit`. Since the D-118 rename `visp`
+ * is HYPER's binary, and the stage names here — spec, plan, tasks, verify,
+ * review, pr — are not among Hyper's thirteen verbs. So `visp spec` is not a
+ * command any installed binary answers to.
+ *
+ * `visp plan` is the dangerous one: it does exist as a Hyper verb, but it
+ * means "drive the whole preparation loop", not "run Kit's plan stage". Same
+ * words, different program, no error to notice.
+ *
+ * `feature`, `context` and `reconcile` were corrected during the rename; these
+ * were missed because nothing compared what Kit emits against what each binary
+ * accepts. The test for this asserts the property over every stage rather than
+ * the individual strings, so a stage added later cannot reintroduce it.
+ */
+export function readyCommand(stage: GateStage, task: Task | undefined): string {
   if (stage === "feature") return 'visp-kit feature "<describe your feature>"';
+  // Kit has no `setup` command — the stage's Kit-side equivalent is `init`.
+  // The pre-rename string here was `visp setup`, which happens to be a real
+  // verb of Hyper's, and mapping it mechanically to `visp-kit setup` would
+  // have invented a command that does not exist. Kit must recommend only its
+  // own commands in any case: it cannot know whether Hyper is installed.
+  if (stage === "setup") return "visp-kit init";
   if (stage === "implement") {
     return "Read .visp/prompts/current-task.prompt.md and implement only the selected task.";
   }
@@ -292,14 +377,14 @@ function readyCommand(stage: GateStage, task: Task | undefined): string {
     const taskFlag = task === undefined ? "" : ` --task ${task.id}`;
     return stage === "reconcile"
       ? `visp-kit reconcile${taskFlag} --update-traceability`
-      : `visp ${stage}${taskFlag}`;
+      : `visp-kit ${stage}${taskFlag}`;
   }
-  return `visp ${stage}`;
+  return `visp-kit ${stage}`;
 }
 
 // Bare, machine-runnable form of readyCommand: the same value except the
 // implement-ready state, whose sentence maps to running the current-task prompt.
-function readyCommandBare(stage: GateStage, task: Task | undefined): string {
+export function readyCommandBare(stage: GateStage, task: Task | undefined): string {
   if (stage === "implement") {
     return "visp-kit context --next";
   }
@@ -423,22 +508,19 @@ export function evaluateSpecGate(context: GateContext): GateEvaluation {
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
-    context.state.artifactSummary.clarifications
-      ? check({
-          ruleId: "VSP003",
-          passed: true,
-          message: "Clarifications exist.",
-          recommendation: "Continue.",
-          evidence: ".visp/features/<feature>/clarifications.json exists."
-        })
-      : check({
-          ruleId: "VSP003",
-          passed: false,
-          severity: context.policy.policy.strictnessMode === "relaxed" ? "warning" : "error",
-          message: "Clarifications are missing.",
-          recommendation: "Run visp-kit clarify.",
-          evidence: ".visp/features/<feature>/clarifications.json was not found."
-        })
+    // Presence is not usability. `visp-kit clarify` writes an artifact whose
+    // every field is the literal "TBD", and `visp-kit spec` refuses it — so a
+    // gate that passed on existence authorized a stage the product rejects.
+    readinessCheck({
+      ruleId: "VSP003",
+      readiness: clarificationsReadiness(context.state),
+      artifactPath: ".visp/features/<feature>/clarifications.json",
+      ownerCommand: "visp-kit clarify",
+      missingMessage: "Clarifications are missing.",
+      incompleteMessage: "Clarifications are present but unresolved.",
+      readyMessage: "Clarifications are resolved.",
+      severity: context.policy.policy.strictnessMode === "relaxed" ? "warning" : "error"
+    })
   ];
 
   return output(context, filteredChecks(context, checks), "spec");
@@ -448,22 +530,19 @@ export function evaluatePlanGate(context: GateContext): GateEvaluation {
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
-    context.state.artifactSummary.spec && (context.state.spec?.requirements.length ?? 0) > 0
-      ? check({
-          ruleId: "VSP004",
-          passed: true,
-          message: "Spec exists and has requirements.",
-          recommendation: "Continue.",
-          evidence: ".visp/features/<feature>/spec.json was loaded."
-        })
-      : check({
-          ruleId: "VSP004",
-          passed: false,
-          severity: "error",
-          message: "Spec is missing or has no requirements.",
-          recommendation: "Run visp-kit spec.",
-          evidence: ".visp/features/<feature>/spec.json is missing or incomplete."
-        })
+    // `visp-kit spec` generates a draft whose single requirement is titled
+    // "TBD". Counting requirements accepted that draft; `visp-kit plan` does
+    // not. Both sides now read the same validator.
+    readinessCheck({
+      ruleId: "VSP004",
+      readiness: specReadiness(context.state),
+      artifactPath: ".visp/features/<feature>/spec.json",
+      ownerCommand: "visp-kit spec",
+      missingMessage: "Spec is missing.",
+      incompleteMessage: "Spec is present but incomplete.",
+      readyMessage: "Spec is complete.",
+      severity: "error"
+    })
   ];
 
   return output(context, filteredChecks(context, checks), "plan");
@@ -473,38 +552,29 @@ export function evaluateTasksGate(context: GateContext): GateEvaluation {
   const checks = [
     ...policyChecks(context, "warning"),
     featureCheck(context),
-    context.state.artifactSummary.spec
-      ? check({
-          ruleId: "VSP004",
-          passed: true,
-          message: "Spec exists.",
-          recommendation: "Continue.",
-          evidence: ".visp/features/<feature>/spec.json was loaded."
-        })
-      : check({
-          ruleId: "VSP004",
-          passed: false,
-          severity: "error",
-          message: "Spec is missing.",
-          recommendation: "Run visp-kit spec.",
-          evidence: ".visp/features/<feature>/spec.json was not found."
-        }),
-    context.state.artifactSummary.plan
-      ? check({
-          ruleId: "VSP005",
-          passed: true,
-          message: "Plan exists.",
-          recommendation: "Continue.",
-          evidence: ".visp/features/<feature>/plan.json was loaded."
-        })
-      : check({
-          ruleId: "VSP005",
-          passed: false,
-          severity: "error",
-          message: "Plan is missing.",
-          recommendation: "Run visp-kit plan.",
-          evidence: ".visp/features/<feature>/plan.json was not found."
-        })
+    // Task decomposition is derived from the spec and the plan. Authorizing it
+    // from placeholders produces tasks nobody can implement, and `visp-kit
+    // tasks` refuses the plan half of that itself.
+    readinessCheck({
+      ruleId: "VSP004",
+      readiness: specReadiness(context.state),
+      artifactPath: ".visp/features/<feature>/spec.json",
+      ownerCommand: "visp-kit spec",
+      missingMessage: "Spec is missing.",
+      incompleteMessage: "Spec is present but incomplete.",
+      readyMessage: "Spec is complete.",
+      severity: "error"
+    }),
+    readinessCheck({
+      ruleId: "VSP005",
+      readiness: planReadiness(context.state),
+      artifactPath: ".visp/features/<feature>/plan.json",
+      ownerCommand: "visp-kit plan",
+      missingMessage: "Plan is missing.",
+      incompleteMessage: "Plan is present but incomplete.",
+      readyMessage: "Plan is complete.",
+      severity: "error"
+    })
   ];
 
   return output(context, filteredChecks(context, checks), "tasks");
@@ -599,13 +669,6 @@ export function evaluateImplementGate(context: GateContext): GateEvaluation {
   ];
 
   return output(context, filteredChecks(context, checks), "implement");
-}
-
-function concreteScopePaths(paths: readonly string[]): readonly string[] {
-  return paths.filter((value) => {
-    const trimmed = value.trim();
-    return trimmed.length > 0 && trimmed.toUpperCase() !== "TBD" && !trimmed.includes(" ");
-  });
 }
 
 function concurrentAuthorizationChecks(context: GateContext): readonly GateCheck[] {

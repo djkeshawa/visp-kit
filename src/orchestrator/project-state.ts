@@ -61,6 +61,10 @@ import {
   type ReconcileReport
 } from "../artifacts/schemas/reconcile.schema.js";
 import { reviewReportSchema, type ReviewReport } from "../artifacts/schemas/review.schema.js";
+import {
+  clarificationArtifactSchema,
+  type ClarificationArtifact
+} from "../artifacts/schemas/clarification.schema.js";
 import { specArtifactSchema, type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import {
   type Task,
@@ -130,6 +134,11 @@ export type ProjectState = {
   };
   readonly selectedTask?: Task;
   readonly taskGraph?: TaskGraphArtifact;
+  // The parsed artifact, not just `artifactSummary.clarifications`. Gates need
+  // to ask whether clarifications are USABLE, and a boolean from `exists()`
+  // cannot answer that — which is exactly how `gate spec` came to authorize a
+  // stage `visp-kit spec` refuses.
+  readonly clarifications?: ClarificationArtifact;
   readonly spec?: SpecArtifact;
   readonly plan?: PlanDraftArtifact;
   readonly traceability?: TraceabilityMatrix;
@@ -444,6 +453,15 @@ export async function loadProjectState(
     errors.push(`Task not found: ${options.taskId}.`);
   }
 
+  const clarifications =
+    key === undefined
+      ? undefined
+      : await readOptional({
+          filePath: clarificationsArtifactPath(targetPath, key),
+          schema: clarificationArtifactSchema,
+          artifactName: "clarifications",
+          warnings
+        });
   const spec =
     key === undefined
       ? undefined
@@ -580,6 +598,7 @@ export async function loadProjectState(
     selectedFeature,
     selectedTask,
     taskGraph,
+    clarifications,
     spec,
     plan,
     traceability,

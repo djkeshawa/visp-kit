@@ -1,3 +1,4 @@
+import { clarificationsReadiness, planReadiness, specReadiness } from "./artifact-readiness.js";
 import { type GateContext } from "./gate-context.js";
 
 function taskFlag(taskId: string | undefined): string {
@@ -18,9 +19,29 @@ export function nextAllowedCommand(context: GateContext): string {
   if (state.selectedFeature === undefined) {
     return 'visp-kit feature "<describe your feature>"';
   }
-  if (!state.artifactSummary.clarifications) return "visp-kit clarify";
-  if (!state.artifactSummary.spec) return "visp-kit spec";
-  if (!state.artifactSummary.plan) return "visp-kit plan";
+  // Advance on readiness, not on existence.
+  //
+  // These lines used to ask `artifactSummary.<name>`, which is `exists()`. So
+  // the moment `visp-kit spec` wrote its all-TBD draft, the guidance moved on
+  // to "visp-kit plan" — a command that then refuses the very file that caused
+  // the advance. Fixing only the gate checks would have left this half of the
+  // product still pointing past the blocker: same contradiction, new location.
+  //
+  // An artifact that exists but is not yet usable sends the reader back to the
+  // command that owns it in `--validate` form, which prints exactly what is
+  // still missing rather than refusing to overwrite their work.
+  const clarifications = clarificationsReadiness(state);
+  if (clarifications.state === "missing") return "visp-kit clarify";
+  if (clarifications.state === "incomplete") return "visp-kit clarify --validate";
+
+  const spec = specReadiness(state);
+  if (spec.state === "missing") return "visp-kit spec";
+  if (spec.state === "incomplete") return "visp-kit spec --validate";
+
+  const plan = planReadiness(state);
+  if (plan.state === "missing") return "visp-kit plan";
+  if (plan.state === "incomplete") return "visp-kit plan --validate";
+
   if (!state.artifactSummary.taskGraph) return "visp-kit tasks";
   if (!state.artifactSummary.context) return "visp-kit context --next";
   if (taskId === undefined) return "visp-kit context --next";

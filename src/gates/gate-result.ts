@@ -28,10 +28,15 @@ export type GateEvaluation = {
   readonly nextCommand: string;
 };
 
-function commandForStage(stage: GateStage): string {
+// Names the blocked command in `blockedCommands`. Post-rename `visp` is
+// Hyper's binary and does not answer to Kit's stage names, so a reader given
+// "visp spec" is told to run something that does not exist.
+export function commandForStage(stage: GateStage): string {
   if (stage === "implement") return "implementation";
   if (stage === "next") return "workflow progression";
-  return `visp ${stage}`;
+  // Kit has no `setup` command; the stage's Kit-side equivalent is `init`.
+  if (stage === "setup") return "visp-kit init";
+  return `visp-kit ${stage}`;
 }
 
 function finding(input: GateCheck, strictness: StrictnessMode): GateRuleFinding {
