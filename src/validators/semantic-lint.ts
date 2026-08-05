@@ -5,12 +5,38 @@ export function isPlaceholderText(value: string): boolean {
   return text.length === 0 || placeholderPatterns.some((pattern) => pattern.test(text));
 }
 
+/**
+ * Why a string was judged a placeholder, phrased for the person fixing it.
+ *
+ * "plan.implementationApproach contains placeholder text." points at a field
+ * that may hold a hundred words and says nothing about which of them offended.
+ * A weak-model evaluation on a real project spent three rewrites on exactly
+ * that message and drew the wrong conclusion about the cause — it decided the
+ * validator wanted shorter prose, which is not a rule this file has.
+ *
+ * Naming the offending substring turns a guessing game into an edit.
+ */
+export function placeholderReason(value: string): string {
+  const text = value.trim();
+  if (text.length === 0) return "it is empty";
+
+  const offenders = placeholderPatterns
+    .map((pattern) => pattern.exec(text)?.[0])
+    .filter((match): match is string => match !== undefined);
+
+  return offenders.length === 0
+    ? "it matches a placeholder pattern"
+    : `it still contains ${offenders.map((match) => `"${match}"`).join(", ")}`;
+}
+
 export function concreteStrings(input: {
   readonly values: readonly string[];
   readonly label: string;
 }): readonly string[] {
   return input.values.flatMap((value, index) =>
-    isPlaceholderText(value) ? [`${input.label}[${index}] contains placeholder text.`] : []
+    isPlaceholderText(value)
+      ? [`${input.label}[${index}] contains placeholder text: ${placeholderReason(value)}.`]
+      : []
   );
 }
 
@@ -18,7 +44,9 @@ export function concreteText(input: {
   readonly value: string;
   readonly label: string;
 }): readonly string[] {
-  return isPlaceholderText(input.value) ? [`${input.label} contains placeholder text.`] : [];
+  return isPlaceholderText(input.value)
+    ? [`${input.label} contains placeholder text: ${placeholderReason(input.value)}.`]
+    : [];
 }
 
 export function isTautologicalCriterion(input: {
@@ -49,7 +77,9 @@ export function hasConcretePath(paths: readonly string[]): boolean {
 
 export function placeholderFindings(value: unknown, path = "artifact"): readonly string[] {
   if (typeof value === "string") {
-    return isPlaceholderText(value) ? [`${path} contains placeholder text.`] : [];
+    return isPlaceholderText(value)
+      ? [`${path} contains placeholder text: ${placeholderReason(value)}.`]
+      : [];
   }
   if (Array.isArray(value)) {
     return value.flatMap((item, index) => placeholderFindings(item, `${path}[${index}]`));
