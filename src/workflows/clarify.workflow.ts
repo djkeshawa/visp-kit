@@ -11,9 +11,9 @@ import {
   clarificationArtifactSchema,
   type ClarificationArtifact
 } from "../artifacts/schemas/clarification.schema.js";
-import { type VispError } from "../core/errors.js";
+import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
-import { ok, type Result } from "../core/result.js";
+import { err, ok, type Result } from "../core/result.js";
 import { renderClarifyPrompt } from "../prompts/render-clarify-prompt.js";
 import {
   createClarificationArtifact,
@@ -141,27 +141,28 @@ export async function runClarifyWorkflow(
       ]);
 
   if (prerequisiteErrors.length > 0) {
-    return ok({
-      success: false,
-      command: "clarify",
-      targetPath,
-      feature: {
-        id: feature.value.id,
-        slug: feature.value.slug,
-        path: feature.value.relativePath
-      },
-      createdFiles: [],
-      skippedFiles: [],
-      staleFiles: [],
-      overwrittenFiles: [],
-      updatedFiles: [],
-      validated: true,
-      validation: { passed: false, errors: prerequisiteErrors },
-      dryRun,
-      promptPath: promptDisplayPath,
-      warnings: [],
-      nextCommand: "visp-kit spec"
-    });
+    // A missing UPSTREAM artifact is a hard failure, the same way spec, plan
+    // and tasks report it (spec.workflow.ts:181, plan.workflow.ts:144,
+    // tasks.workflow.ts:258). Clarify alone used to report it as a soft
+    // validation failure — `ok({ validation: { passed: false } })` — which
+    // makes the two situations indistinguishable to any caller reading the
+    // envelope:
+    //
+    //   soft  { success:false, validation:{ errors:[…] } }  the human's JSON
+    //                                                       needs filling in
+    //   hard  { success:false, error, recovery }            the wrong stage was
+    //                                                       run
+    //
+    // A coordinator that branches on those (visp's composite verbs do) would
+    // have told the user to go fill in a clarifications file that does not
+    // exist yet, when what they actually need is to register a feature.
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        `Feature intent artifacts are missing: ${prerequisiteErrors.join(" ")}`,
+        { recovery: 'visp-kit feature "<describe your feature>"' }
+      )
+    );
   }
 
   const artifact = createClarificationArtifact({ feature: feature.value, now });

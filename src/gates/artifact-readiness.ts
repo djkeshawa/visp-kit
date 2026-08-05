@@ -27,6 +27,7 @@ import { type ProjectState } from "../orchestrator/project-state.js";
 import { validateClarifications } from "../validators/validate-clarifications.js";
 import { validatePlan } from "../validators/validate-plan.js";
 import { validateSpec } from "../validators/validate-spec.js";
+import { validateTaskGraph } from "../validators/validate-task-graph.js";
 
 export type ArtifactReadiness =
   /** Present and accepted by the same validator the command applies. */
@@ -90,5 +91,31 @@ export function planReadiness(state: ProjectState): ArtifactReadiness {
   const artifact = state.plan;
   if (artifact === undefined) return { state: "missing" };
   const validation = validatePlan(artifact);
+  return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
+}
+
+/**
+ * Mirrors `visp-kit tasks --validate`, which runs `validateTaskGraph`.
+ *
+ * The three functions above were added by D-132; this one was missed, and the
+ * gap was not cosmetic. `nextAllowedCommand` asked only whether a task graph
+ * EXISTED, so a half-filled one never produced `visp-kit tasks --validate` —
+ * and the coordinator, which advances by replaying that answer, had no way to
+ * resume through this stage. It was one of the eight places a user was forced
+ * back to the engine binary.
+ *
+ * `validateTaskGraph` needs the spec to check that task requirement and
+ * criterion ids resolve. A missing spec is reported as `missing` rather than
+ * guessed at: the spec check runs earlier in `nextAllowedCommand`, so this is
+ * only reachable defensively.
+ */
+export function taskGraphReadiness(state: ProjectState): ArtifactReadiness {
+  const artifact = state.taskGraph;
+  if (artifact === undefined || state.spec === undefined) return { state: "missing" };
+  const validation = validateTaskGraph({
+    taskGraph: artifact,
+    spec: state.spec,
+    traceability: state.traceability
+  });
   return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
 }

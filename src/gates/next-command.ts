@@ -1,4 +1,9 @@
-import { clarificationsReadiness, planReadiness, specReadiness } from "./artifact-readiness.js";
+import {
+  clarificationsReadiness,
+  planReadiness,
+  specReadiness,
+  taskGraphReadiness
+} from "./artifact-readiness.js";
 import { type GateContext } from "./gate-context.js";
 
 function taskFlag(taskId: string | undefined): string {
@@ -42,7 +47,10 @@ export function nextAllowedCommand(context: GateContext): string {
   if (plan.state === "missing") return "visp-kit plan";
   if (plan.state === "incomplete") return "visp-kit plan --validate";
 
-  if (!state.artifactSummary.taskGraph) return "visp-kit tasks";
+  const taskGraph = taskGraphReadiness(state);
+  if (taskGraph.state === "missing") return "visp-kit tasks";
+  if (taskGraph.state === "incomplete") return "visp-kit tasks --validate";
+
   if (!state.artifactSummary.context) return "visp-kit context --next";
   if (taskId === undefined) return "visp-kit context --next";
 
