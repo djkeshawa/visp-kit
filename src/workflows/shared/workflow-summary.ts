@@ -129,14 +129,14 @@ export function formatTemplateWorkflowSummary(summary: TemplateWorkflowSummary):
       "",
       "Next:",
       `  Use ${summary.promptPath} with your AI coding tool, then run:`,
-      `  visp ${summary.command} --validate`,
+      `  visp-kit ${summary.command} --validate`,
       `  ${summary.nextCommand}`
     );
   } else {
     lines.push(
       "",
       `Validation failed. Fix the errors above in ${summary.feature.path}, then run:`,
-      `  visp ${summary.command} --validate`
+      `  visp-kit ${summary.command} --validate`
     );
   }
 

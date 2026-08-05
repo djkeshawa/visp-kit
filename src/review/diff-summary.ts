@@ -33,6 +33,16 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
 
   return (
     isImplementMarker ||
+    // `.visp/hyper/` belongs to visp-hyper-agent, not to Kit and not to the
+    // user. Kit's allowlist is maintained per-path and had never heard of the
+    // sibling product, so every Hyper command — including the ones that drive
+    // Kit — wrote `.visp/hyper/state.json` and Kit then reported it as an
+    // unattributed out-of-scope source change against the user's task.
+    //
+    // Dogfooding surfaced it immediately: `visp check` on a first real feature
+    // failed with the toolchain's own state files listed as scope violations.
+    // Using the products together made their own gate fail.
+    filePath.startsWith(".visp/hyper/") ||
     filePath.startsWith(".visp/reports/") ||
     filePath.startsWith(".visp/cache/") ||
     filePath.startsWith(".visp/runs/") ||

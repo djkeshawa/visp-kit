@@ -21,6 +21,11 @@ import { gateStageSchema, type GateStage } from "../../../src/artifacts/schemas/
 import { createCli } from "../../../src/cli/main.js";
 import { commandForStage } from "../../../src/gates/gate-result.js";
 import { readyCommand, readyCommandBare } from "../../../src/gates/stage-checks.js";
+import {
+  formatTemplateWorkflowSummary,
+  type TemplateCommandName,
+  type TemplateWorkflowSummary
+} from "../../../src/workflows/shared/workflow-summary.js";
 import { type Task } from "../../../src/artifacts/schemas/task.schema.js";
 
 const ALL_STAGES: readonly GateStage[] = gateStageSchema.options;
@@ -102,6 +107,52 @@ describe("every command Kit emits names Kit's own binary", () => {
   it.each([...ALL_STAGES])("commandForStage(%s) names visp-kit", (stage) => {
     assertNamesKit(commandForStage(stage), `commandForStage(${stage})`);
   });
+
+  // -------------------------------------------------------------------
+  // The gate is not the only thing that prints commands.
+  //
+  // Dogfooding on a real repository found `visp clarify --validate` coming
+  // out of the workflow summary renderer, minutes after the gate surface was
+  // fixed and pinned. `visp clarify` answers "error: unknown command".
+  //
+  // The tests above were scoped to the GATE, when the property is Kit's:
+  // every command Kit prints names visp-kit. A property test scoped to one
+  // caller only proves that caller, which is the same mistake as a check that
+  // passes for a reason other than the thing it names.
+  // -------------------------------------------------------------------
+  const TEMPLATE_COMMANDS: readonly TemplateCommandName[] = ["clarify", "spec", "plan", "tasks"];
+
+  function summaryFor(command: TemplateCommandName, passed: boolean): TemplateWorkflowSummary {
+    return {
+      success: passed,
+      command,
+      targetPath: "/tmp/project",
+      feature: { id: "001", slug: "a-feature", path: ".visp/features/001-a-feature" },
+      createdFiles: [".visp/features/001-a-feature/clarifications.json"],
+      skippedFiles: [],
+      staleFiles: [],
+      overwrittenFiles: [],
+      updatedFiles: [],
+      validated: true,
+      validation: { passed, errors: passed ? [] : ["CQ001 contains placeholder text."] },
+      dryRun: false,
+      promptPath: ".visp/prompts/clarify.prompt.md",
+      warnings: [],
+      nextCommand: readyCommandBare("spec", undefined)
+    };
+  }
+
+  it.each(TEMPLATE_COMMANDS)(
+    "the %s workflow summary emits only runnable visp-kit commands",
+    (command) => {
+      for (const passed of [true, false]) {
+        const rendered = formatTemplateWorkflowSummary(summaryFor(command, passed));
+        for (const line of rendered.split("\n").map((value) => value.trim())) {
+          assertNamesKit(line, `${command} summary (validation ${passed ? "passed" : "failed"})`);
+        }
+      }
+    }
+  );
 
   it("never emits a bare `visp` command for the stages the rename missed", () => {
     // The specific regression, spelled out. These six were reported by the
