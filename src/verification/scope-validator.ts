@@ -1,6 +1,6 @@
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type ScopeValidationSection } from "../artifacts/schemas/verification.schema.js";
-import { isGeneratedVispReviewFile } from "../review/diff-summary.js";
+import { isExemptFromTaskScope } from "../review/diff-summary.js";
 
 function normalize(values: readonly string[] | undefined): string[] {
   return [
@@ -17,7 +17,7 @@ function preserveRawPaths(values: readonly string[] | undefined): string[] {
 }
 
 function implementationFiles(files: readonly string[]): string[] {
-  return files.filter((file) => !isGeneratedVispReviewFile(file));
+  return files.filter((file) => !isExemptFromTaskScope(file));
 }
 
 export function validateScope(input: {

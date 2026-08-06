@@ -1,3 +1,4 @@
+import { isExemptFromTaskScope } from "./diff-summary.js";
 import { type ReviewChangedFile } from "../artifacts/schemas/review.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type LoadedDiffFile } from "./diff-loader.js";
@@ -65,7 +66,12 @@ export function reviewScope(input: {
     inExpectedFiles: expectedFiles.includes(file.path),
     inForbiddenFiles: forbiddenSet.has(file.path)
   }));
-  const implementationFiles = changedFiles.filter((file) => !file.isGeneratedVispFile);
+  // Same exemption as the verify path: Kit's own artifacts are not the
+  // user's feature work, and blaming a task for them is a guaranteed false
+  // finding on every task in every project.
+  const implementationFiles = changedFiles.filter(
+    (file) => !file.isGeneratedVispFile && !isExemptFromTaskScope(file.path)
+  );
   const warnings: string[] = [];
   const errors: string[] = [];
   const findings: ReviewFindingDraft[] = [];

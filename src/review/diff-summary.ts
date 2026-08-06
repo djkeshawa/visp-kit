@@ -94,6 +94,42 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
   );
 }
 
+/**
+ * Files a task can never be blamed for changing.
+ *
+ * Deliberately DISTINCT from `isGeneratedVispReviewFile`, and the distinction
+ * is the whole point. That predicate answers "did Visp write this?", and three
+ * integrity paths depend on the answer — the assurance diff snapshot,
+ * candidate-evidence fingerprints, and code identity. Widening it to cover
+ * `.visp/` was tried first and quietly disabled tamper detection: an
+ * integration test that plants a doctored assurance case and requires
+ * rejection started passing.
+ *
+ * This one answers a different question — "is this the user's feature work?" —
+ * and only scope reporting asks it. Kit's own artifact directory is never
+ * feature work in either direction, so it is exempt here and stays fully
+ * visible everywhere else.
+ *
+ * Without this, `visp check` on a real project reported SIXTEEN out-of-scope
+ * files, among them the spec, plan, clarifications and task graph the workflow
+ * had just told the user to fill in. The task was blamed for doing what it was
+ * instructed to do.
+ */
+export function isExemptFromTaskScope(filePath: string): boolean {
+  // Two zones under `.visp/` are NOT exempt, because scope validation is one of
+  // the surfaces that catches a planted file. `.visp/state/` holds
+  // implementation authorization and the assurance directories hold evidence;
+  // a file appearing in either that Visp did not write is a forgery, and it
+  // must keep surfacing. Everywhere else under `.visp/` is ordinary workflow
+  // output the user was told to edit.
+  const inSecurityZone =
+    filePath.startsWith(".visp/state/") ||
+    /^\.visp\/features\/[^/]+\/assurance\//u.test(filePath);
+  if (inSecurityZone) return isGeneratedVispReviewFile(filePath);
+
+  return filePath.startsWith(".visp/") || isGeneratedVispReviewFile(filePath);
+}
+
 const generatedAssuranceFileNames = new Set([
   "assurance-case.json",
   "assurance-case.md",

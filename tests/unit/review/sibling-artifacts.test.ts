@@ -12,7 +12,10 @@
 
 import { describe, expect, it } from "vitest";
 
-import { isGeneratedVispReviewFile } from "../../../src/review/diff-summary.js";
+import {
+  isExemptFromTaskScope,
+  isGeneratedVispReviewFile
+} from "../../../src/review/diff-summary.js";
 
 describe("cross-product artifacts are not user source changes", () => {
   it.each([
@@ -33,15 +36,45 @@ describe("cross-product artifacts are not user source changes", () => {
   });
 
   it.each([
-    "src/main.rs",
-    "Cargo.toml",
     ".visp/features/001-a/spec.json",
+    ".visp/features/001-a/plan.json",
+    ".visp/features/001-a/task-graph.json",
     ".visp/memory/constitution.md"
-  ])("still treats %s as a real change", (filePath) => {
-    // The converse, and the reason this is an allowlist rather than a blanket
-    // `.visp/` filter: artifacts a human edits must keep surfacing in review.
-    // A fix that excluded all of `.visp/` would silently stop reviewing the
-    // spec and the constitution.
+  ])("exempts the workflow artifact %s from task scope", (filePath) => {
+    // This assertion is INVERTED from what it said first, and the inversion is
+    // the finding. It used to require these to surface as changes, reasoning
+    // that a human edits them so a reviewer should see it.
+    //
+    // Dogfooding a second feature showed the cost: `visp check` reported
+    // sixteen out-of-scope files, among them the spec, plan, clarifications
+    // and task graph the workflow had just ordered the user to fill in. The
+    // task was blamed for doing exactly what it was told.
+    //
+    // The gate path has always filtered all of `.visp/`, so the two halves of
+    // one product disagreed; and an edited spec is checked far more strongly
+    // by `visp-kit spec --validate`, which reads its contents, than by a
+    // mention in a diff.
+    // Exempt from SCOPE, deliberately still visible to the integrity paths:
+    // `isGeneratedVispReviewFile` feeds the assurance diff snapshot and the
+    // candidate-evidence fingerprints, and hiding a spec from those would
+    // disable tamper detection.
+    expect(isExemptFromTaskScope(filePath)).toBe(true);
     expect(isGeneratedVispReviewFile(filePath)).toBe(false);
   });
+
+  it.each([
+    ".visp/state/implement-allowed/$T001.json",
+    ".visp/features/001-a/assurance/T001/planted.json"
+  ])("still surfaces %s, because a forged file there grants something", (filePath) => {
+    expect(isExemptFromTaskScope(filePath)).toBe(false);
+  });
+
+  it.each(["src/main.rs", "Cargo.toml", "README.md", "tests/notes.test.ts"])(
+    "still treats real source file %s as a change",
+    (filePath) => {
+      // The converse that matters: user source must never be excluded, or
+      // scope checking stops meaning anything at all.
+      expect(isGeneratedVispReviewFile(filePath)).toBe(false);
+    }
+  );
 });
