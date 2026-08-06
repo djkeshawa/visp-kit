@@ -213,7 +213,7 @@ export async function runTasksWorkflow(
       validation: validation.validation,
       promptPath: promptDisplayPath,
       warnings: validation.warnings,
-      nextCommand: "visp-kit context T001",
+      nextCommand: "visp-kit context --next",
       now
     });
 
@@ -362,7 +362,7 @@ export async function runTasksWorkflow(
     validation,
     promptPath: promptDisplayPath,
     warnings: spec.value.warnings,
-    nextCommand: "visp-kit context T001",
+    nextCommand: "visp-kit context --next",
     now
   });
 
