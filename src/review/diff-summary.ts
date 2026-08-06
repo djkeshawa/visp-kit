@@ -43,6 +43,24 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     // failed with the toolchain's own state files listed as scope violations.
     // Using the products together made their own gate fail.
     filePath.startsWith(".visp/hyper/") ||
+    // Project-root files the TOOLCHAIN creates during setup, not the user.
+    //
+    // On a first real feature `visp check` reported five out-of-scope files
+    // and four of them were these: `.mcp.json` from `visp setup`, `AGENTS.md`
+    // from the agent installer, `visp-memory.yaml` from `visp-memory init`.
+    // Every task in every project would violate scope for having been set up.
+    //
+    // These are user-editable in principle, which is why this took a decision
+    // rather than being obvious. It goes this way because the cost is
+    // asymmetric: counting them means a guaranteed false violation on every
+    // task forever, while excluding them means a deliberate hand-edit of a
+    // generated config does not surface in review — and that edit is not
+    // feature work, which is what task scope is about. A task that genuinely
+    // means to change one names it in allowedFiles, and then it is in scope by
+    // construction.
+    filePath === ".mcp.json" ||
+    filePath === "AGENTS.md" ||
+    filePath === "visp-memory.yaml" ||
     filePath.startsWith(".visp/reports/") ||
     filePath.startsWith(".visp/cache/") ||
     filePath.startsWith(".visp/runs/") ||

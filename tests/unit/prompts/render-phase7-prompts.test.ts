@@ -57,7 +57,7 @@ describe("phase 7 prompt renderers", () => {
     const prompt = renderSpecPrompt(feature);
 
     expect(prompt).toContain("- validationMethod: unit | integration | e2e | manual | static");
-    expect(prompt).toContain("- source: user | clarification | derived");
+    expect(prompt).toContain("- source: user | intent | clarification | derived");
     expect(prompt).toContain("- priority: must | should | could");
     expect(prompt).toContain("Example requirement entry in spec.json:");
     expect(prompt).toContain('"requirementId": "REQ001"');

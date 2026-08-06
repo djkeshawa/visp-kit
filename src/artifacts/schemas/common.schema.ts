@@ -139,7 +139,22 @@ export const featureStatusSchema = z.enum([
   "archived"
 ]);
 
-export const requirementSourceSchema = z.enum(["user", "clarification", "derived"]);
+// "intent" is accepted because clarifications.json already uses that exact word
+// for the same idea — a statement traceable to the user's original feature
+// intent. Two adjacent artifacts spelling one concept differently under an
+// identically named `source` field is a papercut every author hits: a
+// requirement written from the feature idea is rejected with "Expected 'user' |
+// 'clarification' | 'derived', received 'intent'".
+//
+// Widening is backward compatible: every artifact valid before is valid now.
+// This enum is deliberately NOT part of the hashed WorkflowAction protocol
+// schema, so no coordinated release is required — unlike riskFactors, which is.
+export const requirementSourceSchema = z.enum([
+  "user",
+  "intent",
+  "clarification",
+  "derived"
+]);
 
 export const requirementPrioritySchema = z.enum(["must", "should", "could"]);
 

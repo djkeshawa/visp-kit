@@ -18,7 +18,12 @@ describe("cross-product artifacts are not user source changes", () => {
   it.each([
     ".visp/hyper/state.json",
     ".visp/hyper/config.json",
-    ".visp/hyper/context/manifest.json"
+    ".visp/hyper/context/manifest.json",
+    // Project-root files the toolchain writes during setup. Four of the five
+    // out-of-scope findings on a first real feature were these.
+    ".mcp.json",
+    "AGENTS.md",
+    "visp-memory.yaml"
   ])("treats %s as tool-owned", (filePath) => {
     expect(
       isGeneratedVispReviewFile(filePath),

@@ -135,6 +135,16 @@ export function tasksFieldValuesSection(): string {
     enumLine("riskLevel", riskLevelSchema),
     enumLine("riskFactors[].code", riskFactorCodeSchema),
     "- riskFactors[].version: 1.0",
+    // Both weak-model evaluations of this workflow forced ordinary
+    // implementation risks into these codes — "performance overhead" became
+    // `concurrency`, "API availability" became `dependency` — and one said
+    // plainly that the mapping "feels forced". It is: this is a
+    // security-and-architecture taxonomy that routes assurance, not a general
+    // list of things that might go wrong. Saying so is the fix; widening the
+    // enum is not available cheaply, because riskFactors sits inside the
+    // hashed WorkflowAction protocol schema that Hyper pins by anchor.
+    "- riskFactors[].code is a SECURITY AND ARCHITECTURE taxonomy that routes assurance. It is not a general risk list.",
+    "- If an implementation risk (performance, ergonomics, rollout) matches no code, leave riskFactors: [] and record it under plan.risks instead. Do not force a mapping.",
     "- taskClass, riskLevel, and riskFactors are independent. Classify each from task evidence; do not derive taskClass from riskLevel.",
     "- Add taskClass and riskFactors before marking the graph ready. Use riskFactors: [] only when no factors apply.",
     '- IDs: T001, T002 - zero-padded and sequential. New tasks start as status "pending".',

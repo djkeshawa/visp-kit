@@ -44,7 +44,7 @@ describe("artifact examples", () => {
 
   it("enum lines list the exact schema options", () => {
     expect(enumLine("source", requirementSourceSchema)).toBe(
-      "- source: user | clarification | derived"
+      "- source: user | intent | clarification | derived"
     );
     expect(enumLine("priority", requirementPrioritySchema)).toBe(
       "- priority: must | should | could"
