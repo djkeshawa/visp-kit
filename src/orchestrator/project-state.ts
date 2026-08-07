@@ -343,6 +343,26 @@ async function scanIsPopulated(
   return typeof meta.value.generatedAt === "string" && meta.value.generatedAt.length > 0;
 }
 
+/**
+ * The verification report is ONE feature-level file, overwritten per task —
+ * unlike review and reconcile, which live in per-task files and are loaded
+ * for the selected task only. Its bare presence used to satisfy the NEXT
+ * task's phase detection: after T001 was saved, selecting T002 inherited
+ * T001's report, the resolver skipped T002's implement phase entirely, and
+ * `visp work` refused with "the workflow is at the review phase" for a task
+ * with no code written. Evidence counts only for the task it names. A null
+ * taskId (feature-level verification) is deliberately kept.
+ */
+export function verificationForSelectedTask<T extends { readonly taskId: string | null }>(
+  report: T | undefined,
+  selectedTaskId: string | undefined
+): T | undefined {
+  if (report === undefined || selectedTaskId === undefined || report.taskId === null) {
+    return report;
+  }
+  return report.taskId === selectedTaskId ? report : undefined;
+}
+
 export async function loadProjectState(
   options: ProjectStateOptions = {}
 ): Promise<Result<ProjectState, VispError>> {
@@ -522,7 +542,7 @@ export async function loadProjectState(
         usage.taskId === selectedTask.id
     )
     .sort((left, right) => right.recordedAt.localeCompare(left.recordedAt))[0];
-  const verification =
+  const verificationReport =
     key === undefined
       ? undefined
       : await readOptional({
@@ -531,6 +551,7 @@ export async function loadProjectState(
           artifactName: "verification report",
           warnings
         });
+  const verification = verificationForSelectedTask(verificationReport, selectedTask?.id);
   const review =
     key === undefined
       ? undefined

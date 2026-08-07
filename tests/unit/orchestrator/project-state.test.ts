@@ -209,3 +209,34 @@ describe("project state loader", () => {
     expect(state.errors).toEqual([]);
   });
 });
+
+// Found live on a two-task feature: after T001's checkpoint, selecting T002
+// inherited T001's verification report (one feature-level file), the resolver
+// skipped T002's implement phase, and `visp work` refused with "the workflow
+// is at the review phase" for a task with no code written.
+describe("verification evidence is scoped to the task it names", () => {
+  const report = { taskId: "T001" };
+
+  it("does not let one task's report stand in for the next task's evidence", async () => {
+    const { verificationForSelectedTask } = await import(
+      "../../../src/orchestrator/project-state.js"
+    );
+    expect(verificationForSelectedTask(report, "T002")).toBeUndefined();
+  });
+
+  it("keeps the report for the task it names", async () => {
+    const { verificationForSelectedTask } = await import(
+      "../../../src/orchestrator/project-state.js"
+    );
+    expect(verificationForSelectedTask(report, "T001")).toBe(report);
+  });
+
+  it("keeps feature-level reports (null taskId) and absent selections", async () => {
+    const { verificationForSelectedTask } = await import(
+      "../../../src/orchestrator/project-state.js"
+    );
+    expect(verificationForSelectedTask({ taskId: null }, "T002")).toEqual({ taskId: null });
+    expect(verificationForSelectedTask(report, undefined)).toBe(report);
+    expect(verificationForSelectedTask(undefined, "T002")).toBeUndefined();
+  });
+});
