@@ -85,6 +85,28 @@ describe("next-step resolver", () => {
     expect(next.nextCommand).toBe("visp-kit context --next");
   });
 
+  // The exact state of a fresh project after `visp setup`: the toolchain's own
+  // root files (.mcp.json, AGENTS.md) and its .gitignore entry are uncommitted,
+  // and nothing has been implemented. This used to read as "source changes
+  // detected" — the implement phase was skipped and `visp work` refused.
+  it("still recommends implementation when only setup artifacts changed", () => {
+    const next = recommendNextStep({
+      state: state({
+        artifactSummary: {
+          ...state({}).artifactSummary,
+          context: true
+        },
+        git: {
+          ...state({}).git,
+          changedFiles: [".mcp.json", "AGENTS.md", "visp-memory.yaml", ".gitignore"],
+          unstagedCount: 4
+        }
+      })
+    });
+
+    expect(next.reason).toContain("no source changes were detected");
+  });
+
   it("recommends verify when context exists and source changed", () => {
     const next = recommendNextStep({
       state: state({

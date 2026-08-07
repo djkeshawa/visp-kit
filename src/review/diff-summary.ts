@@ -61,6 +61,9 @@ export function isGeneratedVispReviewFile(filePath: string): boolean {
     filePath === ".mcp.json" ||
     filePath === "AGENTS.md" ||
     filePath === "visp-memory.yaml" ||
+    // `visp setup` installs the generic (host-neutral) tool assets, and this
+    // is the one that lands at the project root.
+    filePath === "visp-hyper-instructions.md" ||
     filePath.startsWith(".visp/reports/") ||
     filePath.startsWith(".visp/cache/") ||
     filePath.startsWith(".visp/runs/") ||

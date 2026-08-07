@@ -1,5 +1,6 @@
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type GateBlockedCommand, type GateRuleFinding } from "../artifacts/schemas/gate.schema.js";
+import { sourceChangedFiles } from "../gates/artifact-presence.js";
 import { type ProjectState } from "./project-state.js";
 import { type WorkflowAction } from "../integration/workflow-action-schema.js";
 import { type AssuranceProfile } from "../artifacts/schemas/evidence.schema.js";
@@ -34,8 +35,13 @@ export type NextStep = {
   readonly action?: WorkflowAction;
 };
 
+// Phase detection asks a narrower question than scope validation: has the
+// agent STARTED implementing? A `.gitignore` edit alone cannot answer yes —
+// the toolchain's own setup appends to it, and treating that as implementation
+// skipped the implement phase on every fresh project. Scope checks still see
+// `.gitignore` (it is not exempt there); only the phase detector ignores it.
 function sourceChanges(state: ProjectState): boolean {
-  return state.git.changedFiles.some((file) => !file.startsWith(".visp/"));
+  return sourceChangedFiles(state).some((file) => file !== ".gitignore");
 }
 
 function nextUnfinishedTask(state: ProjectState): Task | undefined {
