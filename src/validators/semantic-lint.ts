@@ -1,4 +1,22 @@
-const placeholderPatterns = [/\bTBD\b/iu, /\bTBC\b/iu, /\bTODO\b/iu, /<[^>]+>/u, /^placeholder$/iu];
+// Two of these patterns are deliberately narrower than they look, because a
+// project's own vocabulary must never be unvalidatable:
+//
+// - TODO is matched case-sensitively, unlike TBD/TBC. The marker convention is
+//   uppercase; lowercase "todo" is an ordinary English word, and a project
+//   whose domain IS todos (the first real one this was tried on) could never
+//   validate: the feature slug — which the user cannot edit — and every honest
+//   mention of the `todo` command were rejected as placeholders.
+// - Angle brackets only count with whitespace inside. The templates Visp seeds
+//   are multi-word phrases ("<describe your feature>"); single tokens like
+//   `<title>` or `<div>` are CLI usage and markup notation, and the same
+//   project's spec was rejected for quoting its own usage line.
+const placeholderPatterns = [
+  /\bTBD\b/iu,
+  /\bTBC\b/iu,
+  /\bTODO\b/u,
+  /<[^>]*\s[^>]*>/u,
+  /^placeholder$/iu
+];
 
 export function isPlaceholderText(value: string): boolean {
   const text = value.trim();
