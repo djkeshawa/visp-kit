@@ -789,7 +789,12 @@ describe("visp-kit next command", () => {
     await program.parseAsync(["node", "visp", "next", tempDir, "--format", "json"]);
 
     const action = workflowActionV2Schema.parse(JSON.parse(output.join("")));
-    expect(process.exitCode).toBeUndefined();
+    // The exit code follows the frame that was printed: an inconclusive
+    // verdict exits nonzero, exactly as a ready one exits zero. The previous
+    // assertion (exit 0 with an inconclusive frame) was the mirror image of
+    // the live contradiction this rule repairs — exit 1 with verdict=ready,
+    // which Hyper rightly refused as workflow_action_contradiction.
+    expect(process.exitCode).toBe(1);
     expect(action.verdict).toBe("inconclusive");
     expect(action.findings).toEqual([`Required read is unavailable: ${missingPath}.`]);
     expect(action.requiredReads.map((item) => item.path)).not.toContain(missingPath);

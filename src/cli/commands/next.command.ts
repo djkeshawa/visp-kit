@@ -65,7 +65,10 @@ export function createNextCommand(dependencies: NextCommandDependencies = {}): C
     .option("--strict", "Require all deterministic gates.")
     .option("--json", "Print a machine-readable summary.")
     .option("--format <format>", "Output format: text or json.")
-    .option("--protocol <version>", "WorkflowAction protocol: 2.0, 3.0, 3.1, or 3.2.")
+    .option(
+      "--protocol <version>",
+      `WorkflowAction protocol: ${SUPPORTED_WORKFLOW_ACTION_PROTOCOLS.join(", ")}.`
+    )
     .action(async (targetPath: string | undefined, options: NextCommandOptions) => {
       if (options.protocol !== undefined && options.format !== "json") {
         writeErr(`${formatError("--protocol requires --format json.", { color: false })}\n`);
@@ -129,6 +132,19 @@ export function createNextCommand(dependencies: NextCommandDependencies = {}): C
               })
       );
 
+      // The exit code follows the surface that was printed. When the caller
+      // asked for the WorkflowAction frame, the frame's verdict is the
+      // contract — exiting by the summary's `success` instead made this
+      // command exit 1 while its own output said verdict=ready, and a
+      // coordinator comparing the two channels correctly refused to proceed
+      // on the contradiction.
+      if (options.format === "json") {
+        const verdict = (result.value.action as { verdict?: string } | undefined)?.verdict;
+        if (verdict !== undefined ? verdict !== "ready" : !result.value.success) {
+          process.exitCode = 1;
+        }
+        return;
+      }
       if (!result.value.success) process.exitCode = 1;
     });
 }
