@@ -34,7 +34,6 @@ export function buildPrArtifact(input: {
     input.state.verification?.commandValidation.commands
       .filter((command) => !command.skipped)
       .map((command) => command.command) ?? [];
-  const reviewWarnings = input.state.review?.warnings ?? [];
   const reconcileFollowUps = input.state.reconcile?.followUpSuggestions ?? [];
   const checklistItems = input.state.implementationChecklist?.items ?? [];
   const pendingRequired = checklistItems.filter(
@@ -44,6 +43,16 @@ export function buildPrArtifact(input: {
     (item) => item.required && item.status === "blocked"
   );
   const usageItem = checklistItems.find((item) => item.id === "record-usage");
+  // A review report snapshots its checklist line at review time, and
+  // attestation happens at `visp save` AFTER review runs — so the snapshot
+  // routinely says "N pending required" while the live checklist, rendered as
+  // evidence in this same artifact, says complete. Quoting both made one
+  // document contradict itself. The live state wins; the stale line is
+  // dropped exactly when it disagrees with it.
+  const checklistCurrent = pendingRequired.length === 0 && blockedRequired.length === 0;
+  const reviewWarnings = (input.state.review?.warnings ?? []).filter(
+    (warning) => !(checklistCurrent && warning.startsWith("Implementation checklist:"))
+  );
   const usage = input.state.actualUsage;
   const errors = [
     ...(input.state.verification?.success === false ? ["Verification failed."] : []),

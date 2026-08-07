@@ -32,9 +32,9 @@ import { validateTaskGraph } from "../validators/validate-task-graph.js";
 export type ArtifactReadiness =
   /** Present and accepted by the same validator the command applies. */
   | { readonly state: "ready" }
-  /** Not on disk, or on disk but unparseable against its schema. */
+  /** Not on disk at all. Unparseable files are NOT missing — see `unreadable`. */
   | { readonly state: "missing" }
-  /** Present and parseable, but the command would reject it. */
+  /** Present but the command would reject it (including unparseable files). */
   | { readonly state: "incomplete"; readonly errors: readonly string[] };
 
 /** Validator errors run to whole JSON documents; gate evidence has to stay readable. */
@@ -60,12 +60,37 @@ export function readinessEvidence(errors: readonly string[]): string {
 }
 
 /**
+ * An artifact that exists but cannot be parsed is NOT missing.
+ *
+ * Treating it as missing sent `next` to the GENERATE command, which validated
+ * a freshly seeded draft and reported THAT draft's all-TBD errors — phantom
+ * complaints about content the user's file never held, while the real cause
+ * (a JSON parse failure `visp-kit status` was reporting correctly at the same
+ * moment) went unmentioned. The state loader already records the parse error;
+ * readiness turns it into an `incomplete` whose errors ARE the real problem,
+ * which routes the reader to `--validate` — a command that reports faithfully
+ * and never overwrites their file.
+ */
+function unreadable(state: ProjectState, artifactName: string): ArtifactReadiness | undefined {
+  // The loader records workflow-artifact parse failures in warnings and core
+  // ones in errors; an unreadable file must be caught wherever it landed.
+  const recorded = [...state.errors, ...state.warnings].find((message) =>
+    message.startsWith(`${artifactName} is unreadable:`)
+  );
+  if (recorded === undefined) return undefined;
+  return {
+    state: "incomplete",
+    errors: [recorded, "Repair or restore the file by hand; regenerating would overwrite it."]
+  };
+}
+
+/**
  * Mirrors `visp-kit spec`, which refuses to write a specification until
  * `validateClarifications` passes on the clarifications artifact.
  */
 export function clarificationsReadiness(state: ProjectState): ArtifactReadiness {
   const artifact = state.clarifications;
-  if (artifact === undefined) return { state: "missing" };
+  if (artifact === undefined) return unreadable(state, "clarifications") ?? { state: "missing" };
   const validation = validateClarifications(artifact);
   return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
 }
@@ -79,7 +104,7 @@ export function clarificationsReadiness(state: ProjectState): ArtifactReadiness 
  */
 export function specReadiness(state: ProjectState): ArtifactReadiness {
   const artifact = state.spec;
-  if (artifact === undefined) return { state: "missing" };
+  if (artifact === undefined) return unreadable(state, "spec") ?? { state: "missing" };
   const validation = validateSpec({ spec: artifact });
   return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
 }
@@ -89,7 +114,7 @@ export function specReadiness(state: ProjectState): ArtifactReadiness {
  */
 export function planReadiness(state: ProjectState): ArtifactReadiness {
   const artifact = state.plan;
-  if (artifact === undefined) return { state: "missing" };
+  if (artifact === undefined) return unreadable(state, "plan") ?? { state: "missing" };
   const validation = validatePlan(artifact);
   return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
 }
@@ -111,7 +136,9 @@ export function planReadiness(state: ProjectState): ArtifactReadiness {
  */
 export function taskGraphReadiness(state: ProjectState): ArtifactReadiness {
   const artifact = state.taskGraph;
-  if (artifact === undefined || state.spec === undefined) return { state: "missing" };
+  if (artifact === undefined || state.spec === undefined) {
+    return unreadable(state, "task graph") ?? { state: "missing" };
+  }
   const validation = validateTaskGraph({
     taskGraph: artifact,
     spec: state.spec,

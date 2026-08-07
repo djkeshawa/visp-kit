@@ -4,6 +4,7 @@ import {
   specReadiness,
   taskGraphReadiness
 } from "./artifact-readiness.js";
+import { sourceChangedFiles } from "./artifact-presence.js";
 import { type GateContext } from "./gate-context.js";
 
 function taskFlag(taskId: string | undefined): string {
@@ -54,7 +55,9 @@ export function nextAllowedCommand(context: GateContext): string {
   if (!state.artifactSummary.context) return "visp-kit context --next";
   if (taskId === undefined) return "visp-kit context --next";
 
-  const sourceChanged = state.git.changedFiles.some((file) => !file.startsWith(".visp/"));
+  // Same rule as the orchestrator's phase detection: the toolchain's own
+  // setup files and a lone .gitignore edit are not the agent's implementation.
+  const sourceChanged = sourceChangedFiles(state).some((file) => file !== ".gitignore");
 
   if (!sourceChanged && !state.artifactSummary.verification) {
     return "Use .visp/prompts/current-task.prompt.md with your agent";
@@ -88,5 +91,11 @@ export function nextAllowedCommand(context: GateContext): string {
   );
 
   if (nextTask !== undefined) return `visp-kit context ${nextTask.id}`;
+  // Terminal state, stated as one. Without it the answer stayed "visp-kit pr"
+  // forever after pr.md existed, and status/next/handoff pointed at each other
+  // with no way to be done.
+  if (state.artifactSummary.pr) {
+    return 'Feature complete — pr.md is ready for review. Start the next feature with visp-kit feature "<describe your feature>"';
+  }
   return "visp-kit pr";
 }
