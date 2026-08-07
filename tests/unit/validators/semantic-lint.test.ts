@@ -46,6 +46,16 @@ describe("placeholder detection and domain vocabulary", () => {
     expect(isPlaceholderText("visp-kit context --task <task-id>")).toBe(false);
   });
 
+  // A mid-tier model's plan.json was rejected because a lone less-than sign
+  // ("n < 1000") and an unrelated single-token bracket later in the SAME field
+  // were matched as one bracketed span with whitespace inside. The span must
+  // not cross another opening bracket.
+  it("does not stitch a lone less-than sign to a later bracket", () => {
+    expect(isPlaceholderText("Fewer than n < 1000 items; validate with <task-id>.")).toBe(false);
+    expect(isPlaceholderText("a < b and later <value> appears")).toBe(false);
+    expect(isPlaceholderText("still catches a real <fill this in> template")).toBe(true);
+  });
+
   it("reports no findings for an artifact about todos", () => {
     const artifact = {
       featureSlug: "add-a-due-date-to-todos-todo-add",

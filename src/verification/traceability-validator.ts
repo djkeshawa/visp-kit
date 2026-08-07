@@ -79,19 +79,54 @@ export function validateTraceability(input: {
       )
     );
 
-    for (const requirement of input.spec.requirements) {
-      if (!tracedRequirements.has(requirement.id)) {
-        errors.push(`Traceability is missing requirement ${requirement.id}.`);
-      }
+    // These used to be bare one-liners ("Traceability is missing requirement
+    // REQ002.") while the spec and task-graph validators print the exact
+    // repair. A weak-model evaluation hit the bare form at the verify stage,
+    // decided the tool was misconfigured, and finished the work outside the
+    // workflow — the message, not the check, was what failed. Same class of
+    // gap, same repair guidance as validate-spec.
+    const missingRequirements = input.spec.requirements.filter(
+      (requirement) => !tracedRequirements.has(requirement.id)
+    );
+    if (missingRequirements.length > 0) {
+      const spec = input.spec;
+      const additions = missingRequirements.map((requirement) => ({
+        requirementId: requirement.id,
+        acceptanceCriterionIds: spec.acceptanceCriteria
+          .filter((criterion) => criterion.requirementId === requirement.id)
+          .map((criterion) => criterion.id),
+        taskIds: [],
+        filePaths: [],
+        testPaths: [],
+        status: "missing"
+      }));
+      errors.push(
+        `Traceability is missing ${missingRequirements.map((r) => r.id).join(", ")}. ` +
+          `Append to "entries" in traceability.json:\n${JSON.stringify(additions, null, 2)}`
+      );
+    }
+
+    const orphanedCriteria = input.spec.acceptanceCriteria.filter(
+      (criterion) =>
+        !tracedCriteria.has(criterion.id) && tracedRequirements.has(criterion.requirementId)
+    );
+    if (orphanedCriteria.length > 0) {
+      const repairs = orphanedCriteria
+        .map(
+          (criterion) =>
+            `  ${criterion.requirementId}: add ${criterion.id} to its acceptanceCriterionIds`
+        )
+        .join("\n");
+      errors.push(
+        `Traceability is missing acceptance criteria ${orphanedCriteria
+          .map((criterion) => criterion.id)
+          .join(", ")}.\n${repairs}`
+      );
     }
 
     for (const criterion of input.spec.acceptanceCriteria) {
       if (!requirements.has(criterion.requirementId)) {
         errors.push(`${criterion.id} references missing requirement ${criterion.requirementId}.`);
-      }
-
-      if (!tracedCriteria.has(criterion.id)) {
-        errors.push(`Traceability is missing acceptance criterion ${criterion.id}.`);
       }
     }
   }
@@ -116,7 +151,13 @@ export function validateTraceability(input: {
 
   for (const task of input.taskGraph.tasks) {
     if (!tracedTasks.has(task.id)) {
-      errors.push(`Traceability is missing task ${task.id}.`);
+      // Same repair the task-graph validator prints: the task already names
+      // its requirements, so say exactly which entries to extend.
+      const repair =
+        task.requirementIds.length > 0
+          ? ` Add ${task.id} to the taskIds of ${task.requirementIds.join(", ")} in traceability.json.`
+          : "";
+      errors.push(`Traceability is missing task ${task.id}.${repair}`);
     }
 
     if (input.spec !== undefined) {
@@ -150,7 +191,11 @@ export function validateTraceability(input: {
     }
 
     if (!tracedTasks.has(input.task.id)) {
-      errors.push(`${input.task.id} is missing from traceability.`);
+      const repair =
+        input.task.requirementIds.length > 0
+          ? ` Add ${input.task.id} to the taskIds of ${input.task.requirementIds.join(", ")} in traceability.json.`
+          : "";
+      errors.push(`${input.task.id} is missing from traceability.${repair}`);
     }
   }
 

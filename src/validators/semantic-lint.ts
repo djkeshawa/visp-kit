@@ -6,15 +6,18 @@
 //   whose domain IS todos (the first real one this was tried on) could never
 //   validate: the feature slug — which the user cannot edit — and every honest
 //   mention of the `todo` command were rejected as placeholders.
-// - Angle brackets only count with whitespace inside. The templates Visp seeds
-//   are multi-word phrases ("<describe your feature>"); single tokens like
-//   `<title>` or `<div>` are CLI usage and markup notation, and the same
-//   project's spec was rejected for quoting its own usage line.
+// - Angle brackets only count with whitespace inside, and the span must not
+//   cross another `<`. The templates Visp seeds are multi-word phrases
+//   ("<describe your feature>"); single tokens like `<title>` or `<div>` are
+//   CLI usage and markup notation, and the same project's spec was rejected
+//   for quoting its own usage line. The no-crossing rule exists because a
+//   lone less-than sign ("n < 1000") followed by an unrelated `<task-id>`
+//   later in the field used to be stitched into one "template".
 const placeholderPatterns = [
   /\bTBD\b/iu,
   /\bTBC\b/iu,
   /\bTODO\b/u,
-  /<[^>]*\s[^>]*>/u,
+  /<[^<>]*\s[^<>]*>/u,
   /^placeholder$/iu
 ];
 

@@ -59,4 +59,25 @@ describe("traceability validator", () => {
     expect(result.status).toBe("failed");
     expect(result.errors.join(" ")).toContain("T001");
   });
+
+  // A weak-model evaluation hit these exact messages at the verify stage —
+  // bare "Traceability is missing requirement REQ002." with no repair — and
+  // concluded the TOOL was misconfigured, then finished the work outside the
+  // workflow. The spec and task-graph validators already print the entry to
+  // append or the field to extend; verify's traceability check reports the
+  // same class of gap and owes the reader the same one-line repair.
+  it("tells the reader how to repair a missing task reference", () => {
+    const result = validateTraceability({
+      taskGraph: validTaskGraph,
+      task: validTaskGraph.tasks[0],
+      traceability: { ...validTraceabilityMatrix, entries: [] },
+      explicit: true
+    });
+
+    const text = result.errors.join("\n");
+    expect(text).toContain("taskIds");
+    expect(text, "the repair must name the requirement whose entry to extend").toContain(
+      validTaskGraph.tasks[0]!.requirementIds[0]!
+    );
+  });
 });
