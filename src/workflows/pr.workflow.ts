@@ -2,8 +2,11 @@ import {
   featurePrArtifactPath,
   featurePrMarkdownPath,
   promptArtifactPath,
-  projectStatusArtifactPath
+  projectStatusArtifactPath,
+  taskReviewArtifactPath,
+  taskReconcileArtifactPath
 } from "../artifacts/artifact-paths.js";
+import { pathExists } from "../core/file-system.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import { projectStatusSchema, type ProjectStatus } from "../artifacts/schemas/project.schema.js";
@@ -169,6 +172,26 @@ export async function runPrWorkflow(
     policyGate === undefined
       ? policyGateUnavailable !== undefined
       : gateBlocksWorkflow({ gate: policyGate, force: options.force });
+
+  // A status is a CLAIM; the evidence is what closes a task. The task graph
+  // is the agent's own artifact, and an evaluation agent simply hand-edited
+  // every status to "verified" — no review, no reconcile, no memory of any
+  // save — and the PR assembled cleanly around the forgery. Every closed
+  // task must be backed by the review and reconcile artifacts only the
+  // engine writes.
+  const unevidenced: string[] = [];
+  for (const task of state.value.taskGraph?.tasks ?? []) {
+    if (task.status !== "done" && task.status !== "verified") continue;
+    const review = await pathExists(
+      taskReviewArtifactPath(state.value.targetPath, feature.key, task.id)
+    );
+    const reconcile = await pathExists(
+      taskReconcileArtifactPath(state.value.targetPath, feature.key, task.id)
+    );
+    if (!(review.ok && review.value) || !(reconcile.ok && reconcile.value)) {
+      unevidenced.push(task.id);
+    }
+  }
   const pr = buildPrArtifact({
     state: state.value,
     title,
@@ -179,7 +202,7 @@ export async function runPrWorkflow(
   });
   const prWithPolicy = {
     ...pr,
-    success: pr.success && !gateBlocks,
+    success: pr.success && !gateBlocks && unevidenced.length === 0,
     policyGate,
     warnings: [
       ...new Set([
@@ -190,6 +213,10 @@ export async function runPrWorkflow(
     errors: [
       ...new Set([
         ...pr.errors,
+        ...unevidenced.map(
+          (taskId) =>
+            `${taskId} is marked complete but has no verification evidence on disk. Re-open it (status "pending") and close it with visp save --task ${taskId}.`
+        ),
         ...(policyGate === undefined
           ? policyGateUnavailable === undefined
             ? []
