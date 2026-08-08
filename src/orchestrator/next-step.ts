@@ -38,8 +38,9 @@ export type NextStep = {
 // Phase detection asks a narrower question than scope validation: has the
 // agent STARTED implementing? A `.gitignore` edit alone cannot answer yes —
 // the toolchain's own setup appends to it, and treating that as implementation
-// skipped the implement phase on every fresh project. Scope checks still see
-// `.gitignore` (it is not exempt there); only the phase detector ignores it.
+// skipped the implement phase on every fresh project. (.gitignore has since
+// become scope-exempt everywhere — base diffs killed the commit-to-clear
+// hatch — so the extra filter here is belt over braces, kept for clarity.)
 function sourceChanges(state: ProjectState): boolean {
   return sourceChangedFiles(state).some((file) => file !== ".gitignore");
 }
@@ -236,6 +237,23 @@ export function recommendNextStep(input: {
           : `visp-kit context ${selectedTask.id}`,
       reason: `No context pack exists for ${selectedTask.id}.`,
       stateName: "context-needed"
+    });
+  }
+
+  // The pack exists but its embedded task no longer matches the graph — the
+  // task was re-scoped after context generation. Same repair as the gate's
+  // answer: regenerate, do not limp forward on a stale pack.
+  if (
+    state.contextPack !== undefined &&
+    state.contextPack.taskId === selectedTask.id &&
+    JSON.stringify(state.contextPack.selectedTask) !== JSON.stringify(selectedTask)
+  ) {
+    return output({
+      state,
+      task: selectedTask,
+      nextCommand: `visp-kit context ${selectedTask.id} --force`,
+      reason: `${selectedTask.id} was re-scoped after its context pack was generated; the pack is stale.`,
+      stateName: "context-stale"
     });
   }
 

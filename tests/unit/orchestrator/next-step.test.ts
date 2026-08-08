@@ -126,3 +126,49 @@ describe("next-step resolver", () => {
     expect(next.nextCommand).toBe("visp-kit verify --task T001");
   });
 });
+
+// Round-5 friction: re-scoping a task after its context pack was generated
+// left the pack stale, the canonical action reported an identity mismatch,
+// and the only repair was the engine's `context --force` by hand. The next
+// answer now names the regeneration itself, so `visp plan` self-heals.
+describe("a re-scoped task regenerates its stale context", () => {
+  it("answers context --force when the pack's task disagrees with the graph", () => {
+    const base = state({});
+    const graphTask = base.taskGraph!.tasks[0]!;
+    const next = recommendNextStep({
+      state: state({
+        artifactSummary: { ...base.artifactSummary, context: true },
+        contextPack: {
+          taskId: graphTask.id,
+          selectedTask: { ...graphTask, allowedFiles: ["some/old/scope.ts"] }
+        } as never
+      })
+    });
+
+    expect(next.nextCommand).toBe(`visp-kit context ${graphTask.id} --force`);
+    expect(next.reason).toContain("re-scoped");
+  });
+});
+
+// Round-5 friction: re-scoping a task after its context pack was generated
+// left the pack stale, the canonical action reported an identity mismatch,
+// and the only repair was the engine's `context --force` by hand. The next
+// answer now names the regeneration itself, so `visp plan` self-heals.
+describe("a re-scoped task regenerates its stale context", () => {
+  it("answers context --force when the pack's task disagrees with the graph", () => {
+    const base = state({});
+    const graphTask = base.taskGraph!.tasks[0]!;
+    const next = recommendNextStep({
+      state: state({
+        artifactSummary: { ...base.artifactSummary, context: true },
+        contextPack: {
+          taskId: graphTask.id,
+          selectedTask: { ...graphTask, allowedFiles: ["some/old/scope.ts"] }
+        } as never
+      })
+    });
+
+    expect(next.nextCommand).toBe(`visp-kit context ${graphTask.id} --force`);
+    expect(next.reason).toContain("re-scoped");
+  });
+});

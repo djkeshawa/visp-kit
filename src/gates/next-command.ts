@@ -52,6 +52,21 @@ export function nextAllowedCommand(context: GateContext): string {
   if (taskGraph.state === "missing") return "visp-kit tasks";
   if (taskGraph.state === "incomplete") return "visp-kit tasks --validate";
 
+  // Re-scoping a task mid-flight (editing the graph after its context pack
+  // was generated) left the pack stale, and no verb-level answer could repair
+  // it: the canonical action reported SOURCE_IDENTITY_MISMATCH and the only
+  // way out was the engine's `context --force` by hand. When the pack's
+  // embedded copy of the task disagrees with the graph, regenerating the
+  // context IS the next step.
+  if (
+    state.contextPack !== undefined &&
+    state.selectedTask !== undefined &&
+    state.contextPack.taskId === state.selectedTask.id &&
+    JSON.stringify(state.contextPack.selectedTask) !== JSON.stringify(state.selectedTask)
+  ) {
+    return `visp-kit context ${state.selectedTask.id} --force`;
+  }
+
   if (!state.artifactSummary.context) return "visp-kit context --next";
   if (taskId === undefined) return "visp-kit context --next";
 
