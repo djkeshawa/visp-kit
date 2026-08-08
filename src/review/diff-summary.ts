@@ -130,7 +130,18 @@ export function isExemptFromTaskScope(filePath: string): boolean {
     /^\.visp\/features\/[^/]+\/assurance\//u.test(filePath);
   if (inSecurityZone) return isGeneratedVispReviewFile(filePath);
 
-  return filePath.startsWith(".visp/") || isGeneratedVispReviewFile(filePath);
+  // .gitignore was deliberately VISIBLE here once: the escape hatch was
+  // "commit it and the finding clears". Base-commit diffs (round 4) killed
+  // that hatch — a committed .gitignore edit now stays inside the task's
+  // window forever, so a hygiene entry (ignoring the app's own runtime data
+  // file) permanently failed the active task. It cannot authorize code, the
+  // toolchain itself appends to it, and the phase detector already ignores
+  // it; the earlier decision is superseded.
+  return (
+    filePath === ".gitignore" ||
+    filePath.startsWith(".visp/") ||
+    isGeneratedVispReviewFile(filePath)
+  );
 }
 
 const generatedAssuranceFileNames = new Set([

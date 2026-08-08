@@ -34,8 +34,11 @@ describe("sourceChangedFiles answers 'did the user change the codebase?'", () =>
     ]);
   });
 
-  it("still counts the user's own .gitignore edit", () => {
-    expect(sourceChangedFiles(stateWithChanges([".gitignore"]))).toEqual([".gitignore"]);
+  it("does not count .gitignore — base diffs killed the commit escape hatch", () => {
+    // Superseded decision: it used to stay visible, cleared by committing.
+    // With base-commit diffs a committed edit stays in the task window
+    // forever, so hygiene entries permanently failed the active task.
+    expect(sourceChangedFiles(stateWithChanges([".gitignore"]))).toEqual([]);
   });
 
   it("keeps ordinary .visp workflow artifacts out of the count", () => {
