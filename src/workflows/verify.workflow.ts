@@ -514,6 +514,24 @@ export async function runVerifyWorkflow(
         project
       })
     : { commands: [], warnings: [] };
+  // The diff is collected BEFORE the validation commands run. The commands
+  // are the project's own tests and CLI invocations, and what they create at
+  // runtime (a todo app's todos.json, a build cache) is not the task's work —
+  // collecting the diff afterwards counted exactly those side effects as
+  // out-of-scope changes, and a weak-model run failed every save because its
+  // validation commands wrote the app's data file.
+  const git =
+    checks.scope || checks.dependencies
+      ? await getGitChangedFiles({
+          targetPath,
+          // The context pack records HEAD at its generation — the task's
+          // base. Without this default, an agent that committed before
+          // running verification was judged against a clean working tree
+          // ("No source changes were detected") and could never pass.
+          base: options.base ?? contextPack?.baseCommit,
+          commandRunner: options.commandRunner
+        })
+      : { changedFiles: [], warnings: [], errors: [] };
   const commandResults = checks.commands
     ? await runVerificationCommands({
         targetPath,
@@ -533,18 +551,6 @@ export async function runVerifyWorkflow(
           ? "Command execution skipped by --skip-commands."
           : "Command execution not selected."
       );
-  const git =
-    checks.scope || checks.dependencies
-      ? await getGitChangedFiles({
-          targetPath,
-          // The context pack records HEAD at its generation — the task's
-          // base. Without this default, an agent that committed before
-          // running verification was judged against a clean working tree
-          // ("No source changes were detected") and could never pass.
-          base: options.base ?? contextPack?.baseCommit,
-          commandRunner: options.commandRunner
-        })
-      : { changedFiles: [], warnings: [], errors: [] };
   const scopeValidation = checks.scope
     ? validateScope({
         changedFiles: git.changedFiles,
