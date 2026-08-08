@@ -1402,7 +1402,14 @@ export async function buildCanonicalWorkflowActionEnvelope(input: {
       workflowStrictness: strictness.workflowStrictness
     },
     goal,
-    baseCommit: unavailable("not_captured"),
+    // The task's base: HEAD when its context pack was generated. Every frame
+    // said "not_captured" for the product's whole life, and the cost surfaced
+    // in evaluation — nothing could judge committed work, so agents that
+    // commit early (weak models always do) could never pass a checkpoint.
+    baseCommit:
+      input.state.contextPack?.baseCommit === undefined
+        ? unavailable("not_captured")
+        : available(input.state.contextPack.baseCommit),
     requiredReads: reads,
     scope: scopeSelection.scope,
     claims: claimSelection.claims,

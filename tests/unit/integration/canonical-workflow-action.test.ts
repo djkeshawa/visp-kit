@@ -230,6 +230,7 @@ function projectState(targetPath: string, overrides: Partial<ProjectState> = {})
       stagedCount: 0,
       unstagedCount: 0,
       changedFiles: [],
+      changedSinceBase: [],
       warnings: []
     },
     warnings: [],

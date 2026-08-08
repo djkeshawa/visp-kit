@@ -14,7 +14,9 @@ import { isExemptFromTaskScope } from "../review/diff-summary.js";
  * `isExemptFromTaskScope` already draws both lines correctly.
  */
 export function sourceChangedFiles(state: ProjectState): readonly string[] {
-  return state.git.changedFiles.filter((file) => !isExemptFromTaskScope(file));
+  return [...new Set([...state.git.changedFiles, ...state.git.changedSinceBase])].filter(
+    (file) => !isExemptFromTaskScope(file)
+  );
 }
 
 export function changedDependencyFiles(state: ProjectState): readonly string[] {

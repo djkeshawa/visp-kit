@@ -12,6 +12,7 @@ import {
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
+import { defaultCommandRunner } from "../core/command-runner.js";
 import { type BudgetMode } from "../artifacts/schemas/common.schema.js";
 import { contextPackSchema, type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
 import { type PolicyGateSummary } from "../artifacts/schemas/gate.schema.js";
@@ -293,9 +294,18 @@ export async function runContextWorkflow(
   const gateWarnings = gate.ok
     ? gate.value.warnings
     : [`Implementation gate could not be evaluated: ${gate.error.message}`];
+  // The task's base commit: HEAD at context generation. Weak-model evaluation
+  // showed agents reliably implement and COMMIT before running the evidence
+  // loop; without a base, verify then saw a clean tree ("No source changes
+  // were detected"), every save failed, and no task ever closed. With it,
+  // change detection judges the diff since base plus the working tree, so
+  // the ceremony is order-tolerant. Per task by construction: T002's context
+  // is generated after T001's commits, so T001's work is not in T002's diff.
+  const baseCommit = await captureBaseCommit(targetPath);
   const enrichedPack = enrichPackWithGate({
     pack: {
       ...compiled.value.pack,
+      ...(baseCommit === undefined ? {} : { baseCommit }),
       warnings: [...new Set([...compiled.value.pack.warnings, ...gateWarnings])]
     },
     gate: gate.ok ? gate.value : undefined
@@ -473,4 +483,14 @@ export async function runContextWorkflow(
       warnings: [...new Set([...enrichedPack.warnings, ...budgetRefreshWarnings, ...run.warnings])]
     })
   );
+}
+
+/** HEAD at context generation, or undefined outside a git repository. */
+async function captureBaseCommit(targetPath: string): Promise<string | undefined> {
+  const result = await defaultCommandRunner.run("git", ["rev-parse", "HEAD"], {
+    cwd: targetPath
+  });
+  if (!result.ok || result.value.exitCode !== 0) return undefined;
+  const commit = result.value.stdout.trim();
+  return /^[0-9a-f]{40}$/u.test(commit) ? commit : undefined;
 }

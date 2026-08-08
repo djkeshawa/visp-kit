@@ -116,6 +116,13 @@ export type GitState = {
   readonly stagedCount: number;
   readonly unstagedCount: number;
   readonly changedFiles: readonly string[];
+  /**
+   * Files changed in commits since the selected task's base commit (the HEAD
+   * its context pack recorded). Empty without a base. Change detection unions
+   * this with the working tree so an agent that commits before verifying is
+   * judged on the same work as one that does not.
+   */
+  readonly changedSinceBase: readonly string[];
   readonly warnings: readonly string[];
 };
 
@@ -281,7 +288,11 @@ export function selectWorkflowTask(input: {
   );
 }
 
-async function gitState(targetPath: string, runner: CommandRunner): Promise<GitState> {
+async function gitState(
+  targetPath: string,
+  runner: CommandRunner,
+  baseCommit?: string
+): Promise<GitState> {
   const warnings: string[] = [];
   const repo = await runner.run("git", ["rev-parse", "--is-inside-work-tree"], { cwd: targetPath });
 
@@ -292,6 +303,7 @@ async function gitState(targetPath: string, runner: CommandRunner): Promise<GitS
       stagedCount: 0,
       unstagedCount: 0,
       changedFiles: [],
+      changedSinceBase: [],
       warnings: ["Git repository unavailable."]
     };
   }
@@ -320,12 +332,30 @@ async function gitState(targetPath: string, runner: CommandRunner): Promise<GitS
     ...new Set([...unstagedFiles, ...(untracked.ok ? untracked.value : [])])
   ];
 
+  let changedSinceBase: string[] = [];
+  if (baseCommit !== undefined) {
+    const committed = await runner.run(
+      "git",
+      ["diff", "--name-only", "-z", `${baseCommit}...HEAD`, "--"],
+      { cwd: targetPath }
+    );
+    if (committed.ok) {
+      changedSinceBase = committed.value.stdout
+        .split("\0")
+        .filter((filePath) => filePath.length > 0)
+        .sort();
+    } else {
+      warnings.push("Unable to read Git changes since the task's base commit.");
+    }
+  }
+
   return {
     isRepo: true,
     branch: branch.ok ? branch.value.stdout.trim() || null : null,
     stagedCount: stagedFiles.length,
     unstagedCount: unstagedAndUntracked.length,
     changedFiles: [...new Set([...stagedFiles, ...unstagedAndUntracked])].sort(),
+    changedSinceBase,
     warnings
   };
 }
@@ -607,7 +637,7 @@ export async function loadProjectState(
     pr: pr !== undefined
   };
 
-  const git = await gitState(targetPath, runner);
+  const git = await gitState(targetPath, runner, contextPack?.baseCommit);
   const scanned = await scanIsPopulated(targetPath, scanCacheFiles);
 
   return ok({

@@ -69,6 +69,7 @@ function state(taskId = "T001"): ProjectState {
       stagedCount: 0,
       unstagedCount: 0,
       changedFiles: [],
+      changedSinceBase: [],
       warnings: []
     },
     warnings: [],

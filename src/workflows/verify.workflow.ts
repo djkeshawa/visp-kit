@@ -537,7 +537,11 @@ export async function runVerifyWorkflow(
     checks.scope || checks.dependencies
       ? await getGitChangedFiles({
           targetPath,
-          base: options.base,
+          // The context pack records HEAD at its generation — the task's
+          // base. Without this default, an agent that committed before
+          // running verification was judged against a clean working tree
+          // ("No source changes were detected") and could never pass.
+          base: options.base ?? contextPack?.baseCommit,
           commandRunner: options.commandRunner
         })
       : { changedFiles: [], warnings: [], errors: [] };

@@ -5,7 +5,7 @@ import { type ProjectState } from "../../../src/orchestrator/project-state.js";
 
 function stateWithChanges(changedFiles: readonly string[]): ProjectState {
   return {
-    git: { changedFiles }
+    git: { changedFiles, changedSinceBase: [] }
   } as unknown as ProjectState;
 }
 
@@ -56,5 +56,26 @@ describe("sourceChangedFiles answers 'did the user change the codebase?'", () =>
     expect(
       sourceChangedFiles(stateWithChanges([".visp/features/001-x/assurance/T001/planted.txt"]))
     ).toEqual([".visp/features/001-x/assurance/T001/planted.txt"]);
+  });
+});
+
+// Round-4 evaluation: weak models reliably implement and COMMIT before
+// running the evidence loop. Without the base union, verify then saw a clean
+// tree ("No source changes were detected"), every save failed, and no task
+// ever closed through the verbs.
+describe("committed work still counts as the task's changes", () => {
+  it("unions the working tree with commits since the task's base", () => {
+    const state = {
+      git: {
+        changedFiles: ["src/wip.js"],
+        changedSinceBase: ["src/store.js", "tests/store.test.js", ".visp/status.json"]
+      }
+    } as unknown as Parameters<typeof sourceChangedFiles>[0];
+
+    expect(sourceChangedFiles(state)).toEqual([
+      "src/wip.js",
+      "src/store.js",
+      "tests/store.test.js"
+    ]);
   });
 });

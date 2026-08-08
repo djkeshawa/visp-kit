@@ -153,6 +153,12 @@ export const contextPackSchema = z
     validationCommands: z.array(commandStringSchema),
     constraints: stringListSchema,
     instructions: stringListSchema,
+    // HEAD at context generation. This is the task's base: change detection
+    // judges the diff since here PLUS the working tree, so an agent that
+    // commits before running save is judged on the same work as one that
+    // does not. Optional — packs written before this field keep parsing, and
+    // a project without git simply has no base.
+    baseCommit: z.string().optional(),
     strictnessMode: strictnessModeSchema.optional(),
     policyStatus: policyStatusSchema.optional(),
     gateStatus: z.enum(["allowed", "blocked", "warnings", "not_evaluated"]).optional(),

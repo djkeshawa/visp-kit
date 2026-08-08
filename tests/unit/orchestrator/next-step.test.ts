@@ -48,6 +48,7 @@ function state(overrides: Partial<ProjectState>): ProjectState {
       stagedCount: 0,
       unstagedCount: 0,
       changedFiles: [],
+      changedSinceBase: [],
       warnings: []
     },
     warnings: [],
