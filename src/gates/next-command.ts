@@ -52,6 +52,22 @@ export function nextAllowedCommand(context: GateContext): string {
   if (taskGraph.state === "missing") return "visp-kit tasks";
   if (taskGraph.state === "incomplete") return "visp-kit tasks --validate";
 
+  // A closed task advances to the next one HERE, before any of its own
+  // evidence or checklist branches can speak. The orchestrator's resolver
+  // always had this jump; this surface — the one the composites replay —
+  // did not, so after T001 closed, `next` kept answering
+  // "checklist status --task T001" for a task already verified, and the
+  // T001→T002 transition dead-ended (round-10 evaluation, live).
+  if (
+    state.selectedTask !== undefined &&
+    (state.selectedTask.status === "done" || state.selectedTask.status === "verified")
+  ) {
+    const nextTask = state.taskGraph?.tasks.find(
+      (task) => task.status !== "done" && task.status !== "verified"
+    );
+    if (nextTask !== undefined) return `visp-kit context ${nextTask.id}`;
+  }
+
   // Re-scoping a task mid-flight (editing the graph after its context pack
   // was generated) left the pack stale, and no verb-level answer could repair
   // it: the canonical action reported SOURCE_IDENTITY_MISMATCH and the only
