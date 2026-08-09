@@ -159,6 +159,10 @@ export function clarifyFieldValuesSection(): string {
     "Field values (exact, no other values are valid):",
     enumLine("category", clarificationQuestionCategorySchema),
     '- status: new questions start as "unanswered" with answer set to "".',
+    // CQ002 ships answered. Say so, or an author "completes" it by replacing
+    // a safe decision with a vaguer one — the opposite of the intent.
+    "- CQ002 (output safety) is seeded already answered with a safe default. Keep it unless this feature needs something stricter; if you change it, name the specific values that must never reach output, logs, or error text.",
+    "- Check whether this project already has masking or redaction helpers and reuse them; a new error or logging surface is the usual place secrets escape.",
     "- IDs: CQ001 for questions, ASM001 for assumptions - zero-padded and sequential.",
     "",
     "Example question entry in clarifications.json:",

@@ -59,6 +59,34 @@ export function createClarificationArtifact(input: {
         reason: "TBD",
         status: "unanswered",
         answer: ""
+      },
+      // Arrives ANSWERED, unlike CQ001. Only the author knows the behaviour
+      // question; this one has the same safe answer for every feature, so the
+      // template decides it and records the decision rather than adding a
+      // gate. Ten rounds of weak-model evaluation taught the rule this
+      // follows: every improvement that worked REMOVED a required step, and
+      // every added step got abandoned under load. Secure by default with an
+      // audit trail beats one more question to skip — and the author can
+      // still overwrite the answer when a feature needs something stricter.
+      //
+      // It exists because of a measured failure: given the same vague request
+      // on an 8,800-line codebase, two agents both built a new error surface
+      // that printed raw error strings — in a project whose own code masks
+      // every printed error because those strings carry connection
+      // credentials. Clarify asked what to SHOW and never what must not be.
+      {
+        id: "CQ002",
+        question:
+          "What must never appear in this feature's output, logs, or error messages?",
+        category: "security",
+        blocking: false,
+        recommendedDefault:
+          "Credentials, connection strings, tokens, keys, and personal data. Reuse this project's existing masking or redaction helpers instead of formatting raw values into output.",
+        reason:
+          "Failure paths are where secrets escape: error and logging surfaces are written under pressure, on the least-tested path, and rarely reviewed for what they expose.",
+        status: "accepted_default",
+        answer:
+          "Credentials, connection strings, tokens, keys, and personal data. Reuse this project's existing masking or redaction helpers instead of formatting raw values into output."
       }
     ],
     assumptions: [
