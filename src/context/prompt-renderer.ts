@@ -67,7 +67,7 @@ ${bulletList(criteria, "none mapped")}
 - Forbidden files: ${(task.forbiddenFiles ?? []).join(", ") || "none declared"}
 - Validation commands: ${validation.join("; ") || "none declared"}
 - Constraints:
-${bulletList(pack.constraints, "none")}
+${bulletList(pack.constraints, "none")}${reuseHelperFacts(pack)}
 - Full context (open only if the Facts above are insufficient): ${input.contextPath}
 - Implementation checklist: ${input.checklistPath ?? "generated with visp-kit context"}
 
@@ -120,4 +120,19 @@ export function renderCurrentTaskPrompt(input: {
 Feature-specific prompt:
 ${input.promptPath}
 `;
+}
+
+/**
+ * Existing helpers, in the Facts block the prompt tells the agent to read
+ * first. Phase 18: two agents wrote a new error surface that printed raw
+ * error strings, in a codebase whose own masking helpers were already indexed
+ * by scan. Naming them at the moment of writing is the whole intervention.
+ */
+function reuseHelperFacts(pack: ContextPack): string {
+  const helpers = pack.includedProjectContext.reuseHelpers ?? [];
+  if (helpers.length === 0) return "";
+  const lines = helpers.map(
+    (helper) => `  - ${helper.path} (${helper.concern}): ${helper.symbols.join(", ")}`
+  );
+  return `\n- Reuse these existing helpers instead of writing your own:\n${lines.join("\n")}`;
 }

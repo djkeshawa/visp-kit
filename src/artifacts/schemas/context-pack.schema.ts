@@ -67,6 +67,19 @@ export const contextProjectContextSchema = z
   .object({
     summary: z.string(),
     patterns: z.string(),
+    // Cross-cutting helpers this project already has, from what scan indexed.
+    // Optional so packs written before this field keep parsing.
+    reuseHelpers: z
+      .array(
+        z
+          .object({
+            path: z.string(),
+            concern: z.string(),
+            symbols: z.array(z.string())
+          })
+          .strict()
+      )
+      .optional(),
     warnings: stringListSchema
   })
   .strict();

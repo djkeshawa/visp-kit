@@ -13,6 +13,7 @@ import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 import { type ContextBudgetPolicy } from "./context-budget.js";
 import { extractFileSnippet } from "./file-snippets.js";
 import { estimateJsonTokens, estimateTokens, tokenEstimatorName } from "./token-estimator.js";
+import { findReuseHelpers } from "./reuse-helpers.js";
 
 export type ContextSelectionInput = {
   readonly targetPath: string;
@@ -547,6 +548,15 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
     "Do not add unrelated refactoring.",
     "Do not introduce dependencies unless this task explicitly allows it."
   ]);
+  // What scan already knows, handed to whoever writes the code. Not gated on
+  // the summary/pattern budget switches: a one-line pointer at an existing
+  // redaction helper is the cheapest and highest-value thing in this pack.
+  const reuseHelpers = findReuseHelpers(
+    (input.fileSummaries ?? []).map((summary) => ({
+      path: summary.path,
+      symbols: summary.symbols ?? []
+    }))
+  );
   const projectContext = {
     summary: input.policy.includeProjectSummary
       ? compactText(input.projectSummary, input.policy.outputStyle === "compact" ? 12 : 20)
@@ -554,6 +564,7 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
     patterns: input.policy.includePatterns
       ? compactText(input.patterns, input.policy.outputStyle === "detailed" ? 16 : 10)
       : "",
+    ...(reuseHelpers.length > 0 ? { reuseHelpers: reuseHelpers.map((h) => ({ ...h, symbols: [...h.symbols] })) } : {}),
     warnings: []
   };
 

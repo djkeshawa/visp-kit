@@ -236,7 +236,7 @@ ${input.pack.includedConstitutionRules.map((rule) => `- ${rule.id}: ${rule.text}
 
 ${input.pack.includedProjectContext.summary || "- No project summary available."}
 
-${input.pack.includedProjectContext.patterns ? `## Project Patterns\n\n${input.pack.includedProjectContext.patterns}\n` : ""}
+${input.pack.includedProjectContext.patterns ? `## Project Patterns\n\n${input.pack.includedProjectContext.patterns}\n` : ""}${reuseHelpersSection(input.pack)}
 ## Artifact Provenance
 
 ${artifactProvenance(input.pack)}
@@ -275,4 +275,20 @@ ${list(input.pack.warnings)}
 
 ${list(input.pack.instructions)}
 `;
+}
+
+/**
+ * Cross-cutting helpers this project already has. Phase 18: two agents built
+ * a new error surface printing raw error strings while the codebase's own
+ * masking helpers sat unread in the scan cache. Reuse beats reinvention, and
+ * on the failure path it is the difference between a masked error and a
+ * credential on someone's terminal.
+ */
+function reuseHelpersSection(pack: ContextPack): string {
+  const helpers = pack.includedProjectContext.reuseHelpers ?? [];
+  if (helpers.length === 0) return "";
+  const lines = helpers.map(
+    (helper) => `- \`${helper.path}\` — ${helper.concern}: ${helper.symbols.join(", ")}`
+  );
+  return `## Reuse These Existing Helpers\n\nPrefer these over writing your own:\n\n${lines.join("\n")}\n`;
 }
