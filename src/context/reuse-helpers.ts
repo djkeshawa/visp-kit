@@ -35,6 +35,15 @@ type ScannedFile = {
 const CONCERNS: ReadonlyArray<{ readonly concern: string; readonly pattern: RegExp }> = [
   // Output safety first: it is the one whose absence leaks credentials.
   { concern: "redacting secrets from output", pattern: /^(mask|redact|scrub|sanitiz|obfuscat|anonymiz|hide|conceal)/u },
+  // Named for WHAT THEY HANDLE rather than what they do. Verbs alone missed
+  // `filter_sensitive_keys` on a codebase this detector had never seen, which
+  // meant the whole intervention was worth nothing there — a name-pattern
+  // matcher is only as good as its vocabulary, and security helpers carry
+  // these nouns at least as often as they carry a redaction verb.
+  {
+    concern: "handling sensitive values",
+    pattern: /(sensitive|secret|credential|passwd|password|api_?key|private_key|token)/iu
+  },
   { concern: "validating untrusted input", pattern: /^(validate|verify|check|assert)[_A-Z]/u },
   { concern: "resuming interrupted work", pattern: /(resum|checkpoint|restore)/iu },
   { concern: "retrying and backoff", pattern: /^(retry|backoff|with_retry)/iu }
@@ -63,28 +72,36 @@ const MAX_HELPERS = 5;
 export function findReuseHelpers(files: readonly ScannedFile[]): readonly ReuseHelper[] {
   const found: ReuseHelper[] = [];
 
-  for (const { concern, pattern } of CONCERNS) {
-    for (const file of files) {
-      if (isTestFile(file.path)) continue;
+  // One line per FILE, under its highest-ranked matching concern, with every
+  // matching symbol merged. A file whose helpers span two concerns (a secrets
+  // module usually does) was otherwise listed twice, which spends the pack's
+  // budget repeating a path the reader already has.
+  for (const file of files) {
+    if (isTestFile(file.path)) continue;
 
-      const symbols = file.symbols.filter(
-        (symbol) => !isTestSymbol(symbol) && pattern.test(symbol)
-      );
-      if (symbols.length === 0) continue;
-      if (found.some((helper) => helper.path === file.path && helper.concern === concern)) {
-        continue;
-      }
+    const usable = file.symbols.filter((symbol) => !isTestSymbol(symbol));
+    const matched = new Set<string>();
+    let concern: string | undefined;
 
-      found.push({
-        path: file.path,
-        concern,
-        symbols: symbols.slice(0, MAX_SYMBOLS_PER_FILE)
-      });
-      if (found.length >= MAX_HELPERS) return found;
+    for (const candidate of CONCERNS) {
+      const hits = usable.filter((symbol) => candidate.pattern.test(symbol));
+      if (hits.length === 0) continue;
+      concern ??= candidate.concern;
+      for (const hit of hits) matched.add(hit);
     }
+
+    if (concern === undefined) continue;
+    found.push({
+      path: file.path,
+      concern,
+      symbols: [...matched].slice(0, MAX_SYMBOLS_PER_FILE)
+    });
   }
 
-  return found;
+  // Rank by concern order so output safety survives a truncated pack.
+  const rank = (helper: ReuseHelper): number =>
+    CONCERNS.findIndex((candidate) => candidate.concern === helper.concern);
+  return found.sort((left, right) => rank(left) - rank(right)).slice(0, MAX_HELPERS);
 }
 
 /** One line per helper, for the context pack and the task prompt. */
