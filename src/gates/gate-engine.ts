@@ -1,8 +1,10 @@
 import { gateReportArtifactPath } from "../artifacts/artifact-paths.js";
 import {
   type AppliedPolicyOverride,
+  type ClassificationInvalidated,
   type GateResult,
-  type GateStage
+  type GateStage,
+  type TaskClassificationRecord
 } from "../artifacts/schemas/gate.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { selectAssuranceProfile } from "../assurance/assurance-profile.js";
@@ -33,6 +35,10 @@ import {
   oraclePlanExists
 } from "../workflows/oracle-authorization.workflow.js";
 import { evaluateReviewDecisionRequirement } from "../review/review-decision.js";
+import { sourceChangedFiles } from "./artifact-presence.js";
+import { evaluateUnderstandingGate } from "./understanding-gate.js";
+import { type TaskClassification } from "./task-classification.js";
+import { type GateCheck } from "./gate-result.js";
 
 export type GateEngineOptions = {
   readonly targetPath: string;
@@ -245,6 +251,108 @@ async function reviewDecisionChecks(input: {
   ];
 }
 
+type UnderstandingOutcome = {
+  readonly checks: readonly GateCheck[];
+  readonly warnings: readonly string[];
+  readonly classification?: TaskClassificationRecord;
+  readonly classificationInvalidated?: ClassificationInvalidated;
+};
+
+const noUnderstandingOutcome: UnderstandingOutcome = { checks: [], warnings: [] };
+
+function classificationRecord(value: TaskClassification): TaskClassificationRecord {
+  return {
+    verdict: value.verdict,
+    basis: [...value.basis],
+    evidence: [...value.evidence],
+    ruleVersion: value.ruleVersion
+  };
+}
+
+/**
+ * VSP026 at `implement`, and the post-hoc realized-surface check at `verify`.
+ *
+ * The classification is recorded at both stages even when the rule is
+ * disabled, because the rate at which the rule misclassifies is a measurement
+ * and cannot be taken from runs where it happened to be switched on.
+ */
+async function understandingChecks(input: {
+  readonly context: GateContext;
+  readonly options: GateEngineOptions;
+}): Promise<UnderstandingOutcome> {
+  const task = input.context.state.selectedTask;
+  const stage = input.options.stage;
+
+  if (task === undefined || (stage !== "implement" && stage !== "verify")) {
+    return noUnderstandingOutcome;
+  }
+
+  const declared = await evaluateUnderstandingGate({
+    targetPath: input.options.targetPath,
+    task,
+    ...(input.context.state.contextPack === undefined
+      ? {}
+      : { contextPack: input.context.state.contextPack })
+  });
+
+  if (stage === "implement") {
+    const enabled =
+      input.context.policy.policy.rules.requireUnderstandingBeforeBehaviouralImplementation ===
+      true;
+
+    return {
+      // Disabled means today's behaviour exactly: the record is written, the
+      // findings are not raised.
+      checks: enabled ? declared.checks : [],
+      warnings: declared.warnings,
+      classification: classificationRecord(declared.classification)
+    };
+  }
+
+  const realizedSurface = [...sourceChangedFiles(input.context.state)].sort();
+
+  if (realizedSurface.length === 0) {
+    return {
+      checks: [],
+      warnings: [],
+      classification: classificationRecord(declared.classification)
+    };
+  }
+
+  const realized = await evaluateUnderstandingGate({
+    targetPath: input.options.targetPath,
+    task,
+    realizedSurface,
+    ...(input.context.state.contextPack === undefined
+      ? {}
+      : { contextPack: input.context.state.contextPack })
+  });
+  const invalidated =
+    declared.classification.verdict === "mechanical" &&
+    realized.classification.verdict === "behavioural";
+
+  return {
+    // Non-retroactive by construction: no check is emitted, so nothing blocks.
+    checks: [],
+    warnings: invalidated
+      ? [
+          `VSP026: task ${task.id} was classified mechanical but its realized change surface classifies behavioural (${realized.classification.basis.join(", ")}). Recorded, not enforced.`
+        ]
+      : [],
+    classification: classificationRecord(declared.classification),
+    ...(invalidated
+      ? {
+          classificationInvalidated: {
+            declaredVerdict: declared.classification.verdict,
+            realizedVerdict: realized.classification.verdict,
+            realizedBasis: [...realized.classification.basis],
+            realizedSurface
+          }
+        }
+      : {})
+  };
+}
+
 async function applyPolicyOverrides(input: {
   readonly result: GateResult;
   readonly context: GateContext;
@@ -350,17 +458,26 @@ export async function evaluateGate(
     const stageEvaluation = evaluateStage(context, options.stage);
     const authorizationChecks = await oracleAuthorizationChecks({ context, options });
     const decisionChecks = await reviewDecisionChecks({ context, options });
+    const understanding = await understandingChecks({ context, options });
     const evaluation = {
       ...stageEvaluation,
       checks: [
         ...stageEvaluation.checks,
         ...assuranceChecks(context),
         ...authorizationChecks,
-        ...decisionChecks
-      ]
+        ...decisionChecks,
+        ...understanding.checks
+      ],
+      warnings: [...stageEvaluation.warnings, ...understanding.warnings]
     };
 
     const baseResult = buildGateResult({
+      ...(understanding.classification === undefined
+        ? {}
+        : { taskClassification: understanding.classification }),
+      ...(understanding.classificationInvalidated === undefined
+        ? {}
+        : { classificationInvalidated: understanding.classificationInvalidated }),
       targetPath: options.targetPath,
       stage: options.stage,
       strictnessMode: context.policy.policy.strictnessMode,

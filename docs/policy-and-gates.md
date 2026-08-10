@@ -87,6 +87,7 @@ Supported stages:
 | VSP020 | stop_on_failed_gate | all stages | no |
 | VSP021 | block_on_unresolved_drift | pr | yes |
 | VSP022 | prevent_assurance_profile_lowering | task-aware gates | yes, with an auditable reason |
+| VSP026 | require_understanding_before_behavioural_implementation | implement | yes, with an auditable reason |
 
 Non-overridable rules cannot be bypassed by `.visp/overrides.json`.
 
@@ -96,6 +97,74 @@ strictness default (enforced in `strict` and `locked`). It fails the PR gate
 when the active context pack was grounded on artifacts (spec, plan, task
 graph, policy) that changed after the pack was compiled. Run `visp-kit drift` for
 the full deterministic drift report.
+
+## VSP026 — understanding before behavioural implementation
+
+VSP026 gates **behavioural** tasks only. A mechanical task passes through
+untouched, and an ambiguous task counts as mechanical: under-gating a
+behavioural task costs today's behaviour, while over-gating a trivial edit
+teaches agents that the gate is noise and they then route around it everywhere.
+
+It is **off by default in every strictness mode**. Enable it per project:
+
+```json
+{ "rules": { "requireUnderstandingBeforeBehaviouralImplementation": true } }
+```
+
+The classification is recorded in the gate report as `taskClassification`
+whether or not the rule is enabled, so the rule's own accuracy can be measured.
+It reads only declared, auditable inputs — the change surface
+(`allowedFiles` ∪ `expectedFiles`), the declared fields (`taskClass`,
+`riskFactors`, `blastRadius`, `reversibility`), the intel case when one is
+current, and scan's repository model. It does **not** read `task.title`,
+`task.description`, spec prose or the user prompt: intent is raw input under
+VSP019, and prose is the one input an agent can rewrite to change its own gate.
+
+When the verdict is behavioural, each condition is a separate finding:
+
+| Condition | Requires |
+|-----------|----------|
+| G1 | a current understanding case for this task |
+| G2 | at least one entrypoint |
+| G3 | at least one path relation, **or** an explicit unresolved scout status |
+| G4 | at least one affected test, or a concrete validation command |
+| G5 | cited unknowns resolved or named in an override reason |
+| G6 | every candidate change entity inside the declared surface |
+
+Clear it the same way as any other rule:
+
+```bash
+visp-kit override add --rule VSP026 --scope task --feature <feature> --task <id> \
+  --reason "<at least twelve characters, auditable>"
+```
+
+There is no flag, no environment variable, and no silent policy escape. Once
+the rule is on, deleting `.visp-intel/` does not open the gate — G1 fails and
+the task stays blocked.
+
+## Reading intel's artifacts
+
+Kit reads two optional files from `.visp-intel/` and writes neither:
+
+- `.visp-intel/graph.json` — a `visp-intel repo export` bundle. `scan` uses it
+  to back `module-map.json` with resolved file-to-file imports and real
+  external module names. `dependency-map.json` stays manifest-derived: its
+  fields are package-manager facts (versions, scripts, lockfiles) that a code
+  graph does not carry.
+- `.visp-intel/understanding/<task-id>.json` — the Understanding Case export,
+  read by the context pack and by VSP026.
+
+Both are optional in the strict sense: missing, unreadable or schema-invalid
+each produce a warning and today's behaviour. Kit has no dependency on
+`visp-intel`, imports no intel module, and never shells out to its CLI.
+
+A case counts as **current** only when its snapshot equals repository head, its
+`repositoryInstanceId` matches the one scan recorded, its `gitCommit` matches
+the context pack's `baseCommit`, and it was exported from a clean worktree.
+Matching on instance id rather than directory path is deliberate: a re-clone or
+a sibling worktree at the same path is a different repository and must not
+inherit another one's case. A stale case never fails a command — it simply does
+not satisfy the gate and is not rendered into the prompt.
 
 ## Assurance Profile Selection
 

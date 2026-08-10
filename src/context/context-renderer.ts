@@ -111,10 +111,15 @@ function fileContext(pack: ContextPack): string {
     .map((file) => {
       const snippet = snippetFor(pack, file.path);
       const warning = file.warning === undefined ? "" : `\nWarning: ${file.warning}\n`;
+      // "Withheld" and "not available" are different facts and must not read
+      // the same. Withheld means the detail exists and is one intel query
+      // away; not available means nobody has it.
       const summary =
         file.summaryAvailable && file.summary !== undefined && file.summary.length > 0
           ? `\nSummary:\n${codeFence("json", file.summary)}\n`
-          : "\nSummary: not available.\n";
+          : pack.understanding !== undefined && file.summaryAvailable
+            ? "\nSummary: withheld - this file is off the cited path. Query `repo.entity` or `repo.search` if you need it.\n"
+            : "\nSummary: not available.\n";
       const snippetText =
         snippet === undefined
           ? ""
@@ -199,7 +204,7 @@ export function renderContextMarkdown(input: {
 - Title: ${input.feature.intent.title}
 
 ${policyGate(input.pack)}
-
+${understandingSection(input.pack)}
 ## Task
 
 - ID: ${task.id}
@@ -274,6 +279,88 @@ ${list(input.pack.warnings)}
 ## Implementation Instructions
 
 ${list(input.pack.instructions)}
+`;
+}
+
+/**
+ * The behavioural path, as cited evidence.
+ *
+ * THE GRAPH STAYS OUTSIDE THE PROMPT: this is the cited path, a few signature
+ * lines and the counts, and nothing else. Everything the agent might want next
+ * is an intel query it can make itself, which is cheaper than shipping the
+ * graph on the chance it is needed.
+ *
+ * Line numbers here are one-based; the conversion from intel's zero-based
+ * spans happens once, in `understanding-view.ts`.
+ */
+function understandingSection(pack: ContextPack): string {
+  const understanding = pack.understanding;
+
+  if (understanding === undefined) return "";
+
+  const location = (filePath: string | null, line: number | null): string =>
+    filePath === null ? "(external)" : line === null ? filePath : `${filePath}:${line}`;
+  const pathRows =
+    understanding.path.length === 0
+      ? "- No path was established. Treat localisation as open."
+      : understanding.path
+          .map(
+            (row) =>
+              `- ${row.sourceDisplayName} @ ${location(row.sourceFilePath, row.sourceLine)} --${row.kind}--> ${row.targetDisplayName} @ ${location(row.targetFilePath, row.targetLine)}`
+          )
+          .join("\n");
+  const hypotheses =
+    understanding.hypotheses.length === 0
+      ? "- None recorded."
+      : understanding.hypotheses
+          .map(
+            (hypothesis) =>
+              `- [${hypothesis.status}] ${hypothesis.statement} (${hypothesis.evidenceCount} evidence)`
+          )
+          .join("\n");
+  const signatures =
+    understanding.signatures.length === 0
+      ? "- None resolved."
+      : understanding.signatures
+          .map(
+            (signature) =>
+              `- ${signature.signature} @ ${location(signature.filePath, signature.line)}`
+          )
+          .join("\n");
+  const tests =
+    understanding.affectedTests.length === 0
+      ? "- None identified."
+      : understanding.affectedTests
+          .map((test) => `- ${location(test.filePath, test.line)}`)
+          .join("\n");
+  const unknowns =
+    understanding.unknownIds.length === 0
+      ? ""
+      : `\nOpen unknowns (ids only; the export carries no risk level):\n${understanding.unknownIds.map((id) => `- ${id}`).join("\n")}\n`;
+
+  return `
+## Behavioural Understanding
+
+Question: ${understanding.behaviouralQuestion || "(none recorded)"}
+
+Cited path (${understanding.counts.pathRelations} relation(s); cited order, not traversal order):
+
+${pathRows}
+
+Hypotheses (unresolved first):
+
+${hypotheses}
+
+Entity signatures (intel's canonical names, NOT declaration text - use \`repo.entity\` for the real signature):
+
+${signatures}
+
+Affected tests:
+
+${tests}
+${unknowns}
+Everything else about the graph is available on demand and is deliberately not in this prompt:
+\`repo.entity\`, \`repo.callers\`, \`repo.callees\`, \`repo.trace\`, \`repo.tests\`, \`repo.evidence\`, \`repo.search\`.
 `;
 }
 

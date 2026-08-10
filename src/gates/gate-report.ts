@@ -20,6 +20,33 @@ export function renderGateReport(result: GateResult): string {
     `Allowed: ${result.allowed ? "yes" : "no"}`,
     `Next allowed command: \`${result.nextAllowedCommand}\``,
     "",
+    // VSP026's judgement, on the record. A classification that only lived in
+    // memory could not be audited afterwards, and the misclassification rate
+    // is the thing this rule is measured on.
+    ...(result.taskClassification === undefined
+      ? []
+      : [
+          "## Task Classification",
+          "",
+          `Verdict: ${result.taskClassification.verdict}`,
+          `Basis: ${result.taskClassification.basis.join(", ")}`,
+          `Rule version: ${result.taskClassification.ruleVersion}`,
+          "",
+          "Evidence:",
+          ...result.taskClassification.evidence.map((item) => `- ${item}`),
+          ""
+        ]),
+    ...(result.classificationInvalidated === undefined
+      ? []
+      : [
+          "## Classification Invalidated",
+          "",
+          `Declared: ${result.classificationInvalidated.declaredVerdict}`,
+          `Realized: ${result.classificationInvalidated.realizedVerdict} (${result.classificationInvalidated.realizedBasis.join(", ")})`,
+          "",
+          "Recorded from the realized change surface. It blocks nothing after the fact.",
+          ""
+        ]),
     "## Passed Rules",
     "",
     ...(result.passedRules.length === 0

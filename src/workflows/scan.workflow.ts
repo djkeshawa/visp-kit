@@ -12,6 +12,7 @@ import { vispDir } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { buildDependencyMap } from "../scanner/dependency-map.js";
 import { defaultIgnoredPaths } from "../scanner/ignore-rules.js";
+import { loadIntelGraph } from "../scanner/intel-graph.js";
 import { buildModuleMap } from "../scanner/module-map.js";
 import { scanGit } from "../scanner/scan-git.js";
 import { scanProject } from "../scanner/scan-project.js";
@@ -142,11 +143,18 @@ export async function runScanWorkflow(
       generatedAt: now,
       force: flags.force
     });
+    // Intel INFORMS. It supplies the repository model; scan still decides the
+    // artifact and still produces one when intel has nothing to say.
+    const intel = await loadIntelGraph(targetPath);
+
+    warnings.push(...intel.warnings);
+
     const moduleMap = buildModuleMap({
       files: scan.files,
       summaries: summaries.cache.items,
       sourceRoots: scan.detection.sourceRoots,
-      generatedAt: now
+      generatedAt: now,
+      ...(intel.projection === undefined ? {} : { intel: intel.projection })
     });
     const testMap = buildTestMap({
       files: scan.files,
@@ -181,7 +189,19 @@ export async function runScanWorkflow(
         deletedFiles: summaries.deletedFiles,
         changedFiles: summaries.changedFilePaths,
         lockFiles: scan.detection.lockFiles,
-        git
+        git,
+        // Recorded so the understanding gate can match a case on repository
+        // INSTANCE rather than on the directory it happens to be mounted at. A
+        // re-clone or a sibling worktree at the same path is a different
+        // instance and must not inherit another instance's case.
+        intel:
+          intel.projection === undefined
+            ? null
+            : {
+                repositoryInstanceId: intel.projection.repositoryInstanceId,
+                headSnapshotId: intel.projection.headSnapshotId,
+                indexedFileCount: intel.projection.filePaths.length
+              }
       },
       projectSummary: projectSummaryMarkdown({
         detection: scan.detection,

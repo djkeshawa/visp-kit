@@ -18,7 +18,7 @@ import {
   testMapArtifactPath,
   traceabilityArtifactPath
 } from "../artifacts/artifact-paths.js";
-import { readArtifact } from "../artifacts/artifact-reader.js";
+import { optionalArtifact } from "../artifacts/optional-artifact.js";
 import { type BudgetMode } from "../artifacts/schemas/common.schema.js";
 import {
   contextPackSchema,
@@ -45,6 +45,13 @@ import {
   type ContextBudgetPolicy
 } from "./context-budget.js";
 import { estimateContextPackInputTokens, selectContextPack } from "./context-selector.js";
+import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
+import { readScanIntelInstanceId } from "../scanner/intel-graph.js";
+import {
+  readUnderstandingExport,
+  understandingCurrentness
+} from "../understanding/understanding-export.js";
+import { understandingView } from "../understanding/understanding-view.js";
 import { renderContextMarkdown } from "./context-renderer.js";
 import { estimateTokenRange, estimateTokens, tokenEstimatorName } from "./token-estimator.js";
 
@@ -106,39 +113,40 @@ export type ContextCompilationInput = {
    * resolves to 0, which keeps the over-budget check a hard cutoff.
    */
   readonly overBudgetTolerancePercent?: number;
+  /** Injected in tests; production uses the default runner. */
+  readonly commandRunner?: CommandRunner;
   readonly now: string;
 };
 
-async function optionalArtifact<T>(input: {
-  readonly path: string;
-  readonly schema: ZodType<T>;
-  readonly artifactName: string;
-  readonly warnings: string[];
-}): Promise<T | undefined> {
-  const exists = await pathExists(input.path);
-
-  if (!exists.ok) {
-    input.warnings.push(`Unable to access optional ${input.artifactName}: ${exists.error.message}`);
-    return undefined;
-  }
-
-  if (!exists.value) {
-    input.warnings.push(`Optional artifact missing: ${input.artifactName}.`);
-    return undefined;
-  }
-
-  const artifact = await readArtifact(input.path, input.schema, {
-    artifactName: input.artifactName
+/**
+ * HEAD at context generation, which is this task's base.
+ *
+ * The pack schema has always documented this field and nothing populated it,
+ * so VSP021 drift detection and the understanding case's currentness rule both
+ * had nothing to compare against. Two cheap git calls, and a project without
+ * git simply has no base — exactly as the schema says.
+ */
+async function captureBaseCommit(input: {
+  readonly targetPath: string;
+  readonly runner: CommandRunner;
+}): Promise<string | undefined> {
+  const inside = await input.runner.run("git", ["rev-parse", "--is-inside-work-tree"], {
+    cwd: input.targetPath,
+    timeoutMs: 3000
   });
 
-  if (!artifact.ok) {
-    input.warnings.push(
-      `Optional artifact unreadable: ${input.artifactName}. ${artifact.error.message}`
-    );
-    return undefined;
-  }
+  if (!inside.ok || inside.value.stdout.trim() !== "true") return undefined;
 
-  return artifact.value;
+  const head = await input.runner.run("git", ["rev-parse", "HEAD"], {
+    cwd: input.targetPath,
+    timeoutMs: 3000
+  });
+
+  if (!head.ok) return undefined;
+
+  const commit = head.value.stdout.trim();
+
+  return commit.length === 0 ? undefined : commit;
 }
 
 async function optionalText(input: {
@@ -578,6 +586,41 @@ export async function compileContext(
     featureKey: input.feature.key,
     warnings
   });
+  const baseCommit = await captureBaseCommit({
+    targetPath: input.targetPath,
+    runner: input.commandRunner ?? defaultCommandRunner
+  });
+  // Intel INFORMS: this is evidence, and Kit decides whether it counts. A
+  // stale case is not an error and does not fail the command; it is simply not
+  // rendered, and the pack reverts to the behaviour it has today.
+  const understandingExport = await readUnderstandingExport({
+    targetPath: input.targetPath,
+    taskId: input.task.id,
+    warnings
+  });
+  const currentness =
+    understandingExport === undefined
+      ? undefined
+      : understandingCurrentness({
+          export: understandingExport,
+          scanRepositoryInstanceId: await readScanIntelInstanceId(input.targetPath),
+          baseCommit
+        });
+
+  if (understandingExport !== undefined && currentness?.current === false) {
+    warnings.push(
+      `Understanding case for ${input.task.id} is not current (${currentness.reasons.join("; ")}); it was not used.`
+    );
+  }
+
+  const understanding =
+    understandingExport === undefined || currentness?.current !== true
+      ? undefined
+      : understandingView({
+          export: understandingExport,
+          current: true,
+          currentnessReasons: []
+        });
   const selected = await selectContextPack({
     targetPath: input.targetPath,
     feature: input.feature,
@@ -594,10 +637,12 @@ export async function compileContext(
     fileIndex: fileIndex?.files as readonly FileIndexEntry[] | undefined,
     fileSummaries: fileSummaries?.items as readonly FileSummary[] | undefined,
     projectProfile,
+    ...(understanding === undefined ? {} : { understanding }),
     warnings
   });
   const grounded = {
     ...selected,
+    ...(baseCommit === undefined ? {} : { baseCommit }),
     artifactProvenance
   };
   const trimmed = trimOptionalContext({

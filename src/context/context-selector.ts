@@ -1,4 +1,7 @@
-import { type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
+import {
+  type ContextPack,
+  type ContextUnderstanding
+} from "../artifacts/schemas/context-pack.schema.js";
 import { type PlanDraftArtifact } from "../artifacts/schemas/plan.schema.js";
 import {
   type AcceptanceCriterion,
@@ -31,8 +34,53 @@ export type ContextSelectionInput = {
   readonly fileIndex?: readonly FileIndexEntry[];
   readonly fileSummaries?: readonly FileSummary[];
   readonly projectProfile?: ProjectProfile;
+  /**
+   * The compact task model (ADR 0014 Q3), present only when a CURRENT
+   * understanding case exists. Its presence is what switches the pack from
+   * "everything that might be relevant" to "the cited path plus what is being
+   * changed". Absent, every line below behaves exactly as it did before.
+   */
+  readonly understanding?: ContextUnderstanding;
   readonly warnings: readonly string[];
 };
+
+/**
+ * Snippet budget for the compact pack: at most four files, at most forty lines
+ * each (ADR 0014 Q3, 1,200 tokens). Files outside this set still appear in the
+ * pack — they are the authorization surface — they just arrive without a body.
+ */
+const COMPACT_MAX_SNIPPET_FILES = 4;
+const COMPACT_MAX_SNIPPET_LINES = 40;
+
+function snippetBudget(
+  onPath: ReadonlySet<string> | undefined,
+  policy: ContextBudgetPolicy
+): number {
+  return onPath === undefined ? policy.maxFiles : COMPACT_MAX_SNIPPET_FILES;
+}
+
+/**
+ * Files the compact pack may show code for: those holding an entity on the
+ * cited path or in the candidate change set.
+ *
+ * The membership decision upstream is by entity id; these are the file paths
+ * those ids resolved to. A path is an identity within one snapshot of one
+ * repository, which is the only reason it is safe to compare here.
+ */
+export function understandingFilePaths(understanding: ContextUnderstanding): ReadonlySet<string> {
+  const paths = new Set<string>();
+
+  for (const row of understanding.path) {
+    if (row.sourceFilePath !== null) paths.add(row.sourceFilePath);
+    if (row.targetFilePath !== null) paths.add(row.targetFilePath);
+  }
+
+  for (const signature of understanding.signatures) {
+    if (signature.filePath !== null) paths.add(signature.filePath);
+  }
+
+  return paths;
+}
 
 type FileContext = {
   readonly file: ContextPack["includedFiles"][number];
@@ -378,6 +426,7 @@ async function buildFileContexts(input: {
   readonly plan?: PlanDraftArtifact;
   readonly fileIndex: readonly FileIndexEntry[];
   readonly fileSummaries: readonly FileSummary[];
+  readonly understanding?: ContextUnderstanding;
   readonly warnings: string[];
 }): Promise<readonly FileContext[]> {
   const indexByPath = new Map(input.fileIndex.map((file) => [file.path, file]));
@@ -390,6 +439,9 @@ async function buildFileContexts(input: {
     warnings: input.warnings
   }).slice(0, input.policy.maxFiles);
   const forbidden = new Set(input.task.forbiddenFiles ?? []);
+  const onPath =
+    input.understanding === undefined ? undefined : understandingFilePaths(input.understanding);
+  let snippetsTaken = 0;
   const contexts: FileContext[] = [];
 
   for (const filePath of paths) {
@@ -426,17 +478,28 @@ async function buildFileContexts(input: {
       continue;
     }
 
-    const summaryText = fileSummaryText(summary);
-    let snippet = await extractFileSnippet({
-      rootPath: input.targetPath,
-      filePath: normalized,
-      maxTokens: input.includeFullFiles
-        ? input.policy.maxFullFileTokens
-        : input.policy.maxSnippetTokensPerFile,
-      fullFile: input.includeFullFiles,
-      reason: "Task file context.",
-      focusTerms: taskKeywords(input.task)
-    });
+    // The pack's bulk was here: a JSON summary (imports, exports, symbols,
+    // comments) for every candidate file, plus a keyword-selected snippet.
+    // With a cited path available, a file off that path contributes its
+    // identity and its authorization status and nothing else; its detail is a
+    // `repo.entity` or `repo.search` call away, and shipping it unasked is
+    // what put Visp at 90-135k tokens against bare's 42k.
+    const withhold = onPath !== undefined && !onPath.has(normalized);
+    const summaryText = withhold ? "" : fileSummaryText(summary);
+    const snippetAllowed = !withhold && snippetsTaken < snippetBudget(onPath, input.policy);
+    let snippet = snippetAllowed
+      ? await extractFileSnippet({
+          rootPath: input.targetPath,
+          filePath: normalized,
+          maxTokens: input.includeFullFiles
+            ? input.policy.maxFullFileTokens
+            : input.policy.maxSnippetTokensPerFile,
+          fullFile: input.includeFullFiles && onPath === undefined,
+          reason: onPath === undefined ? "Task file context." : "Entity on the cited path.",
+          focusTerms: taskKeywords(input.task),
+          ...(onPath === undefined ? {} : { maxLines: COMPACT_MAX_SNIPPET_LINES })
+        })
+      : ({ ok: true, value: undefined } as const);
     let warning: string | undefined;
     let includeMode: FileContext["file"]["includeMode"] = "summary";
 
@@ -445,7 +508,9 @@ async function buildFileContexts(input: {
       snippet = { ok: true, value: undefined };
     }
 
-    if (snippet.value !== undefined && input.includeFullFiles) {
+    if (snippet.value !== undefined) snippetsTaken += 1;
+
+    if (snippet.value !== undefined && input.includeFullFiles && onPath === undefined) {
       if (snippet.value.tokenEstimate <= input.policy.maxFullFileTokens) {
         includeMode = "full";
       } else {
@@ -538,6 +603,7 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
     plan: input.plan,
     fileIndex: input.fileIndex ?? [],
     fileSummaries: input.fileSummaries ?? [],
+    ...(input.understanding === undefined ? {} : { understanding: input.understanding }),
     warnings
   });
   const constraints = unique([
@@ -557,14 +623,25 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
       symbols: summary.symbols ?? []
     }))
   );
+  // Dropped in compact mode: projectSummary and patterns are free text about
+  // the repository as a whole, and the compact constitution already carries
+  // the part of it that constrains the edit. reuseHelpers is NOT dropped with
+  // them — it is the regex helper list behind the only measured behaviour win
+  // in this project (credential leaks 0 of 4 versus 3 of 4), it is not
+  // graph-derived, and the graph does not replace it.
+  const compact = input.understanding !== undefined;
   const projectContext = {
-    summary: input.policy.includeProjectSummary
-      ? compactText(input.projectSummary, input.policy.outputStyle === "compact" ? 12 : 20)
-      : "",
-    patterns: input.policy.includePatterns
-      ? compactText(input.patterns, input.policy.outputStyle === "detailed" ? 16 : 10)
-      : "",
-    ...(reuseHelpers.length > 0 ? { reuseHelpers: reuseHelpers.map((h) => ({ ...h, symbols: [...h.symbols] })) } : {}),
+    summary:
+      input.policy.includeProjectSummary && !compact
+        ? compactText(input.projectSummary, input.policy.outputStyle === "compact" ? 12 : 20)
+        : "",
+    patterns:
+      input.policy.includePatterns && !compact
+        ? compactText(input.patterns, input.policy.outputStyle === "detailed" ? 16 : 10)
+        : "",
+    ...(reuseHelpers.length > 0
+      ? { reuseHelpers: reuseHelpers.map((h) => ({ ...h, symbols: [...h.symbols] })) }
+      : {}),
     warnings: []
   };
 
@@ -593,6 +670,7 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
     includedDependencyTasks: selectDependencyTasks(input.taskGraph, input.task),
     includedConstitutionRules: parseCompactRules(input.compactConstitution),
     includedProjectContext: projectContext,
+    ...(input.understanding === undefined ? {} : { understanding: input.understanding }),
     artifactProvenance: [],
     includedFiles: fileContexts.map((context) => context.file),
     includedSnippets: fileContexts

@@ -1,3 +1,4 @@
+import { type IntelGraphProjection } from "./intel-graph.js";
 import { type FileIndexEntry, type FileSummary } from "./types.js";
 
 export type ModuleMapEntry = {
@@ -39,6 +40,11 @@ export function buildModuleMap(input: {
   readonly summaries: readonly FileSummary[];
   readonly sourceRoots: readonly string[];
   readonly generatedAt: string;
+  /**
+   * Intel's graph, when this project has one. The artifact shape below is
+   * identical either way; only where the facts come from changes.
+   */
+  readonly intel?: IntelGraphProjection;
 }): ModuleMap {
   const summariesByPath = new Map(input.summaries.map((summary) => [summary.path, summary]));
   const grouped = new Map<string, FileIndexEntry[]>();
@@ -48,23 +54,50 @@ export function buildModuleMap(input: {
     grouped.set(name, [...(grouped.get(name) ?? []), file]);
   }
 
+  const intel = input.intel;
+  const intelTests = new Set(intel?.testFilePaths ?? []);
   const modules = [...grouped.entries()]
     .map(([name, files]) => {
+      const paths = files.map((file) => file.path);
+      // Kit's own test detection is a UNION member, not a fallback. Intel marks
+      // a file as a test when it found a test entity in it; Kit marks one from
+      // its path and name. Neither is a superset of the other, and dropping
+      // Kit's half would make the artifact worse on any repository whose test
+      // framework intel does not extract — the opposite of the point.
+      const isTest = (file: FileIndexEntry): boolean =>
+        file.isTestFile || intelTests.has(file.path);
+      const indexed =
+        intel === undefined
+          ? []
+          : paths.filter((path) => intel.internalEdges.has(path) || intel.externalEdges.has(path));
+
+      // Intel backs a module only when intel actually indexed something in it.
+      // A module the graph never saw (generated output, an unsupported
+      // language) keeps the summary-derived answer rather than being reported
+      // as having no dependencies at all.
+      const useIntel = intel !== undefined && indexed.length > 0;
       const imports = files.flatMap((file) => summariesByPath.get(file.path)?.imports ?? []);
 
       return {
         name,
         root: name === "." ? "." : name,
         files: files
-          .filter((file) => !file.isTestFile)
+          .filter((file) => !isTest(file))
           .map((file) => file.path)
           .sort(),
         testFiles: files
-          .filter((file) => file.isTestFile)
+          .filter(isTest)
           .map((file) => file.path)
           .sort(),
-        internalImports: unique(imports.filter((item) => !isExternalImport(item))),
-        externalDependencies: unique(imports.filter(isExternalImport))
+        // Graph-backed internal imports are RESOLVED file paths, where the
+        // summary-derived ones were raw specifiers like `../foo.js`. Same
+        // field, same type, a target a reader can open.
+        internalImports: useIntel
+          ? unique(paths.flatMap((path) => [...(intel.internalEdges.get(path) ?? [])]))
+          : unique(imports.filter((item) => !isExternalImport(item))),
+        externalDependencies: useIntel
+          ? unique(paths.flatMap((path) => [...(intel.externalEdges.get(path) ?? [])]))
+          : unique(imports.filter(isExternalImport))
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

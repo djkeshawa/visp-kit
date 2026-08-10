@@ -23,6 +23,13 @@ export type SnippetOptions = {
   readonly fullFile?: boolean;
   readonly reason: string;
   readonly focusTerms?: readonly string[];
+  /**
+   * Hard line cap, applied after the token-based range is chosen. The compact
+   * pack budgets snippets in LINES (<=40) rather than tokens, because a line
+   * budget is what a reader can check against the rendered prompt. Omitted
+   * everywhere else, where the token budget alone still decides.
+   */
+  readonly maxLines?: number;
 };
 
 function focusedRange(
@@ -105,7 +112,11 @@ export async function extractFileSnippet(
   const range = options.fullFile
     ? { start: 0, end: lines.length }
     : focusedRange(lines, options.maxTokens, options.focusTerms ?? []);
-  const selectedLines = lines.slice(range.start, range.end);
+  const capped =
+    options.maxLines === undefined
+      ? range.end
+      : Math.min(range.end, range.start + options.maxLines);
+  const selectedLines = lines.slice(range.start, capped);
   const content = selectedLines.join("\n").trimEnd();
 
   if (content.length === 0) {

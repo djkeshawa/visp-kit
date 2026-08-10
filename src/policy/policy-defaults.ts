@@ -164,6 +164,13 @@ export const policyRuleDefinitions: readonly PolicyRuleDefinition[] = [
     key: "requireSignedAssuranceDecision",
     name: "require_signed_assurance_decision",
     description: "A human assurance decision must carry a verified signature, not a typed name."
+  },
+  {
+    id: "VSP026",
+    key: "requireUnderstandingBeforeBehaviouralImplementation",
+    name: "require_understanding_before_behavioural_implementation",
+    description:
+      "A behavioural task requires a current, evidence-cited understanding case before implementation."
   }
 ];
 
@@ -194,7 +201,8 @@ const allRulesOff: PolicyRules = {
   preventAssuranceProfileLowering: true,
   requireOracleLockBeforeImplementation: false,
   requireCurrentAssuranceDecisionBeforePr: false,
-  requireSignedAssuranceDecision: false
+  requireSignedAssuranceDecision: false,
+  requireUnderstandingBeforeBehaviouralImplementation: false
 };
 
 const strictRules: PolicyRules = {
@@ -222,7 +230,15 @@ const strictRules: PolicyRules = {
   preventAssuranceProfileLowering: true,
   requireOracleLockBeforeImplementation: false,
   requireCurrentAssuranceDecisionBeforePr: true,
-  requireSignedAssuranceDecision: true
+  requireSignedAssuranceDecision: true,
+  // Off even in strict, matching VSP023's rollout. The rule depends on an
+  // artifact only intel can produce, and a default-on rule would block every
+  // behavioural task in every project that has never run intel — which is all
+  // of them today. Turning it on is a project decision recorded in
+  // .visp/policy.json, and once on, deleting the intel store does NOT open the
+  // gate: G1 fails and the task stays blocked. The constraint cannot be
+  // removed by removing the thing that satisfies it.
+  requireUnderstandingBeforeBehaviouralImplementation: false
 };
 
 const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {

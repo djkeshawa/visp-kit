@@ -141,6 +141,96 @@ export const contextTrimmingSchema = z
   })
   .strict();
 
+/**
+ * The compact task model (ADR 0014 Q3), projected from intel's Understanding
+ * Case export. Optional: a project with no export produces a pack without this
+ * field and behaves exactly as it did before.
+ *
+ * THE GRAPH STAYS OUTSIDE THE PROMPT. There is deliberately no entity dump, no
+ * relation table and no adjacency here — only the cited path, the hypotheses,
+ * a handful of signature lines and the counts. Everything else is queried on
+ * demand by the agent over intel's MCP (`repo.entity`, `repo.callers`,
+ * `repo.callees`, `repo.trace`, `repo.tests`, `repo.evidence`, `repo.search`).
+ *
+ * All `line` fields are ONE-BASED, converted from intel's zero-based spans at
+ * the single boundary in `understanding-view.ts`.
+ */
+export const contextUnderstandingPathRowSchema = z
+  .object({
+    relationId: nonEmptyStringSchema,
+    kind: nonEmptyStringSchema,
+    sourceId: nonEmptyStringSchema,
+    targetId: nonEmptyStringSchema,
+    sourceDisplayName: z.string(),
+    sourceFilePath: z.string().nullable(),
+    sourceLine: z.number().int().positive().nullable(),
+    targetDisplayName: z.string(),
+    targetFilePath: z.string().nullable(),
+    targetLine: z.number().int().positive().nullable(),
+    evidenceId: nonEmptyStringSchema
+  })
+  .strict();
+
+export const contextUnderstandingSchema = z
+  .object({
+    caseId: nonEmptyStringSchema,
+    taskId: nonEmptyStringSchema,
+    snapshotId: nonEmptyStringSchema,
+    repositoryInstanceId: nonEmptyStringSchema,
+    current: z.boolean(),
+    currentnessReasons: stringListSchema,
+    behaviouralQuestion: z.string(),
+    // "cited", never "traversed": intel stores path relations as a sorted set,
+    // so visit order is gone before the exporter sees them.
+    pathOrdering: z.literal("cited"),
+    path: z.array(contextUnderstandingPathRowSchema),
+    hypotheses: z.array(
+      z
+        .object({
+          id: nonEmptyStringSchema,
+          statement: z.string(),
+          status: z.enum(["supported", "refuted", "unresolved"]),
+          evidenceCount: z.number().int().nonnegative()
+        })
+        .strict()
+    ),
+    // `signature` is intel's "<kind> <canonicalName>", NOT declaration text:
+    // intel retains no source payload, so there is no parameter list to carry.
+    // Renderers must not present it as the declaration.
+    signatures: z.array(
+      z
+        .object({
+          entityId: nonEmptyStringSchema,
+          displayName: z.string(),
+          filePath: z.string().nullable(),
+          line: z.number().int().positive().nullable(),
+          signature: z.string()
+        })
+        .strict()
+    ),
+    affectedTests: z.array(
+      z
+        .object({
+          entityId: nonEmptyStringSchema,
+          filePath: z.string().nullable(),
+          line: z.number().int().positive().nullable()
+        })
+        .strict()
+    ),
+    unknownIds: z.array(nonEmptyStringSchema),
+    counts: z
+      .object({
+        entrypoints: z.number().int().nonnegative(),
+        pathRelations: z.number().int().nonnegative(),
+        candidateChanges: z.number().int().nonnegative(),
+        affectedUnchanged: z.number().int().nonnegative(),
+        affectedTests: z.number().int().nonnegative(),
+        unknowns: z.number().int().nonnegative()
+      })
+      .strict()
+  })
+  .strict();
+
 export const contextPackSchema = z
   .object({
     id: idSchema,
@@ -178,6 +268,7 @@ export const contextPackSchema = z
     failedGateRules: z.array(gateRuleFindingSchema).optional(),
     blockedCommands: z.array(gateBlockedCommandSchema).optional(),
     policyGate: policyGateSummarySchema.optional(),
+    understanding: contextUnderstandingSchema.optional(),
     trimming: contextTrimmingSchema.optional(),
     createdAt: isoDateTimeSchema,
     updatedAt: isoDateTimeSchema
@@ -195,4 +286,6 @@ export type ContextArtifactProvenance = z.infer<typeof contextArtifactProvenance
 export type ContextFile = z.infer<typeof contextFileSchema>;
 export type ContextSnippet = z.infer<typeof contextSnippetSchema>;
 export type ContextTrimming = z.infer<typeof contextTrimmingSchema>;
+export type ContextUnderstanding = z.infer<typeof contextUnderstandingSchema>;
+export type ContextUnderstandingPathRow = z.infer<typeof contextUnderstandingPathRowSchema>;
 export type ContextPack = z.infer<typeof contextPackSchema>;

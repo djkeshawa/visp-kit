@@ -42,6 +42,38 @@ It avoids:
 - broad source file inclusion
 - long chat history
 
+## The compact pack
+
+When `.visp-intel/understanding/<task-id>.json` holds a **current** case, the
+pack switches shape. Instead of a file summary for every candidate file plus a
+keyword-selected snippet, it carries the cited behavioural path, the open
+hypotheses, a handful of entity signature lines, the affected tests, and at
+most four snippets of at most forty lines — and only for entities on the path
+or in the candidate change set.
+
+A file off the path is still listed, still in scope, and arrives with
+`Summary: withheld` rather than a body. Its detail is one `repo.entity` or
+`repo.search` call away, which is cheaper than shipping it on the chance it is
+needed. **The graph itself is never in the prompt** — no entity dump, no
+relation table, no adjacency.
+
+What is not dropped: `reuseHelpers` (the helper list behind the only measured
+behaviour win in this project, and not graph-derived), `constraints`,
+`instructions`, `validationCommands`, `artifactProvenance`, `baseCommit`,
+summaries for files that do not exist yet, and `trimming.heavilyTrimmed`.
+
+Measured on this repository, one cross-file task, `balanced` budget:
+**9,805 input tokens before, 2,100 after — a 79% reduction.** The measurement
+is in `tests/integration/compact-context-pack.test.ts`, which prints both
+numbers on every run so the direction stays visible if it ever reverses. It
+measures ONE pack, not a whole agent run.
+
+The known risk is that path-membership selection inherits intel's resolution
+miss rate, so a file that keyword relevance would have surfaced can now be
+absent. The mitigation is `repo.search` on demand, not a fallback to bulk. If
+localisation quality falls, the right response is to revert the selector and
+report the direction, not to widen the pack.
+
 ## Scan Cache
 
 `visp-kit scan` writes compact cache artifacts:

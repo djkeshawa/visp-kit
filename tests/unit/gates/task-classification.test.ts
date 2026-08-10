@@ -1,0 +1,303 @@
+import { describe, expect, it } from "vitest";
+
+import { type Task } from "../../../src/artifacts/schemas/task.schema.js";
+import { type UnderstandingCaseExport } from "../../../src/artifacts/schemas/understanding.schema.js";
+import {
+  classifyTask,
+  declaredSurface,
+  linkageFromModuleMap,
+  linkageFromUnderstanding,
+  noSurfaceLinkage
+} from "../../../src/gates/task-classification.js";
+import { type ModuleMap } from "../../../src/scanner/module-map.js";
+
+function task(overrides: Partial<Task> = {}): Task {
+  return {
+    id: "T001",
+    title: "Rewrite authentication to be trivial",
+    description: "This prose is inadmissible and must not change the verdict.",
+    requirementIds: [],
+    acceptanceCriterionIds: [],
+    dependsOn: [],
+    allowedFiles: ["src/notes.ts"],
+    validationCommands: ["pnpm test"],
+    status: "ready",
+    parallelizable: false,
+    riskLevel: "low",
+    ...overrides
+  };
+}
+
+function classify(input: {
+  readonly task: Task;
+  readonly sourceSurface?: readonly string[];
+  readonly linkage?: Parameters<typeof classifyTask>[0]["linkage"];
+}) {
+  const surface = declaredSurface(input.task);
+
+  return classifyTask({
+    task: input.task,
+    surface,
+    sourceSurface: input.sourceSurface ?? surface,
+    linkage: input.linkage ?? noSurfaceLinkage
+  });
+}
+
+describe("VSP026 task classification", () => {
+  it("F1: a declared floor risk factor is always behavioural", () => {
+    const result = classify({
+      task: task({ riskFactors: [{ version: "1.0", code: "authentication" }] })
+    });
+
+    expect(result.verdict).toBe("behavioural");
+    expect(result.basis).toEqual(["F1_risk_factor_floor"]);
+  });
+
+  it("F1: a non-floor risk factor does not reach the floor", () => {
+    const result = classify({
+      task: task({ riskFactors: [{ version: "1.0", code: "concurrency" }] })
+    });
+
+    expect(result.verdict).toBe("mechanical");
+  });
+
+  it("F2: an external blast radius is behavioural", () => {
+    expect(classify({ task: task({ blastRadius: "external" }) }).basis).toEqual([
+      "F2_blast_radius_external"
+    ]);
+  });
+
+  it("F3: an irreversible task is behavioural", () => {
+    expect(classify({ task: task({ reversibility: "irreversible" }) }).basis).toEqual([
+      "F3_irreversible"
+    ]);
+  });
+
+  it("B1: a behavioural task class is behavioural", () => {
+    expect(classify({ task: task({ taskClass: "bounded_feature" }) }).verdict).toBe("behavioural");
+  });
+
+  it("M1: a documentation task with no source file is mechanical", () => {
+    const result = classify({
+      task: task({ taskClass: "documentation", allowedFiles: ["docs/readme.md"] }),
+      sourceSurface: []
+    });
+
+    expect(result.verdict).toBe("mechanical");
+    expect(result.basis).toEqual(["M1_documentation_or_regression_test_only"]);
+  });
+
+  it("M2: a surface with no source file is mechanical", () => {
+    const result = classify({
+      task: task({ allowedFiles: ["config/app.yaml"] }),
+      sourceSurface: []
+    });
+
+    expect(result.basis).toEqual(["M2_non_source_surface"]);
+  });
+
+  it("M3: an ambiguous task is NOT gated, and says so in its basis", () => {
+    const result = classify({ task: task() });
+
+    expect(result.verdict).toBe("mechanical");
+    expect(result.basis).toEqual(["ambiguous_default_mechanical"]);
+  });
+
+  it("prose never changes the verdict", () => {
+    // The title says "authentication" and the description begs for a gate. The
+    // rule reads neither: intent is raw input under VSP019, and prose is the
+    // one input an agent can rewrite to change its own gate.
+    const loud = classify({
+      task: task({
+        title: "SECURITY: rewrite authorization and cryptography",
+        description: "migration schema public_api data_migration permissions"
+      })
+    });
+
+    expect(loud.verdict).toBe("mechanical");
+    expect(loud.evidence.join(" ")).not.toContain("SECURITY");
+  });
+});
+
+describe("VSP026 linkage evidence", () => {
+  const A = "urn:visp-intel:entity:1.0:sha256:a";
+  const B = "urn:visp-intel:entity:1.0:sha256:b";
+  const OUTSIDE = "urn:visp-intel:entity:1.0:sha256:outside";
+
+  function exportWith(rows: UnderstandingCaseExport["path"]): UnderstandingCaseExport {
+    return {
+      kind: "understanding-case-export",
+      schemaVersion: "1.0",
+      case: {
+        schemaVersion: "1.0",
+        authority: "descriptive",
+        authorizationEffect: "none",
+        id: "case",
+        taskStateId: "state",
+        taskId: "T001",
+        snapshotId: "snap",
+        behavioralQuestion: "",
+        observations: [],
+        hypotheses: [],
+        entrypointIds: [],
+        relationIds: [],
+        evidenceIds: [],
+        unknownIds: [],
+        candidateChangeEntityIds: [],
+        affectedUnchangedEntityIds: [],
+        affectedTestIds: [],
+        queryReceiptIds: [],
+        impactQueryReceiptIds: [],
+        validationSuggestions: []
+      },
+      resolution: {
+        [A]: {
+          kind: "function",
+          filePath: "src/a.ts",
+          startLine: 0,
+          endLine: 1,
+          signature: "function src/a.ts#handler",
+          displayName: "handler"
+        },
+        [B]: {
+          kind: "function",
+          filePath: "src/b.ts",
+          startLine: 0,
+          endLine: 1,
+          signature: "function src/b.ts#handler",
+          displayName: "handler"
+        },
+        [OUTSIDE]: {
+          kind: "function",
+          filePath: "src/caller.ts",
+          startLine: 0,
+          endLine: 1,
+          signature: "function src/caller.ts#handler",
+          displayName: "handler"
+        }
+      },
+      identity: {
+        repositoryInstanceId: "repo",
+        snapshotId: "snap",
+        headSnapshotId: "snap",
+        gitCommit: null,
+        dirty: null,
+        worktreeFingerprint: "f".repeat(64)
+      },
+      path: rows,
+      counts: {
+        entrypoints: 0,
+        pathRelations: rows.length,
+        candidateChanges: 0,
+        affectedUnchanged: 0,
+        affectedTests: 0,
+        unknowns: 0
+      }
+    };
+  }
+
+  it("B2: two surface files linked to each other are a path, not an edit", () => {
+    const linkage = linkageFromUnderstanding({
+      export: exportWith([
+        { relationId: "r1", sourceId: A, targetId: B, kind: "calls", evidenceId: "e1" }
+      ]),
+      surface: ["src/a.ts", "src/b.ts"]
+    });
+
+    expect(linkage.linkedSurfaceFiles).toEqual(["src/a.ts", "src/b.ts"]);
+    expect(
+      classify({
+        task: task({ allowedFiles: ["src/a.ts", "src/b.ts"] }),
+        linkage
+      }).basis
+    ).toEqual(["B2_linked_surface"]);
+  });
+
+  it("B3: an inbound caller from outside the surface makes it observable", () => {
+    const linkage = linkageFromUnderstanding({
+      export: exportWith([
+        { relationId: "r1", sourceId: OUTSIDE, targetId: A, kind: "calls", evidenceId: "e1" }
+      ]),
+      surface: ["src/a.ts"]
+    });
+
+    expect(linkage.inboundCallers).toEqual(["src/a.ts"]);
+    expect(classify({ task: task({ allowedFiles: ["src/a.ts"] }), linkage }).basis).toEqual([
+      "B3_inbound_caller_outside_surface"
+    ]);
+  });
+
+  it("three entities named handler in three files stay three identities", () => {
+    // Every resolution entry here has displayName "handler". If linkage joined
+    // on the name, the outside caller would look like it was inside the
+    // surface and B3 would silently stop firing.
+    const linkage = linkageFromUnderstanding({
+      export: exportWith([
+        { relationId: "r1", sourceId: OUTSIDE, targetId: A, kind: "calls", evidenceId: "e1" }
+      ]),
+      surface: ["src/a.ts"]
+    });
+
+    expect(linkage.inboundCallers).toEqual(["src/a.ts"]);
+  });
+
+  it("the module map answers B2 and declines to answer B3", () => {
+    const moduleMap: ModuleMap = {
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      sourceRoots: ["src"],
+      modules: [
+        {
+          name: "src",
+          root: "src",
+          files: ["src/a.ts", "src/b.ts"],
+          testFiles: [],
+          internalImports: ["src/b.ts"],
+          externalDependencies: []
+        }
+      ]
+    };
+    const linkage = linkageFromModuleMap({
+      moduleMap,
+      surface: ["src/a.ts", "src/b.ts"],
+      indexedFiles: new Set(["src/a.ts", "src/b.ts"])
+    });
+
+    expect(linkage.linkedSurfaceFiles).toEqual(["src/a.ts", "src/b.ts"]);
+    // Module-grain aggregation cannot tell an inbound caller from a sibling
+    // import, and a guess here would over-gate. It says nothing instead.
+    expect(linkage.inboundCallers).toEqual([]);
+  });
+
+  it("unresolved import specifiers are not treated as file paths", () => {
+    const moduleMap: ModuleMap = {
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      sourceRoots: ["src"],
+      modules: [
+        {
+          name: "src",
+          root: "src",
+          files: ["src/a.ts", "src/b.ts"],
+          testFiles: [],
+          internalImports: ["../b.js", "./b"],
+          externalDependencies: []
+        }
+      ]
+    };
+
+    expect(
+      linkageFromModuleMap({
+        moduleMap,
+        surface: ["src/a.ts", "src/b.ts"],
+        indexedFiles: new Set(["src/a.ts", "src/b.ts"])
+      }).linkedSurfaceFiles
+    ).toEqual([]);
+  });
+});
+
+describe("declared surface", () => {
+  it("does not treat the task generator's TBD placeholder as a declared file", () => {
+    expect(declaredSurface(task({ allowedFiles: ["TBD"], expectedFiles: ["src/a.ts"] }))).toEqual([
+      "src/a.ts"
+    ]);
+  });
+});

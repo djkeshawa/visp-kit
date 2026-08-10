@@ -72,6 +72,38 @@ export function scanMetaArtifactPath(rootPath: string): string {
   return joinPath(cacheArtifactDir(rootPath), "scan-meta.json");
 }
 
+/**
+ * Intel's store directory. Kit only ever READS from here: it never writes,
+ * never shells out to `visp-intel`, and never imports an intel package. The
+ * only coupling is the on-disk shape, which is versioned in the artifact.
+ */
+export function intelDir(rootPath: string): string {
+  return joinPath(rootPath, ".visp-intel");
+}
+
+/**
+ * Intel's `RepositoryExport`, as produced by `visp-intel repo export --output`.
+ * The FORMAT is intel's; only this path convention is Kit's, so that scan has
+ * somewhere to look without being told.
+ */
+export function intelGraphArtifactPath(rootPath: string): string {
+  return joinPath(intelDir(rootPath), "graph.json");
+}
+
+/**
+ * Intel's task id safety rule, restated. A task id reaches this function from
+ * a CLI argument, and `..` in it would resolve outside `.visp-intel/`. Intel's
+ * exporter refuses the same shapes, so Kit refusing them too means the two
+ * sides agree about which ids can name a file at all.
+ */
+export function isSafeIntelTaskId(taskId: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(taskId);
+}
+
+export function understandingExportArtifactPath(rootPath: string, taskId: string): string {
+  return joinPath(intelDir(rootPath), "understanding", `${taskId}.json`);
+}
+
 export function reportsArtifactDir(rootPath: string): string {
   return joinPath(vispDir(rootPath), "reports");
 }

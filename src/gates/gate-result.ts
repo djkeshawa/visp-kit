@@ -1,9 +1,11 @@
 import {
+  type ClassificationInvalidated,
   type GateBlockedCommand,
   type GateResult,
   type GateRuleFinding,
   type GateSeverity,
-  type GateStage
+  type GateStage,
+  type TaskClassificationRecord
 } from "../artifacts/schemas/gate.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { type AssuranceProfile } from "../artifacts/schemas/evidence.schema.js";
@@ -68,6 +70,8 @@ export function buildGateResult(input: {
   readonly dryRun: boolean;
   readonly state: ProjectState;
   readonly evaluation: GateEvaluation;
+  readonly taskClassification?: TaskClassificationRecord;
+  readonly classificationInvalidated?: ClassificationInvalidated;
   readonly reportPath: string;
   readonly evaluatedAt: string;
 }): GateResult {
@@ -112,6 +116,12 @@ export function buildGateResult(input: {
     appliedOverrides: [],
     nextAllowedCommand: input.evaluation.nextAllowedCommand,
     nextCommand: input.evaluation.nextCommand,
+    ...(input.taskClassification === undefined
+      ? {}
+      : { taskClassification: input.taskClassification }),
+    ...(input.classificationInvalidated === undefined
+      ? {}
+      : { classificationInvalidated: input.classificationInvalidated }),
     reportPath: input.reportPath,
     evaluatedAt: input.evaluatedAt
   };

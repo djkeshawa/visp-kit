@@ -33,7 +33,8 @@ export const policyRulesSchema = z
     preventAssuranceProfileLowering: z.boolean().optional(),
     requireOracleLockBeforeImplementation: z.boolean().optional(),
     requireCurrentAssuranceDecisionBeforePr: z.boolean().optional(),
-    requireSignedAssuranceDecision: z.boolean().optional()
+    requireSignedAssuranceDecision: z.boolean().optional(),
+    requireUnderstandingBeforeBehaviouralImplementation: z.boolean().optional()
   })
   .strict();
 
