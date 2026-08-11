@@ -76,8 +76,7 @@ export function createClarificationArtifact(input: {
       // credentials. Clarify asked what to SHOW and never what must not be.
       {
         id: "CQ002",
-        question:
-          "What must never appear in this feature's output, logs, or error messages?",
+        question: "What must never appear in this feature's output, logs, or error messages?",
         category: "security",
         blocking: false,
         recommendedDefault:

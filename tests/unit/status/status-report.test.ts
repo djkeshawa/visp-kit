@@ -50,7 +50,7 @@ describe("status report renderer", () => {
         stagedCount: 0,
         unstagedCount: 0,
         changedFiles: [],
-      changedSinceBase: [],
+        changedSinceBase: [],
         warnings: []
       },
       warnings: [],

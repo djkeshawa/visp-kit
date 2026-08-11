@@ -63,10 +63,7 @@ describe("visp-kit agent claude command", () => {
     expect(await exists(path.join(tempDir, ".visp", "hooks", "claude-pretooluse.mjs"))).toBe(true);
     expect(await exists(path.join(tempDir, ".claude", "commands"))).toBe(false);
 
-    const rules = await readFile(
-      path.join(tempDir, ".visp", "prompts", "visp-rules.md"),
-      "utf8"
-    );
+    const rules = await readFile(path.join(tempDir, ".visp", "prompts", "visp-rules.md"), "utf8");
     expect(rules).toContain("visp-kit verify");
 
     output.length = 0;

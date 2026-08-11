@@ -43,9 +43,7 @@ describe("sourceChangedFiles answers 'did the user change the codebase?'", () =>
 
   it("keeps ordinary .visp workflow artifacts out of the count", () => {
     expect(
-      sourceChangedFiles(
-        stateWithChanges([".visp/features/001-x/spec.json", ".visp/status.json"])
-      )
+      sourceChangedFiles(stateWithChanges([".visp/features/001-x/spec.json", ".visp/status.json"]))
     ).toEqual([]);
   });
 

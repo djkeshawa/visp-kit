@@ -37,9 +37,9 @@ describe("scan knowledge reaches whoever writes the code", () => {
   });
 
   it("ignores files that only hold tests", () => {
-    expect(
-      findReuseHelpers([{ path: "tests/secrets_test.rs", symbols: ["mask_uri"] }])
-    ).toEqual([]);
+    expect(findReuseHelpers([{ path: "tests/secrets_test.rs", symbols: ["mask_uri"] }])).toEqual(
+      []
+    );
   });
 
   it("puts output safety first, because a truncated pack must keep that line", () => {

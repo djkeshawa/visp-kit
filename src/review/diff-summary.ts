@@ -126,8 +126,7 @@ export function isExemptFromTaskScope(filePath: string): boolean {
   // must keep surfacing. Everywhere else under `.visp/` is ordinary workflow
   // output the user was told to edit.
   const inSecurityZone =
-    filePath.startsWith(".visp/state/") ||
-    /^\.visp\/features\/[^/]+\/assurance\//u.test(filePath);
+    filePath.startsWith(".visp/state/") || /^\.visp\/features\/[^/]+\/assurance\//u.test(filePath);
   if (inSecurityZone) return isGeneratedVispReviewFile(filePath);
 
   // .gitignore was deliberately VISIBLE here once: the escape hatch was

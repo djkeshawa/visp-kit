@@ -1,9 +1,5 @@
 import { type StrictnessMode } from "../../artifacts/schemas/policy.schema.js";
-import {
-  claudePreToolUseHookPath,
-  hooksReadmePath,
-  vispRulesFilePath
-} from "../agent-paths.js";
+import { claudePreToolUseHookPath, hooksReadmePath, vispRulesFilePath } from "../agent-paths.js";
 import { type AgentTextFile } from "../agent-file-plan.js";
 import { renderVispRulesFile } from "../templates/visp-rules.js";
 import { renderClaudePreToolUseHook, renderHooksReadme } from "../hooks/hook-templates.js";

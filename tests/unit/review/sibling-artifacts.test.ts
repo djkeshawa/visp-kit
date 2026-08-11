@@ -69,12 +69,14 @@ describe("cross-product artifacts are not user source changes", () => {
     expect(isExemptFromTaskScope(filePath)).toBe(false);
   });
 
-  it.each(["src/main.rs", "Cargo.toml", "README.md", "tests/notes.test.ts"])(
-    "still treats real source file %s as a change",
-    (filePath) => {
-      // The converse that matters: user source must never be excluded, or
-      // scope checking stops meaning anything at all.
-      expect(isGeneratedVispReviewFile(filePath)).toBe(false);
-    }
-  );
+  it.each([
+    "src/main.rs",
+    "Cargo.toml",
+    "README.md",
+    "tests/notes.test.ts"
+  ])("still treats real source file %s as a change", (filePath) => {
+    // The converse that matters: user source must never be excluded, or
+    // scope checking stops meaning anything at all.
+    expect(isGeneratedVispReviewFile(filePath)).toBe(false);
+  });
 });

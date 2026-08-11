@@ -2,10 +2,7 @@
   "mcpServers": {
     "visp": {
       "command": "visp",
-      "args": [
-        "serve",
-        "--mcp"
-      ]
+      "args": ["serve", "--mcp"]
     }
   }
 }

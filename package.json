@@ -46,6 +46,7 @@
   ],
   "scripts": {
     "build": "tsup",
+    "check": "pnpm typecheck && pnpm schema:check && pnpm lint && pnpm test",
     "schema:generate": "node scripts/generate-workflow-action-schemas.mjs",
     "schema:check": "node scripts/generate-workflow-action-schemas.mjs --check",
     "test": "vitest run",

@@ -44,7 +44,10 @@ Node 22+ and pnpm 11+.
 
 Before opening a PR:
 
-- `pnpm typecheck`, `pnpm lint`, `pnpm schema:check`, and `pnpm test` all pass.
+- `pnpm check` passes. It is exactly `pnpm typecheck && pnpm schema:check &&
+  pnpm lint && pnpm test` in one command, so the linter cannot be the step
+  everyone forgets — Phase 21 found sixteen accumulated lint errors precisely
+  because nothing ran it as part of a gate command.
 - New behaviour has a test. A test written to match the code you just wrote is
   weaker evidence than one written from the requirement — this project cares
   about that distinction more than most.

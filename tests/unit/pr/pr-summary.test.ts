@@ -36,7 +36,8 @@ function stateWith(input: {
 // 7 pending required…". The review report snapshots that line at review time;
 // attestation happens at `visp save` afterwards. The live state wins.
 describe("the PR artifact does not contradict itself about the checklist", () => {
-  const staleLine = "Implementation checklist: 7 pending required, 0 blocked required, usage pending.";
+  const staleLine =
+    "Implementation checklist: 7 pending required, 0 blocked required, usage pending.";
 
   it("drops the stale review snapshot when the live checklist is complete", () => {
     const pr = buildPrArtifact({

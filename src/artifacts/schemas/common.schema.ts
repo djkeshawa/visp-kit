@@ -149,12 +149,7 @@ export const featureStatusSchema = z.enum([
 // Widening is backward compatible: every artifact valid before is valid now.
 // This enum is deliberately NOT part of the hashed WorkflowAction protocol
 // schema, so no coordinated release is required — unlike riskFactors, which is.
-export const requirementSourceSchema = z.enum([
-  "user",
-  "intent",
-  "clarification",
-  "derived"
-]);
+export const requirementSourceSchema = z.enum(["user", "intent", "clarification", "derived"]);
 
 export const requirementPrioritySchema = z.enum(["must", "should", "could"]);
 

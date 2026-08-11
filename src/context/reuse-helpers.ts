@@ -34,7 +34,10 @@ type ScannedFile = {
 
 const CONCERNS: ReadonlyArray<{ readonly concern: string; readonly pattern: RegExp }> = [
   // Output safety first: it is the one whose absence leaks credentials.
-  { concern: "redacting secrets from output", pattern: /^(mask|redact|scrub|sanitiz|obfuscat|anonymiz|hide|conceal)/u },
+  {
+    concern: "redacting secrets from output",
+    pattern: /^(mask|redact|scrub|sanitiz|obfuscat|anonymiz|hide|conceal)/u
+  },
   // Named for WHAT THEY HANDLE rather than what they do. Verbs alone missed
   // `filter_sensitive_keys` on a codebase this detector had never seen, which
   // meant the whole intervention was worth nothing there — a name-pattern
@@ -56,7 +59,9 @@ function isTestSymbol(symbol: string): boolean {
 
 /** A file that only defines tests is not a helper to reuse. */
 function isTestFile(path: string): boolean {
-  return /(^|\/)(tests?|__tests__|spec)\//u.test(path) || /\.(test|spec)\.[cm]?[jt]sx?$/u.test(path);
+  return (
+    /(^|\/)(tests?|__tests__|spec)\//u.test(path) || /\.(test|spec)\.[cm]?[jt]sx?$/u.test(path)
+  );
 }
 
 const MAX_SYMBOLS_PER_FILE = 4;

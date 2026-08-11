@@ -42,8 +42,7 @@ const ALL_STAGES: readonly GateStage[] = gateStageSchema.options;
  * A test that only checked the binary name would have called that a pass.
  */
 const KIT_COMMANDS: ReadonlySet<string> = new Set(
-  createCli({ writeOut: () => undefined })
-    .commands.map((command) => command.name())
+  createCli({ writeOut: () => undefined }).commands.map((command) => command.name())
 );
 
 const task = {
@@ -142,17 +141,16 @@ describe("every command Kit emits names Kit's own binary", () => {
     };
   }
 
-  it.each(TEMPLATE_COMMANDS)(
-    "the %s workflow summary emits only runnable visp-kit commands",
-    (command) => {
-      for (const passed of [true, false]) {
-        const rendered = formatTemplateWorkflowSummary(summaryFor(command, passed));
-        for (const line of rendered.split("\n").map((value) => value.trim())) {
-          assertNamesKit(line, `${command} summary (validation ${passed ? "passed" : "failed"})`);
-        }
+  it.each(
+    TEMPLATE_COMMANDS
+  )("the %s workflow summary emits only runnable visp-kit commands", (command) => {
+    for (const passed of [true, false]) {
+      const rendered = formatTemplateWorkflowSummary(summaryFor(command, passed));
+      for (const line of rendered.split("\n").map((value) => value.trim())) {
+        assertNamesKit(line, `${command} summary (validation ${passed ? "passed" : "failed"})`);
       }
     }
-  );
+  });
 
   it("never emits a bare `visp` command for the stages the rename missed", () => {
     // The specific regression, spelled out. These six were reported by the

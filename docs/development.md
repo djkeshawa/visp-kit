@@ -18,6 +18,7 @@ pnpm build
 Useful scripts from `package.json`:
 
 ```bash
+pnpm check          # typecheck + schema:check + lint + test, in that order
 pnpm test
 pnpm build
 pnpm typecheck

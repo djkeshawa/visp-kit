@@ -92,7 +92,9 @@ export function clarificationsReadiness(state: ProjectState): ArtifactReadiness 
   const artifact = state.clarifications;
   if (artifact === undefined) return unreadable(state, "clarifications") ?? { state: "missing" };
   const validation = validateClarifications(artifact);
-  return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
+  return validation.passed
+    ? { state: "ready" }
+    : { state: "incomplete", errors: validation.errors };
 }
 
 /**
@@ -106,7 +108,9 @@ export function specReadiness(state: ProjectState): ArtifactReadiness {
   const artifact = state.spec;
   if (artifact === undefined) return unreadable(state, "spec") ?? { state: "missing" };
   const validation = validateSpec({ spec: artifact });
-  return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
+  return validation.passed
+    ? { state: "ready" }
+    : { state: "incomplete", errors: validation.errors };
 }
 
 /**
@@ -116,7 +120,9 @@ export function planReadiness(state: ProjectState): ArtifactReadiness {
   const artifact = state.plan;
   if (artifact === undefined) return unreadable(state, "plan") ?? { state: "missing" };
   const validation = validatePlan(artifact);
-  return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
+  return validation.passed
+    ? { state: "ready" }
+    : { state: "incomplete", errors: validation.errors };
 }
 
 /**
@@ -144,5 +150,7 @@ export function taskGraphReadiness(state: ProjectState): ArtifactReadiness {
     spec: state.spec,
     traceability: state.traceability
   });
-  return validation.passed ? { state: "ready" } : { state: "incomplete", errors: validation.errors };
+  return validation.passed
+    ? { state: "ready" }
+    : { state: "incomplete", errors: validation.errors };
 }

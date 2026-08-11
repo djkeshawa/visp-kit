@@ -174,10 +174,7 @@ describe("the gate never authorizes what the product refuses", () => {
     expectOk(await runSpecWorkflow({ targetPath: tempDir, now: NOW }));
 
     const command = await runPlanWorkflow({ targetPath: tempDir, now: NOW });
-    expect(
-      command.ok,
-      "Premise broken: visp-kit plan accepted the TBD spec draft."
-    ).toBe(false);
+    expect(command.ok, "Premise broken: visp-kit plan accepted the TBD spec draft.").toBe(false);
 
     const result = await gate("plan");
 
@@ -313,15 +310,7 @@ async function gitBaseline(rootPath: string): Promise<void> {
   await execFileAsync("git", ["add", "."], { cwd: rootPath });
   await execFileAsync(
     "git",
-    [
-      "-c",
-      "user.email=visp@example.test",
-      "-c",
-      "user.name=Visp Test",
-      "commit",
-      "-m",
-      "baseline"
-    ],
+    ["-c", "user.email=visp@example.test", "-c", "user.name=Visp Test", "commit", "-m", "baseline"],
     { cwd: rootPath }
   );
 }
@@ -390,9 +379,10 @@ describe("VSP012 reports on scope that was actually declared", () => {
     await setTaskScope({ allowedFiles: ["src/notes.ts"] });
 
     const check = await implementCheck("VSP012");
-    expect(check.passed, "Premise broken: VSP012 no longer blocks a genuine out-of-scope edit.").toBe(
-      false
-    );
+    expect(
+      check.passed,
+      "Premise broken: VSP012 no longer blocks a genuine out-of-scope edit."
+    ).toBe(false);
     expect(check.allowed).toBe(false);
   });
 
@@ -425,7 +415,9 @@ describe("VSP012 reports on scope that was actually declared", () => {
     await setTaskScope({ allowedFiles: [] });
 
     const check = await implementCheck("VSP012");
-    expect(check.passed, "Emptying allowedFiles alone granted permission for the edit.").toBe(false);
+    expect(check.passed, "Emptying allowedFiles alone granted permission for the edit.").toBe(
+      false
+    );
   });
 
   it("treats a scope that is still the TBD placeholder as undeclared", async () => {
