@@ -270,7 +270,7 @@ function classificationRecord(value: TaskClassification): TaskClassificationReco
 }
 
 /**
- * VSP026 at `implement`, and the post-hoc realized-surface check at `verify`.
+ * VSP026 at `implement`, and the realized-surface check at `verify`.
  *
  * The classification is recorded at both stages even when the rule is
  * disabled, because the rate at which the rule misclassifies is a measurement
@@ -294,12 +294,10 @@ async function understandingChecks(input: {
       ? {}
       : { contextPack: input.context.state.contextPack })
   });
+  const enabled =
+    input.context.policy.policy.rules.requireUnderstandingBeforeBehaviouralImplementation === true;
 
   if (stage === "implement") {
-    const enabled =
-      input.context.policy.policy.rules.requireUnderstandingBeforeBehaviouralImplementation ===
-      true;
-
     return {
       // Disabled means today's behaviour exactly: the record is written, the
       // findings are not raised.
@@ -330,15 +328,39 @@ async function understandingChecks(input: {
   const invalidated =
     declared.classification.verdict === "mechanical" &&
     realized.classification.verdict === "behavioural";
+  // The one realized-surface outcome that is enforced, and the reason it is:
+  // the task DECLARED a mechanical class and the diff it produced refutes the
+  // declaration. Every other mechanical→behavioural move at verify is ordinary
+  // scope drift, which the scope rules already own and which would be
+  // retroactive to block here; this one is a task having chosen its own gate,
+  // and the diff is the strongest evidence there is that the choice was wrong.
+  //
+  // Enforced only while VSP026 is enabled, so a project that has not turned the
+  // rule on sees exactly today's behaviour, and clearable through the ordinary
+  // recorded override — VSP026 is not in `nonOverridableRules`.
+  const refutedDeclaration =
+    invalidated && realized.classification.basis.includes("B4_mechanical_class_refuted_by_surface");
 
   return {
-    // Non-retroactive by construction: no check is emitted, so nothing blocks.
-    checks: [],
-    warnings: invalidated
-      ? [
-          `VSP026: task ${task.id} was classified mechanical but its realized change surface classifies behavioural (${realized.classification.basis.join(", ")}). Recorded, not enforced.`
-        ]
-      : [],
+    checks:
+      enabled && refutedDeclaration
+        ? [
+            {
+              ruleId: "VSP026" as const,
+              passed: false,
+              severity: "error" as const,
+              message: `VSP026: task ${task.id} declares taskClass "${task.taskClass ?? "(none)"}", but the change it made is code.`,
+              recommendation: `Correct the declared class on ${task.id} so it matches what changed, or record a VSP026 override naming the files.`,
+              evidence: realized.classification.evidence.join("; ")
+            }
+          ]
+        : [],
+    warnings:
+      invalidated && !refutedDeclaration
+        ? [
+            `VSP026: task ${task.id} was classified mechanical but its realized change surface classifies behavioural (${realized.classification.basis.join(", ")}). Recorded, not enforced.`
+          ]
+        : [],
     classification: classificationRecord(declared.classification),
     ...(invalidated
       ? {

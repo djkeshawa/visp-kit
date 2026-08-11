@@ -73,6 +73,20 @@ export function scanMetaArtifactPath(rootPath: string): string {
 }
 
 /**
+ * Provenance for the intel store the last scan read, kept OUT of
+ * `scan-meta.json`.
+ *
+ * P21-KIT-01's exit says scan's artifact shape, schema and command surface are
+ * unchanged. An always-present `intel` key on `scan-meta.json` made that
+ * sentence false — true of `module-map.json` and `dependency-map.json`, broader
+ * than what held. A separate file cannot change the shape of an artifact that
+ * already existed, and no consumer can have depended on a file that did not.
+ */
+export function intelScanArtifactPath(rootPath: string): string {
+  return joinPath(cacheArtifactDir(rootPath), "intel-scan.json");
+}
+
+/**
  * Intel's store directory. Kit only ever READS from here: it never writes,
  * never shells out to `visp-intel`, and never imports an intel package. The
  * only coupling is the on-disk shape, which is versioned in the artifact.

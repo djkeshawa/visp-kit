@@ -9,6 +9,13 @@ export const defaultIgnoredPaths = [
   "coverage",
   ".git",
   ".visp",
+  // Intel's store and its repository export. Found by measuring scan's content
+  // on the four Phase 21 repositories: `.visp-intel/graph.json` is a JSON file
+  // by extension, so scan indexed intel's own 133 MB export as project source,
+  // summarised it, hashed it, and reported `.visp-intel` as a module of the
+  // project in `module-map.json`. Intel's directory is intel's, the same way
+  // `.visp` is Kit's.
+  ".visp-intel",
   ".next",
   ".nuxt",
   ".svelte-kit",

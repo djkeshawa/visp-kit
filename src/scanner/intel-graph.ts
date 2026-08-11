@@ -1,11 +1,12 @@
 import { stat } from "node:fs/promises";
 
-import { intelGraphArtifactPath, scanMetaArtifactPath } from "../artifacts/artifact-paths.js";
+import { intelGraphArtifactPath, intelScanArtifactPath } from "../artifacts/artifact-paths.js";
 import {
   intelGraphSchema,
   type IntelGraph,
   type IntelGraphEntity
 } from "../artifacts/schemas/intel-graph.schema.js";
+import { intelScanProvenanceSchema } from "../artifacts/schemas/intel-scan.schema.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
 import { toPosixPath } from "../core/paths.js";
 
@@ -123,22 +124,28 @@ function sortedMap(input: Map<string, Set<string>>): ReadonlyMap<string, readonl
 /**
  * The intel repository instance the last scan saw, if any.
  *
- * Read from scan meta rather than from the graph so the gate compares a case
- * against what Kit actually indexed, not against whatever graph file happens
- * to be on disk right now.
+ * Read from scan's own provenance record rather than from the graph, so the
+ * gate compares a case against what Kit actually indexed, not against whatever
+ * graph file happens to be on disk right now.
+ *
+ * That record used to be an `intel` key on `.visp/cache/scan-meta.json` and is
+ * now `.visp/cache/intel-scan.json`. There is deliberately NO fallback to the
+ * old key: keeping a reader for it would keep the artifact-contract change
+ * alive in everything but name. A project last scanned before this change has
+ * no provenance file, so `understandingCurrentness` reports that it has nothing
+ * to match against and the behavioural gate stays closed until the project is
+ * re-scanned — the safe direction, and one `visp-kit scan` away.
  */
 export async function readScanIntelInstanceId(targetPath: string): Promise<string | undefined> {
-  const meta = await readJsonFile<Record<string, unknown>>(scanMetaArtifactPath(targetPath));
+  const raw = await readJsonFile<unknown>(intelScanArtifactPath(targetPath));
 
-  if (!meta.ok) return undefined;
+  if (!raw.ok) return undefined;
 
-  const intel = meta.value.intel;
+  const parsed = intelScanProvenanceSchema.safeParse(raw.value);
 
-  if (intel === null || typeof intel !== "object") return undefined;
+  if (!parsed.success || parsed.data.store === null) return undefined;
 
-  const id = (intel as Record<string, unknown>).repositoryInstanceId;
-
-  return typeof id === "string" && id.length > 0 ? id : undefined;
+  return parsed.data.store.repositoryInstanceId;
 }
 
 export type IntelGraphLoad = {

@@ -216,6 +216,32 @@ async function implementGate(): Promise<GateResult> {
   );
 }
 
+async function verifyGate(): Promise<GateResult> {
+  return expectOk(
+    await evaluateGate({
+      targetPath: tempDir,
+      stage: "verify",
+      taskId,
+      dryRun: true,
+      now: "2026-01-01T00:00:00.000Z"
+    })
+  );
+}
+
+/** A realized change surface of two linked, non-test TypeScript files. */
+async function writeSourceChange(): Promise<void> {
+  await writeFile(
+    path.join(tempDir, "src", "notes.ts"),
+    "export interface Note {\n  id: string;\n  pinned?: boolean;\n}\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(tempDir, "src", "sort.ts"),
+    'import { type Note } from "./notes";\n\nexport function sortNotes(notes: Note[]): Note[] {\n  return [...notes].reverse();\n}\n',
+    "utf8"
+  );
+}
+
 function vsp026(result: GateResult): readonly string[] {
   return result.failedRules
     .filter((rule) => rule.ruleId === "VSP026" && rule.severity === "error")
@@ -407,7 +433,20 @@ describe("VSP026 understanding gate", () => {
     expect(g5?.evidence).toContain("no risk field");
   });
 
-  it("records a misclassification from the realized surface without blocking it", async () => {
+  /**
+   * The route a verifier used to defeat VSP026: declare `documentation`, reach
+   * the mechanical branch, edit source. It is closed twice over — the declared
+   * surface refutes the class at `implement`, and the diff refutes it at
+   * `verify`, which is the stronger evidence because it is what actually
+   * happened rather than what was declared.
+   *
+   * This test previously asserted the opposite ("Recorded, not enforced"). That
+   * assertion was correct about the code and wrong about the gate: it pinned
+   * the hole in place. It is replaced rather than relaxed, and the case it used
+   * to cover — an invalidation that is NOT a refuted declaration — is asserted
+   * below, still warning-only.
+   */
+  it("blocks at verify when the diff refutes the declared mechanical class", async () => {
     await enableVsp026();
     await updateTask({
       taskClass: "documentation",
@@ -415,32 +454,66 @@ describe("VSP026 understanding gate", () => {
       expectedFiles: [],
       riskFactors: []
     });
-    await writeFile(
-      path.join(tempDir, "src", "notes.ts"),
-      "export interface Note {\n  id: string;\n  pinned?: boolean;\n}\n",
-      "utf8"
-    );
-    await writeFile(
-      path.join(tempDir, "src", "sort.ts"),
-      'import { type Note } from "./notes";\n\nexport function sortNotes(notes: Note[]): Note[] {\n  return [...notes].reverse();\n}\n',
-      "utf8"
-    );
+    await writeSourceChange();
 
-    const result = expectOk(
-      await evaluateGate({
-        targetPath: tempDir,
-        stage: "verify",
-        taskId,
-        dryRun: true,
-        now: "2026-01-01T00:00:00.000Z"
-      })
-    );
+    const result = await verifyGate();
 
+    // The declared surface is documentation, so `implement` saw nothing to
+    // refute and the recorded verdict stays mechanical. The diff does not.
     expect(result.taskClassification?.verdict).toBe("mechanical");
     expect(result.classificationInvalidated?.realizedVerdict).toBe("behavioural");
-    // Recorded, never retroactive: no VSP026 finding is raised at verify.
+    expect(result.classificationInvalidated?.realizedBasis).toEqual([
+      "B4_mechanical_class_refuted_by_surface"
+    ]);
+    expect(vsp026(result).join(" ")).toContain("the change it made is code");
+    expect(result.allowed).toBe(false);
+  });
+
+  it("still only records a mechanical-to-behavioural move that refutes no declaration", async () => {
+    await enableVsp026();
+    // No declared class at all: `ambiguous_default_mechanical`. The realized
+    // surface classifies behavioural through linkage, which is ordinary scope
+    // drift and is the scope rules' business, not a task choosing its own gate.
+    await updateTask({
+      taskClass: undefined,
+      allowedFiles: ["docs/notes.md"],
+      expectedFiles: [],
+      riskFactors: []
+    });
+    await writeSourceChange();
+
+    const result = await verifyGate();
+
+    expect(result.taskClassification?.basis).toEqual(["ambiguous_default_mechanical"]);
+    expect(result.classificationInvalidated?.realizedVerdict).toBe("behavioural");
+    expect(result.classificationInvalidated?.realizedBasis).not.toContain(
+      "B4_mechanical_class_refuted_by_surface"
+    );
     expect(result.failedRules.some((rule) => rule.ruleId === "VSP026")).toBe(false);
     expect(result.warnings.join(" ")).toContain("Recorded, not enforced");
+  });
+
+  /**
+   * Recorded as the boundary of what this closes, not as a feature. VSP026 is
+   * off by default in every strictness mode, so in shipped policy a refuted
+   * declaration is still only written down. Turning the rule on by default is
+   * an owner decision and is on the enhancement backlog.
+   */
+  it("enforces nothing at verify while VSP026 is off, and still records it", async () => {
+    await updateTask({
+      taskClass: "documentation",
+      allowedFiles: ["docs/notes.md"],
+      expectedFiles: [],
+      riskFactors: []
+    });
+    await writeSourceChange();
+
+    const result = await verifyGate();
+
+    expect(result.classificationInvalidated?.realizedBasis).toEqual([
+      "B4_mechanical_class_refuted_by_surface"
+    ]);
+    expect(result.failedRules.some((rule) => rule.ruleId === "VSP026")).toBe(false);
   });
 
   it("clears the block through the existing recorded override, not a flag", async () => {

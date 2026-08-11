@@ -40,6 +40,7 @@ const outputFiles = [
   ".visp/cache/module-map.json",
   ".visp/cache/dependency-map.json",
   ".visp/cache/scan-meta.json",
+  ".visp/cache/intel-scan.json",
   ".visp/memory/project-summary.md",
   ".visp/memory/patterns.md",
   ".visp/reports/scan-report.md"
@@ -189,12 +190,23 @@ export async function runScanWorkflow(
         deletedFiles: summaries.deletedFiles,
         changedFiles: summaries.changedFilePaths,
         lockFiles: scan.detection.lockFiles,
-        git,
-        // Recorded so the understanding gate can match a case on repository
-        // INSTANCE rather than on the directory it happens to be mounted at. A
-        // re-clone or a sibling worktree at the same path is a different
-        // instance and must not inherit another instance's case.
-        intel:
+        git
+      },
+      // Recorded so the understanding gate can match a case on repository
+      // INSTANCE rather than on the directory it happens to be mounted at. A
+      // re-clone or a sibling worktree at the same path is a different instance
+      // and must not inherit another instance's case.
+      //
+      // In its OWN file, not on `scanMeta`. The reason is unchanged and still
+      // good; the home was wrong. `.visp/cache/scan-meta.json` is a pre-existing
+      // artifact whose shape P21-KIT-01 promised not to change, and it is the
+      // one scan artifact with no schema, so nothing in Kit could check that the
+      // added key stayed compatible. Written on every scan, `store: null`
+      // included, so a scan that finds no store overwrites the instance id a
+      // previous scan recorded.
+      intelScan: {
+        generatedAt: now,
+        store:
           intel.projection === undefined
             ? null
             : {

@@ -6,7 +6,9 @@ import { type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type UnderstandingCaseExport } from "../artifacts/schemas/understanding.schema.js";
 import { joinPath, vispDir } from "../core/paths.js";
+import { isTestFilePath } from "../scanner/ignore-rules.js";
 import { readScanIntelInstanceId } from "../scanner/intel-graph.js";
+import { isProgramFilePath } from "../scanner/language.js";
 import { type ModuleMap } from "../scanner/module-map.js";
 import {
   readUnderstandingExport,
@@ -27,7 +29,11 @@ const fileIndexSchema = z.object({
   files: z.array(
     z.object({
       path: z.string(),
-      isSourceFile: z.boolean()
+      isSourceFile: z.boolean(),
+      // Optional so an index written before this field mattered still parses;
+      // `isTestFilePath` answers the same question from the path when it is
+      // absent, using the rule scan itself used to set it.
+      isTestFile: z.boolean().optional()
     })
   )
 });
@@ -147,6 +153,21 @@ export async function evaluateUnderstandingGate(
   const sourceSurface = surface.filter(
     (file) => fileIndex === undefined || !indexedFiles.has(file) || sourceFiles.has(file)
   );
+  const indexTestFiles = new Set(
+    (fileIndex?.files ?? []).filter((file) => file.isTestFile === true).map((file) => file.path)
+  );
+  // B4's evidence: surface files POSITIVELY known to be non-test executable
+  // code. `isSourceFile` alone cannot answer this — it is `true` for Markdown,
+  // so "no source file in the surface" was never true of a documentation task
+  // and M1/M2 could not fire on one. `isProgramFilePath` is the narrower
+  // question, and a file must clear BOTH: scan saw it and calls it a source
+  // file, and its language is a programming language.
+  const codeSurface = surface.filter((file) => {
+    if (isTestFilePath(file) || indexTestFiles.has(file)) return false;
+    if (!isProgramFilePath(file)) return false;
+
+    return !indexedFiles.has(file) || sourceFiles.has(file);
+  });
   const understanding = await readUnderstandingExport({
     targetPath: input.targetPath,
     taskId: input.task.id,
@@ -175,6 +196,7 @@ export async function evaluateUnderstandingGate(
     task: input.task,
     surface,
     sourceSurface,
+    codeSurface,
     linkage
   });
 

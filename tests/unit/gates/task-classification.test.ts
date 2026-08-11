@@ -14,6 +14,8 @@ import {
   linkageFromUnderstanding,
   noSurfaceLinkage
 } from "../../../src/gates/task-classification.js";
+import { isTestFilePath } from "../../../src/scanner/ignore-rules.js";
+import { isProgramFilePath } from "../../../src/scanner/language.js";
 import { type ModuleMap } from "../../../src/scanner/module-map.js";
 
 function task(overrides: Partial<Task> = {}): Task {
@@ -36,6 +38,7 @@ function task(overrides: Partial<Task> = {}): Task {
 function classify(input: {
   readonly task: Task;
   readonly sourceSurface?: readonly string[];
+  readonly codeSurface?: readonly string[];
   readonly linkage?: Parameters<typeof classifyTask>[0]["linkage"];
 }) {
   const surface = declaredSurface(input.task);
@@ -44,6 +47,12 @@ function classify(input: {
     task: input.task,
     surface,
     sourceSurface: input.sourceSurface ?? surface,
+    // The same join the gate performs, so a test that does not care about the
+    // distinction still gets the production answer rather than an empty list
+    // that would silently disarm B4.
+    codeSurface:
+      input.codeSurface ??
+      surface.filter((file) => isProgramFilePath(file) && !isTestFilePath(file)),
     linkage: input.linkage ?? noSurfaceLinkage
   });
 }
@@ -92,6 +101,35 @@ describe("VSP026 task classification", () => {
     expect(result.basis).toEqual(["M1_documentation_or_regression_test_only"]);
   });
 
+  /**
+   * The realistic version of the test above, and the reason M1 needed a
+   * different input than `sourceSurface`.
+   *
+   * Scan's `isSourceFile` is `true` for Markdown — every `.md` file in this
+   * repository is indexed that way — so a documentation task's `sourceSurface`
+   * is NOT empty and M1's old condition could not fire on the one class it was
+   * written for. The rule now asks whether the surface holds non-test
+   * executable code, which is what "no non-test source file" was reaching for.
+   */
+  it("M1: a documentation task is mechanical even though scan calls Markdown a source file", () => {
+    const result = classify({
+      task: task({ taskClass: "documentation", allowedFiles: ["docs/readme.md"] }),
+      sourceSurface: ["docs/readme.md"]
+    });
+
+    expect(result.verdict).toBe("mechanical");
+    expect(result.basis).toEqual(["M1_documentation_or_regression_test_only"]);
+  });
+
+  it("M1: a regression_test task over test files only is mechanical", () => {
+    const result = classify({
+      task: task({ taskClass: "regression_test", allowedFiles: ["tests/notes.test.ts"] })
+    });
+
+    expect(result.verdict).toBe("mechanical");
+    expect(result.basis).toEqual(["M1_documentation_or_regression_test_only"]);
+  });
+
   it("M2: a surface with no source file is mechanical", () => {
     const result = classify({
       task: task({ allowedFiles: ["config/app.yaml"] }),
@@ -101,13 +139,62 @@ describe("VSP026 task classification", () => {
     expect(result.basis).toEqual(["M2_non_source_surface"]);
   });
 
-  it("M3: a declared mechanical class that touches source is still mechanical, by name", () => {
+  /**
+   * The second hole a verifier defeated VSP026 with.
+   *
+   * `documentation` is a class any task may write about itself, and the old
+   * `M3_declared_mechanical_class` branch accepted it whatever the surface
+   * held — so declaring it over source files was an agent choosing its own
+   * gate. A declared mechanical class now holds only while the change surface
+   * agrees with it.
+   */
+  it("B4: a documentation class over source files is refuted, not honoured", () => {
+    const result = classify({
+      task: task({ taskClass: "documentation", allowedFiles: ["src/notes.ts"] })
+    });
+
+    expect(result.verdict).toBe("behavioural");
+    expect(result.basis).toEqual(["B4_mechanical_class_refuted_by_surface"]);
+    expect(result.evidence.join(" ")).toContain("src/notes.ts");
+  });
+
+  it("B4: a regression_test class over non-test code is refuted too", () => {
     const result = classify({
       task: task({ taskClass: "regression_test", allowedFiles: ["src/notes.ts"] })
     });
 
+    expect(result.verdict).toBe("behavioural");
+    expect(result.basis).toEqual(["B4_mechanical_class_refuted_by_surface"]);
+  });
+
+  /**
+   * B4 fires on contradicting evidence, never on missing evidence. A surface
+   * the file index cannot call code — a YAML file here — leaves the declared
+   * class standing, which is ADR 0014's failure direction and not an oversight.
+   */
+  it("B4: absent evidence does not refute a declared mechanical class", () => {
+    const result = classify({
+      task: task({ taskClass: "documentation", allowedFiles: ["config/app.yaml"] })
+    });
+
     expect(result.verdict).toBe("mechanical");
-    expect(result.basis).toEqual(["M3_declared_mechanical_class"]);
+    expect(result.basis).toEqual(["M1_documentation_or_regression_test_only"]);
+  });
+
+  /**
+   * The property, over the enum, so the next mechanical class cannot reopen
+   * this the way `refactor` reopened the behavioural side.
+   */
+  it("no declared mechanical class survives code in its surface", () => {
+    for (const taskClass of taskClassValues) {
+      if (declaredTaskClassVerdicts[taskClass] !== "mechanical") continue;
+
+      const result = classify({
+        task: task({ taskClass, allowedFiles: ["src/notes.ts"] })
+      });
+
+      expect(result.verdict, `taskClass=${taskClass}`).toBe("behavioural");
+    }
   });
 
   it("the ambiguous default is reachable ONLY when no class is declared", () => {

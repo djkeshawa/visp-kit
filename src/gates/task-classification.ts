@@ -79,6 +79,42 @@ const taskClassVerdicts = {
 export const declaredTaskClassVerdicts: Readonly<Record<TaskClass, TaskClassificationVerdict>> =
   taskClassVerdicts;
 
+/** The members of `taskClassValues` that `taskClassVerdicts` calls mechanical. */
+type MechanicalTaskClass = {
+  [K in TaskClass]: (typeof taskClassVerdicts)[K] extends "mechanical" ? K : never;
+}[TaskClass];
+
+/**
+ * What surface fact CORROBORATES each declared mechanical class, and what
+ * refutes it.
+ *
+ * A declared class is the one input on a task that the agent writing the task
+ * chooses freely. `refutedByCodeInSurface` is what stops that choice being a
+ * choice of gate: the class holds only while the change surface agrees with it,
+ * and disagreement is decided from scan's file index, never from the
+ * declaration itself.
+ *
+ * Total over the mechanical classes by construction, for the same reason
+ * `taskClassVerdicts` is total over all of them: the previous rule had a
+ * catch-all `M3_declared_mechanical_class` branch that accepted any declared
+ * mechanical class whatever the surface held, and a verifier defeated VSP026 by
+ * declaring `documentation` over source files to reach it. Adding a mechanical
+ * member to `taskClassValues` now fails to compile until someone writes down
+ * what would corroborate it.
+ */
+const mechanicalClassCorroboration = {
+  documentation: { refutedByCodeInSurface: true },
+  regression_test: { refutedByCodeInSurface: true }
+} as const satisfies Record<MechanicalTaskClass, { readonly refutedByCodeInSurface: boolean }>;
+
+function declaredMechanicalClass(task: Task): MechanicalTaskClass | undefined {
+  const declared = task.taskClass;
+
+  if (declared === undefined || taskClassVerdicts[declared] !== "mechanical") return undefined;
+
+  return declared as MechanicalTaskClass;
+}
+
 export type SurfaceLinkage = {
   /** Two or more surface source files linked to each other. */
   readonly linkedSurfaceFiles: readonly string[];
@@ -200,16 +236,25 @@ export type TaskClassificationInput = {
   readonly surface: readonly string[];
   /** Surface entries scan's file index reports as source files. */
   readonly sourceSurface: readonly string[];
+  /**
+   * Surface entries that are POSITIVELY known to be non-test executable code
+   * (E1 joined with E4). Absence of evidence keeps a file out of this list: a
+   * file whose language is not a programming language, a file the index reports
+   * as a test, and — for a file nobody has indexed — anything the path rule
+   * cannot call code are all excluded. The list is what refutes a declared
+   * mechanical class, so it must never be populated by a guess.
+   */
+  readonly codeSurface: readonly string[];
   /** E3/E4. */
   readonly linkage: SurfaceLinkage;
 };
 
 /**
  * VSP026's classification rule (ADR 0014 Q2). First match wins, in this order:
- * F1, F2, F3, B1, B2, B3, M1, M2, M3, then the ambiguous default.
+ * F1, F2, F3, B1, B4, B2, B3, M1, M2, then the ambiguous default.
  *
  * The declared-class mapping is TOTAL (`taskClassVerdicts`), so a task that
- * declares any member of `taskClassValues` is decided by B1, M1 or M3 and can
+ * declares any member of `taskClassValues` is decided by B1, B4 or M1 and can
  * never reach the ambiguous default. Only a task that declares no class at all
  * can, which is a task that has stated nothing for this rule to read.
  *
@@ -245,6 +290,38 @@ export function classifyTask(input: TaskClassificationInput): TaskClassification
     return behavioural("B1_task_class", [`E2:taskClass=${task.taskClass}`]);
   }
 
+  // B4 — the task declared a mechanical class and its own change surface
+  // refutes it. This is the only rule that reads a declared class and gates on
+  // it, and it does so on POSITIVE evidence: `codeSurface` holds the surface
+  // files scan's index reports as non-test executable code. A declared class is
+  // free for the agent to write, so it may lower the gate only while the
+  // change surface agrees with it.
+  //
+  // Absent evidence is still not evidence: a file nobody indexed and whose path
+  // does not say "code" stays out of `codeSurface` and does not fire this rule.
+  // ADR 0014's failure direction protects the AMBIGUOUS task — the one where
+  // the evidence is missing — not the one whose declaration the evidence
+  // contradicts.
+  //
+  // Ordered with B1 rather than after linkage on purpose. The declared class is
+  // decided against the surface FIRST, so a refuted declaration always reports
+  // basis `B4_...` and never hides behind whichever linkage rule happened to
+  // match too. The verify-stage enforcement keys on that basis; when B2 could
+  // pre-empt it, a refuted declaration on two linked files was reported as
+  // ordinary drift and went unenforced.
+  const mechanicalClass = declaredMechanicalClass(task);
+
+  if (
+    mechanicalClass !== undefined &&
+    mechanicalClassCorroboration[mechanicalClass].refutedByCodeInSurface &&
+    input.codeSurface.length > 0
+  ) {
+    return behavioural("B4_mechanical_class_refuted_by_surface", [
+      `E2:taskClass=${mechanicalClass}`,
+      `E1/E4:codeInSurface=${input.codeSurface.join(",")}`
+    ]);
+  }
+
   if (input.linkage.linkedSurfaceFiles.length >= 2) {
     return behavioural("B2_linked_surface", [
       `${evidenceTag(input.linkage.source)}:linkedSurfaceFiles=${input.linkage.linkedSurfaceFiles.join(",")}`
@@ -257,14 +334,14 @@ export function classifyTask(input: TaskClassificationInput): TaskClassification
     ]);
   }
 
-  if (
-    task.taskClass !== undefined &&
-    taskClassVerdicts[task.taskClass] === "mechanical" &&
-    input.sourceSurface.length === 0
-  ) {
+  // M1 — a declared mechanical class the surface CORROBORATES. Reaching here
+  // means B4 has already looked for code in the surface and found none, which
+  // is ADR 0014's "no non-test source file in the surface" stated in terms of
+  // what the index actually distinguishes.
+  if (mechanicalClass !== undefined) {
     return mechanical("M1_documentation_or_regression_test_only", [
-      `E2:taskClass=${task.taskClass}`,
-      "E1:no non-test source file in the declared surface"
+      `E2:taskClass=${mechanicalClass}`,
+      `E1/E4:no non-test code file in the surface (${input.surface.length === 0 ? "(undeclared)" : input.surface.join(",")})`
     ]);
   }
 
@@ -272,18 +349,6 @@ export function classifyTask(input: TaskClassificationInput): TaskClassification
     return mechanical("M2_non_source_surface", [
       `E1:surface=${input.surface.join(",")}`,
       "E4:file index reports no source file in the surface"
-    ]);
-  }
-
-  // Terminal for every declared class, and the reason the default below is now
-  // reachable ONLY when no class was declared. B1 already returned for every
-  // behavioural member, and M1 for a mechanical one whose surface holds no
-  // source file; what is left is a declared mechanical class that does touch
-  // source, which linkage (B2/B3) has just had its chance to gate.
-  if (task.taskClass !== undefined) {
-    return mechanical("M3_declared_mechanical_class", [
-      `E2:taskClass=${task.taskClass}`,
-      `E1:surface=${input.surface.length === 0 ? "(undeclared)" : input.surface.join(",")}`
     ]);
   }
 

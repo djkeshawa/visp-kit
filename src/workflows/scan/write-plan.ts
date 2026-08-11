@@ -4,6 +4,7 @@ import {
   dependencyMapArtifactPath,
   fileIndexArtifactPath,
   fileSummariesArtifactPath,
+  intelScanArtifactPath,
   moduleMapArtifactPath,
   patternsArtifactPath,
   projectProfileArtifactPath,
@@ -13,6 +14,7 @@ import {
   testMapArtifactPath
 } from "../../artifacts/artifact-paths.js";
 import { writeArtifact } from "../../artifacts/artifact-writer.js";
+import { intelScanProvenanceSchema } from "../../artifacts/schemas/intel-scan.schema.js";
 import { projectProfileSchema } from "../../artifacts/schemas/project.schema.js";
 import { type VispError } from "../../core/errors.js";
 import { ensureDir, writeJsonFile, writeTextFile } from "../../core/file-system.js";
@@ -22,7 +24,7 @@ import { ok, type Result } from "../../core/result.js";
 export type ScanWritePlan = {
   readonly path: string;
   readonly displayPath: string;
-  readonly kind: "json" | "text" | "project";
+  readonly kind: "json" | "text" | "project" | "intelScan";
   readonly value: unknown;
 };
 
@@ -42,6 +44,7 @@ export function plannedScanWrites(
     ["json", moduleMapArtifactPath(targetPath), values.moduleMap],
     ["json", dependencyMapArtifactPath(targetPath), values.dependencyMap],
     ["json", scanMetaArtifactPath(targetPath), values.scanMeta],
+    ["intelScan", intelScanArtifactPath(targetPath), values.intelScan],
     ["text", projectSummaryArtifactPath(targetPath), values.projectSummary],
     ["text", patternsArtifactPath(targetPath), values.patterns],
     ["text", scanReportArtifactPath(targetPath), values.scanReport]
@@ -78,9 +81,13 @@ export async function writeScanPlan(
         ? await writeArtifact(file.path, projectProfileSchema, file.value, {
             artifactName: "project profile"
           })
-        : file.kind === "json"
-          ? await writeJsonFile(file.path, file.value)
-          : await writeTextFile(file.path, String(file.value));
+        : file.kind === "intelScan"
+          ? await writeArtifact(file.path, intelScanProvenanceSchema, file.value, {
+              artifactName: "intel scan provenance"
+            })
+          : file.kind === "json"
+            ? await writeJsonFile(file.path, file.value)
+            : await writeTextFile(file.path, String(file.value));
 
     if (!result.ok) {
       return result;

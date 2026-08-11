@@ -130,13 +130,52 @@ no decision recorded against it.
 | `taskClass` | verdict | rule |
 |---|---|---|
 | `localized_bug`, `bounded_feature`, `cross_file_change`, `migration`, `security`, `refactor` | behavioural | B1 |
-| `documentation`, `regression_test` with no source file in the surface | mechanical | M1 |
-| `documentation`, `regression_test` that do touch source | mechanical | M3 |
+| `documentation`, `regression_test` whose surface holds non-test **code** | behavioural | B4 |
+| `documentation`, `regression_test` whose surface does not | mechanical | M1 |
 
 `refactor` used to appear in neither list, so a task declaring it fell through
 every rule to `ambiguous_default_mechanical` and was not gated. A refactor is a
 change whose whole claim is *about* behaviour, so it is behavioural, and the
 type-level totality is there so the next enum member cannot repeat the hole.
+
+### A declared mechanical class holds only while the surface agrees
+
+A `taskClass` is written by whoever wrote the task, so a rule that honours it
+unconditionally lets a task choose its own gate. A verifier defeated VSP026 by
+declaring `documentation` and editing source: the old rule had a catch-all
+`M3_declared_mechanical_class` branch that accepted any declared mechanical
+class whatever the surface held.
+
+**B4** replaces that branch. A declared mechanical class is *refuted* when the
+change surface holds a file that is positively known to be non-test executable
+code, and a refuted class classifies **behavioural**. The evidence is scan's
+own file index joined with the declared surface — never the declaration, never
+prose.
+
+Two properties keep this from becoming over-gating:
+
+- **Contradicting evidence gates; absent evidence does not.** A file nobody has
+  indexed and whose path does not say "code" is not in the refuting set. A task
+  that declares nothing at all is still ungated, exactly as before.
+- **"Code" is narrower than `isSourceFile`.** Scan marks Markdown, JSON, CSS and
+  HTML as source files, so `isSourceFile` could never distinguish a
+  documentation task from a source one — every `.md` file in this repository is
+  `isSourceFile: true`, which is why M1 and M2 could not fire on the one class
+  they were written for. B4 asks whether the language is a programming language
+  (`isProgramFilePath`), which is what "non-test source file" was reaching for.
+
+`visp-kit verify` re-runs the classification against the **realized** change
+surface — the diff, not the declaration. When that realized surface refutes a
+declared mechanical class, VSP026 fails at `verify` with an error, because at
+that point the strongest available evidence says the declaration was wrong. It
+is still clearable through the ordinary recorded override, and it is silent
+while VSP026 is disabled. Every other mechanical→behavioural move at verify
+stays a recorded warning: that is ordinary scope drift, which the scope rules
+own, and blocking it here would be retroactive.
+
+`mechanicalClassCorroboration` in `src/gates/task-classification.ts` is total
+over the mechanical classes, so adding one fails to compile until someone
+records what would corroborate it.
 
 **The ambiguous default is now reachable only when no `taskClass` is
 declared.** That case remains ungated on purpose: the rule reads declared
@@ -187,7 +226,9 @@ Kit reads two optional files from `.visp-intel/` and writes neither:
   to back `module-map.json` with resolved file-to-file imports and real
   external module names. `dependency-map.json` stays manifest-derived: its
   fields are package-manager facts (versions, scripts, lockfiles) that a code
-  graph does not carry.
+  graph does not carry. Scan writes what it read to
+  `.visp/cache/intel-scan.json`; the other scan artifacts are unchanged by the
+  presence of a store.
 - `.visp-intel/understanding/<task-id>.json` — the Understanding Case export,
   read by the context pack and by VSP026.
 

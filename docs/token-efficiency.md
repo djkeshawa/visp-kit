@@ -120,6 +120,7 @@ pack, not a whole agent run.
 .visp/cache/test-map.json
 .visp/cache/dependency-map.json
 .visp/cache/scan-meta.json
+.visp/cache/intel-scan.json
 ```
 
 These let Visp Kit select useful context without rereading every file into the task prompt.

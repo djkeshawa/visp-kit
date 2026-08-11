@@ -235,6 +235,57 @@ describe("runScanWorkflow", () => {
     );
   });
 
+  /**
+   * P21-KIT-01's exit says scan's artifact shape, schema and command surface
+   * are UNCHANGED. `scan-meta.json` had gained an always-present top-level
+   * `intel` key, which made that sentence false — additive and unschema'd, so
+   * nothing broke, but "nothing broke" is a weaker claim than the one the unit
+   * makes and it is the claim a packed, unpublished CLI cannot casually widen.
+   *
+   * This pins the key set rather than the absence of one key, so the next thing
+   * added to scan meta has to come past a test that says what the artifact is.
+   */
+  it("keeps scan-meta.json's top-level keys exactly as they were before intel", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await createTypeScriptFixture(tempDir);
+    expectOk(await runScanWorkflow({ targetPath: tempDir }));
+
+    const meta = expectOk(
+      await readJsonFile<Record<string, unknown>>(
+        path.join(tempDir, ".visp", "cache", "scan-meta.json")
+      )
+    );
+
+    expect(Object.keys(meta).sort()).toEqual([
+      "changedFiles",
+      "changedMode",
+      "counts",
+      "deletedFiles",
+      "force",
+      "generatedAt",
+      "git",
+      "lockFiles",
+      "targetPath"
+    ]);
+  });
+
+  it("records intel provenance in its own file, present and null with no store", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await createTypeScriptFixture(tempDir);
+    expectOk(await runScanWorkflow({ targetPath: tempDir }));
+
+    const provenance = expectOk(
+      await readJsonFile<{ store: unknown }>(
+        path.join(tempDir, ".visp", "cache", "intel-scan.json")
+      )
+    );
+
+    // Written on every scan, `null` included: a scan that no longer finds a
+    // store must overwrite the instance id a previous scan recorded, or a case
+    // from a deleted store keeps looking current.
+    expect(provenance.store).toBeNull();
+  });
+
   it("returns ok results", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     await createTypeScriptFixture(tempDir);

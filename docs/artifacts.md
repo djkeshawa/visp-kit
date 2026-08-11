@@ -32,9 +32,16 @@ Visp Kit stores deterministic local artifacts in `.visp/`.
   test-map.json
   dependency-map.json
   scan-meta.json
+  intel-scan.json
 ```
 
 The scan cache reduces repeated token usage.
+
+`intel-scan.json` records which `visp-intel` store the last scan read
+(`store: null` when there was none) and is the only place that fact is kept.
+It is deliberately not part of any other artifact: `scan-meta.json` briefly
+carried an `intel` key and that widened an artifact other tools already parse,
+for a fact only the understanding gate consumes.
 
 ## Memory
 
