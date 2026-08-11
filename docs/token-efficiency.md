@@ -99,15 +99,39 @@ Measured on this repository, one cross-file task, `balanced` budget, against a
 **real** `visp-intel` understanding export
 (`tests/fixtures/understanding/visp-kit-T001.export.json`, produced by
 `repo index` + `task scope-proposal` + `understanding export` at `ab4cc4e`):
-**9,807 input tokens before, 5,922 after — a 40% reduction.**
+**12,017 input tokens before, 7,346 after — a 39% reduction.**
 
-An earlier figure of **9,805 → 2,100 (79%)** appeared here and in a commit
-message. It reproduced exactly, but the understanding case behind it was a
-hand-written literal in the test file, not anything intel produced, and the
-79% is what a hand-written path plus a body filter bought. Do not quote it.
-The test now loads the real export, validates it against Kit's schema and
-objection rules first, and prints both numbers on every run. It measures ONE
-pack, not a whole agent run.
+Reproduce it, from nothing:
+
+```bash
+git clone <this repository> && cd visp-kit && pnpm install
+pnpm vitest run tests/integration/compact-context-pack.test.ts
+# [P21-KIT-03] ... before=12017 after=7346 (39% reduction)
+```
+
+Two earlier figures stood here. Neither should be quoted.
+
+**9,805 → 2,100 (79%)** came from a hand-written understanding case in the test
+file, not from anything intel produced; the 79% is what a hand-written path
+plus a body filter bought.
+
+**9,807 → 5,922 (40%)** was a real export, but it was measured against a scan
+cache read from `.visp/cache/`, which is gitignored. The test therefore only
+ran in a checkout that happened to have run `visp-kit scan`, it failed in every
+clean clone, and the cache it read was whatever the last local scan had left —
+six days stale by the time anyone checked. The number in this document also
+never matched the one the test printed on that stale cache, which was 9,809.
+
+The measurement now generates its own scan cache with Kit's scanner over the
+repository's **tracked** files, so it depends on the commit and on nothing
+else. That is the whole reason the number moved: the pack is larger because it
+is being selected over a current and complete index of ~650 files rather than a
+six-day-old snapshot. The reduction is the same to within a point.
+
+The test loads the real export, validates it against Kit's schema and objection
+rules before using it, asserts the scan it measures against is repository-sized,
+and prints both numbers on every run. It measures ONE pack, not a whole agent
+run.
 
 ## Scan Cache
 
