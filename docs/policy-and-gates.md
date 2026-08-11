@@ -222,13 +222,22 @@ the task stays blocked.
 
 Kit reads two optional files from `.visp-intel/` and writes neither:
 
-- `.visp-intel/graph.json` — a `visp-intel repo export` bundle. `scan` uses it
-  to back `module-map.json` with resolved file-to-file imports and real
-  external module names. `dependency-map.json` stays manifest-derived: its
-  fields are package-manager facts (versions, scripts, lockfiles) that a code
-  graph does not carry. Scan writes what it read to
-  `.visp/cache/intel-scan.json`; the other scan artifacts are unchanged by the
-  presence of a store.
+- `.visp-intel/projection/graph.json` — a `visp-intel repo projection`
+  artifact, intel's compact consumer view of one snapshot. `scan` uses it to
+  back `module-map.json` with resolved file-to-file imports and real external
+  module names. `dependency-map.json` stays manifest-derived: its fields are
+  package-manager facts (versions, scripts, lockfiles) that a code graph does
+  not carry. Scan writes what it read to `.visp/cache/intel-scan.json`; the
+  other scan artifacts are unchanged by the presence of a store.
+
+  **Not `.visp-intel/graph.json`.** Scan read the archival `repo export` until
+  the projection existed, and on most repositories the read never happened: the
+  export carries every snapshot on the lineage and every evidence record, and
+  measured 128.1 MiB on `visp-kit` against a 64 MiB read limit, so scan warned
+  and degraded. The projection of the same snapshot is 1.89 MiB. Scan's limit
+  is now 16 MiB — intel's own bound on a projection — and a project holding an
+  export and no projection is told to run `visp-intel repo projection` rather
+  than silently losing the graph it thinks it has.
 - `.visp-intel/understanding/<task-id>.json` — the Understanding Case export,
   read by the context pack and by VSP026.
 

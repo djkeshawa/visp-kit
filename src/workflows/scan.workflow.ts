@@ -155,7 +155,7 @@ export async function runScanWorkflow(
       summaries: summaries.cache.items,
       sourceRoots: scan.detection.sourceRoots,
       generatedAt: now,
-      ...(intel.projection === undefined ? {} : { intel: intel.projection })
+      ...(intel.fileGraph === undefined ? {} : { intel: intel.fileGraph })
     });
     const testMap = buildTestMap({
       files: scan.files,
@@ -207,12 +207,12 @@ export async function runScanWorkflow(
       intelScan: {
         generatedAt: now,
         store:
-          intel.projection === undefined
+          intel.fileGraph === undefined
             ? null
             : {
-                repositoryInstanceId: intel.projection.repositoryInstanceId,
-                headSnapshotId: intel.projection.headSnapshotId,
-                indexedFileCount: intel.projection.filePaths.length
+                repositoryInstanceId: intel.fileGraph.repositoryInstanceId,
+                headSnapshotId: intel.fileGraph.headSnapshotId,
+                indexedFileCount: intel.fileGraph.filePaths.length
               }
       },
       projectSummary: projectSummaryMarkdown({

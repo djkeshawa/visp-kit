@@ -21,7 +21,6 @@ const SNAPSHOT = "urn:visp-intel:snapshot:1.0:sha256:fixture";
 const NOTES = "urn:visp-intel:entity:1.0:sha256:notes";
 const SORT = "urn:visp-intel:entity:1.0:sha256:sort";
 const TEST = "urn:visp-intel:entity:1.0:sha256:test";
-const SORTER = "urn:visp-intel:entity:1.0:sha256:sorter";
 
 let tempDir: string;
 let taskId: string;
@@ -38,44 +37,62 @@ async function updateTask(update: Record<string, unknown>): Promise<void> {
   await writeFile(taskGraphPath(), `${JSON.stringify(graph, null, 2)}\n`, "utf8");
 }
 
-async function writeIntelGraph(): Promise<void> {
-  await mkdir(path.join(tempDir, ".visp-intel"), { recursive: true });
+/**
+ * Intel's consumer projection, in the shape `visp-intel repo projection`
+ * writes: integer codes into dictionaries, edges addressing nodes by row index.
+ * Scan reads this artifact — not the archival `repo export` — so this is what
+ * has to be on disk for the scan to record an intel store at all.
+ *
+ * Node rows: 0 `src/notes.ts#pinNote`, 1 `src/sort.ts#sortNotes`,
+ * 2 `tests/notes.test.ts#pinNote`.
+ */
+async function writeIntelProjection(): Promise<void> {
+  await mkdir(path.join(tempDir, ".visp-intel", "projection"), { recursive: true });
   await writeFile(
-    path.join(tempDir, ".visp-intel", "graph.json"),
+    path.join(tempDir, ".visp-intel", "projection", "graph.json"),
     JSON.stringify({
+      kind: "consumer-graph-projection",
       schemaVersion: "1.0",
-      repositoryInstanceId: REPOSITORY_INSTANCE,
-      headSnapshotId: SNAPSHOT,
-      entities: [
-        {
-          id: NOTES,
-          snapshotId: SNAPSHOT,
-          kind: "function",
-          canonicalName: "src/notes.ts#pinNote",
-          path: "src/notes.ts",
-          symbol: "pinNote"
-        },
-        {
-          id: TEST,
-          snapshotId: SNAPSHOT,
-          kind: "test",
-          canonicalName: "tests/notes.test.ts#pinNote",
-          path: "tests/notes.test.ts",
-          symbol: "pinNote"
-        },
-        {
-          id: SORTER,
-          snapshotId: SNAPSHOT,
-          kind: "function",
-          canonicalName: "src/sort.ts#sortNotes",
-          path: "src/sort.ts",
-          symbol: "sortNotes"
-        }
-      ],
-      relations: [
-        { id: "r:1", sourceId: TEST, targetId: NOTES, kind: "imports" },
-        { id: "r:2", sourceId: SORTER, targetId: NOTES, kind: "imports" }
-      ]
+      authority: "descriptive",
+      authorizationEffect: "none",
+      identity: {
+        repositoryInstanceId: REPOSITORY_INSTANCE,
+        snapshotId: SNAPSHOT,
+        headSnapshotId: SNAPSHOT,
+        gitCommit: null,
+        dirty: null,
+        worktreeFingerprint: "f".repeat(64),
+        indexProfile: "baseline"
+      },
+      dictionaries: {
+        nodeKinds: ["function", "test"],
+        edgeKinds: ["imports"],
+        paths: ["src/notes.ts", "src/sort.ts", "tests/notes.test.ts"]
+      },
+      nodes: {
+        columns: ["path", "kind", "name", "startLine", "endLine"],
+        rows: [
+          [0, 0, "pinNote", 5, 7],
+          [1, 0, "sortNotes", 2, 4],
+          [2, 1, "pinNote", 1, 3]
+        ]
+      },
+      edges: {
+        columns: [
+          "source",
+          "target",
+          "kind",
+          "confidence",
+          "completeness",
+          "modality",
+          "derivationMethod",
+          "uncertaintyReasonCount"
+        ],
+        rows: [
+          [2, 0, 0, 0, 0, null, null, 0],
+          [1, 0, 0, 0, 0, null, null, 0]
+        ]
+      }
     }),
     "utf8"
   );
@@ -261,7 +278,7 @@ describe("VSP026 understanding gate", () => {
       'import { type Note } from "./notes";\n\nexport function sortNotes(notes: Note[]): Note[] {\n  return [...notes];\n}\n',
       "utf8"
     );
-    await writeIntelGraph();
+    await writeIntelProjection();
     expectOk(await runScanWorkflow({ targetPath: tempDir }));
     await execFileAsync("git", ["init"], { cwd: tempDir });
     await execFileAsync("git", ["add", "."], { cwd: tempDir });

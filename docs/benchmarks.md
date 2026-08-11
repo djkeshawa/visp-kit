@@ -34,74 +34,170 @@ All metrics come from artifacts on disk — never from an LLM.
 ## Does an intel store make `scan` better? Measured on four repositories
 
 P21-KIT-01 says scan with an intel store must produce **equal-or-better
-content** than scan without one. This is that measurement. It had never been
-run; the numbers below replace an assumption.
+content** than scan without one.
 
-**Method.** Each repository was copied to a scratch tree, indexed with
-`visp-intel repo index`, and exported with `visp-intel repo export`. `visp-kit
-scan` then ran twice per tree — once with no `.visp-intel/graph.json` and once
-with it — and the two `module-map.json` files were compared. Ground truth is
-derived from the repositories' own source text by a third resolver that reads
-neither Kit's nor intel's output: an edge counts as correct only when the
-importing file really contains an import that resolves to that file. **More
-entries is not better; a wrong edge is worse than a missing one**, so precision
-is reported before recall.
+> **An earlier version of this section published different figures, at no named
+> commit, and they do not reproduce.** It reported llm-memory as 170 entries /
+> 164 correct / **1 wrong** / recall 0.643 against a no-store 10 / 8 / 0.031,
+> and `externalDependencies` precision rising 0.34 → 0.47 with *both* arms
+> wrongly listing Next.js `@/…` aliases as external. Every one of those numbers
+> is superseded by the table below; **do not quote them.** They erred *against*
+> the graph — the measured result is better than the published one — and they
+> are recorded here rather than deleted, because a number that did not
+> reproduce is the thing this section now exists to avoid repeating.
 
-**Finding 1 — the graph does not fit.** With the standard export, three of the
-four graphs exceed `INTEL_GRAPH_MAX_BYTES` (64 MiB) and `scan` degrades to its
-own analysis, producing a module map **identical** to the no-store one:
+### Method
 
-| repository | export size | intel-backed today? |
-| --- | --- | --- |
-| visp-kit | 133.9 MB | no — over the read limit |
-| visp-hyper-agent | 84.9 MB | no — over the read limit |
-| llm-memory | 67.2 MB | no — over the limit by 0.1 % |
-| visp-dev | 32.6 MB | yes |
+Everything below is at named commits.
 
-So in shipped behaviour the answer on three of four repositories is *no
-difference at all*. The rest of this section lifts the limit to answer the
-content question the unit actually asks.
+- Trees: `visp-kit` `9d59cc2`, `visp-hyper-agent` `7813320`, `llm-memory`
+  `ddda824`, `visp-dev` `d157dbf`, each materialised with `git archive` into a
+  scratch directory, so no `.git` is present and every arm reports the same
+  "Git metadata unavailable" warning.
+- `visp-intel` `f4c5b3b`, index profile `baseline`, Git identity off, one fresh
+  store per tree, kept outside the tree.
+- Kit: this commit (parent `9d59cc2`), built with `pnpm build`.
+- Linux x64, Node v24.15.0.
 
-**Finding 2 — with the graph read, internal imports are equal or better, and
-never wrong.** `internalImports` entries are compared as resolved target files:
+```bash
+visp-intel repo index   <tree> --store <store>
+visp-intel repo export     --store <store> --repository <id> --output arch/<r>.json
+visp-intel repo projection --store <store> --repository <id> --output proj/<r>.json
+# then, per arm, in its own copy of the tree:
+visp-kit init --json <copy> && visp-kit scan --json <copy>
+```
 
-| repository | arm | entries | joinable as-written | correct | wrong | precision | recall |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| visp-kit | no store | 1175 | 0 | 1066 | 0 | 1.000 | 0.994 |
-| visp-kit | intel | 1072 | 1072 | 1072 | 0 | 1.000 | **0.999** |
-| visp-hyper-agent | no store | 252 | 0 | 241 | 0 | 1.000 | 0.984 |
-| visp-hyper-agent | intel | 241 | 241 | 241 | 0 | 1.000 | 0.984 |
-| llm-memory | no store | 10 | 0 | 8 | 0 | 1.000 | 0.031 |
-| llm-memory | intel | 170 | 165 | 164 | **1** | 0.994 | **0.643** |
-| visp-dev | no store | 50 | 0 | 46 | 0 | 1.000 | 1.000 |
-| visp-dev | intel | 46 | 46 | 46 | 0 | 1.000 | 1.000 |
+Ground truth is derived from the repositories' own source text by a third
+resolver that reads neither Kit's nor intel's output: an entry counts as correct
+only when a member file of that module really contains an import that resolves
+to that file. TypeScript resolution follows the `.js`→`.ts` convention,
+`index.*` and `tsconfig` `paths`; Python resolution follows package
+`__init__.py` and PEP 420 namespace packages. **More entries is not better; a
+wrong edge is worse than a missing one**, so precision comes before recall, and
+every claimed edge was scored — with a hand sample of four per repository read
+back in the source. Module maps were compared with `generatedAt` removed, and
+each intel arm was re-run in a second clean copy: **all four reproduce
+byte-for-byte.**
 
-"Joinable as-written" is the column that matters most and the one volume hides:
-without a store, **zero** `internalImports` entries name a file — they are raw
-specifiers like `../foo.js` that a consumer cannot open. The no-store recall
-figures above are generous to the baseline, because the ground-truth resolver
-was allowed to resolve those specifiers against every member file of the module;
-Kit's own consumers cannot do that, which is why `linkageFromModuleMap` counts
-only entries the file index knows.
+### Finding 1 — the archival export never reached three of the four
 
-The largest gain is on the Python repository, where Kit's summary-derived
-importer sees almost nothing: 8 correct edges become 164, at the cost of the
-single wrong edge in the whole measurement. The two TypeScript repositories are
-a wash on correctness and a clear win on usability.
+Scan used to read `.visp-intel/graph.json`, the archival `repo export`. Measured
+at the commits above, that file is over Kit's then read limit of 64 MiB on three
+of the four repositories, so scan warned and degraded — and its `module-map.json`
+came out **identical, byte for byte, to the no-store arm**. Arm B, "current
+tools plus intel's graph", was therefore not a test of the graph on those three.
 
-**Finding 3 — nothing else moves.** Module counts are identical in every
-repository. `dependencyMap` is byte-identical with and without a store, as
-designed. Intel's test-entity union added **zero** test files on all four
-repositories, so that half of the union contributed nothing here.
-`externalDependencies` precision is unchanged on the three JS/TS repositories
-(1.000 both arms) and rises on llm-memory (0.34 → 0.47), where **both** arms are
-wrong in the same way: Next.js `@/…` alias imports are internal and both arms
-list them as external dependencies.
+| repository | archival `repo export` | consumer projection | projection ÷ archival | old 64 MiB limit |
+| --- | ---: | ---: | ---: | --- |
+| visp-kit | 134,303,258 B (128.1 MiB) | 1,985,713 B (1.89 MiB) | 1.478% | **exceeded 2.0×** |
+| visp-hyper-agent | 84,784,143 B (80.9 MiB) | 1,169,013 B (1.11 MiB) | 1.379% | **exceeded 1.3×** |
+| llm-memory | 67,139,517 B (64.03 MiB) | 1,109,080 B (1.06 MiB) | 1.652% | **exceeded by 0.05%** |
+| visp-dev | 35,886,711 B (34.2 MiB) | 544,707 B (532 KiB) | 1.518% | under |
 
-**Verdict: better where it is read, and read on one of four repositories.** The
-content claim in P21-KIT-01 holds — nothing is worse, one repository is much
-better — but the 64 MiB read limit, not the graph's content, is what decides
-whether any of it reaches an artifact today.
+Verified by running Kit at `9d59cc2` and Kit at this commit over the same trees
+and hashing the resulting module maps (`generatedAt` removed):
+
+| repository | `9d59cc2` no store | `9d59cc2` + archival export | here + projection |
+| --- | --- | --- | --- |
+| visp-kit | `8d1698eb9b2f1ca5` | `8d1698eb9b2f1ca5` — degraded | `528647ca2eb358cc` |
+| visp-hyper-agent | `8c01d37903c2e8ed` | `8c01d37903c2e8ed` — degraded | `840cbbc327ce35ba` |
+| llm-memory | `d8ebdcc2f0549b22` | `d8ebdcc2f0549b22` — degraded | `ddaf490079a68add` |
+| visp-dev | `c7987aabf4932697` | `2e113f0e235ef9c9` | `2e113f0e235ef9c9` |
+
+Two things to read off the last row. On the one repository where the archival
+export **did** fit, the projection produces the **identical module map** — so
+the projection is not a cheaper approximation of the export, it is the same
+answer at 1.5% of the bytes. And the seam is now live on **four of four**
+repositories instead of one.
+
+Scan reading the export at all was the defect. The read limit is now 16 MiB,
+intel's own bound on a projection, and it names the artifact it refused.
+
+### Finding 2 — internal imports: never wrong, and finally openable
+
+`internalImports` entries scored as resolved target files. The no-store arm is
+given the benefit of the doubt exactly as before: its raw specifiers are
+resolved against every member file of the module, which Kit's own consumers
+cannot do.
+
+| repository | arm | entries | joinable as-written | correct | wrong | precision | recall | ground truth |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| visp-kit | no store | 1181 | 0 | 1180 | 0 | 1.000 | 0.994 | 1079 |
+| visp-kit | projection | 1078 | **1078** | 1078 | 0 | 1.000 | **0.999** | 1079 |
+| visp-hyper-agent | no store | 252 | 0 | 252 | 0 | 1.000 | 0.984 | 245 |
+| visp-hyper-agent | projection | 241 | **241** | 241 | 0 | 1.000 | 0.984 | 245 |
+| llm-memory | no store | 4 | 0 | 4 | 0 | 1.000 | 0.023 | 172 |
+| llm-memory | projection | 165 | **165** | 165 | 0 | 1.000 | **0.959** | 172 |
+| visp-dev | no store | 56 | 0 | 56 | 0 | 1.000 | 1.000 | 52 |
+| visp-dev | projection | 52 | **52** | 52 | 0 | 1.000 | 1.000 | 52 |
+
+**Zero wrong edges in either arm, on all four repositories** — including the
+Python one, where the earlier published table reported one. "Joinable
+as-written" is the column volume hides: without a store, **not one**
+`internalImports` entry names a file a consumer can open; with the projection,
+every one does.
+
+The Python repository is where recall moves: **4 correct edges become 165**,
+0.023 → 0.959. Kit's summary-derived importer classifies almost every
+`visp_memory.…` import as external, so its internal map was four entries for the
+281 files it had indexed. The three TypeScript repositories are a wash on
+correctness — recall within 0.005, precision 1.000 in both arms — and a total
+change in usability.
+
+What the projection arm misses is worth naming: 7 edges on llm-memory, all of
+the form `from . import ai` inside `src/visp_memory/server/routers/__init__.py`;
+5 on visp-hyper-agent; 1 on visp-kit. Missing, not wrong.
+
+### Finding 3 — external dependencies, where the no-store arm is actually wrong
+
+An `externalDependencies` entry that resolves to a file inside the repository is
+not an external dependency:
+
+| repository | arm | entries | internal files mislabelled | precision |
+| --- | --- | ---: | ---: | ---: |
+| visp-kit | no store | 89 | 0 | 1.000 |
+| visp-kit | projection | 86 | 0 | 1.000 |
+| visp-hyper-agent | both arms | 75 | 0 | 1.000 |
+| llm-memory | no store | 306 | **162** | **0.471** |
+| llm-memory | projection | 140 | 0 | **1.000** |
+| visp-dev | both arms | 29 | 0 | 1.000 |
+
+On llm-memory the no-store arm lists 138 internal `visp_memory.*` Python modules
+and 24 Next.js `@/…` aliases as third-party dependencies. The projection arm
+lists none of them, and no entry it does list resolves to a file in the
+repository.
+
+**Against that, the projection arm drops entries the no-store arm had right.**
+Six across the four repositories, all judged by hand:
+
+- visp-kit `src/agent`: `node:child_process` and `node:fs`, both genuinely
+  imported at the top of `src/agent/hooks/hook-templates.ts`. **Two real
+  external dependencies lost.**
+- visp-kit `tests`: `fs`, which is *not* an import at all — it comes from
+  `require('fs')` inside a string literal in
+  `tests/integration/done.command.test.ts:236`. Dropping it is a fix.
+- llm-memory: `__future__` (twice), `git` and `secrets`. Four real losses.
+
+No entry appears in the projection arm that does not appear in the no-store arm,
+on any repository.
+
+### Finding 4 — nothing else moves
+
+Module counts, member files and test files are identical in every repository and
+every arm; `dependency-map.json` is byte-identical with and without a store, as
+designed, because its fields are versions, scripts and lockfiles that a code
+graph does not carry. Intel's test-entity union added **zero** test files on all
+four repositories, so that half of the union again contributed nothing.
+
+### Verdict
+
+**Better on all four repositories, and now actually read on all four.** Internal
+imports: nothing wrong in either arm, every entry openable where before none
+was, and recall 0.023 → 0.959 on the repository whose language Kit's own
+analysis handles worst. External dependencies: one repository goes from 47% to 100%
+precision, against six genuine entries lost across the other three. The seam
+carries data now; whether that improves anything an agent does is a separate
+measurement, and this section is not evidence for it.
 
 ## Category comparison vs other spec-driven tools
 

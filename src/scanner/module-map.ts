@@ -1,4 +1,4 @@
-import { type IntelGraphProjection } from "./intel-graph.js";
+import { type IntelFileGraph } from "./intel-graph.js";
 import { type FileIndexEntry, type FileSummary } from "./types.js";
 
 export type ModuleMapEntry = {
@@ -41,10 +41,10 @@ export function buildModuleMap(input: {
   readonly sourceRoots: readonly string[];
   readonly generatedAt: string;
   /**
-   * Intel's graph, when this project has one. The artifact shape below is
-   * identical either way; only where the facts come from changes.
+   * Intel's graph at file grain, when this project has one. The artifact shape
+   * below is identical either way; only where the facts come from changes.
    */
-  readonly intel?: IntelGraphProjection;
+  readonly intel?: IntelFileGraph;
 }): ModuleMap {
   const summariesByPath = new Map(input.summaries.map((summary) => [summary.path, summary]));
   const grouped = new Map<string, FileIndexEntry[]>();

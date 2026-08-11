@@ -96,11 +96,26 @@ export function intelDir(rootPath: string): string {
 }
 
 /**
- * Intel's `RepositoryExport`, as produced by `visp-intel repo export --output`.
- * The FORMAT is intel's; only this path convention is Kit's, so that scan has
- * somewhere to look without being told.
+ * Intel's CONSUMER PROJECTION, as produced by `visp-intel repo projection`.
+ * This is intel's own default output path, so scan has somewhere to look
+ * without being told. The FORMAT is intel's; Kit only reads it.
  */
-export function intelGraphArtifactPath(rootPath: string): string {
+export function intelProjectionArtifactPath(rootPath: string): string {
+  return joinPath(intelDir(rootPath), "projection", "graph.json");
+}
+
+/**
+ * Intel's archival `RepositoryExport`, as produced by `visp-intel repo export`.
+ *
+ * Scan READ this file until the projection existed, and the read never
+ * happened on most repositories: the export is the portable archival form —
+ * every snapshot on the lineage, every evidence record, a ~90-byte URN in every
+ * reference slot — and measured 128.1 MiB on `visp-kit` against a 64 MiB read
+ * limit. Scan now reads the projection instead. The path stays here for one
+ * purpose: a project holding an export and no projection is told so, rather
+ * than silently losing the graph it thinks it has.
+ */
+export function intelExportArtifactPath(rootPath: string): string {
   return joinPath(intelDir(rootPath), "graph.json");
 }
 
