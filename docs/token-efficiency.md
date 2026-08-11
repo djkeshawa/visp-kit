@@ -45,34 +45,69 @@ It avoids:
 ## The compact pack
 
 When `.visp-intel/understanding/<task-id>.json` holds a **current** case, the
-pack switches shape. Instead of a file summary for every candidate file plus a
-keyword-selected snippet, it carries the cited behavioural path, the open
+pack switches shape. It carries the cited behavioural path, the open
 hypotheses, a handful of entity signature lines, the affected tests, and at
-most four snippets of at most forty lines — and only for entities on the path
-or in the candidate change set.
+most four snippets of at most forty lines instead of a full-length snippet for
+every candidate file. **The graph itself is never in the prompt** — no entity
+dump, no relation table, no adjacency.
 
-A file off the path is still listed, still in scope, and arrives with
-`Summary: withheld` rather than a body. Its detail is one `repo.entity` or
-`repo.search` call away, which is cheaper than shipping it on the chance it is
-needed. **The graph itself is never in the prompt** — no entity dump, no
-relation table, no adjacency.
+Path membership is a **ranking signal, not a filter**. Every in-scope file
+keeps its summary; the path decides who gets the expensive body:
+
+1. entities on the cited path take snippet slots first;
+2. at least two slots stay with the relevance ranking, whatever the path says;
+3. a candidate scan could not summarise always gets a snippet, because a
+   snippet is the only thing standing between it and a bare filename;
+4. up to two files the path names that the ranking missed are **added**, not
+   substituted — two because that is the path's snippet budget, and a file the
+   ranking rejected is worth carrying only if the path can also show its code.
+
+The guarantee that falls out of (2) and (4): **the bodied set with a case is a
+superset of the bodied set without one.** More path information never removes
+something the pack would otherwise have carried, so a thin path is never worse
+than no path. `tests/integration/compact-context-pack.test.ts` asserts it.
 
 What is not dropped: `reuseHelpers` (the helper list behind the only measured
 behaviour win in this project, and not graph-derived), `constraints`,
 `instructions`, `validationCommands`, `artifactProvenance`, `baseCommit`,
 summaries for files that do not exist yet, and `trimming.heavilyTrimmed`.
 
-Measured on this repository, one cross-file task, `balanced` budget:
-**9,805 input tokens before, 2,100 after — a 79% reduction.** The measurement
-is in `tests/integration/compact-context-pack.test.ts`, which prints both
-numbers on every run so the direction stays visible if it ever reverses. It
-measures ONE pack, not a whole agent run.
+### What the first version cost, measured
 
-The known risk is that path-membership selection inherits intel's resolution
-miss rate, so a file that keyword relevance would have surfaced can now be
-absent. The mitigation is `repo.search` on demand, not a fallback to bulk. If
-localisation quality falls, the right response is to revert the selector and
-report the direction, not to widen the pack.
+The first version of this made path membership a **filter**: a file the path
+did not name lost its body. Over the 29 capability-eligible holdout tasks,
+`balanced` budget, 87 runs
+(`visp-dev/evidence/phase-21/ablation-linux-x64-node24-local.json`):
+
+| | arm A (no case) | arm C (filter) | A→C |
+|---|---|---|---|
+| input tokens (mean) | 16,965 | 5,748 | −66.1% |
+| bodied file recall | 0.483 | 0.105 | **−78.3%** |
+| symbol recall | 0.646 | 0.127 | **−80.3%** |
+
+This is not a hypothetical risk and it is no longer described as one. Intel
+traces no path at all on 17 of those 29 tasks, and the selector inherited every
+miss as a dropped file. **5,748 tokens at 0.105 recall is worse value than
+16,965 at 0.483**, because the objective is localisation per token and not
+minimum tokens. Phase 21 recorded P21-KIT-03's exit criterion as UNMET on that
+result. The ranking-signal design above is the response; its re-measurement is
+in the phase record.
+
+### The per-pack number, and its provenance
+
+Measured on this repository, one cross-file task, `balanced` budget, against a
+**real** `visp-intel` understanding export
+(`tests/fixtures/understanding/visp-kit-T001.export.json`, produced by
+`repo index` + `task scope-proposal` + `understanding export` at `ab4cc4e`):
+**9,807 input tokens before, 5,922 after — a 40% reduction.**
+
+An earlier figure of **9,805 → 2,100 (79%)** appeared here and in a commit
+message. It reproduced exactly, but the understanding case behind it was a
+hand-written literal in the test file, not anything intel produced, and the
+79% is what a hand-written path plus a body filter bought. Do not quote it.
+The test now loads the real export, validates it against Kit's schema and
+objection rules first, and prints both numbers on every run. It measures ONE
+pack, not a whole agent run.
 
 ## Scan Cache
 

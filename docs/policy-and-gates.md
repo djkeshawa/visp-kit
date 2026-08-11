@@ -120,6 +120,43 @@ current, and scan's repository model. It does **not** read `task.title`,
 `task.description`, spec prose or the user prompt: intent is raw input under
 VSP019, and prose is the one input an agent can rewrite to change its own gate.
 
+### Every declared `taskClass` is mapped
+
+The mapping from `taskClass` to a verdict is **total**, and total by
+construction — `satisfies Record<TaskClass, …>` in
+`src/gates/task-classification.ts` will not compile if a member of the enum has
+no decision recorded against it.
+
+| `taskClass` | verdict | rule |
+|---|---|---|
+| `localized_bug`, `bounded_feature`, `cross_file_change`, `migration`, `security`, `refactor` | behavioural | B1 |
+| `documentation`, `regression_test` with no source file in the surface | mechanical | M1 |
+| `documentation`, `regression_test` that do touch source | mechanical | M3 |
+
+`refactor` used to appear in neither list, so a task declaring it fell through
+every rule to `ambiguous_default_mechanical` and was not gated. A refactor is a
+change whose whole claim is *about* behaviour, so it is behavioural, and the
+type-level totality is there so the next enum member cannot repeat the hole.
+
+**The ambiguous default is now reachable only when no `taskClass` is
+declared.** That case remains ungated on purpose: the rule reads declared
+evidence, a task that declares nothing has no admissible evidence, and reading
+prose to fill the gap is what VSP019 forbids. Note the consequence rather than
+assume it away — VSP026 binds nothing before a planner has written a surface
+and a class, so it is not the thing that catches an agent editing on a hunch
+before scope exists. That gap is closed upstream instead: `visp-kit tasks
+--validate` refuses a task graph whose tasks lack a `taskClass`, `riskFactors`
+or a concrete allowed/expected file, and `taskGraphReadiness` mirrors the same
+check in `visp-kit next`. A task graph written straight to disk bypasses both,
+which is exactly what the Phase 21 ablation did and why it saw the ambiguous
+default on 29 of 29.
+
+The F1 risk-factor floor is likewise a total record over `riskFactorCodeValues`
+rather than a partial set. `dependency`, `concurrency` and `deployment` are
+recorded as **not** on the floor, with reasons; that is a decision, not an
+omission, and it does not make such a task mechanical — it still reaches B1,
+B2 and B3.
+
 When the verdict is behavioural, each condition is a separate finding:
 
 | Condition | Requires |

@@ -45,19 +45,60 @@ export type ContextSelectionInput = {
 };
 
 /**
- * Snippet budget for the compact pack: at most four files, at most forty lines
- * each (ADR 0014 Q3, 1,200 tokens). Files outside this set still appear in the
- * pack — they are the authorization surface — they just arrive without a body.
+ * Compact-pack budgets (ADR 0014 Q3), revised by the Phase 21 measurement.
+ *
+ * The first version of this made path membership a FILTER: a file the cited
+ * path did not name lost its body. Measured over the 29 capability-eligible
+ * holdout tasks that bought −66.1% tokens for −78.3% bodied file recall and
+ * −80.3% symbol recall, because intel traces no path at all on 17 of those 29
+ * and the selector inherited every miss as a dropped file.
+ *
+ * The objective was never minimum tokens; it is the best localisation per
+ * token. So the revision splits a "body" by what it actually costs:
+ *
+ *   - a file SUMMARY (imports, exports, symbols, comments) is ~300 tokens and
+ *     is what carries symbol recall;
+ *   - a SNIPPET is up to `maxSnippetTokensPerFile` — 1,000 in `balanced` — and
+ *     is where the pack's bulk always was.
+ *
+ * Every in-scope file therefore keeps its summary, and path membership decides
+ * only who gets the expensive body. That makes the path a RANKING signal: it
+ * can promote a file to a snippet, and it can no longer silence one.
  */
 const COMPACT_MAX_SNIPPET_FILES = 4;
 const COMPACT_MAX_SNIPPET_LINES = 40;
-
-function snippetBudget(
-  onPath: ReadonlySet<string> | undefined,
-  policy: ContextBudgetPolicy
-): number {
-  return onPath === undefined ? policy.maxFiles : COMPACT_MAX_SNIPPET_FILES;
-}
+/**
+ * Snippet slots the relevance ranking keeps even when the cited path could
+ * fill every one of them.
+ *
+ * This is the floor that makes a thin path never worse than no path. Intel's
+ * path covered 0.112 of the human patch across the holdout: a path is good
+ * evidence about what it names and says nothing about what it does not, so it
+ * may take slots and it may not take the pack.
+ */
+const COMPACT_MIN_RELEVANCE_SNIPPET_FILES = 2;
+/** Snippet slots the cited path may take. */
+const COMPACT_PATH_SNIPPET_BUDGET = Math.max(
+  0,
+  COMPACT_MAX_SNIPPET_FILES - COMPACT_MIN_RELEVANCE_SNIPPET_FILES
+);
+/**
+ * Files the cited path names that the relevance ranking would not have
+ * selected at all.
+ *
+ * They are ADDED, never substituted, so the bodied set in compact mode is a
+ * superset of the set the same pack would carry with no case at all. That
+ * monotonicity — more path information never removes a body — is the property
+ * the Phase 21 defect broke, and it is asserted in the tests.
+ *
+ * The bound is the path's snippet budget, deliberately, and not a number of
+ * its own: a file the ranking rejected is worth adding only if the path can
+ * also afford to show its code. Adding more than that would be spending
+ * summaries on files two independent signals scored low, which is the
+ * "flood the pack with weakly-relevant files" failure the compact pack exists
+ * to avoid.
+ */
+const COMPACT_MAX_PATH_ONLY_FILES = COMPACT_PATH_SNIPPET_BUDGET;
 
 /**
  * Files the compact pack may show code for: those holding an entity on the
@@ -69,14 +110,19 @@ function snippetBudget(
  */
 export function understandingFilePaths(understanding: ContextUnderstanding): ReadonlySet<string> {
   const paths = new Set<string>();
+  const add = (filePath: string | null): void => {
+    // Normalised on the way in, because every caller compares these against
+    // scan's index, which is forward-slashed.
+    if (filePath !== null) paths.add(filePath.replaceAll("\\", "/"));
+  };
 
   for (const row of understanding.path) {
-    if (row.sourceFilePath !== null) paths.add(row.sourceFilePath);
-    if (row.targetFilePath !== null) paths.add(row.targetFilePath);
+    add(row.sourceFilePath);
+    add(row.targetFilePath);
   }
 
   for (const signature of understanding.signatures) {
-    if (signature.filePath !== null) paths.add(signature.filePath);
+    add(signature.filePath);
   }
 
   return paths;
@@ -418,6 +464,82 @@ function fileSummaryText(summary: FileSummary | undefined): string {
   );
 }
 
+/**
+ * Candidate order under a cited path: path members first, then the path's own
+ * files the ranking missed, then everything the ranking chose, in its order.
+ *
+ * Nothing is removed. `candidates` is exactly the list the pack would carry
+ * with no case at all, so this is a re-ranking with a bounded addition.
+ */
+function orderByPathMembership(input: {
+  readonly candidates: readonly string[];
+  readonly onPath: ReadonlySet<string> | undefined;
+  readonly isEligible: (filePath: string) => boolean;
+}): readonly string[] {
+  if (input.onPath === undefined) return input.candidates;
+
+  const onPath = input.onPath;
+  const selected = new Set(input.candidates);
+  const pathOnly = [...onPath]
+    .map((filePath) => filePath.replaceAll("\\", "/"))
+    .filter((filePath) => !selected.has(filePath) && input.isEligible(filePath))
+    .sort()
+    .slice(0, COMPACT_MAX_PATH_ONLY_FILES);
+
+  return [
+    ...input.candidates.filter((filePath) => onPath.has(filePath)),
+    ...pathOnly,
+    ...input.candidates.filter((filePath) => !onPath.has(filePath))
+  ];
+}
+
+/**
+ * Which files get the expensive body.
+ *
+ * Outside compact mode this is every candidate, exactly as before. Inside it,
+ * three claims in priority order:
+ *
+ *  1. a candidate scan could not summarise has no cheap body, so a snippet is
+ *     the only thing standing between it and a bare filename — it is never
+ *     silenced, and it does not spend the ranked budget;
+ *  2. entities on the cited path are the highest-confidence content and take
+ *     the budget first, up to the floor;
+ *  3. the rest of the budget fills by relevance rank, which is the selection
+ *     that scored 0.483 before any of this existed.
+ */
+function allocateSnippets(input: {
+  readonly ordered: readonly string[];
+  readonly onPath: ReadonlySet<string> | undefined;
+  readonly policy: ContextBudgetPolicy;
+  readonly hasCheapBody: (filePath: string) => boolean;
+}): ReadonlySet<string> {
+  if (input.onPath === undefined) {
+    return new Set(input.ordered.slice(0, input.policy.maxFiles));
+  }
+
+  const onPath = input.onPath;
+  const chosen = new Set(input.ordered.filter((filePath) => !input.hasCheapBody(filePath)));
+  let fromPath = 0;
+
+  for (const filePath of input.ordered) {
+    if (fromPath >= COMPACT_PATH_SNIPPET_BUDGET) break;
+    if (chosen.has(filePath) || !onPath.has(filePath)) continue;
+    chosen.add(filePath);
+    fromPath += 1;
+  }
+
+  let fromRanking = 0;
+
+  for (const filePath of input.ordered) {
+    if (fromRanking >= COMPACT_MAX_SNIPPET_FILES - fromPath) break;
+    if (chosen.has(filePath)) continue;
+    chosen.add(filePath);
+    fromRanking += 1;
+  }
+
+  return chosen;
+}
+
 async function buildFileContexts(input: {
   readonly targetPath: string;
   readonly policy: ContextBudgetPolicy;
@@ -431,7 +553,7 @@ async function buildFileContexts(input: {
 }): Promise<readonly FileContext[]> {
   const indexByPath = new Map(input.fileIndex.map((file) => [file.path, file]));
   const summariesByPath = new Map(input.fileSummaries.map((summary) => [summary.path, summary]));
-  const paths = candidateFiles({
+  const candidates = candidateFiles({
     task: input.task,
     plan: input.plan,
     summaries: input.fileSummaries,
@@ -441,12 +563,26 @@ async function buildFileContexts(input: {
   const forbidden = new Set(input.task.forbiddenFiles ?? []);
   const onPath =
     input.understanding === undefined ? undefined : understandingFilePaths(input.understanding);
-  let snippetsTaken = 0;
+  const isEligible = (filePath: string): boolean =>
+    !forbidden.has(filePath) &&
+    !shouldIgnorePath(filePath) &&
+    !isBinaryPath(filePath) &&
+    (!isLockFile(filePath) || /dependency|package/i.test(input.task.title)) &&
+    indexByPath.has(filePath);
+  const paths = orderByPathMembership({
+    candidates: [...new Set(candidates.map((filePath) => filePath.replaceAll("\\", "/")))],
+    onPath,
+    isEligible
+  });
+  const snippetPaths = allocateSnippets({
+    ordered: paths.filter(isEligible),
+    onPath,
+    policy: input.policy,
+    hasCheapBody: (filePath) => summariesByPath.has(filePath)
+  });
   const contexts: FileContext[] = [];
 
-  for (const filePath of paths) {
-    const normalized = filePath.replaceAll("\\", "/");
-
+  for (const normalized of paths) {
     if (
       forbidden.has(normalized) ||
       shouldIgnorePath(normalized) ||
@@ -478,16 +614,13 @@ async function buildFileContexts(input: {
       continue;
     }
 
-    // The pack's bulk was here: a JSON summary (imports, exports, symbols,
-    // comments) for every candidate file, plus a keyword-selected snippet.
-    // With a cited path available, a file off that path contributes its
-    // identity and its authorization status and nothing else; its detail is a
-    // `repo.entity` or `repo.search` call away, and shipping it unasked is
-    // what put Visp at 90-135k tokens against bare's 42k.
-    const withhold = onPath !== undefined && !onPath.has(normalized);
-    const summaryText = withhold ? "" : fileSummaryText(summary);
-    const snippetAllowed = !withhold && snippetsTaken < snippetBudget(onPath, input.policy);
-    let snippet = snippetAllowed
+    // Every in-scope file keeps its summary. The bulk that put Visp at
+    // 90-135k tokens against bare's 42k was the uncapped snippet, not this,
+    // and withholding the summary is what cost -78.3% recall for -66.1%
+    // tokens. Snippets are the budgeted resource; `snippetPaths` says who
+    // earned one and why.
+    const summaryText = fileSummaryText(summary);
+    let snippet = snippetPaths.has(normalized)
       ? await extractFileSnippet({
           rootPath: input.targetPath,
           filePath: normalized,
@@ -495,7 +628,12 @@ async function buildFileContexts(input: {
             ? input.policy.maxFullFileTokens
             : input.policy.maxSnippetTokensPerFile,
           fullFile: input.includeFullFiles && onPath === undefined,
-          reason: onPath === undefined ? "Task file context." : "Entity on the cited path.",
+          reason:
+            onPath === undefined
+              ? "Task file context."
+              : onPath.has(normalized)
+                ? "Entity on the cited path."
+                : "Highest-ranked file off the cited path.",
           focusTerms: taskKeywords(input.task),
           ...(onPath === undefined ? {} : { maxLines: COMPACT_MAX_SNIPPET_LINES })
         })
@@ -507,8 +645,6 @@ async function buildFileContexts(input: {
       warning = snippet.error.message;
       snippet = { ok: true, value: undefined };
     }
-
-    if (snippet.value !== undefined) snippetsTaken += 1;
 
     if (snippet.value !== undefined && input.includeFullFiles && onPath === undefined) {
       if (snippet.value.tokenEstimate <= input.policy.maxFullFileTokens) {
@@ -546,7 +682,9 @@ async function buildFileContexts(input: {
         path: normalized,
         reason: input.task.allowedFiles.includes(normalized)
           ? "Task allowed file."
-          : "Task expected or related file.",
+          : onPath?.has(normalized) === true
+            ? "Entity on the cited path."
+            : "Task expected or related file.",
         includeMode,
         hash: indexEntry.hash,
         language: indexEntry.language,

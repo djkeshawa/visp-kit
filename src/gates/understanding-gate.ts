@@ -136,11 +136,17 @@ export async function evaluateUnderstandingGate(
   const sourceFiles = new Set(
     (fileIndex?.files ?? []).filter((file) => file.isSourceFile).map((file) => file.path)
   );
-  // With no file index nothing can be shown to be a non-source file, so M2
-  // cannot fire and the surface is treated as source. That keeps an unscanned
-  // project from being classified mechanical by absence of evidence.
-  const sourceSurface =
-    fileIndex === undefined ? surface : surface.filter((file) => sourceFiles.has(file));
+  // Absence of evidence is not evidence of absence, and it has to hold per
+  // FILE, not only for the index as a whole. A file scan has never seen — the
+  // ordinary case for an `expectedFiles` entry, which exists precisely to name
+  // a file the task will create — is not thereby a non-source file. Filtering
+  // it out emptied `sourceSurface` and fired M2 with the evidence line "the
+  // file index reports no source file in the surface", which the index had
+  // said nothing of the kind about. M1 and M2 now fire only on files the index
+  // knows and reports as non-source.
+  const sourceSurface = surface.filter(
+    (file) => fileIndex === undefined || !indexedFiles.has(file) || sourceFiles.has(file)
+  );
   const understanding = await readUnderstandingExport({
     targetPath: input.targetPath,
     taskId: input.task.id,

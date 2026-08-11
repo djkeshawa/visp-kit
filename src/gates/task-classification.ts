@@ -1,3 +1,4 @@
+import { type RiskFactorCode, type TaskClass } from "../artifacts/schemas/common.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type UnderstandingCaseExport } from "../artifacts/schemas/understanding.schema.js";
 import { type ModuleMap } from "../scanner/module-map.js";
@@ -13,31 +14,70 @@ export type TaskClassification = {
 };
 
 /**
- * Risk factors that make a task behavioural on their own (ADR 0014 Q2, F1).
+ * Every member of `riskFactorCodeValues`, and whether it is behavioural on its
+ * own (ADR 0014 Q2, F1).
  *
- * These are DECLARED, auditable fields on the task, not inferences. That is
- * what keeps `ambiguous_default_mechanical` from being a hole: the cases where
- * being wrong is expensive are named here, and they never reach the default.
+ * These are DECLARED, auditable fields on the task, not inferences. Written as
+ * a total record for the same reason as `taskClassVerdicts`: the previous
+ * `Set<string>` held seven of ten codes and nothing said whether the other
+ * three were a decision or an oversight. They are a decision, recorded here.
+ *
+ * F1 is a FLOOR, not a classifier: `false` means "does not make the task
+ * behavioural by itself", never "mechanical". A task carrying one of the three
+ * still reaches B1, B2 and B3 like any other.
+ *
+ *  - `dependency`  — a version bump is the ordinary mechanical edit; when it
+ *                    changes behaviour the task also declares a class.
+ *  - `concurrency` — the closest call of the three. Left off the floor because
+ *                    a concurrency-tagged task that touches source almost
+ *                    always carries `localized_bug` or `cross_file_change`
+ *                    too, and F1 exists for the tasks that declare nothing
+ *                    else. Revisit with a measurement, not with an opinion.
+ *  - `deployment`  — pipeline and environment configuration, outside the code
+ *                    whose behaviour this gate is about.
  */
-const floorRiskFactors = new Set([
-  "authentication",
-  "authorization",
-  "cryptography",
-  "public_api",
-  "schema",
-  "data_migration",
-  "permissions"
-]);
+const riskFactorFloor = {
+  authentication: true,
+  authorization: true,
+  cryptography: true,
+  public_api: true,
+  schema: true,
+  data_migration: true,
+  permissions: true,
+  dependency: false,
+  concurrency: false,
+  deployment: false
+} as const satisfies Record<RiskFactorCode, boolean>;
 
-const behaviouralTaskClasses = new Set([
-  "localized_bug",
-  "bounded_feature",
-  "cross_file_change",
-  "migration",
-  "security"
-]);
+/**
+ * Every member of `taskClassValues`, mapped to a verdict. TOTAL, and total by
+ * construction rather than by review.
+ *
+ * The previous version was two `Set<string>`s holding seven of the eight enum
+ * members between them. `refactor` was in neither, so a task declaring a valid
+ * `taskClass` fell through every rule to `ambiguous_default_mechanical` and
+ * was not gated — a verifier defeated VSP026 with exactly that, on a real CLI
+ * run. A refactor is a change whose whole claim is *about* behaviour, and the
+ * most common way that claim is broken is by accident, so it is behavioural.
+ *
+ * `satisfies Record<TaskClass, ...>` is the part that matters more than the
+ * missing entry: adding a member to `taskClassValues` now fails to compile
+ * until someone decides which side it is on. A gate hole that a type checker
+ * can find should not be left to an audit.
+ */
+const taskClassVerdicts = {
+  localized_bug: "behavioural",
+  bounded_feature: "behavioural",
+  cross_file_change: "behavioural",
+  migration: "behavioural",
+  security: "behavioural",
+  refactor: "behavioural",
+  documentation: "mechanical",
+  regression_test: "mechanical"
+} as const satisfies Record<TaskClass, TaskClassificationVerdict>;
 
-const mechanicalTaskClasses = new Set(["documentation", "regression_test"]);
+export const declaredTaskClassVerdicts: Readonly<Record<TaskClass, TaskClassificationVerdict>> =
+  taskClassVerdicts;
 
 export type SurfaceLinkage = {
   /** Two or more surface source files linked to each other. */
@@ -166,7 +206,12 @@ export type TaskClassificationInput = {
 
 /**
  * VSP026's classification rule (ADR 0014 Q2). First match wins, in this order:
- * F1, F2, F3, B1, B2, B3, M1, M2, M3.
+ * F1, F2, F3, B1, B2, B3, M1, M2, M3, then the ambiguous default.
+ *
+ * The declared-class mapping is TOTAL (`taskClassVerdicts`), so a task that
+ * declares any member of `taskClassValues` is decided by B1, M1 or M3 and can
+ * never reach the ambiguous default. Only a task that declares no class at all
+ * can, which is a task that has stated nothing for this rule to read.
  *
  * `task.title`, `task.description`, spec prose and the user prompt are
  * INADMISSIBLE and are not read here. Intent is raw input under VSP019, and
@@ -182,7 +227,7 @@ export type TaskClassificationInput = {
 export function classifyTask(input: TaskClassificationInput): TaskClassification {
   const task = input.task;
   const factors = (task.riskFactors ?? []).map((factor) => factor.code);
-  const floorFactors = factors.filter((code) => floorRiskFactors.has(code));
+  const floorFactors = factors.filter((code) => riskFactorFloor[code]);
 
   if (floorFactors.length > 0) {
     return behavioural("F1_risk_factor_floor", [`E2:riskFactors=${floorFactors.join(",")}`]);
@@ -196,7 +241,7 @@ export function classifyTask(input: TaskClassificationInput): TaskClassification
     return behavioural("F3_irreversible", ["E2:reversibility=irreversible"]);
   }
 
-  if (task.taskClass !== undefined && behaviouralTaskClasses.has(task.taskClass)) {
+  if (task.taskClass !== undefined && taskClassVerdicts[task.taskClass] === "behavioural") {
     return behavioural("B1_task_class", [`E2:taskClass=${task.taskClass}`]);
   }
 
@@ -214,7 +259,7 @@ export function classifyTask(input: TaskClassificationInput): TaskClassification
 
   if (
     task.taskClass !== undefined &&
-    mechanicalTaskClasses.has(task.taskClass) &&
+    taskClassVerdicts[task.taskClass] === "mechanical" &&
     input.sourceSurface.length === 0
   ) {
     return mechanical("M1_documentation_or_regression_test_only", [
@@ -227,6 +272,18 @@ export function classifyTask(input: TaskClassificationInput): TaskClassification
     return mechanical("M2_non_source_surface", [
       `E1:surface=${input.surface.join(",")}`,
       "E4:file index reports no source file in the surface"
+    ]);
+  }
+
+  // Terminal for every declared class, and the reason the default below is now
+  // reachable ONLY when no class was declared. B1 already returned for every
+  // behavioural member, and M1 for a mechanical one whose surface holds no
+  // source file; what is left is a declared mechanical class that does touch
+  // source, which linkage (B2/B3) has just had its chance to gate.
+  if (task.taskClass !== undefined) {
+    return mechanical("M3_declared_mechanical_class", [
+      `E2:taskClass=${task.taskClass}`,
+      `E1:surface=${input.surface.length === 0 ? "(undeclared)" : input.surface.join(",")}`
     ]);
   }
 

@@ -111,15 +111,15 @@ function fileContext(pack: ContextPack): string {
     .map((file) => {
       const snippet = snippetFor(pack, file.path);
       const warning = file.warning === undefined ? "" : `\nWarning: ${file.warning}\n`;
-      // "Withheld" and "not available" are different facts and must not read
-      // the same. Withheld means the detail exists and is one intel query
-      // away; not available means nobody has it.
+      // There is no "withheld" state any more. The compact pack used to strip
+      // the summary off any file the cited path did not name; the Phase 21
+      // ablation measured that as -78.3% bodied file recall, and the selector
+      // now budgets snippets instead. A file without a summary is one scan
+      // could not summarise, which is a different fact and reads differently.
       const summary =
         file.summaryAvailable && file.summary !== undefined && file.summary.length > 0
           ? `\nSummary:\n${codeFence("json", file.summary)}\n`
-          : pack.understanding !== undefined && file.summaryAvailable
-            ? "\nSummary: withheld - this file is off the cited path. Query `repo.entity` or `repo.search` if you need it.\n"
-            : "\nSummary: not available.\n";
+          : "\nSummary: not available.\n";
       const snippetText =
         snippet === undefined
           ? ""

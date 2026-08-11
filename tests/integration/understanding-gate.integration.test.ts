@@ -302,6 +302,40 @@ describe("VSP026 understanding gate", () => {
     expect(vsp026(result)).toEqual([]);
   });
 
+  it("gates a refactor — the enum value that used to fall through every rule", async () => {
+    // `refactor` was a valid member of `taskClassValues` in NEITHER the
+    // behavioural nor the mechanical list, so a real CLI run on a declared
+    // refactor reached `ambiguous_default_mechanical` and VSP026 bound
+    // nothing. This runs the shipped gate, not a replay of the rule.
+    await enableVsp026();
+    await updateTask({ taskClass: "refactor", riskFactors: [] });
+
+    const result = await implementGate();
+
+    expect(result.taskClassification?.verdict).toBe("behavioural");
+    expect(result.taskClassification?.basis).toEqual(["B1_task_class"]);
+    expect(vsp026(result).length).toBeGreaterThan(0);
+  });
+
+  it("does not call a file the scan has never seen a non-source file", async () => {
+    // `expectedFiles` exists to name a file the task will CREATE, so scan's
+    // index cannot know it. Filtering it out of the source surface emptied the
+    // surface and fired M2 with the evidence line "the file index reports no
+    // source file in the surface" — about a file the index had said nothing
+    // about. Absence of evidence is not evidence of absence.
+    await enableVsp026();
+    await updateTask({
+      taskClass: undefined,
+      allowedFiles: [],
+      expectedFiles: ["src/pinning/new-store.ts"],
+      riskFactors: []
+    });
+
+    const result = await implementGate();
+
+    expect(result.taskClassification?.basis).not.toContain("M2_non_source_surface");
+  });
+
   it("allows a behavioural task once a current case satisfies every condition", async () => {
     await enableVsp026();
     await writeUnderstandingExport(understandingExport({}));

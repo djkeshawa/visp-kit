@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  riskFactorCodeValues,
+  taskClassValues
+} from "../../../src/artifacts/schemas/common.schema.js";
 import { type Task } from "../../../src/artifacts/schemas/task.schema.js";
 import { type UnderstandingCaseExport } from "../../../src/artifacts/schemas/understanding.schema.js";
 import {
   classifyTask,
   declaredSurface,
+  declaredTaskClassVerdicts,
   linkageFromModuleMap,
   linkageFromUnderstanding,
   noSurfaceLinkage
@@ -96,11 +101,80 @@ describe("VSP026 task classification", () => {
     expect(result.basis).toEqual(["M2_non_source_surface"]);
   });
 
-  it("M3: an ambiguous task is NOT gated, and says so in its basis", () => {
+  it("M3: a declared mechanical class that touches source is still mechanical, by name", () => {
+    const result = classify({
+      task: task({ taskClass: "regression_test", allowedFiles: ["src/notes.ts"] })
+    });
+
+    expect(result.verdict).toBe("mechanical");
+    expect(result.basis).toEqual(["M3_declared_mechanical_class"]);
+  });
+
+  it("the ambiguous default is reachable ONLY when no class is declared", () => {
     const result = classify({ task: task() });
 
     expect(result.verdict).toBe("mechanical");
     expect(result.basis).toEqual(["ambiguous_default_mechanical"]);
+  });
+
+  /**
+   * The hole a verifier defeated VSP026 with, closed as a property rather than
+   * as one more example.
+   *
+   * `refactor` was a valid member of `taskClassValues` that appeared in neither
+   * the behavioural nor the mechanical list, so it fell through every rule to
+   * the ambiguous default and was not gated. The fix is only worth as much as
+   * the guarantee that the next enum member cannot do the same, so this asserts
+   * over the enum itself: no declared class may reach the default, whatever the
+   * surface, and the enum is what is iterated — not a list copied from it.
+   */
+  it("no member of taskClassValues can reach the ambiguous default", () => {
+    for (const taskClass of taskClassValues) {
+      for (const surface of [[], ["src/notes.ts"], ["docs/readme.md"]]) {
+        const result = classify({
+          task: task({ taskClass, allowedFiles: surface }),
+          sourceSurface: surface.filter((file) => file.endsWith(".ts"))
+        });
+
+        expect(
+          result.basis,
+          `taskClass=${taskClass} with surface [${surface.join(",")}]`
+        ).not.toContain("ambiguous_default_mechanical");
+      }
+    }
+  });
+
+  it("every member of taskClassValues has a recorded verdict", () => {
+    expect(Object.keys(declaredTaskClassVerdicts).sort()).toEqual([...taskClassValues].sort());
+  });
+
+  it("B1: a refactor is behavioural — it is a claim about behaviour", () => {
+    const result = classify({ task: task({ taskClass: "refactor" }) });
+
+    expect(result.verdict).toBe("behavioural");
+    expect(result.basis).toEqual(["B1_task_class"]);
+  });
+
+  it("F1: every risk factor code has a recorded floor decision", () => {
+    // Same guarantee as the task classes, on the other declared enum. A code
+    // that is on the floor gates alone; a code that is not still reaches
+    // B1/B2/B3. What must never happen is a code nobody decided about.
+    for (const code of riskFactorCodeValues) {
+      const result = classify({ task: task({ riskFactors: [{ version: "1.0", code }] }) });
+      const onFloor = result.basis.includes("F1_risk_factor_floor");
+
+      expect(onFloor, `riskFactor ${code} must be a decision, not an oversight`).toBe(
+        [
+          "authentication",
+          "authorization",
+          "cryptography",
+          "public_api",
+          "schema",
+          "data_migration",
+          "permissions"
+        ].includes(code)
+      );
+    }
   });
 
   it("prose never changes the verdict", () => {
