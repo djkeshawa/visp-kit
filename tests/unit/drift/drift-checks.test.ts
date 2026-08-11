@@ -105,15 +105,33 @@ function pack(overrides: Partial<ContextPack> = {}): ContextPack {
 
 function files(input: {
   readonly hashes?: Record<string, string>;
+  readonly contentHashes?: Record<string, string>;
   readonly existing?: readonly string[];
 }): CurrentFileState {
   const hashes = new Map(Object.entries(input.hashes ?? {}));
+  const contentHashes = new Map(Object.entries(input.contentHashes ?? {}));
   const existing = new Set([...(input.existing ?? []), ...hashes.keys()]);
 
   return {
     exists: (path) => existing.has(path),
-    hash: (path) => hashes.get(path)
+    hash: (path) => hashes.get(path),
+    contentHash: (path) => contentHashes.get(path)
   };
+}
+
+/** A pack that also names the artifacts its FILE SELECTION was a function of. */
+function packWithRetrievalInputs(): ContextPack {
+  return pack({
+    artifactProvenance: [
+      {
+        label: "file index",
+        path: ".visp/cache/file-index.json",
+        hash: "index-content-hash",
+        hashAlgorithm: "sha256",
+        hashScope: "content"
+      }
+    ]
+  });
 }
 
 describe("drift checks", () => {
@@ -144,6 +162,55 @@ describe("drift checks", () => {
     );
 
     expect(findings).toHaveLength(0);
+  });
+
+  /**
+   * The pack is a function of the file index, the summaries, the module map and
+   * intel's projection, and its provenance record could not see any of them —
+   * so VSP021 reported "no drift" across a change that moved the pack. These
+   * three cases are that record being closed, and the third is the one that
+   * keeps it honest.
+   */
+  it("flags a retrieval input whose content moved after the pack was compiled", () => {
+    const findings = checkStaleContextProvenance(
+      packWithRetrievalInputs(),
+      files({ contentHashes: { ".visp/cache/file-index.json": "different" } })
+    );
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.kind).toBe("stale_context_provenance");
+  });
+
+  it("passes a retrieval input whose content is unchanged", () => {
+    expect(
+      checkStaleContextProvenance(
+        packWithRetrievalInputs(),
+        files({ contentHashes: { ".visp/cache/file-index.json": "index-content-hash" } })
+      )
+    ).toHaveLength(0);
+  });
+
+  /**
+   * Three states, not two. "It is gone" is drift; "I could not check it" is
+   * not. Inferring staleness from an unavailable check would report drift on
+   * the strength of Kit's own inability to look — and it would do so on the
+   * inputs that decide the pack, which is the worst possible place for a false
+   * positive.
+   */
+  it("does not call an unverifiable retrieval input stale", () => {
+    expect(
+      checkStaleContextProvenance(
+        packWithRetrievalInputs(),
+        files({ existing: [".visp/cache/file-index.json"] })
+      )
+    ).toHaveLength(0);
+  });
+
+  it("still reports a retrieval input that is gone", () => {
+    const findings = checkStaleContextProvenance(packWithRetrievalInputs(), files({}));
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.actualHash).toBeNull();
   });
 
   it("flags included files that changed after context compilation", () => {

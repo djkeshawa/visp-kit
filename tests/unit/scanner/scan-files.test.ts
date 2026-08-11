@@ -45,11 +45,11 @@ describe("file scanner", () => {
     const byPath = new Map(files.map((file) => [file.path, file]));
 
     expect(byPath.get("main.go")?.language).toBe("Go");
-    expect(byPath.get("main.go")?.isSourceFile).toBe(true);
+    expect(byPath.get("main.go")?.isRecognisedTextFile).toBe(true);
     expect(byPath.get("main_test.go")?.isTestFile).toBe(true);
     expect(byPath.get("src/main/java/App.java")?.language).toBe("Java");
     expect(byPath.get("tests/test_app.py")?.isTestFile).toBe(true);
     expect(byPath.get("lib.rs")?.language).toBe("Rust");
-    expect(byPath.get("lib.rs")?.isSourceFile).toBe(true);
+    expect(byPath.get("lib.rs")?.isRecognisedTextFile).toBe(true);
   });
 });

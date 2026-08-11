@@ -47,6 +47,17 @@ export type IntelFileGraph = {
   readonly internalEdges: ReadonlyMap<string, readonly string[]>;
   /** file path -> external module names it imports. */
   readonly externalEdges: ReadonlyMap<string, readonly string[]>;
+  /**
+   * file path -> file paths intel says test or cover it.
+   *
+   * Kept in its own map rather than folded into `internalEdges` on purpose: the
+   * module map is built from `internalEdges`/`externalEdges` and its artifact
+   * contract, its recorded precision and its recall figures are all statements
+   * about dependency edges. A test edge is a different fact, so it arrives in a
+   * different field and every existing consumer sees exactly what it saw
+   * before.
+   */
+  readonly testEdges: ReadonlyMap<string, readonly string[]>;
 };
 
 function normalize(value: string): string {
@@ -54,6 +65,14 @@ function normalize(value: string): string {
 }
 
 const dependencyEdgeKinds = new Set(["imports", "depends_on"]);
+/**
+ * Edge kinds that say "this file exercises that one".
+ *
+ * Deliberately a SECOND set. Adding these to `dependencyEdgeKinds` would put
+ * test edges into `module-map.json`'s `internalImports`, which claims to list
+ * imports; the map's inputs are unchanged by this field's existence.
+ */
+const testEdgeKinds = new Set(["tested_by", "covered_by"]);
 const testNodeKinds = new Set(["test", "fixture"]);
 
 function columnIndex(columns: readonly string[], name: string): number {
@@ -114,12 +133,17 @@ export function collapseToFileGraph(projection: IntelProjection): IntelFileGraph
 
   const internalEdges = new Map<string, Set<string>>();
   const externalEdges = new Map<string, Set<string>>();
+  const testEdges = new Map<string, Set<string>>();
 
   for (const row of projection.edges.rows) {
     const kindCode = cellNumber(row[edgeKindColumn]);
     const kind = kindCode === undefined ? undefined : projection.dictionaries.edgeKinds[kindCode];
 
-    if (kind === undefined || !dependencyEdgeKinds.has(kind)) continue;
+    if (kind === undefined) continue;
+
+    const isDependency = dependencyEdgeKinds.has(kind);
+
+    if (!isDependency && !testEdgeKinds.has(kind)) continue;
 
     const sourceRow = cellNumber(row[edgeSourceColumn]);
     const targetRow = cellNumber(row[edgeTargetColumn]);
@@ -131,6 +155,17 @@ export function collapseToFileGraph(projection: IntelProjection): IntelFileGraph
     if (source === undefined) continue;
 
     const targetFile = pathByRow.get(targetRow);
+
+    if (!isDependency) {
+      // A test edge names two files or it names nothing Kit can use. There is
+      // no external analogue: an external module does not test this file.
+      if (targetFile === undefined || targetFile === source) continue;
+
+      const testBucket = testEdges.get(source) ?? new Set<string>();
+      testBucket.add(targetFile);
+      testEdges.set(source, testBucket);
+      continue;
+    }
 
     if (targetFile !== undefined) {
       // A file importing itself is not a dependency; it is the `contains` edge
@@ -157,7 +192,8 @@ export function collapseToFileGraph(projection: IntelProjection): IntelFileGraph
     filePaths: [...filePaths].sort((a, b) => a.localeCompare(b)),
     testFilePaths: [...testFilePaths].sort((a, b) => a.localeCompare(b)),
     internalEdges: sortedMap(internalEdges),
-    externalEdges: sortedMap(externalEdges)
+    externalEdges: sortedMap(externalEdges),
+    testEdges: sortedMap(testEdges)
   };
 }
 

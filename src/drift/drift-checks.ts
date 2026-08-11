@@ -17,6 +17,15 @@ export type DriftFindingDraft = Omit<DriftFinding, "id">;
 export type CurrentFileState = {
   readonly exists: (path: string) => boolean;
   readonly hash: (path: string) => string | undefined;
+  /**
+   * The canonical content hash of a retrieval input, for provenance entries
+   * recorded with `hashScope: "content"`.
+   *
+   * `undefined` from this function means the check could not be RUN — the
+   * artifact is not in a shape the reduction recognises — and never means the
+   * input changed.
+   */
+  readonly contentHash?: (path: string, label: string) => string | undefined;
 };
 
 function draft(input: DriftFindingDraft): DriftFindingDraft {
@@ -28,7 +37,20 @@ export function checkStaleContextProvenance(
   files: CurrentFileState
 ): readonly DriftFindingDraft[] {
   return pack.artifactProvenance.flatMap((provenance) => {
-    const actual = files.hash(provenance.path);
+    const contentScoped = provenance.hashScope === "content";
+    const actual = contentScoped
+      ? files.contentHash?.(provenance.path, provenance.label)
+      : files.hash(provenance.path);
+
+    // Three states, not two, for a content-scoped input: PRESENT, GONE, and
+    // "could not check". Only the file's absence is a missing verdict. An
+    // artifact that is on disk but whose canonical reduction could not be
+    // computed is UNVERIFIED — it may be identical, it may not — and inferring
+    // staleness from an unavailable check would report drift on the strength of
+    // Kit's own inability to look.
+    if (contentScoped && actual === undefined && files.exists(provenance.path)) {
+      return [];
+    }
 
     if (actual === undefined) {
       return [

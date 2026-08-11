@@ -12,7 +12,8 @@ import {
 import { detectLanguage } from "./language.js";
 import { type FileIndexEntry } from "./types.js";
 
-function isSourceLanguage(language: string): boolean {
+/** The languages scan can parse. See `FileIndexEntry.isRecognisedTextFile`. */
+function scanUnderstandsLanguage(language: string): boolean {
   return [
     "TypeScript",
     "JavaScript",
@@ -62,7 +63,7 @@ export async function scanFiles(rootPath: string, scannedAt: string): Promise<Fi
         language,
         isTestFile: isTestFilePath(relativePath),
         isConfigFile: isConfigFilePath(relativePath),
-        isSourceFile: isSourceLanguage(language) && !isBinaryPath(relativePath),
+        isRecognisedTextFile: scanUnderstandsLanguage(language) && !isBinaryPath(relativePath),
         lastScannedAt: scannedAt
       });
     }

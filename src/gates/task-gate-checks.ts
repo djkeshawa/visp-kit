@@ -1,4 +1,5 @@
 import { type Task } from "../artifacts/schemas/task.schema.js";
+import { normalizeRepositoryPath } from "../core/paths.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
 import { changedDependencyFiles, sourceChangedFiles } from "./artifact-presence.js";
 import { type GateCheck } from "./gate-result.js";
@@ -11,17 +12,50 @@ export function isBehaviorTask(task: Task): boolean {
 }
 
 /**
- * Scope entries that actually name a file.
+ * Does this scope entry name a file, or is it prose?
  *
- * The task generator writes `allowedFiles: ["TBD"]`, and forbiddenFiles
- * defaults to a prose rule rather than a path. Neither says anything about
- * which files may change, so neither counts as a declared scope.
+ * The distinction has to be made because the task generator writes
+ * `forbiddenFiles: ["Dependency manifests and lockfiles unless dependency
+ * approval is part of this task"]` — a rule, not a path — and counting that as
+ * a declared scope would classify from a sentence.
+ *
+ * The old test was "contains no space", which also removed `src/my file.ts`
+ * from the declared surface entirely and silently, taking M2 and both linkage
+ * rules with it. That is the same shape as the defect recorded forty lines
+ * below — the way to escape a check was to remove what the check reads — except
+ * performed by the parser rather than by an agent. A file whose name has a
+ * space in it is still a file.
+ *
+ * So a spaced entry is admitted when it looks like a path rather than a
+ * sentence: it must contain a directory separator AND end in a short file
+ * extension. The template's prose rule has neither. The residual case is prose
+ * that both contains a slash and ends in an extension ("Do not touch
+ * src/index.ts"); that reads as a declared path, which turns VSP012 on rather
+ * than off, so the remaining error is in the blocking direction.
+ */
+function namesAFile(value: string): boolean {
+  if (value.length === 0) return false;
+  if (!/\s/u.test(value)) return true;
+
+  return value.includes("/") && /\.[A-Za-z0-9]{1,8}$/u.test(value);
+}
+
+/**
+ * Scope entries that actually name a file, in ONE spelling.
+ *
+ * Normalisation happens here because this is the boundary every declared path
+ * crosses on its way to a join: `declaredSurface` builds the change surface
+ * from it, and the surface is then compared, by exact string, against scan's
+ * file index, against the module map and against intel's resolved paths. Scan
+ * writes `src/a.ts`; a task may write `./src/a.ts` or `src\a.ts`, and under
+ * either of those every one of those joins silently matched nothing — which
+ * does not read as a wrong answer, it reads as "this task has no linkage", and
+ * a task with no linkage is a task with no gate.
  */
 export function concreteScopePaths(paths: readonly string[]): readonly string[] {
-  return paths.filter((value) => {
-    const trimmed = value.trim();
-    return trimmed.length > 0 && trimmed.toUpperCase() !== "TBD" && !trimmed.includes(" ");
-  });
+  return paths
+    .map((value) => normalizeRepositoryPath(value))
+    .filter((value) => value.toUpperCase() !== "TBD" && namesAFile(value));
 }
 
 export function taskScopeChecks(state: ProjectState): readonly GateCheck[] {
@@ -29,10 +63,11 @@ export function taskScopeChecks(state: ProjectState): readonly GateCheck[] {
 
   if (task === undefined) return [];
 
-  const changed = sourceChangedFiles(state);
-  const forbidden = new Set(task.forbiddenFiles ?? []);
-  const expected = new Set(task.expectedFiles ?? []);
-  const allowed = new Set(task.allowedFiles);
+  // Same spelling on both sides of every membership test below.
+  const changed = sourceChangedFiles(state).map(normalizeRepositoryPath);
+  const forbidden = new Set((task.forbiddenFiles ?? []).map(normalizeRepositoryPath));
+  const expected = new Set((task.expectedFiles ?? []).map(normalizeRepositoryPath));
+  const allowed = new Set(task.allowedFiles.map(normalizeRepositoryPath));
   const forbiddenChanged = changed.filter((file) => forbidden.has(file));
 
   // An empty scope is not a permissive scope — it is an ABSENT one, and the

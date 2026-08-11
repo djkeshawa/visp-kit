@@ -26,6 +26,7 @@ import {
   summarizeDriftFindings,
   type CurrentFileState
 } from "../drift/drift-checks.js";
+import { retrievalInputContentHash } from "../context/retrieval-inputs.js";
 import { driftResult, renderDriftMarkdown } from "../drift/drift-report.js";
 import { implementMarkerPath } from "../gates/implement-marker.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
@@ -105,9 +106,12 @@ async function buildCurrentFileState(input: {
   readonly targetPath: string;
   readonly existencePaths: readonly string[];
   readonly hashPaths: readonly string[];
+  /** `path -> label` for provenance entries recorded with `hashScope: "content"`. */
+  readonly contentPaths: ReadonlyMap<string, string>;
 }): Promise<CurrentFileState> {
   const presence = new Map<string, boolean>();
   const hashes = new Map<string, string>();
+  const contentHashes = new Map<string, string>();
 
   for (const relative of new Set([...input.existencePaths, ...input.hashPaths])) {
     const absolute = resolvePath(input.targetPath, relative);
@@ -127,9 +131,24 @@ async function buildCurrentFileState(input: {
     }
   }
 
+  for (const [relative, label] of input.contentPaths) {
+    if (presence.get(relative) !== true) continue;
+
+    const raw = await readJsonFile<unknown>(resolvePath(input.targetPath, relative));
+
+    if (!raw.ok) continue;
+
+    const hash = retrievalInputContentHash({ label, raw: raw.value });
+
+    // Left absent when the reduction does not recognise the artifact, which the
+    // drift check reads as "could not verify" rather than "changed".
+    if (hash !== undefined) contentHashes.set(relative, hash);
+  }
+
   return {
     exists: (candidate) => presence.get(candidate) === true,
-    hash: (candidate) => hashes.get(candidate)
+    hash: (candidate) => hashes.get(candidate),
+    contentHash: (candidate) => contentHashes.get(candidate)
   };
 }
 
@@ -186,14 +205,29 @@ export async function runDriftWorkflow(
     ]) ?? [];
   const traceabilityTestPaths =
     state.value.traceability?.entries.flatMap((entry) => entry.testPaths) ?? [];
+  const contentPaths = new Map<string, string>(
+    contextPacks.flatMap((pack) =>
+      pack.artifactProvenance
+        .filter((provenance) => provenance.hashScope === "content")
+        .map((provenance) => [provenance.path, provenance.label] as const)
+    )
+  );
   const hashPaths = contextPacks.flatMap((pack) => [
-    ...pack.artifactProvenance.map((provenance) => provenance.path),
+    ...pack.artifactProvenance
+      .filter((provenance) => provenance.hashScope !== "content")
+      .map((provenance) => provenance.path),
     ...pack.includedFiles.map((file) => file.path)
   ]);
   const files = await buildCurrentFileState({
     targetPath,
-    existencePaths: [...scopePaths, ...testMapPaths, ...traceabilityTestPaths],
-    hashPaths
+    existencePaths: [
+      ...scopePaths,
+      ...testMapPaths,
+      ...traceabilityTestPaths,
+      ...contentPaths.keys()
+    ],
+    hashPaths,
+    contentPaths
   });
 
   const findings = runDriftChecks({

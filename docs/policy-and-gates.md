@@ -87,7 +87,18 @@ Supported stages:
 | VSP020 | stop_on_failed_gate | all stages | no |
 | VSP021 | block_on_unresolved_drift | pr | yes |
 | VSP022 | prevent_assurance_profile_lowering | task-aware gates | yes, with an auditable reason |
-| VSP026 | require_understanding_before_behavioural_implementation | implement | yes, with an auditable reason |
+| VSP026 † | require_understanding_before_behavioural_implementation | implement | yes, with an auditable reason |
+
+† **VSP026 is recorded, not enforced.** It is `false` in every strictness mode —
+`relaxed`, `standard`, `strict` and `locked` — so it is not one of the
+protections this table otherwise lists. It has never fired in a measured run:
+on the 29-task planned set used for the Phase 21 measurement, all 29 reached the
+ambiguous default because those task records declare no change surface, so the
+rule's misclassification rate is **unmeasured**. What runs today is the
+classification *record*, which `visp-kit gate` writes at `implement` and
+`verify` whether or not the rule is enabled — that record is the only instrument
+there is for finding out whether the rule is right, and it stays on. Treat the
+row above as a rule that exists and is off, not as a protection in force.
 
 Non-overridable rules cannot be bypassed by `.visp/overrides.json`.
 
@@ -155,14 +166,48 @@ prose.
 Two properties keep this from becoming over-gating:
 
 - **Contradicting evidence gates; absent evidence does not.** A file nobody has
-  indexed and whose path does not say "code" is not in the refuting set. A task
-  that declares nothing at all is still ungated, exactly as before.
-- **"Code" is narrower than `isSourceFile`.** Scan marks Markdown, JSON, CSS and
-  HTML as source files, so `isSourceFile` could never distinguish a
-  documentation task from a source one — every `.md` file in this repository is
-  `isSourceFile: true`, which is why M1 and M2 could not fire on the one class
-  they were written for. B4 asks whether the language is a programming language
+  indexed and whose path does not say "code" is not in the refuting set for an
+  UNDECLARED task. A task that declares nothing at all is still ungated, exactly
+  as before.
+- **"Code" is narrower than `isRecognisedTextFile`.** Scan marks Markdown, JSON,
+  CSS and HTML as recognised text files, so that flag could never distinguish a
+  documentation task from a source one — every `.md` file in this repository
+  sets it, which is why M1 and M2 could not fire on the one class they were
+  written for. B4 asks whether the language is a programming language
   (`isProgramFilePath`), which is what "non-test source file" was reaching for.
+  (The flag was called `isSourceFile` until it was renamed to say what it means;
+  the semantics did not change, and caches written under the old name are still
+  read.)
+
+### Three ways VSP026 could be defeated, and how each is closed
+
+All three were "the rule cannot fire", not "the rule decided wrongly".
+
+1. **The language list.** `isProgramFilePath` recognises seven languages out of
+   a twenty-extension map. Declaring `documentation` and putting the change in
+   Ruby, PHP, C, C++, C#, Swift, Scala, shell, SQL, `.vue`, `.svelte`, Dart or
+   Elixir made `detectLanguage` return `Other`, emptied the refuting set, and
+   left the task ungated — and it survived `verify` too, because the
+   realized-surface enforcement keys on B4's basis and B4 was precisely the rule
+   that could not fire. The fix is a second, **fail-closed** predicate,
+   `attestsMechanicalClass`, read only when a mechanical class was *declared*: a
+   file whose language cannot corroborate the claim refutes it. Markdown, JSON
+   and YAML attest; CSS and HTML do not (a stylesheet is not documentation); an
+   unrecognised extension does not. The asymmetry is deliberate — absent
+   evidence still does not gate an undeclared task.
+2. **The surface spelling.** The declared surface was not normalised, so
+   `./src/a.ts` reached the classifier verbatim while scan's index holds
+   `src/a.ts`. Both linkage joins are exact string comparisons, so B2 and B3
+   went silently empty and a task declaring no class fell to the ungated
+   default. Paths are now normalised once at the boundary
+   (`normalizeRepositoryPath`), used by `declaredSurface` and by every index
+   join.
+3. **The space filter.** `concreteScopePaths` dropped any entry containing a
+   space, which removed `src/my file.ts` from the surface entirely and silently
+   — the same shape as the VSP012 defect this document records, performed by the
+   parser rather than by an agent. A spaced entry is now admitted when it looks
+   like a path (a directory separator and a file extension) rather than like the
+   task generator's prose rule.
 
 `visp-kit verify` re-runs the classification against the **realized** change
 surface — the diff, not the declaration. When that realized surface refutes a
@@ -229,6 +274,45 @@ Kit reads two optional files from `.visp-intel/` and writes neither:
   package-manager facts (versions, scripts, lockfiles) that a code graph does
   not carry. Scan writes what it read to `.visp/cache/intel-scan.json`; the
   other scan artifacts are unchanged by the presence of a store.
+
+  **`visp-kit context` reads the same file.** From the files a task already
+  touches — its declared `allowedFiles`/`expectedFiles`, the understanding
+  case's path and signature files, or failing both the top three lexical hits —
+  a bounded breadth-first walk over the projection's file-grain import and test
+  edges scores every file within two hops (`file → (0, 1]`, seed 1.0, hop 1
+  0.5, hop 2 0.25, at most 256 files reached, orderings by code point so the
+  result does not depend on the ambient locale). That map is consumed in exactly
+  one place, as a bounded **addition**:
+
+  - at most **two** eligible hop-1 files the lexical ranking did not select are
+    **appended** to the candidate list;
+  - they are appended, never substituted, so the file list with a graph is an
+    order-preserving extension of the list without one — no graph fact can take
+    a file's body away;
+  - they receive a summary and **never** a snippet: `allocateSnippets` is handed
+    exactly the list it would have seen with no graph, so the reserved relevance
+    floor and the cited path's snippet budget are untouched;
+  - hop-2 files never buy a slot;
+  - every admitted file passes the same eligibility join as any other candidate
+    — indexed, not forbidden, not ignored, not binary, not a lockfile.
+
+  Every threshold above is a literal in `src/context/context-selector.ts`. The
+  projection supplies facts about the tree and no score, no readiness flag and
+  no budget. A missing, oversized, unparseable or non-head projection, an empty
+  seed set, or a repository whose graph reaches nothing all produce the
+  identical pack Kit would produce with no intel at all.
+
+  **Compaction is not affected.** The mode that withholds whole-file bodies
+  fires on the presence of a task-scoped understanding case and on nothing else.
+  The projection is repository-wide and present on every task once intel has run
+  once; if it could set that mode, indexing a repository would shrink every pack
+  in it forever with no per-task evidence behind any of them.
+
+  The pack records what it read: `artifactProvenance` now also carries the file
+  index, the file summaries, the module map and the projection, hashed by
+  content rather than by bytes so a re-scan that changed nothing is not reported
+  as drift. An entry whose content hash cannot be recomputed is *unverified*,
+  which is not the same as stale and produces no finding.
 
   **Not `.visp-intel/graph.json`.** Scan read the archival `repo export` until
   the projection existed, and on most repositories the read never happened: the

@@ -6,6 +6,7 @@ import {
   dependencyMapArtifactPath,
   fileIndexArtifactPath,
   fileSummariesArtifactPath,
+  intelProjectionArtifactPath,
   moduleMapArtifactPath,
   patternsArtifactPath,
   policyArtifactPath,
@@ -36,6 +37,7 @@ import { pathExists, readJsonFile, readTextFile } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { loadEffectiveGatePolicy } from "../gates/effective-policy.js";
+import { fileIndexCacheSchema } from "../scanner/file-index-cache.js";
 import { type FileIndexEntry, type FileSummary } from "../scanner/types.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 import {
@@ -46,7 +48,12 @@ import {
 } from "./context-budget.js";
 import { estimateContextPackInputTokens, selectContextPack } from "./context-selector.js";
 import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
-import { readScanIntelInstanceId } from "../scanner/intel-graph.js";
+import { loadIntelGraph, readScanIntelInstanceId } from "../scanner/intel-graph.js";
+import {
+  RETRIEVAL_INPUT_LABELS,
+  retrievalInputContentHash,
+  type RetrievalInputLabel
+} from "./retrieval-inputs.js";
 import {
   readUnderstandingExport,
   understandingCurrentness
@@ -54,24 +61,6 @@ import {
 import { understandingView } from "../understanding/understanding-view.js";
 import { renderContextMarkdown } from "./context-renderer.js";
 import { estimateTokenRange, estimateTokens, tokenEstimatorName } from "./token-estimator.js";
-
-const fileIndexCacheSchema = z.object({
-  files: z.array(
-    z
-      .object({
-        path: z.string(),
-        extension: z.string(),
-        sizeBytes: z.number(),
-        hash: z.string(),
-        language: z.string(),
-        isTestFile: z.boolean(),
-        isConfigFile: z.boolean(),
-        isSourceFile: z.boolean(),
-        lastScannedAt: z.string()
-      })
-      .strict()
-  )
-});
 
 const fileSummariesCacheSchema = z.object({
   items: z.array(
@@ -495,6 +484,63 @@ async function collectArtifactProvenance(input: {
   return provenance;
 }
 
+/**
+ * Provenance for the four artifacts the FILE SELECTION reads.
+ *
+ * Separate from `collectArtifactProvenance` because the hash means something
+ * different — see `retrieval-inputs.ts` — and because these entries are
+ * conditional on the artifact being both present and parseable, where the nine
+ * authored artifacts are conditional only on presence. An input that is absent
+ * contributes no entry, which is the correct record: a pack built with no
+ * projection was not a function of one.
+ */
+async function collectRetrievalInputProvenance(input: {
+  readonly targetPath: string;
+  readonly hasIntelFileGraph: boolean;
+}): Promise<ContextArtifactProvenance[]> {
+  const candidates: readonly { readonly label: RetrievalInputLabel; readonly path: string }[] = [
+    { label: RETRIEVAL_INPUT_LABELS.fileIndex, path: fileIndexArtifactPath(input.targetPath) },
+    {
+      label: RETRIEVAL_INPUT_LABELS.fileSummaries,
+      path: fileSummariesArtifactPath(input.targetPath)
+    },
+    { label: RETRIEVAL_INPUT_LABELS.moduleMap, path: moduleMapArtifactPath(input.targetPath) },
+    // Recorded only when the projection was actually USED. A projection on disk
+    // that `loadIntelGraph` refused — oversized, unparseable, or describing a
+    // snapshot that was not the head — did not condition this pack, and saying
+    // it did would be a stronger provenance claim than Kit holds.
+    ...(input.hasIntelFileGraph
+      ? [
+          {
+            label: RETRIEVAL_INPUT_LABELS.intelProjection,
+            path: intelProjectionArtifactPath(input.targetPath)
+          }
+        ]
+      : [])
+  ];
+  const provenance: ContextArtifactProvenance[] = [];
+
+  for (const candidate of candidates) {
+    const raw = await readJsonFile<unknown>(candidate.path);
+
+    if (!raw.ok) continue;
+
+    const hash = retrievalInputContentHash({ label: candidate.label, raw: raw.value });
+
+    if (hash === undefined) continue;
+
+    provenance.push({
+      label: candidate.label,
+      path: relativePath(input.targetPath, candidate.path),
+      hash,
+      hashAlgorithm: "sha256",
+      hashScope: "content"
+    });
+  }
+
+  return provenance;
+}
+
 export async function compileContext(
   input: ContextCompilationInput
 ): Promise<Result<ContextCompilation, VispError>> {
@@ -581,11 +627,29 @@ export async function compileContext(
     label: "file summaries",
     warnings
   });
-  const artifactProvenance = await collectArtifactProvenance({
-    targetPath: input.targetPath,
-    featureKey: input.feature.key,
-    warnings
-  });
+  // Intel INFORMS. This reads a ≤16 MiB JSON artifact off disk and reuses
+  // `loadIntelGraph`'s existing size bound, schema check and
+  // snapshotId===headSnapshotId currency rule rather than restating any of
+  // them. It does NOT load intel's store and never shells out to the intel CLI,
+  // so the ~24s `repo describe` cost on a large store stays out of the
+  // retrieval path.
+  //
+  // Its warnings are deliberately NOT appended to the pack. They are about the
+  // state of a scan input and scan already raises them; adding them here would
+  // make a pack's text differ between a project that has intel and one that
+  // does not for reasons unrelated to what the pack contains.
+  const intelGraph = await loadIntelGraph(input.targetPath);
+  const artifactProvenance = [
+    ...(await collectArtifactProvenance({
+      targetPath: input.targetPath,
+      featureKey: input.feature.key,
+      warnings
+    })),
+    ...(await collectRetrievalInputProvenance({
+      targetPath: input.targetPath,
+      hasIntelFileGraph: intelGraph.fileGraph !== undefined
+    }))
+  ];
   const baseCommit = await captureBaseCommit({
     targetPath: input.targetPath,
     runner: input.commandRunner ?? defaultCommandRunner
@@ -638,6 +702,7 @@ export async function compileContext(
     fileSummaries: fileSummaries?.items as readonly FileSummary[] | undefined,
     projectProfile,
     ...(understanding === undefined ? {} : { understanding }),
+    ...(intelGraph.fileGraph === undefined ? {} : { fileGraph: intelGraph.fileGraph }),
     warnings
   });
   const grounded = {

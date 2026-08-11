@@ -5,10 +5,11 @@ import { optionalArtifact } from "../artifacts/optional-artifact.js";
 import { type ContextPack } from "../artifacts/schemas/context-pack.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type UnderstandingCaseExport } from "../artifacts/schemas/understanding.schema.js";
-import { joinPath, vispDir } from "../core/paths.js";
+import { joinPath, normalizeRepositoryPath, vispDir } from "../core/paths.js";
+import { recognisedTextFile, recognisedTextFileFields } from "../scanner/file-index-cache.js";
 import { isTestFilePath } from "../scanner/ignore-rules.js";
 import { readScanIntelInstanceId } from "../scanner/intel-graph.js";
-import { isProgramFilePath } from "../scanner/language.js";
+import { attestsMechanicalClass, isProgramFilePath } from "../scanner/language.js";
 import { type ModuleMap } from "../scanner/module-map.js";
 import {
   readUnderstandingExport,
@@ -27,14 +28,16 @@ import {
 
 const fileIndexSchema = z.object({
   files: z.array(
-    z.object({
-      path: z.string(),
-      isSourceFile: z.boolean(),
-      // Optional so an index written before this field mattered still parses;
-      // `isTestFilePath` answers the same question from the path when it is
-      // absent, using the rule scan itself used to set it.
-      isTestFile: z.boolean().optional()
-    })
+    z
+      .object({
+        path: z.string(),
+        ...recognisedTextFileFields,
+        // Optional so an index written before this field mattered still parses;
+        // `isTestFilePath` answers the same question from the path when it is
+        // absent, using the rule scan itself used to set it.
+        isTestFile: z.boolean().optional()
+      })
+      .transform((entry) => ({ ...entry, isRecognisedTextFile: recognisedTextFile(entry) }))
   )
 });
 
@@ -130,17 +133,26 @@ export async function evaluateUnderstandingGate(
   input: UnderstandingGateInput
 ): Promise<UnderstandingGateEvaluation> {
   const warnings: string[] = [];
-  const surface =
-    input.realizedSurface === undefined ? declaredSurface(input.task) : [...input.realizedSurface];
+  // One spelling, once, at the boundary. Everything below joins this list
+  // against scan's index, the module map and intel's resolved paths by exact
+  // string, and a task that wrote `./src/a.ts` used to match none of them —
+  // which emptied the linkage and left the task at the ungated default.
+  const surface = (
+    input.realizedSurface === undefined ? declaredSurface(input.task) : [...input.realizedSurface]
+  ).map(normalizeRepositoryPath);
   const fileIndex = await optionalArtifact({
     path: fileIndexArtifactPath(input.targetPath),
     schema: fileIndexSchema,
     artifactName: "file index",
     warnings
   });
-  const indexedFiles = new Set((fileIndex?.files ?? []).map((file) => file.path));
-  const sourceFiles = new Set(
-    (fileIndex?.files ?? []).filter((file) => file.isSourceFile).map((file) => file.path)
+  const indexedFiles = new Set(
+    (fileIndex?.files ?? []).map((file) => normalizeRepositoryPath(file.path))
+  );
+  const recognisedTextFiles = new Set(
+    (fileIndex?.files ?? [])
+      .filter((file) => file.isRecognisedTextFile)
+      .map((file) => normalizeRepositoryPath(file.path))
   );
   // Absence of evidence is not evidence of absence, and it has to hold per
   // FILE, not only for the index as a whole. A file scan has never seen — the
@@ -151,23 +163,40 @@ export async function evaluateUnderstandingGate(
   // said nothing of the kind about. M1 and M2 now fire only on files the index
   // knows and reports as non-source.
   const sourceSurface = surface.filter(
-    (file) => fileIndex === undefined || !indexedFiles.has(file) || sourceFiles.has(file)
+    (file) => fileIndex === undefined || !indexedFiles.has(file) || recognisedTextFiles.has(file)
   );
   const indexTestFiles = new Set(
-    (fileIndex?.files ?? []).filter((file) => file.isTestFile === true).map((file) => file.path)
+    (fileIndex?.files ?? [])
+      .filter((file) => file.isTestFile === true)
+      .map((file) => normalizeRepositoryPath(file.path))
   );
-  // B4's evidence: surface files POSITIVELY known to be non-test executable
-  // code. `isSourceFile` alone cannot answer this — it is `true` for Markdown,
-  // so "no source file in the surface" was never true of a documentation task
-  // and M1/M2 could not fire on one. `isProgramFilePath` is the narrower
-  // question, and a file must clear BOTH: scan saw it and calls it a source
-  // file, and its language is a programming language.
-  const codeSurface = surface.filter((file) => {
-    if (isTestFilePath(file) || indexTestFiles.has(file)) return false;
-    if (!isProgramFilePath(file)) return false;
-
-    return !indexedFiles.has(file) || sourceFiles.has(file);
-  });
+  // B4's evidence, in two lists that answer the same question from opposite
+  // failure directions.
+  //
+  // `codeSurface` is FAIL-OPEN and unchanged: surface files POSITIVELY known to
+  // be non-test executable code. `isRecognisedTextFile` alone cannot answer
+  // this — it is `true` for Markdown, so "no source file in the surface" was
+  // never true of a documentation task. `isProgramFilePath` is the narrower
+  // question, and a file must clear BOTH: scan saw it and recognised its
+  // language, and that language is a programming language.
+  //
+  // `unattestedSurface` is FAIL-CLOSED and new: non-test surface files whose
+  // language cannot corroborate a declared mechanical class — an extension
+  // nobody here can classify, or markup. It is read by B4 alone, so it can only
+  // ever affect a task that DECLARED such a class; an undeclared task sees
+  // exactly the previous behaviour, which is what ADR 0014's failure direction
+  // protects.
+  const nonTestSurface = surface.filter(
+    (file) => !isTestFilePath(file) && !indexTestFiles.has(file)
+  );
+  const scanCallsItText = (file: string): boolean =>
+    !indexedFiles.has(file) || recognisedTextFiles.has(file);
+  const codeSurface = nonTestSurface.filter(
+    (file) => isProgramFilePath(file) && scanCallsItText(file)
+  );
+  const unattestedSurface = nonTestSurface.filter(
+    (file) => !isProgramFilePath(file) && !attestsMechanicalClass(file)
+  );
   const understanding = await readUnderstandingExport({
     targetPath: input.targetPath,
     taskId: input.task.id,
@@ -197,6 +226,7 @@ export async function evaluateUnderstandingGate(
     surface,
     sourceSurface,
     codeSurface,
+    unattestedSurface,
     linkage
   });
 
@@ -339,12 +369,16 @@ function conditionChecks(input: {
         }
   );
 
-  const surface = new Set(input.surface);
+  const surface = new Set(input.surface.map(normalizeRepositoryPath));
   const strayCandidates = input.understanding.case.candidateChangeEntityIds
-    .map((entityId) => ({
-      entityId,
-      filePath: input.understanding.resolution[entityId]?.filePath ?? null
-    }))
+    .map((entityId) => {
+      const resolved = input.understanding.resolution[entityId]?.filePath ?? null;
+
+      return {
+        entityId,
+        filePath: resolved === null ? null : normalizeRepositoryPath(resolved)
+      };
+    })
     .filter((entry) => entry.filePath === null || !surface.has(entry.filePath));
 
   checks.push(

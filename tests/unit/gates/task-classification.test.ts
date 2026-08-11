@@ -14,8 +14,9 @@ import {
   linkageFromUnderstanding,
   noSurfaceLinkage
 } from "../../../src/gates/task-classification.js";
+import { concreteScopePaths } from "../../../src/gates/task-gate-checks.js";
 import { isTestFilePath } from "../../../src/scanner/ignore-rules.js";
-import { isProgramFilePath } from "../../../src/scanner/language.js";
+import { attestsMechanicalClass, isProgramFilePath } from "../../../src/scanner/language.js";
 import { type ModuleMap } from "../../../src/scanner/module-map.js";
 
 function task(overrides: Partial<Task> = {}): Task {
@@ -39,6 +40,7 @@ function classify(input: {
   readonly task: Task;
   readonly sourceSurface?: readonly string[];
   readonly codeSurface?: readonly string[];
+  readonly unattestedSurface?: readonly string[];
   readonly linkage?: Parameters<typeof classifyTask>[0]["linkage"];
 }) {
   const surface = declaredSurface(input.task);
@@ -53,6 +55,11 @@ function classify(input: {
     codeSurface:
       input.codeSurface ??
       surface.filter((file) => isProgramFilePath(file) && !isTestFilePath(file)),
+    unattestedSurface:
+      input.unattestedSurface ??
+      surface.filter(
+        (file) => !isTestFilePath(file) && !isProgramFilePath(file) && !attestsMechanicalClass(file)
+      ),
     linkage: input.linkage ?? noSurfaceLinkage
   });
 }
@@ -105,7 +112,7 @@ describe("VSP026 task classification", () => {
    * The realistic version of the test above, and the reason M1 needed a
    * different input than `sourceSurface`.
    *
-   * Scan's `isSourceFile` is `true` for Markdown — every `.md` file in this
+   * Scan's `isRecognisedTextFile` is `true` for Markdown — every `.md` file in this
    * repository is indexed that way — so a documentation task's `sourceSurface`
    * is NOT empty and M1's old condition could not fire on the one class it was
    * written for. The rule now asks whether the surface holds non-test
@@ -460,5 +467,125 @@ describe("declared surface", () => {
     expect(declaredSurface(task({ allowedFiles: ["TBD"], expectedFiles: ["src/a.ts"] }))).toEqual([
       "src/a.ts"
     ]);
+  });
+});
+
+/**
+ * The three ways a task could reach `implement` ungated through VSP026, all
+ * named from source and all closed here.
+ *
+ * Route 1 is the language list: `isProgramFilePath` recognised seven languages,
+ * so B4 — the rule whose entire job is stopping a task from choosing its own
+ * gate — could not fire on a change written in any of the others.
+ *
+ * Route 2 is the spelling: the declared surface was not normalised, so
+ * `./src/a.ts` never joined scan's index and both linkage rules went silently
+ * empty.
+ *
+ * Route 3 is the parser: an entry containing a space was dropped from the
+ * surface entirely, taking M2 and both linkage rules with it. Which is the same
+ * shape as the defect this file's neighbour already records — the way to escape
+ * the check was to remove what the check reads — performed by the parser
+ * instead of by an agent.
+ */
+describe("VSP026 defeat routes", () => {
+  it("route 1: a declared documentation class does not survive a change in an unrecognised language", () => {
+    const result = classify({
+      task: task({ taskClass: "documentation", allowedFiles: ["src/app.rb"] })
+    });
+
+    expect(result.verdict).toBe("behavioural");
+    expect(result.basis).toEqual(["B4_mechanical_class_refuted_by_surface"]);
+    expect(result.evidence.join(" ")).toContain("unattestedInSurface=src/app.rb");
+  });
+
+  it("route 1: markup is not documentation either", () => {
+    for (const filePath of ["src/theme.css", "public/index.html"]) {
+      expect(
+        classify({ task: task({ taskClass: "documentation", allowedFiles: [filePath] }) }).verdict
+      ).toBe("behavioural");
+    }
+  });
+
+  it("route 1: prose, fixtures and configuration still corroborate the class", () => {
+    for (const filePath of ["docs/readme.md", "tests/fixtures/data.json", "ci/build.yml"]) {
+      const result = classify({
+        task: task({ taskClass: "documentation", allowedFiles: [filePath] })
+      });
+
+      expect(result.verdict, filePath).toBe("mechanical");
+      expect(result.basis).toEqual(["M1_documentation_or_regression_test_only"]);
+    }
+  });
+
+  /**
+   * The asymmetry, stated deliberately. Fail-closed applies to a task that made
+   * a claim its evidence cannot corroborate. It must NOT apply to a task that
+   * claimed nothing: ADR 0014's failure direction protects the ambiguous task,
+   * and over-gating a trivial edit is what teaches an agent that the gate is
+   * noise.
+   */
+  it("route 1: an undeclared task in the same unrecognised language is still not gated", () => {
+    const result = classify({ task: task({ allowedFiles: ["src/app.rb"] }) });
+
+    expect(result.verdict).toBe("mechanical");
+    expect(result.basis).toEqual(["ambiguous_default_mechanical"]);
+  });
+
+  it("route 2: a ./-spelled surface still joins scan's index", () => {
+    expect(declaredSurface(task({ allowedFiles: ["./src/a.ts", "src\\b.ts"] }))).toEqual([
+      "src/a.ts",
+      "src/b.ts"
+    ]);
+  });
+
+  it("route 2: a ./-spelled surface still links through the module map", () => {
+    const moduleMap: ModuleMap = {
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      sourceRoots: ["src"],
+      modules: [
+        {
+          name: "src",
+          root: "src",
+          files: ["src/a.ts", "src/b.ts"],
+          testFiles: [],
+          internalImports: ["src/b.ts"],
+          externalDependencies: []
+        }
+      ]
+    };
+
+    expect(
+      linkageFromModuleMap({
+        moduleMap,
+        surface: ["./src/a.ts", "./src/b.ts"],
+        indexedFiles: new Set(["src/a.ts", "src/b.ts"])
+      }).linkedSurfaceFiles
+    ).toEqual(["src/a.ts", "src/b.ts"]);
+  });
+
+  it("route 2: a ./-spelled surface still refutes a declared mechanical class", () => {
+    expect(
+      classify({ task: task({ taskClass: "documentation", allowedFiles: ["./src/a.ts"] }) }).verdict
+    ).toBe("behavioural");
+  });
+
+  it("route 3: a file whose name has a space in it is still a file", () => {
+    expect(declaredSurface(task({ allowedFiles: ["src/my file.ts"] }))).toEqual(["src/my file.ts"]);
+    expect(
+      classify({ task: task({ taskClass: "documentation", allowedFiles: ["src/my file.ts"] }) })
+        .verdict
+    ).toBe("behavioural");
+  });
+
+  it("route 3: the task generator's prose rule is still not a declared path", () => {
+    expect(
+      concreteScopePaths([
+        "Dependency manifests and lockfiles unless dependency approval is part of this task",
+        "TBD",
+        "   ",
+        "src/a.ts"
+      ])
+    ).toEqual(["src/a.ts"]);
   });
 });

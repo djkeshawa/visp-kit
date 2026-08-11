@@ -33,7 +33,16 @@ export type FileIndexEntry = {
   readonly language: string;
   readonly isTestFile: boolean;
   readonly isConfigFile: boolean;
-  readonly isSourceFile: boolean;
+  /**
+   * A text file in a language scan can parse — TypeScript, JavaScript, CSS,
+   * HTML, JSON, Markdown, Java, Kotlin, Python, Go, Rust — and not a binary.
+   *
+   * NOT "is this code". Every `.md` file in this repository sets it. The
+   * separate question is `isProgramFilePath` in `scanner/language.ts`, and the
+   * two are kept apart deliberately: `codeSurface` requires both, which is what
+   * B4 — the rule that stops a task choosing its own gate — is built on.
+   */
+  readonly isRecognisedTextFile: boolean;
   readonly lastScannedAt: string;
 };
 

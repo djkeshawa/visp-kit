@@ -86,6 +86,44 @@ describe("collapsing intel's consumer projection to file grain", () => {
     expect(graph.filePaths).toEqual(["src/a.ts", "src/b.ts", "tests/a.spec.ts"]);
   });
 
+  /**
+   * Test edges arrive in their OWN field. The module map is built from
+   * `internalEdges`, its artifact contract calls those entries imports, and its
+   * recorded precision and recall are statements about imports — so a test edge
+   * that leaked into that map would silently restate a measured number as
+   * something else.
+   */
+  it("collects tested_by and covered_by separately from the dependency edges", () => {
+    const value = projection();
+    const graph = collapseToFileGraph({
+      ...value,
+      dictionaries: {
+        ...value.dictionaries,
+        edgeKinds: ["imports", "contains", "depends_on", "tested_by", "covered_by"]
+      },
+      edges: {
+        ...value.edges,
+        rows: [
+          // src/a.ts -> src/b.ts, an ordinary import.
+          [0, 1, 0, 0, 0, null, null, 0],
+          // src/a.ts tested_by tests/a.spec.ts.
+          [0, 2, 3, 0, 0, null, null, 0],
+          // src/b.ts covered_by tests/a.spec.ts.
+          [1, 2, 4, 0, 0, null, null, 0],
+          // A file testing itself is not a fact about two files.
+          [2, 2, 3, 0, 0, null, null, 0]
+        ]
+      }
+    });
+
+    expect(graph.testEdges.get("src/a.ts")).toEqual(["tests/a.spec.ts"]);
+    expect(graph.testEdges.get("src/b.ts")).toEqual(["tests/a.spec.ts"]);
+    expect(graph.testEdges.has("tests/a.spec.ts")).toBe(false);
+    // The dependency view is exactly what it was.
+    expect(graph.internalEdges.get("src/a.ts")).toEqual(["src/b.ts"]);
+    expect(graph.internalEdges.get("src/b.ts")).toBeUndefined();
+  });
+
   it("ignores edge kinds that are not dependencies, and a file importing itself", () => {
     const value = projection();
     const graph = collapseToFileGraph({
@@ -180,7 +218,7 @@ describe("module map backed by intel", () => {
       language: "TypeScript",
       isTestFile: false,
       isConfigFile: false,
-      isSourceFile: true,
+      isRecognisedTextFile: true,
       lastScannedAt: "2026-01-01T00:00:00.000Z"
     },
     {
@@ -191,7 +229,7 @@ describe("module map backed by intel", () => {
       language: "TypeScript",
       isTestFile: false,
       isConfigFile: false,
-      isSourceFile: true,
+      isRecognisedTextFile: true,
       lastScannedAt: "2026-01-01T00:00:00.000Z"
     }
   ];

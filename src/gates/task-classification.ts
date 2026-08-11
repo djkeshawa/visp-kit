@@ -1,6 +1,7 @@
 import { type RiskFactorCode, type TaskClass } from "../artifacts/schemas/common.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type UnderstandingCaseExport } from "../artifacts/schemas/understanding.schema.js";
+import { normalizeRepositoryPath } from "../core/paths.js";
 import { type ModuleMap } from "../scanner/module-map.js";
 import { concreteScopePaths } from "./task-gate-checks.js";
 
@@ -152,10 +153,15 @@ export function linkageFromUnderstanding(input: {
   readonly export: UnderstandingCaseExport;
   readonly surface: readonly string[];
 }): SurfaceLinkage {
-  const surface = new Set(input.surface);
+  const surface = new Set(input.surface.map(normalizeRepositoryPath));
   const filePathOf = (entityId: string): string | undefined => {
     const entry = input.export.resolution[entityId];
-    return entry?.filePath ?? undefined;
+    // Normalised on both sides of the join: intel resolves an entity to a path
+    // it chose the spelling of, and the surface is a path a task author chose
+    // the spelling of.
+    return entry?.filePath === null || entry?.filePath === undefined
+      ? undefined
+      : normalizeRepositoryPath(entry.filePath);
   };
   const linked = new Set<string>();
   const inbound = new Set<string>();
@@ -206,17 +212,20 @@ export function linkageFromModuleMap(input: {
   readonly surface: readonly string[];
   readonly indexedFiles: ReadonlySet<string>;
 }): SurfaceLinkage {
-  const surface = new Set(input.surface);
+  const surface = new Set(input.surface.map(normalizeRepositoryPath));
+  const indexedFiles = new Set([...input.indexedFiles].map(normalizeRepositoryPath));
   const linked = new Set<string>();
 
   for (const module of input.moduleMap.modules) {
-    const members = [...module.files, ...module.testFiles].filter((file) => surface.has(file));
+    const members = [...module.files, ...module.testFiles]
+      .map(normalizeRepositoryPath)
+      .filter((file) => surface.has(file));
 
     if (members.length < 2) continue;
 
-    const resolvedImports = module.internalImports.filter(
-      (target) => input.indexedFiles.has(target) && surface.has(target)
-    );
+    const resolvedImports = module.internalImports
+      .map(normalizeRepositoryPath)
+      .filter((target) => indexedFiles.has(target) && surface.has(target));
 
     if (resolvedImports.length === 0) continue;
 
@@ -245,6 +254,19 @@ export type TaskClassificationInput = {
    * mechanical class, so it must never be populated by a guess.
    */
   readonly codeSurface: readonly string[];
+  /**
+   * Non-test surface entries whose language CANNOT corroborate a declared
+   * mechanical class: an extension nobody in this codebase can classify, or
+   * markup that is part of a running interface.
+   *
+   * Read only by B4, and therefore only for a task that declared such a class.
+   * This is the fail-closed list, and it exists because `codeSurface` is
+   * fail-open by design: `codeSurface` protects the AMBIGUOUS task, the one
+   * whose evidence is missing, and a task that declared `documentation` and put
+   * its change in a file nobody can classify is the other case — it made a
+   * claim the evidence cannot corroborate.
+   */
+  readonly unattestedSurface: readonly string[];
   /** E3/E4. */
   readonly linkage: SurfaceLinkage;
 };
@@ -309,16 +331,34 @@ export function classifyTask(input: TaskClassificationInput): TaskClassification
   // match too. The verify-stage enforcement keys on that basis; when B2 could
   // pre-empt it, a refuted declaration on two linked files was reported as
   // ordinary drift and went unenforced.
+  //
+  // Two lists refute, and the basis string is deliberately the SAME for both.
+  // `codeSurface` is a file positively known to be executable code;
+  // `unattestedSurface` is a file whose language cannot corroborate the
+  // declaration — an unrecognised extension, or markup. The second is the
+  // fail-closed half added after the language list turned out to recognise
+  // seven languages, which made "declare documentation, edit Ruby" an ungated
+  // task. One basis, because the verify-stage enforcement keys on it and both
+  // cases are the same finding: a declaration its own diff does not support.
+  // The evidence tags keep them distinguishable for measurement.
   const mechanicalClass = declaredMechanicalClass(task);
+  const refutingEvidence =
+    mechanicalClass === undefined ||
+    !mechanicalClassCorroboration[mechanicalClass].refutedByCodeInSurface
+      ? []
+      : [
+          ...(input.codeSurface.length > 0
+            ? [`E1/E4:codeInSurface=${input.codeSurface.join(",")}`]
+            : []),
+          ...(input.unattestedSurface.length > 0
+            ? [`E1/E4:unattestedInSurface=${input.unattestedSurface.join(",")}`]
+            : [])
+        ];
 
-  if (
-    mechanicalClass !== undefined &&
-    mechanicalClassCorroboration[mechanicalClass].refutedByCodeInSurface &&
-    input.codeSurface.length > 0
-  ) {
+  if (mechanicalClass !== undefined && refutingEvidence.length > 0) {
     return behavioural("B4_mechanical_class_refuted_by_surface", [
       `E2:taskClass=${mechanicalClass}`,
-      `E1/E4:codeInSurface=${input.codeSurface.join(",")}`
+      ...refutingEvidence
     ]);
   }
 

@@ -10,11 +10,14 @@ import {
 import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type ProjectProfile } from "../artifacts/schemas/project.schema.js";
+import { compareByCodepoint, normalizeRepositoryPath } from "../core/paths.js";
 import { shouldIgnorePath, isBinaryPath, isLockFile } from "../scanner/ignore-rules.js";
+import { type IntelFileGraph } from "../scanner/intel-graph.js";
 import { type FileIndexEntry, type FileSummary } from "../scanner/types.js";
 import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 import { type ContextBudgetPolicy } from "./context-budget.js";
 import { extractFileSnippet } from "./file-snippets.js";
+import { structuralProximity } from "./structural-proximity.js";
 import { estimateJsonTokens, estimateTokens, tokenEstimatorName } from "./token-estimator.js";
 import { findReuseHelpers } from "./reuse-helpers.js";
 
@@ -41,6 +44,19 @@ export type ContextSelectionInput = {
    * changed". Absent, every line below behaves exactly as it did before.
    */
   readonly understanding?: ContextUnderstanding;
+  /**
+   * Intel's consumer projection, collapsed to file grain, when this project has
+   * a current one on disk.
+   *
+   * It carries FACTS ONLY — which files import which, which files test which,
+   * at a stated snapshot. It carries no score, no threshold, no readiness flag
+   * and no budget, and there is deliberately nowhere for one to arrive: every
+   * number that turns these facts into a selection is a literal in this file.
+   *
+   * Absent, every line below behaves exactly as it did before intel existed.
+   * That is asserted, not hoped for: the absence test compares whole packs.
+   */
+  readonly fileGraph?: IntelFileGraph;
   readonly warnings: readonly string[];
 };
 
@@ -99,6 +115,52 @@ const COMPACT_PATH_SNIPPET_BUDGET = Math.max(
  * to avoid.
  */
 const COMPACT_MAX_PATH_ONLY_FILES = COMPACT_PATH_SNIPPET_BUDGET;
+
+/**
+ * Structural admission (Phase 22), and why every number below is here rather
+ * than in the artifact it reads.
+ *
+ * Intel states that `a.ts` imports `b.ts`. It does not state that `b.ts` is
+ * worth 0.5, that 0.5 is enough to earn a place in a pack, or that two places
+ * are what a task can afford. Those three are Kit's judgement about intel's
+ * facts, they are visible in Kit's diff, and the day any of them arrives from
+ * the artifact instead, intel is deciding.
+ *
+ * The shape is `orderByPathMembership`'s, on purpose. That shape is the
+ * corrected form of the Phase 21 defect, and the properties it was corrected
+ * into are the ones this must not break:
+ *
+ *  - ADDITIVE. Structure appends; it never displaces and never filters. The
+ *    bodied set with a graph is a SUPERSET of the bodied set without one, so no
+ *    graph fact can take a file's body away. A signal that can do that is
+ *    deciding what the model may not see, and that is the one power that stays
+ *    out.
+ *  - FLOORED. Every one of the lexical ranking's `maxFiles` slots survives
+ *    untouched. Text relevance earned 0.4831/0.4900 bodied recall on its own;
+ *    structure is layered on top of it, not traded against it.
+ *  - BOUNDED, AND CHEAPLY. Admitted files get a summary (~300 tokens) and never
+ *    a snippet, so the whole mechanism costs at most ~600 tokens against a
+ *    9,675-token mean. `allocateSnippets` and the trimmer do not see them.
+ */
+const STRUCT_MAX_ADMITTED_FILES = 2;
+/**
+ * The proximity an admitted file must clear: hop 1 and hop 1 only.
+ *
+ * A hop-2 file is "something that talks to something the task touches", which
+ * is a claim about the tree that is true of most of a codebase. It stays in the
+ * map (it is a real fact) and it never buys a slot.
+ */
+const STRUCT_MIN_ADMISSION_PROXIMITY = 0.5;
+/**
+ * How many lexical hits seed the expansion when the task declares no files.
+ *
+ * Three, because these seeds are UNMEASURED — nobody has recorded the precision
+ * of the top-3 text hits on this cohort — and a wrong seed expands a wrong
+ * neighbourhood. Three keeps the blast radius at the two files
+ * `STRUCT_MAX_ADMITTED_FILES` already bounds, and makes seed precision a thing
+ * a measurement can report before anything is bought with it.
+ */
+const STRUCT_MAX_LEXICAL_SEEDS = 3;
 
 /**
  * Files the compact pack may show code for: those holding an entity on the
@@ -399,18 +461,36 @@ function validationCommands(input: {
   return commands;
 }
 
+/**
+ * What `candidateFiles` chose, and which of those choices are load-bearing
+ * enough to anchor a structural expansion.
+ *
+ * `paths` is unchanged in every branch — this split adds a second reading of
+ * the same decision, not a new decision. `seeds` exists because "the files this
+ * task is about" and "the files worth showing" are different questions: a
+ * declared `allowedFiles` list is a statement by whoever wrote the task, while
+ * the twelfth lexical hit is a guess, and only the first kind should decide
+ * where a graph walk starts.
+ */
+type CandidateSelection = {
+  readonly paths: readonly string[];
+  readonly seeds: readonly string[];
+};
+
 function candidateFiles(input: {
   readonly task: Task;
   readonly plan?: PlanDraftArtifact;
   readonly summaries: readonly FileSummary[];
   readonly index: readonly FileIndexEntry[];
   readonly warnings: string[];
-}): readonly string[] {
+}): CandidateSelection {
   const direct = unique([...input.task.allowedFiles, ...(input.task.expectedFiles ?? [])]);
   const concreteDirect = direct.filter((filePath) => filePath.toUpperCase() !== "TBD");
 
   if (concreteDirect.length > 0) {
-    return concreteDirect;
+    // Declared by a human or a planner about THIS task: every one of them is a
+    // seed, not just the first three.
+    return { paths: concreteDirect, seeds: concreteDirect };
   }
 
   const affected = unique(
@@ -421,7 +501,7 @@ function candidateFiles(input: {
 
   if (affected.length > 0) {
     input.warnings.push("Task has no allowedFiles; used plan affected modules as file hints.");
-    return affected;
+    return { paths: affected, seeds: affected.slice(0, STRUCT_MAX_LEXICAL_SEEDS) };
   }
 
   const keywords = taskKeywords(input.task);
@@ -429,21 +509,28 @@ function candidateFiles(input: {
 
   if (matched.length > 0) {
     input.warnings.push("Task has no allowedFiles; used ranked lexical symbol and path retrieval.");
-    return matched;
+    return { paths: matched, seeds: matched.slice(0, STRUCT_MAX_LEXICAL_SEEDS) };
   }
 
   if (/test|spec/i.test(input.task.title)) {
     const tests = input.index.filter((file) => file.isTestFile).map((file) => file.path);
     if (tests.length > 0) {
       input.warnings.push("Task looks test-related; selected existing test files.");
-      return tests;
+      // Every test file in the repository, in path order. Nothing here ranked
+      // them, so the first three are alphabetical rather than relevant, and
+      // seeding a graph walk from an alphabetical accident is how a bounded
+      // mechanism starts producing confident noise.
+      return { paths: tests, seeds: [] };
     }
   }
 
   input.warnings.push(
     "No allowed files declared for this task. Keep changes minimal and ask for clarification if needed."
   );
-  return direct.length > 0 ? direct : [];
+
+  const fallback = direct.length > 0 ? direct : [];
+
+  return { paths: fallback, seeds: fallback };
 }
 
 function fileSummaryText(summary: FileSummary | undefined): string {
@@ -491,6 +578,51 @@ function orderByPathMembership(input: {
     ...pathOnly,
     ...input.candidates.filter((filePath) => !onPath.has(filePath))
   ];
+}
+
+/**
+ * Bounded structural admission: at most `STRUCT_MAX_ADMITTED_FILES` eligible
+ * files one import or test hop from what the task already touches, which the
+ * lexical ranking did not choose.
+ *
+ * APPENDED, never inserted and never substituted. The candidate list arrives
+ * here already capped at `policy.maxFiles` and already re-ranked by path
+ * membership; this function returns that exact list with up to two paths on the
+ * end. So `ordered` is a prefix of the result, which is the strongest possible
+ * form of "the graph cannot take a body away" — not merely a superset, an
+ * order-preserving one, so nothing downstream that reads position sees a
+ * different answer for any file that was already there.
+ *
+ * Ordering among the admitted files is by proximity and then by code point.
+ * Every hop-1 file scores the same 0.5, so in practice the tie-break decides,
+ * and it is deliberately a property of the path rather than anything cleverer:
+ * a better tie-break is a ranking decision that should be measured on a fixture
+ * before it is bought, not invented here.
+ */
+function admitStructuralCandidates(input: {
+  readonly ordered: readonly string[];
+  readonly proximity: ReadonlyMap<string, number> | undefined;
+  readonly isEligible: (filePath: string) => boolean;
+}): { readonly ordered: readonly string[]; readonly admitted: ReadonlySet<string> } {
+  if (input.proximity === undefined || input.proximity.size === 0) {
+    return { ordered: input.ordered, admitted: new Set() };
+  }
+
+  const selected = new Set(input.ordered);
+  const admitted = [...input.proximity.entries()]
+    .filter(
+      ([filePath, score]) =>
+        score >= STRUCT_MIN_ADMISSION_PROXIMITY &&
+        !selected.has(filePath) &&
+        input.isEligible(filePath)
+    )
+    .sort(([leftPath, leftScore], [rightPath, rightScore]) =>
+      rightScore === leftScore ? compareByCodepoint(leftPath, rightPath) : rightScore - leftScore
+    )
+    .slice(0, STRUCT_MAX_ADMITTED_FILES)
+    .map(([filePath]) => filePath);
+
+  return { ordered: [...input.ordered, ...admitted], admitted: new Set(admitted) };
 }
 
 /**
@@ -549,17 +681,19 @@ async function buildFileContexts(input: {
   readonly fileIndex: readonly FileIndexEntry[];
   readonly fileSummaries: readonly FileSummary[];
   readonly understanding?: ContextUnderstanding;
+  readonly fileGraph?: IntelFileGraph;
   readonly warnings: string[];
 }): Promise<readonly FileContext[]> {
   const indexByPath = new Map(input.fileIndex.map((file) => [file.path, file]));
   const summariesByPath = new Map(input.fileSummaries.map((summary) => [summary.path, summary]));
-  const candidates = candidateFiles({
+  const selection = candidateFiles({
     task: input.task,
     plan: input.plan,
     summaries: input.fileSummaries,
     index: input.fileIndex,
     warnings: input.warnings
-  }).slice(0, input.policy.maxFiles);
+  });
+  const candidates = selection.paths.slice(0, input.policy.maxFiles);
   const forbidden = new Set(input.task.forbiddenFiles ?? []);
   const onPath =
     input.understanding === undefined ? undefined : understandingFilePaths(input.understanding);
@@ -574,15 +708,43 @@ async function buildFileContexts(input: {
     onPath,
     isEligible
   });
+  // Seeds: what the task already touches. The declared or ranked files it is
+  // about, plus every file the understanding case's path and signatures name.
+  // Both are things Kit already had; the graph only says what is next to them.
+  //
+  // Normalised harder than `candidates` above, and only here. Intel's paths
+  // have had `./` stripped, so a task that declared `./src/a.ts` would seed the
+  // walk with a string no edge in the graph carries. Applying the same
+  // normalisation to `candidates` would be a real improvement and a change to
+  // what every pack contains with no graph present at all, which is not this
+  // seam's to make.
+  const seeds = new Set(
+    [...selection.seeds, ...(onPath ?? [])]
+      .map(normalizeRepositoryPath)
+      .filter((filePath) => filePath.length > 0)
+  );
+  const proximity =
+    input.fileGraph === undefined
+      ? undefined
+      : structuralProximity({ seeds, fileGraph: input.fileGraph });
+  const structural = admitStructuralCandidates({ ordered: paths, proximity, isEligible });
+  const orderedPaths = structural.ordered;
   const snippetPaths = allocateSnippets({
-    ordered: paths.filter(isEligible),
+    // Structure-admitted files are withheld from snippet allocation entirely,
+    // so `allocateSnippets` is handed exactly the list it would have been
+    // handed with no graph, and the reserved relevance floor and the path
+    // budget are arithmetically untouched. Structure buys summaries; it does
+    // not compete for the expensive slots.
+    ordered: orderedPaths.filter(
+      (filePath) => isEligible(filePath) && !structural.admitted.has(filePath)
+    ),
     onPath,
     policy: input.policy,
     hasCheapBody: (filePath) => summariesByPath.has(filePath)
   });
   const contexts: FileContext[] = [];
 
-  for (const normalized of paths) {
+  for (const normalized of orderedPaths) {
     if (
       forbidden.has(normalized) ||
       shouldIgnorePath(normalized) ||
@@ -684,7 +846,9 @@ async function buildFileContexts(input: {
           ? "Task allowed file."
           : onPath?.has(normalized) === true
             ? "Entity on the cited path."
-            : "Task expected or related file.",
+            : structural.admitted.has(normalized)
+              ? "One import or test hop from a file this task touches."
+              : "Task expected or related file.",
         includeMode,
         hash: indexEntry.hash,
         language: indexEntry.language,
@@ -742,6 +906,7 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
     fileIndex: input.fileIndex ?? [],
     fileSummaries: input.fileSummaries ?? [],
     ...(input.understanding === undefined ? {} : { understanding: input.understanding }),
+    ...(input.fileGraph === undefined ? {} : { fileGraph: input.fileGraph }),
     warnings
   });
   const constraints = unique([
@@ -767,6 +932,18 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
   // them — it is the regex helper list behind the only measured behaviour win
   // in this project (credential leaks 0 of 4 versus 3 of 4), it is not
   // graph-derived, and the graph does not replace it.
+  // COMPACTION IS TASK-SCOPED EVIDENCE OR IT IS NOTHING. `compact` is the mode
+  // that WITHHOLDS whole-file bodies, and it may only ever be set by the
+  // understanding case — an artifact somebody had to author for THIS task.
+  //
+  // `input.fileGraph` must never appear in this expression. The projection is
+  // repository-wide and present on every task the moment intel has run once, so
+  // if it could set `compact`, indexing a repository would shrink every pack in
+  // it forever with no per-task evidence behind a single one of them. The
+  // measured cost of compaction firing without task evidence is already on the
+  // record at -78.3% bodied recall over 17 runs; this is the one line where
+  // that mistake would be repeated at repository scale, and it is asserted in
+  // the tests rather than left to review.
   const compact = input.understanding !== undefined;
   const projectContext = {
     summary:

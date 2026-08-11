@@ -20,6 +20,7 @@ import { selectContextPack, understandingFilePaths } from "../../src/context/con
 import { estimateTokens } from "../../src/context/token-estimator.js";
 import { understandingExportObjections } from "../../src/understanding/understanding-export.js";
 import { understandingView } from "../../src/understanding/understanding-view.js";
+import { type IntelFileGraph } from "../../src/scanner/intel-graph.js";
 import { type FileIndexEntry, type FileSummary } from "../../src/scanner/types.js";
 import { type ActiveFeature } from "../../src/workflows/shared/active-feature.js";
 
@@ -147,7 +148,50 @@ async function loadScanCache(): Promise<{
   return { fileIndex: index.files, fileSummaries: summaries.items };
 }
 
-async function packTokens(input: { readonly understanding?: UnderstandingCaseExport }): Promise<{
+/**
+ * A file graph over files that really exist in this repository.
+ *
+ * Not read from `.visp-intel/`: the projection is built from the working tree
+ * and is never committed, both because it is derived state and because a
+ * projection frozen as a fixture is the channel through which a holdout task's
+ * repository structure could reach a test. The edges below are hand-stated
+ * facts about this tree, which is all `collapseToFileGraph` would have produced
+ * for them anyway.
+ *
+ * `src/context/context-relevance.ts` is chosen as the hop-1 file on purpose: it
+ * is imported by `context-compiler.ts`, it is a real indexed and summarised
+ * file, and the lexical ranking for this task does not select it.
+ */
+function repositoryFileGraph(): IntelFileGraph {
+  const internalEdges = new Map<string, readonly string[]>([
+    ["src/context/context-compiler.ts", ["src/context/context-relevance.ts"]],
+    ["src/gates/gate-engine.ts", ["src/gates/effective-policy.ts"]],
+    // Two hops from the seeds, so it may inform an ordering and may never buy
+    // a slot.
+    ["src/context/context-relevance.ts", ["src/context/token-estimator.ts"]]
+  ]);
+
+  return {
+    repositoryInstanceId: "urn:visp-intel:repository-instance:1.0:sha256:visp-kit",
+    headSnapshotId: "urn:visp-intel:snapshot:1.0:sha256:head",
+    filePaths: [
+      "src/context/context-compiler.ts",
+      "src/context/context-relevance.ts",
+      "src/context/token-estimator.ts",
+      "src/gates/effective-policy.ts",
+      "src/gates/gate-engine.ts"
+    ],
+    testFilePaths: [],
+    internalEdges,
+    externalEdges: new Map(),
+    testEdges: new Map()
+  };
+}
+
+async function packTokens(input: {
+  readonly understanding?: UnderstandingCaseExport;
+  readonly fileGraph?: IntelFileGraph;
+}): Promise<{
   readonly tokens: number;
   readonly markdown: string;
   readonly pack: ContextPack;
@@ -175,6 +219,7 @@ async function packTokens(input: { readonly understanding?: UnderstandingCaseExp
     fileIndex: cache.fileIndex,
     fileSummaries: cache.fileSummaries,
     ...(understanding === undefined ? {} : { understanding }),
+    ...(input.fileGraph === undefined ? {} : { fileGraph: input.fileGraph }),
     warnings: []
   });
   const markdown = renderContextMarkdown({ feature, pack });
@@ -313,5 +358,138 @@ describe("the compact context pack", () => {
     for (const snippet of after.pack.includedSnippets) {
       expect(snippet.endLine - snippet.startLine + 1).toBeLessThanOrEqual(40);
     }
+  });
+});
+
+/**
+ * The second seam.
+ *
+ * The graph has reached scan's module map since `197e329` and the context pack
+ * was bit-identical with and without it, because nothing downstream read the
+ * map. These are the properties that must hold now that the selector does read
+ * the graph — and every one of them is a bound on what the graph is allowed to
+ * do, not a claim about how much it helps. Whether it helps is a measurement,
+ * and this file cannot make one.
+ */
+describe("the graph conditions retrieval", () => {
+  const graphed = () => packTokens({ fileGraph: repositoryFileGraph() });
+
+  it("changes the pack, which is the thing that was not true before", async () => {
+    const without = await packTokens({});
+    const with_ = await graphed();
+
+    expect(with_.pack.includedFiles.length).toBeGreaterThan(without.pack.includedFiles.length);
+  });
+
+  /**
+   * MONOTONICITY, in its strongest form: the no-graph file list is a PREFIX of
+   * the graphed one. Not merely a superset — an order-preserving extension, so
+   * nothing that reads position sees a different answer for a file that was
+   * already there. A signal that can take a file's body away is deciding what
+   * the model may not see, and that is the one power that stays out.
+   */
+  it("only ever appends, so no file loses its body to a graph fact", async () => {
+    const without = await packTokens({});
+    const with_ = await graphed();
+    const before = without.pack.includedFiles.map((file) => file.path);
+    const after = with_.pack.includedFiles.map((file) => file.path);
+
+    expect(after.slice(0, before.length)).toEqual(before);
+  });
+
+  it("admits at most two files, and only at one hop", async () => {
+    const without = await packTokens({});
+    const with_ = await graphed();
+    const before = new Set(without.pack.includedFiles.map((file) => file.path));
+    const admitted = with_.pack.includedFiles
+      .map((file) => file.path)
+      .filter((filePath) => !before.has(filePath));
+
+    expect(admitted).toEqual(["src/context/context-relevance.ts", "src/gates/effective-policy.ts"]);
+    // Two hops from a seed is "something that talks to something the task
+    // touches", which is true of most of a codebase. It never buys a slot.
+    expect(admitted).not.toContain("src/context/token-estimator.ts");
+  });
+
+  it("buys summaries and never the expensive slots", async () => {
+    const without = await packTokens({});
+    const with_ = await graphed();
+
+    // `allocateSnippets` is handed exactly the list it would have been handed
+    // with no graph, so the reserved relevance floor and the path budget are
+    // arithmetically untouched.
+    expect(with_.pack.includedSnippets).toEqual(without.pack.includedSnippets);
+
+    for (const file of with_.pack.includedFiles) {
+      if (file.reason.startsWith("One import or test hop")) {
+        expect(file.snippetIncluded).toBe(false);
+        expect((file.summary ?? "").trim()).not.toBe("");
+      }
+    }
+  });
+
+  /**
+   * The one new constraint the understanding case did not need.
+   *
+   * Compaction WITHHOLDS file bodies and fires on the presence of a case. The
+   * case is task-scoped and has to be authored per task; the projection is
+   * repository-wide and present on every task after one index. If the graph
+   * could set `compact`, indexing a repository once would shrink every pack in
+   * it forever with no per-task evidence behind any of them.
+   */
+  it("cannot put the pack into compact mode", async () => {
+    const with_ = await graphed();
+
+    expect(with_.pack.includedProjectContext.summary).not.toBe("");
+    expect(with_.pack.includedProjectContext.patterns).not.toBe("");
+    expect(with_.pack.understanding).toBeUndefined();
+  });
+
+  it("costs summaries, not snippets, so the pack grows by a bounded amount", async () => {
+    const without = await packTokens({});
+    const with_ = await graphed();
+
+    // Two ~300-token summaries against a pack this size. The bound asserted
+    // here is the mechanism's, not a measurement: Dev owns the number.
+    expect(with_.tokens).toBeGreaterThan(without.tokens);
+    expect(with_.tokens).toBeLessThan(without.tokens * 1.15);
+  });
+
+  it("degrades to today's pack when the graph reaches nothing", async () => {
+    const without = await packTokens({});
+    const disconnected = await packTokens({
+      fileGraph: {
+        ...repositoryFileGraph(),
+        internalEdges: new Map([["docs/unrelated.md", ["docs/other.md"]]]),
+        testEdges: new Map()
+      }
+    });
+
+    expect(disconnected.pack).toEqual(without.pack);
+    expect(disconnected.markdown).toEqual(without.markdown);
+  });
+
+  it("still admits nothing the pack was already forbidden to carry", async () => {
+    const with_ = await graphed();
+    const admittedButUnindexed = with_.pack.includedFiles.filter(
+      (file) => file.reason.startsWith("One import or test hop") && file.includeMode === "new-file"
+    );
+
+    // Structural admission goes through the same `isEligible` join as every
+    // other candidate: indexed, not forbidden, not ignored, not binary, not a
+    // lockfile. A file the graph names and scan has never seen is not a file.
+    expect(admittedButUnindexed).toEqual([]);
+  });
+
+  it("layers on top of the cited path rather than competing with it", async () => {
+    const understanding = await loadRealExport();
+    const caseOnly = await packTokens({ understanding });
+    const both = await packTokens({ understanding, fileGraph: repositoryFileGraph() });
+    const before = caseOnly.pack.includedFiles.map((file) => file.path);
+
+    expect(both.pack.includedFiles.map((file) => file.path).slice(0, before.length)).toEqual(
+      before
+    );
+    expect(both.pack.includedSnippets).toEqual(caseOnly.pack.includedSnippets);
   });
 });

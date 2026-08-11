@@ -98,7 +98,22 @@ export const contextArtifactProvenanceSchema = z
     label: nonEmptyStringSchema,
     path: pathStringSchema,
     hash: nonEmptyStringSchema,
-    hashAlgorithm: z.literal("sha256")
+    hashAlgorithm: z.literal("sha256"),
+    /**
+     * What the hash is OF.
+     *
+     * `file` — the artifact's bytes. This is the original and remains the
+     * default, so every provenance record written before this field existed
+     * keeps its exact meaning.
+     *
+     * `content` — a canonical reduction defined in `context/retrieval-inputs.ts`,
+     * used for the scan caches and the intel projection because their bytes
+     * carry a generation timestamp that changes on every scan whether or not
+     * anything the pack read changed. A drift check verifies these by
+     * re-computing the same reduction, and an entry it cannot re-compute is
+     * UNVERIFIED rather than stale.
+     */
+    hashScope: z.enum(["file", "content"]).optional()
   })
   .strict();
 
