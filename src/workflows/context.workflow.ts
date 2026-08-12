@@ -58,6 +58,11 @@ export type ContextWorkflowOptions = {
   readonly budget?: BudgetMode;
   readonly maxTokens?: number;
   readonly includeFullFiles?: boolean;
+  /**
+   * Explicit compact snippet cap (`--snippet-cap on|off`). Undefined leaves the
+   * decision to the project config and then the per-mode default.
+   */
+  readonly snippetCap?: boolean;
   readonly promptOnly?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
@@ -232,6 +237,7 @@ export async function runContextWorkflow(
     budgetMode: options.budget,
     maxTokens: options.maxTokens,
     includeFullFiles: options.includeFullFiles,
+    ...(options.snippetCap === undefined ? {} : { snippetCap: options.snippetCap }),
     now
   });
 

@@ -189,6 +189,17 @@ function repositoryFileGraph(): IntelFileGraph {
 async function packTokens(input: {
   readonly understanding?: UnderstandingCaseExport;
   readonly fileGraph?: IntelFileGraph;
+  /**
+   * The compact snippet cap. Omitted means the shipped default, which is ON.
+   *
+   * It used to be impossible to state: the cap fired if and only if an
+   * understanding case was present, so "no case" and "no cap" were the same
+   * pack and every comparison below silently measured both at once. They are
+   * separate inputs now, and the tests that were written against the uncapped
+   * baseline say `snippetCap: false` so they keep comparing the two packs they
+   * were written to compare.
+   */
+  readonly snippetCap?: boolean;
 }): Promise<{
   readonly tokens: number;
   readonly markdown: string;
@@ -209,7 +220,7 @@ async function packTokens(input: {
     feature,
     taskGraph,
     task,
-    policy: contextBudgetPolicy("balanced"),
+    policy: contextBudgetPolicy("balanced", undefined, undefined, input.snippetCap),
     includeFullFiles: false,
     now: "2026-01-01T00:00:00.000Z",
     projectSummary: "Visp Kit is a strict, token-efficient agent harness CLI.",
@@ -280,7 +291,7 @@ describe("the compact context pack", () => {
   });
 
   it("shrinks the pack on the same task in the same repository", async () => {
-    const before = await packTokens({});
+    const before = await packTokens({ snippetCap: false });
     const after = await packTokens({ understanding: await loadRealExport() });
 
     // Reported, not just asserted: the direction of this number is the phase's
@@ -294,6 +305,35 @@ describe("the compact context pack", () => {
   });
 
   /**
+   * The same saving, split by what actually produced it.
+   *
+   * The test above is unchanged in what it compares — an uncapped pack against
+   * a pack with a case — and for as long as those were the only two packs Kit
+   * could build, it read as "the case shrinks the pack". It does not. Holding
+   * the cap fixed on both sides, the case makes the pack BIGGER: it promotes
+   * files onto the cited path and adds path-only files, which is what it is
+   * for. Every token of the reduction, and then some, is the cap.
+   *
+   * This is the same shape as the 28-task measurement (cap alone -52.01%
+   * against no cap; adding the whole graph pipeline on top costs +19.52%
+   * tokens), and it is asserted here so that a change which quietly moves the
+   * saving from one mechanism to the other cannot pass.
+   */
+  it("gets that saving from the cap and not from the case", async () => {
+    const uncapped = await packTokens({ snippetCap: false });
+    const capped = await packTokens({});
+    const cappedWithCase = await packTokens({ understanding: await loadRealExport() });
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[cap attribution] visp-kit T001: uncapped=${uncapped.tokens} capped=${capped.tokens} capped+case=${cappedWithCase.tokens}`
+    );
+
+    expect(capped.tokens).toBeLessThan(uncapped.tokens);
+    expect(cappedWithCase.tokens).toBeGreaterThan(capped.tokens);
+  });
+
+  /**
    * The Phase 21 defect, as a property.
    *
    * Path membership used to be a FILTER, so a file the cited path did not name
@@ -301,20 +341,27 @@ describe("the compact context pack", () => {
    * for -66.1% tokens, which is worse value, not better. Path membership is now
    * a RANKING signal, and the guarantee is monotonicity: knowing more about the
    * path never removes something the pack would otherwise have carried.
+   *
+   * Asserted at BOTH cap settings. Uncapped-with-a-case is a configuration that
+   * did not exist while the cap and the case were the same switch, and a
+   * guarantee stated in `docs/token-efficiency.md` without qualification has to
+   * hold in the configurations the CLI can now produce.
    */
-  it("never bodies fewer files than the same pack with no case at all", async () => {
-    const before = await packTokens({});
-    const after = await packTokens({ understanding: await loadRealExport() });
+  for (const snippetCap of [true, false]) {
+    it(`never bodies fewer files than the same pack with no case at all (cap ${snippetCap ? "on" : "off"})`, async () => {
+      const before = await packTokens({ snippetCap });
+      const after = await packTokens({ snippetCap, understanding: await loadRealExport() });
 
-    const afterBodied = [...bodiedFiles(after.pack)];
+      const afterBodied = [...bodiedFiles(after.pack)];
 
-    for (const filePath of bodiedFiles(before.pack)) {
-      expect(afterBodied, `${filePath} lost its body to the cited path`).toContain(filePath);
-    }
-  });
+      for (const filePath of bodiedFiles(before.pack)) {
+        expect(afterBodied, `${filePath} lost its body to the cited path`).toContain(filePath);
+      }
+    });
+  }
 
   it("a thin path is never worse than no path", async () => {
-    const none = await packTokens({});
+    const none = await packTokens({ snippetCap: false });
     const empty = await packTokens({ understanding: withEmptyPath(await loadRealExport()) });
 
     // The specific defect: a present-but-empty case used to withhold every
@@ -322,6 +369,17 @@ describe("the compact context pack", () => {
     // and nothing put in its place.
     expect([...bodiedFiles(empty.pack)].sort()).toEqual([...bodiedFiles(none.pack)].sort());
     expect(empty.tokens).toBeLessThan(none.tokens);
+  });
+
+  /**
+   * The same guarantee with the cap held fixed, which is the stronger form and
+   * was not statable before the cap and the case became separate inputs.
+   */
+  it("a thin path is never worse than no path at the same cap setting", async () => {
+    const none = await packTokens({});
+    const empty = await packTokens({ understanding: withEmptyPath(await loadRealExport()) });
+
+    expect([...bodiedFiles(empty.pack)].sort()).toEqual([...bodiedFiles(none.pack)].sort());
   });
 
   it("spends the snippet budget on the cited path first, but never all of it", async () => {
@@ -379,6 +437,102 @@ describe("the compact context pack", () => {
     for (const snippet of after.pack.includedSnippets) {
       expect(snippet.endLine - snippet.startLine + 1).toBeLessThanOrEqual(40);
     }
+  });
+});
+
+/**
+ * THE INVARIANT THE -52% RESTS ON.
+ *
+ * Measured on 28 held-out tasks, `balanced` mode, the compact snippet cap
+ * against no cap with no graph, no store and no understanding case on either
+ * side: input tokens 16,709.607 -> 8,019.393, and bodied file recall
+ * 0.4646201021 on BOTH sides — the same floating-point number on the cohort and
+ * on all 28 tasks individually. Listed file recall, bodied precision, files
+ * bodied and irrelevant bodied files were identical on all 28 too. The only
+ * fields that moved were input tokens and, on 2 tasks in one repository,
+ * symbol recall.
+ *
+ * That is the entire basis for shipping the cap on by default: it removes
+ * snippet TEXT and it does not change WHICH FILES the pack decides to carry a
+ * body for. If a future change makes the cap alter file selection, every one of
+ * those numbers stops describing this code, and this test is where that has to
+ * be noticed — not in a re-run of a 28-task sweep nobody will run again.
+ *
+ * The comparison is per-file and order-sensitive rather than a recall number,
+ * because a recall figure needs a holdout and this suite must not have one:
+ * identical selections imply identical recall against any ground truth, so the
+ * stronger property is also the one that can be asserted from a clean clone.
+ */
+describe("the compact snippet cap with no understanding case", () => {
+  it("changes which files get a body on zero of them", async () => {
+    const uncapped = await packTokens({ snippetCap: false });
+    const capped = await packTokens({});
+
+    // Neither side may have invented a case to get here: the cap has to be
+    // reachable as itself, which is the whole point of the change.
+    expect(uncapped.pack.understanding).toBeUndefined();
+    expect(capped.pack.understanding).toBeUndefined();
+    expect(capped.pack.snippetCapApplied).toBe(true);
+    expect(uncapped.pack.snippetCapApplied).toBe(false);
+
+    // The selection, in order. Not a set: position is read downstream.
+    expect(capped.pack.includedFiles.map((file) => file.path)).toEqual(
+      uncapped.pack.includedFiles.map((file) => file.path)
+    );
+
+    // The bodied set — every file the pack gave the agent something to read.
+    expect([...bodiedFiles(capped.pack)].sort()).toEqual([...bodiedFiles(uncapped.pack)].sort());
+
+    // And the summaries themselves, verbatim. Symbol-level content rides on
+    // these, so "same files" would be a hollow claim if their text moved.
+    for (const file of capped.pack.includedFiles) {
+      const same = uncapped.pack.includedFiles.find((other) => other.path === file.path);
+      expect(same?.summary ?? "").toBe(file.summary ?? "");
+    }
+  });
+
+  /**
+   * The guard against a vacuous invariant.
+   *
+   * Everything above would pass if the cap became a no-op, and a no-op cap is a
+   * silent -52% regression. So: the cap has to actually fire, it has to fire
+   * within its stated bounds, and what it removes has to be a SUBSET of what
+   * the uncapped pack bodied — the cap deletes snippets, it never substitutes
+   * one file's code for another's.
+   */
+  it("still removes the snippet text, within its stated bounds", async () => {
+    const uncapped = await packTokens({ snippetCap: false });
+    const capped = await packTokens({});
+    const cappedPaths = capped.pack.includedSnippets.map((snippet) => snippet.filePath);
+    const uncappedPaths = uncapped.pack.includedSnippets.map((snippet) => snippet.filePath);
+
+    expect(capped.pack.includedSnippets.length).toBeLessThanOrEqual(4);
+    expect(capped.pack.includedSnippets.length).toBeLessThan(uncapped.pack.includedSnippets.length);
+
+    for (const snippet of capped.pack.includedSnippets) {
+      expect(snippet.endLine - snippet.startLine + 1).toBeLessThanOrEqual(40);
+    }
+
+    for (const filePath of cappedPaths) expect(uncappedPaths).toContain(filePath);
+
+    expect(capped.tokens).toBeLessThan(uncapped.tokens);
+  });
+
+  /**
+   * The cap is not compaction, and must not become it by another route.
+   *
+   * `compact` — the switch that withholds the project summary and the patterns
+   * text — is set by the understanding case and by nothing else, because it is
+   * a claim that somebody authored task-scoped evidence. The arm F pack that
+   * produced -52.01% carried both of those sections; a cap that also dropped
+   * them would be a configuration nobody measured, reported under a number
+   * somebody did.
+   */
+  it("does not withhold anything the case withholds", async () => {
+    const capped = await packTokens({});
+
+    expect(capped.pack.includedProjectContext.summary).not.toBe("");
+    expect(capped.pack.includedProjectContext.patterns).not.toBe("");
   });
 });
 

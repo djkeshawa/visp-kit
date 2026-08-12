@@ -43,6 +43,7 @@ import { type ActiveFeature } from "../workflows/shared/active-feature.js";
 import {
   contextBudgetPolicy,
   contextBudgetRecommendation,
+  defaultCompactSnippetCap,
   effectiveMaxInputTokens,
   type ContextBudgetPolicy
 } from "./context-budget.js";
@@ -102,6 +103,12 @@ export type ContextCompilationInput = {
    * resolves to 0, which keeps the over-budget check a hard cutoff.
    */
   readonly overBudgetTolerancePercent?: number;
+  /**
+   * Explicit compact snippet cap for this invocation (`--snippet-cap on|off`).
+   * When omitted it is resolved from `.visp/config.json` and then the per-mode
+   * default. See `resolveSnippetCap`.
+   */
+  readonly snippetCap?: boolean;
   /** Injected in tests; production uses the default runner. */
   readonly commandRunner?: CommandRunner;
   readonly now: string;
@@ -238,6 +245,53 @@ async function resolveOverBudgetTolerance(input: {
   });
 
   return effective.policy.limits.maxContextOverBudgetPercent;
+}
+
+/**
+ * Whether the compact snippet cap applies, most specific signal first.
+ *
+ *  1. `--snippet-cap on|off` on this invocation. Explicit, so it wins outright.
+ *  2. `--include-full-files` on this invocation, which turns the cap OFF. Full
+ *     files and a forty-line snippet ceiling are contradictory requests, and a
+ *     flag the user typed must not be silently swallowed by a default they did
+ *     not. A pack that carries the cap silently ignores `--include-full-files`
+ *     entirely, because the capped branch never asks for a full file — so this
+ *     is not a preference, it is the difference between the flag working and
+ *     the flag doing nothing. Warned, so the reason is in the pack.
+ *  3. `contextSnippetCap` in `.visp/config.json`, the project-level setting.
+ *  4. The per-mode default.
+ *
+ * The config read is deliberately silent, for the same reason
+ * `resolveOverBudgetTolerance` above is: a missing or unreadable project config
+ * is doctor's and status's finding to report, and appending it here would make
+ * pack warnings depend on which resolver happened to need the file.
+ */
+async function resolveSnippetCap(input: {
+  readonly targetPath: string;
+  readonly budgetMode: BudgetMode;
+  readonly includeFullFiles: boolean;
+  readonly override?: boolean;
+  readonly warnings: string[];
+}): Promise<boolean> {
+  if (input.override !== undefined) {
+    return input.override;
+  }
+
+  if (input.includeFullFiles) {
+    input.warnings.push(
+      "Full-file context was requested, so the compact snippet cap is off for this pack; pass --snippet-cap on to keep the cap."
+    );
+    return false;
+  }
+
+  const config = await optionalArtifact({
+    path: projectConfigArtifactPath(input.targetPath),
+    schema: projectConfigSchema,
+    artifactName: "project config",
+    warnings: []
+  });
+
+  return config?.contextSnippetCap ?? defaultCompactSnippetCap(input.budgetMode);
 }
 
 function tokenizedPack(input: {
@@ -556,7 +610,16 @@ export async function compileContext(
     now: input.now,
     override: input.overBudgetTolerancePercent
   });
-  const policy = contextBudgetPolicy(budgetMode, input.maxTokens, tolerancePercent);
+  const modeDefaults = contextBudgetPolicy(budgetMode, input.maxTokens, tolerancePercent);
+  const includeFullFiles = input.includeFullFiles ?? modeDefaults.includeFullFilesByDefault;
+  const snippetCap = await resolveSnippetCap({
+    targetPath: input.targetPath,
+    budgetMode,
+    includeFullFiles,
+    ...(input.snippetCap === undefined ? {} : { override: input.snippetCap }),
+    warnings
+  });
+  const policy = contextBudgetPolicy(budgetMode, input.maxTokens, tolerancePercent, snippetCap);
   const spec = await optionalArtifact({
     path: specArtifactPath(input.targetPath, input.feature.key),
     schema: specArtifactSchema,
@@ -691,7 +754,7 @@ export async function compileContext(
     taskGraph: input.taskGraph,
     task: input.task,
     policy,
-    includeFullFiles: input.includeFullFiles ?? policy.includeFullFilesByDefault,
+    includeFullFiles,
     now: input.now,
     spec,
     plan,
@@ -714,7 +777,7 @@ export async function compileContext(
     pack: grounded,
     feature: input.feature,
     policy,
-    includeFullFiles: input.includeFullFiles ?? policy.includeFullFilesByDefault
+    includeFullFiles
   });
   const validation = contextPackSchema.safeParse(trimmed.pack);
 

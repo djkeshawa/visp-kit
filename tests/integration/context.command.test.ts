@@ -215,6 +215,120 @@ describe("visp-kit context command", () => {
     expect(tolerated.overBudget).toBe(false);
   });
 
+  /**
+   * Reachability, end to end, through the shipped binary.
+   *
+   * The compact snippet cap is the mechanism behind a measured -52.01% in input
+   * tokens at unchanged bodied file recall, and until this change there was no
+   * configuration of any shipped binary in which it fired: it was reachable
+   * only through an understanding case, so measuring it needed a private build.
+   * This test is the standing proof that it is reachable from a command line,
+   * that it can be turned off from one, and that the pack records which of the
+   * two produced it.
+   */
+  it("applies the compact snippet cap by default and lets the command line turn it off", async () => {
+    await createPhase8Fixture(tempDir);
+
+    const runContext = async (extraArgs: readonly string[]) => {
+      const program = createCli({ writeOut: () => undefined });
+      await program.parseAsync([
+        "node",
+        "visp",
+        "context",
+        "T001",
+        tempDir,
+        "--force",
+        ...extraArgs
+      ]);
+      const contextDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "context");
+      return JSON.parse(await readFile(path.join(contextDir, "T001.context.json"), "utf8")) as {
+        snippetCapApplied?: boolean;
+        understanding?: unknown;
+        includedSnippets: Array<{ filePath: string; startLine: number; endLine: number }>;
+      };
+    };
+
+    const byDefault = await runContext([]);
+    const off = await runContext(["--snippet-cap", "off"]);
+    const on = await runContext(["--snippet-cap", "on"]);
+
+    expect(byDefault.snippetCapApplied).toBe(true);
+    expect(off.snippetCapApplied).toBe(false);
+    expect(on.snippetCapApplied).toBe(true);
+
+    // No understanding case anywhere near it. The cap is routed as itself, not
+    // smuggled in behind an empty case.
+    expect(byDefault.understanding).toBeUndefined();
+    expect(on.understanding).toBeUndefined();
+
+    expect(on.includedSnippets.length).toBeLessThanOrEqual(4);
+
+    for (const snippet of on.includedSnippets) {
+      expect(snippet.endLine - snippet.startLine + 1).toBeLessThanOrEqual(40);
+    }
+  });
+
+  it("reads the snippet cap from the project config, and the flag still wins", async () => {
+    await createPhase8Fixture(tempDir);
+
+    const configPath = path.join(tempDir, ".visp", "config.json");
+    const config = JSON.parse(await readFile(configPath, "utf8")) as Record<string, unknown>;
+    config.contextSnippetCap = false;
+    await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+
+    const runContext = async (extraArgs: readonly string[]) => {
+      const program = createCli({ writeOut: () => undefined });
+      await program.parseAsync([
+        "node",
+        "visp",
+        "context",
+        "T001",
+        tempDir,
+        "--force",
+        ...extraArgs
+      ]);
+      const contextDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "context");
+      return JSON.parse(await readFile(path.join(contextDir, "T001.context.json"), "utf8")) as {
+        snippetCapApplied?: boolean;
+      };
+    };
+
+    expect((await runContext([])).snippetCapApplied).toBe(false);
+    expect((await runContext(["--snippet-cap", "on"])).snippetCapApplied).toBe(true);
+  });
+
+  /**
+   * A flag the user typed beats a default they did not.
+   *
+   * Under the cap the selector never asks for a full file, so a capped pack
+   * would ignore `--include-full-files` completely. Turning the cap off for
+   * that invocation is what keeps the older flag meaning what it says, and the
+   * pack carries the reason.
+   */
+  it("turns the cap off for an explicit full-file request, and says so", async () => {
+    await createPhase8Fixture(tempDir);
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "context",
+      "T001",
+      tempDir,
+      "--force",
+      "--include-full-files"
+    ]);
+
+    const contextDir = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "context");
+    const pack = JSON.parse(await readFile(path.join(contextDir, "T001.context.json"), "utf8")) as {
+      snippetCapApplied?: boolean;
+      warnings: string[];
+    };
+
+    expect(pack.snippetCapApplied).toBe(false);
+    expect(pack.warnings.join(" ")).toContain("compact snippet cap is off");
+  });
+
   it("dry-run writes nothing", async () => {
     await createPhase8Fixture(tempDir);
     const program = createCli({ writeOut: () => undefined });

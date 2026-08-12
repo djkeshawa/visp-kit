@@ -33,6 +33,24 @@ describe("context budget policy", () => {
     expect(contextBudgetPolicy("strict").overBudgetTolerancePercent).toBe(0);
   });
 
+  it("applies the compact snippet cap by default in every mode", () => {
+    expect(contextBudgetPolicy("lean").compactSnippetCap).toBe(true);
+    expect(contextBudgetPolicy("balanced").compactSnippetCap).toBe(true);
+    expect(contextBudgetPolicy("strict").compactSnippetCap).toBe(true);
+  });
+
+  it("carries an explicit compact snippet cap override without touching the rest", () => {
+    const off = contextBudgetPolicy("balanced", undefined, undefined, false);
+
+    expect(off.compactSnippetCap).toBe(false);
+    expect(off.maxInputTokens).toBe(15000);
+    expect(off.maxFiles).toBe(12);
+    expect(off.maxSnippetTokensPerFile).toBe(1000);
+    expect(contextBudgetPolicy("balanced", undefined, undefined, true).compactSnippetCap).toBe(
+      true
+    );
+  });
+
   it("carries an explicit over-budget tolerance override", () => {
     const policy = contextBudgetPolicy("lean", 1000, 25);
 

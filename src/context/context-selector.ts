@@ -163,6 +163,15 @@ const STRUCT_MIN_ADMISSION_PROXIMITY = 0.5;
 const STRUCT_MAX_LEXICAL_SEEDS = 3;
 
 /**
+ * The cited path when nothing cites one.
+ *
+ * Not a fake case: it is the empty set of files an absent case names, which is
+ * what it names. Every rule below that reads `onPath` reads it as evidence —
+ * "was this file cited?" — and the answer for all of them, correctly, is no.
+ */
+const EMPTY_PATH_SET: ReadonlySet<string> = new Set();
+
+/**
  * Files the compact pack may show code for: those holding an entity on the
  * cited path or in the candidate change set.
  *
@@ -560,10 +569,14 @@ function fileSummaryText(summary: FileSummary | undefined): string {
  */
 function orderByPathMembership(input: {
   readonly candidates: readonly string[];
-  readonly onPath: ReadonlySet<string> | undefined;
+  readonly onPath: ReadonlySet<string>;
   readonly isEligible: (filePath: string) => boolean;
 }): readonly string[] {
-  if (input.onPath === undefined) return input.candidates;
+  // No case, or a case whose scout established nothing: there is no path to
+  // rank by, so the candidate list is returned exactly as it arrived. This is
+  // the same answer the previous `onPath === undefined` guard gave, and the
+  // same answer this function already gave for an empty set.
+  if (input.onPath.size === 0) return input.candidates;
 
   const onPath = input.onPath;
   const selected = new Set(input.candidates);
@@ -628,8 +641,8 @@ function admitStructuralCandidates(input: {
 /**
  * Which files get the expensive body.
  *
- * Outside compact mode this is every candidate, exactly as before. Inside it,
- * three claims in priority order:
+ * Uncapped this is every candidate, exactly as before. Under the cap, three
+ * claims in priority order:
  *
  *  1. a candidate scan could not summarise has no cheap body, so a snippet is
  *     the only thing standing between it and a bare filename — it is never
@@ -638,14 +651,22 @@ function admitStructuralCandidates(input: {
  *     the budget first, up to the floor;
  *  3. the rest of the budget fills by relevance rank, which is the selection
  *     that scored 0.483 before any of this existed.
+ *
+ * WHAT DECIDES IS THE CAP, NOT THE CASE. This used to branch on whether an
+ * understanding case existed, which made the cap unreachable without one and
+ * tied the largest measured saving in the project to a mechanism that had
+ * nothing to do with it. `onPath` is now free to be empty: rule 2 then
+ * contributes nothing, `fromPath` stays 0, and rule 3 fills the whole cap by
+ * relevance rank. That is exactly the arm F configuration.
  */
 function allocateSnippets(input: {
   readonly ordered: readonly string[];
-  readonly onPath: ReadonlySet<string> | undefined;
+  readonly capped: boolean;
+  readonly onPath: ReadonlySet<string>;
   readonly policy: ContextBudgetPolicy;
   readonly hasCheapBody: (filePath: string) => boolean;
 }): ReadonlySet<string> {
-  if (input.onPath === undefined) {
+  if (!input.capped) {
     return new Set(input.ordered.slice(0, input.policy.maxFiles));
   }
 
@@ -672,6 +693,30 @@ function allocateSnippets(input: {
   return chosen;
 }
 
+/**
+ * Why this file got the expensive body, as the pack states it.
+ *
+ * The fourth case is new, and it is the one place this change is deliberately
+ * NOT bit-identical to the measurement build. That build made `onPath` an
+ * empty set, so every capped snippet with no case reported "Highest-ranked file
+ * off the cited path" — a sentence about a cited path that does not exist. The
+ * pack is an artifact somebody scores from, so it says what is true instead,
+ * at a cost of roughly one token per snippet and at most four snippets, which
+ * is the disclosed difference between this configuration and arm F's numbers.
+ */
+function snippetReason(input: {
+  readonly capped: boolean;
+  readonly onPath: ReadonlySet<string>;
+  readonly filePath: string;
+}): string {
+  if (!input.capped) return "Task file context.";
+  if (input.onPath.has(input.filePath)) return "Entity on the cited path.";
+
+  return input.onPath.size > 0
+    ? "Highest-ranked file off the cited path."
+    : "Highest-ranked file within the snippet cap.";
+}
+
 async function buildFileContexts(input: {
   readonly targetPath: string;
   readonly policy: ContextBudgetPolicy;
@@ -695,8 +740,24 @@ async function buildFileContexts(input: {
   });
   const candidates = selection.paths.slice(0, input.policy.maxFiles);
   const forbidden = new Set(input.task.forbiddenFiles ?? []);
+  // Two INDEPENDENT inputs, and keeping them independent is the whole change.
+  //
+  //   `onPath` — which files a case cites. Empty when there is no case: an
+  //   absent case cites no files, and that is exactly what the empty set says.
+  //   It is a ranking signal, and nothing below reads it as a switch.
+  //
+  //   `capped` — whether the compact snippet cap applies. Resolved from the
+  //   budget policy, which resolves it from the CLI flag, then `.visp/config`,
+  //   then the per-mode default.
+  //
+  // A fake empty case would have coupled them again by another route, and it
+  // would have put `understanding: {}` in the pack, in the artifact
+  // provenance, and in front of every gate that asks whether a case exists.
   const onPath =
-    input.understanding === undefined ? undefined : understandingFilePaths(input.understanding);
+    input.understanding === undefined
+      ? EMPTY_PATH_SET
+      : understandingFilePaths(input.understanding);
+  const capped = input.policy.compactSnippetCap;
   const isEligible = (filePath: string): boolean =>
     !forbidden.has(filePath) &&
     !shouldIgnorePath(filePath) &&
@@ -719,9 +780,7 @@ async function buildFileContexts(input: {
   // what every pack contains with no graph present at all, which is not this
   // seam's to make.
   const seeds = new Set(
-    [...selection.seeds, ...(onPath ?? [])]
-      .map(normalizeRepositoryPath)
-      .filter((filePath) => filePath.length > 0)
+    [...selection.seeds, ...onPath].map(normalizeRepositoryPath).filter((f) => f.length > 0)
   );
   const proximity =
     input.fileGraph === undefined
@@ -738,6 +797,7 @@ async function buildFileContexts(input: {
     ordered: orderedPaths.filter(
       (filePath) => isEligible(filePath) && !structural.admitted.has(filePath)
     ),
+    capped,
     onPath,
     policy: input.policy,
     hasCheapBody: (filePath) => summariesByPath.has(filePath)
@@ -789,15 +849,10 @@ async function buildFileContexts(input: {
           maxTokens: input.includeFullFiles
             ? input.policy.maxFullFileTokens
             : input.policy.maxSnippetTokensPerFile,
-          fullFile: input.includeFullFiles && onPath === undefined,
-          reason:
-            onPath === undefined
-              ? "Task file context."
-              : onPath.has(normalized)
-                ? "Entity on the cited path."
-                : "Highest-ranked file off the cited path.",
+          fullFile: input.includeFullFiles && !capped,
+          reason: snippetReason({ capped, onPath, filePath: normalized }),
           focusTerms: taskKeywords(input.task),
-          ...(onPath === undefined ? {} : { maxLines: COMPACT_MAX_SNIPPET_LINES })
+          ...(capped ? { maxLines: COMPACT_MAX_SNIPPET_LINES } : {})
         })
       : ({ ok: true, value: undefined } as const);
     let warning: string | undefined;
@@ -808,7 +863,7 @@ async function buildFileContexts(input: {
       snippet = { ok: true, value: undefined };
     }
 
-    if (snippet.value !== undefined && input.includeFullFiles && onPath === undefined) {
+    if (snippet.value !== undefined && input.includeFullFiles && !capped) {
       if (snippet.value.tokenEstimate <= input.policy.maxFullFileTokens) {
         includeMode = "full";
       } else {
@@ -844,7 +899,7 @@ async function buildFileContexts(input: {
         path: normalized,
         reason: input.task.allowedFiles.includes(normalized)
           ? "Task allowed file."
-          : onPath?.has(normalized) === true
+          : onPath.has(normalized)
             ? "Entity on the cited path."
             : structural.admitted.has(normalized)
               ? "One import or test hop from a file this task touches."
@@ -944,6 +999,14 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
   // record at -78.3% bodied recall over 17 runs; this is the one line where
   // that mistake would be repeated at repository scale, and it is asserted in
   // the tests rather than left to review.
+  //
+  // `input.policy.compactSnippetCap` must never appear here either, and for a
+  // narrower reason: the cap is measured, and what it is measured to do is
+  // remove snippet TEXT at unchanged bodied file recall. Dropping the project
+  // summary and the patterns is a different deletion that nobody has measured
+  // alongside it, and the arm F pack that produced -52.01% carried both of
+  // them. Folding them in here would ship a configuration nobody ran under a
+  // number somebody did.
   const compact = input.understanding !== undefined;
   const projectContext = {
     summary:
@@ -966,6 +1029,7 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
     featureSlug: input.feature.slug,
     taskId: input.task.id,
     budgetMode: input.policy.mode,
+    snippetCapApplied: input.policy.compactSnippetCap,
     estimatedTokens: {
       input: 0,
       expectedOutput: input.policy.expectedOutputTokens,

@@ -22,11 +22,22 @@ type ContextCommandOptions = {
   readonly budget?: BudgetMode;
   readonly maxTokens?: string;
   readonly includeFullFiles?: boolean;
+  readonly snippetCap?: "on" | "off";
   readonly promptOnly?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
   readonly json?: boolean;
 };
+
+/**
+ * `on|off` rather than a boolean flag pair, because the absent state has to
+ * stay distinguishable from "off": absent defers to `.visp/config.json` and
+ * then to the per-mode default, and `--no-snippet-cap` would collapse those
+ * into one value at the parser.
+ */
+function parseSnippetCap(value: "on" | "off" | undefined): boolean | undefined {
+  return value === undefined ? undefined : value === "on";
+}
 
 function parseMaxTokens(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
@@ -49,6 +60,8 @@ function workflowOptions(
     resolvedTaskId = undefined;
   }
 
+  const snippetCap = parseSnippetCap(options.snippetCap);
+
   return {
     taskId: resolvedTaskId,
     targetPath: resolvedPath,
@@ -58,6 +71,7 @@ function workflowOptions(
     budget: options.budget,
     maxTokens: parseMaxTokens(options.maxTokens),
     includeFullFiles: options.includeFullFiles ?? false,
+    ...(snippetCap === undefined ? {} : { snippetCap }),
     promptOnly: options.promptOnly ?? false,
     force: options.force ?? false,
     dryRun: options.dryRun ?? false
@@ -82,6 +96,12 @@ export function createContextCommand(dependencies: ContextCommandDependencies = 
     )
     .option("--max-tokens <number>", "Override the budget mode max input tokens.")
     .option("--include-full-files", "Include full selected files when within budget.")
+    .addOption(
+      new Option(
+        "--snippet-cap <mode>",
+        "Cap snippets at 4 files and 40 lines (on), or give every selected file an uncapped snippet (off). Default on."
+      ).choices(["on", "off"])
+    )
     .option("--prompt-only", "Generate only task prompt files.")
     .option("--force", "Overwrite generated context files for this task.")
     .option("--dry-run", "Calculate context without writing files.")

@@ -43,6 +43,33 @@ visp-kit init --budget lean
 visp-kit context T001 --budget balanced
 ```
 
+## Snippet Cap
+
+The compact snippet cap — at most four snippets of at most forty lines, instead
+of a full-length snippet for every selected file — is **on by default in every
+budget mode**. It cuts input tokens roughly in half at unchanged bodied file
+recall; the measurement and its cost are in
+[Token Efficiency](token-efficiency.md).
+
+Turn it off for one command:
+
+```bash
+visp-kit context T001 --snippet-cap off
+```
+
+Turn it off for the project, in `.visp/config.json`:
+
+```json
+{
+  "contextSnippetCap": false
+}
+```
+
+Most specific signal wins: `--snippet-cap` on the command line, then
+`--include-full-files` (which turns the cap off for that invocation, since a
+capped pack never carries a full file), then `contextSnippetCap`, then the
+default. Each pack records the outcome in its `snippetCapApplied` field.
+
 ## Strictness Modes
 
 Strictness is stored in `.visp/policy.json`.

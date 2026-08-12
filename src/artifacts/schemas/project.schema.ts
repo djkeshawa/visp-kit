@@ -65,6 +65,13 @@ export const projectConfigSchema = z
     schemaVersion: nonEmptyStringSchema,
     projectId: nonEmptyStringSchema,
     budgetMode: budgetModeSchema,
+    /**
+     * Project-level compact snippet cap. Optional so configs written before
+     * this setting existed keep validating; absent means the per-mode default,
+     * which is on. `false` restores the uncapped pack shape for every context
+     * command in this project.
+     */
+    contextSnippetCap: z.boolean().optional(),
     preset: presetSchema,
     agent: agentModeSchema,
     createdAt: isoDateTimeSchema,

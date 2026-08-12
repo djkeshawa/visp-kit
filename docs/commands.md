@@ -150,6 +150,8 @@ Common flags:
 - `--budget lean|balanced|strict`
 - `--max-tokens <number>`
 - `--include-full-files`
+- `--snippet-cap on|off` (default `on`; `--include-full-files` turns it off for
+  that invocation unless you also pass `--snippet-cap on`)
 - `--prompt-only`
 - `--force`
 - `--dry-run`

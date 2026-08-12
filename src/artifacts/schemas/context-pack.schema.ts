@@ -277,6 +277,16 @@ export const contextPackSchema = z
     // does not. Optional — packs written before this field keep parsing, and
     // a project without git simply has no base.
     baseCommit: z.string().optional(),
+    /**
+     * Whether the compact snippet cap shaped this pack.
+     *
+     * Recorded because the cap is the difference between a ~16.7k-token pack
+     * and an ~8.0k-token one, and anyone scoring a pack has to be able to read
+     * which of those they are holding out of the artifact rather than out of a
+     * command line somebody remembers running. Optional so packs written before
+     * this field keep parsing.
+     */
+    snippetCapApplied: z.boolean().optional(),
     strictnessMode: strictnessModeSchema.optional(),
     policyStatus: policyStatusSchema.optional(),
     gateStatus: z.enum(["allowed", "blocked", "warnings", "not_evaluated"]).optional(),

@@ -42,14 +42,70 @@ It avoids:
 - broad source file inclusion
 - long chat history
 
+## The compact snippet cap
+
+**At most four snippets of at most forty lines, instead of a full-length
+snippet for every candidate file.** It is on by default in every budget mode,
+and `--snippet-cap off` (or `"contextSnippetCap": false` in `.visp/config.json`)
+restores the older uncapped shape. Every pack records which one it got, in
+`snippetCapApplied`.
+
+This is a separate mechanism from the understanding case below, and until
+`visp-kit 0.6.0` it was not: the cap fired if and only if a current case was
+present, so nothing could measure the two apart and no configuration of any
+released binary applied the cap on its own.
+
+### What the cap is worth, measured without the graph
+
+28 held-out tasks, `balanced` budget, two repositories, cap versus no cap with
+no graph, no store and no understanding case on either side
+(`visp-dev/evidence/phase-23/arm-f-ablation-linux-x64-node24-local.json`, arm A
+against arm F):
+
+| | no cap | cap | delta |
+|---|---|---|---|
+| input tokens (mean) | 16,709.607 | 8,019.393 | **−52.01%** |
+| bodied file recall | 0.4646201021 | 0.4646201021 | **0.0000** |
+| bodied precision | 0.197556 | 0.197556 | 0.0000 |
+| files bodied (mean) | 8.429 | 8.429 | 0.000 |
+| symbol recall | 0.6287982 | 0.6140590 | −2.34% |
+| over budget | 15 of 28 | **0 of 28** | — |
+
+Bodied file recall is the same floating-point number on the cohort **and on all
+28 tasks individually**; recall fell on zero of them. The cap removes snippet
+text, not files. `tests/integration/compact-context-pack.test.ts` pins that as a
+property — capped and uncapped packs over this repository must select the same
+files, in the same order, with the same summaries — so a future change that
+makes the cap alter file selection fails the suite rather than quietly
+invalidating the table above.
+
+**The cost, stated plainly.** Symbol recall falls, and all of it is 2 tasks in
+one of the two repositories measured (`mongo-exporter`: 0.6143 → 0.5524 over 7
+tasks; on the other 21 tasks it does not move). The same price is already paid
+by the full intel pipeline for the same reason. The default is on because the
+alternative default produces a pack that exceeds the ceiling its own budget mode
+declares on 15 of 28 tasks; the trade is real, it is one flag wide, and it has
+not been measured outside `balanced` or outside those two repositories.
+
+**One disclosure.** The measurement ran against a private build in which the
+cap was reached by handing the selector an empty cited path, so every capped
+snippet was labelled "Highest-ranked file off the cited path". A pack with no
+case cites no path, so it now says "Highest-ranked file within the snippet cap"
+instead — about one token per snippet, at most four snippets. That is the whole
+difference between this configuration and the numbers above.
+
 ## The compact pack
 
 When `.visp-intel/understanding/<task-id>.json` holds a **current** case, the
-pack switches shape. It carries the cited behavioural path, the open
-hypotheses, a handful of entity signature lines, the affected tests, and at
-most four snippets of at most forty lines instead of a full-length snippet for
-every candidate file. **The graph itself is never in the prompt** — no entity
-dump, no relation table, no adjacency.
+pack switches shape on top of the cap. It carries the cited behavioural path,
+the open hypotheses, a handful of entity signature lines and the affected tests,
+and it drops the project summary and patterns free text. **The graph itself is
+never in the prompt** — no entity dump, no relation table, no adjacency.
+
+The case does not turn the snippet cap on and the cap does not turn the case's
+compaction on. Withholding the whole-repository free text is a claim that
+somebody authored task-scoped evidence for this task; the cap is not that, and
+the packs behind the −52.01% carried both sections.
 
 Path membership is a **ranking signal, not a filter**. Every in-scope file
 keeps its summary; the path decides who gets the expensive body:
@@ -99,14 +155,31 @@ Measured on this repository, one cross-file task, `balanced` budget, against a
 **real** `visp-intel` understanding export
 (`tests/fixtures/understanding/visp-kit-T001.export.json`, produced by
 `repo index` + `task scope-proposal` + `understanding export` at `ab4cc4e`):
-**12,017 input tokens before, 7,346 after — a 39% reduction.**
+**12,074 input tokens uncapped, 7,381 with the cap and the case — a 39%
+reduction**, from a clean clone at the commit that added this paragraph.
+
+And, since the cap and the case became separate inputs, the same run splits that
+39% by what produced it:
+
+| | input tokens |
+|---|---|
+| uncapped, no case | 12,074 |
+| **cap only, no case** | **6,702** |
+| cap plus the real case | 7,381 |
+
+**The cap is all of the saving and more.** The case then spends 679 tokens
+promoting files onto the cited path and adding path-only files, which is what it
+is for — it buys localisation, not tokens. That is the same direction as the
+28-task result, where adding the whole intel pipeline on top of the cap cost
++19.52% tokens for +1.54% bodied file recall.
 
 Reproduce it, from nothing:
 
 ```bash
 git clone <this repository> && cd visp-kit && pnpm install
 pnpm vitest run tests/integration/compact-context-pack.test.ts
-# [P21-KIT-03] ... before=12017 after=7346 (39% reduction)
+# [P21-KIT-03] ... before=12074 after=7381 (39% reduction)
+# [cap attribution] visp-kit T001: uncapped=12074 capped=6702 capped+case=7381
 ```
 
 Two earlier figures stood here. Neither should be quoted.

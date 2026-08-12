@@ -174,6 +174,7 @@ describe("createCli", () => {
     expect(help).toContain("--budget");
     expect(help).toContain("--max-tokens");
     expect(help).toContain("--include-full-files");
+    expect(help).toContain("--snippet-cap <mode>");
     expect(help).toContain("--prompt-only");
     expect(help).toContain("--force");
     expect(help).toContain("--dry-run");
