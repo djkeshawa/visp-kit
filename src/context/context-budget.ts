@@ -58,11 +58,13 @@ export function effectiveMaxInputTokens(policy: ContextBudgetPolicy): number {
  * The compact snippet cap is ON by default, in every budget mode, and this is
  * the argument for that.
  *
- * MEASURED, on 28 held-out tasks in `balanced` mode, cap versus no cap with no
- * graph, no store and no understanding case on either side:
+ * MEASURED, on 28 capability-eligible tasks in `balanced` mode, cap versus no
+ * cap with no graph, no store and no understanding case on either side, AGAINST
+ * THE SHIPPED BINARY (`develop` 56ff1af — arm A is `--snippet-cap off`, arm F
+ * takes this default, and each arm records the `snippetCapApplied` Kit reported):
  *
- *   - input tokens 16,709.6 -> 8,019.4, which is -52.01% — the same file list
- *     for half the tokens, NOT the same information (see below);
+ *   - input tokens 17,002.071 -> 8,317.000, which is -51.08% — the same file
+ *     list for half the tokens, NOT the same information (see below);
  *   - bodied file recall 0.4646201021 on both sides — the same floating-point
  *     number on the cohort AND on all 28 tasks individually. Recall fell on
  *     zero tasks. So did listed recall, bodied precision and files bodied;
@@ -89,8 +91,17 @@ export function effectiveMaxInputTokens(policy: ContextBudgetPolicy): number {
  * this reason, so shipping the cap on does not introduce a trade the project
  * has not already taken.
  *
- * WHAT THIS DEFAULT IS NOT. The run above was a visp-dev measurement build, on
- * two repositories, in `balanced` mode only — and Kit ships this cap on in all
+ * NOT -52.01%. An earlier version of this comment justified the default with
+ * 16,709.6 -> 8,019.4 (-52.01%), from a visp-dev measurement build. That pair is
+ * historical: neither endpoint is producible on the build that ships this
+ * default. Re-running the same two arms on shipped Kit adds a flat ~292 tokens
+ * to BOTH arms (pack bookkeeping, not a cap effect) plus 0-7 on the capped arm
+ * (the snippet reason string), which is the whole of the move to -51.08%; every
+ * non-token metric above is identical on all 28 tasks in both arms. The finding
+ * did not move, the arithmetic did. See `docs/token-efficiency.md`.
+ *
+ * WHAT THIS DEFAULT IS NOT. The run above was on two repositories, in
+ * `balanced` mode only — and Kit ships this cap on in all
  * three budget modes. It is not measured outside `balanced`, and it is not
  * measured outside those two repositories; the same constant in `lean` and
  * `strict` is an extrapolation and is written here as one. A per-mode default

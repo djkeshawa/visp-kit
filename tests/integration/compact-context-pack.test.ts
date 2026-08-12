@@ -314,10 +314,11 @@ describe("the compact context pack", () => {
    * files onto the cited path and adds path-only files, which is what it is
    * for. Every token of the reduction, and then some, is the cap.
    *
-   * This is the same shape as the 28-task measurement (cap alone -52.01%
-   * against no cap — a same-file-list saving measured in balanced mode on two
-   * repositories against a visp-dev measurement build; adding the whole graph
-   * pipeline on top costs +19.52% tokens), and it is asserted here so that a
+   * This is the same shape as the 28-task measurement (cap alone -51.08%
+   * against no cap on the shipped binary — a same-file-list saving measured in
+   * balanced mode on two repositories; adding the whole graph pipeline on top
+   * costs +19.52% tokens, which is still a measurement-build figure because
+   * only the two cap arms were re-run), and it is asserted here so that a
    * change which quietly moves the saving from one mechanism to the other
    * cannot pass.
    */
@@ -443,16 +444,23 @@ describe("the compact context pack", () => {
 });
 
 /**
- * THE INVARIANT THE -52% RESTS ON.
+ * THE INVARIANT THE -51% RESTS ON.
  *
- * Measured on 28 held-out tasks, `balanced` mode, the compact snippet cap
- * against no cap with no graph, no store and no understanding case on either
- * side: input tokens 16,709.607 -> 8,019.393, and bodied file recall
+ * Measured on 28 capability-eligible tasks, `balanced` mode, the compact
+ * snippet cap against no cap with no graph, no store and no understanding case
+ * on either side, on the SHIPPED binary: input tokens 17,002.071 -> 8,317.000
+ * (-51.08%), and bodied file recall
  * 0.4646201021 on BOTH sides — the same floating-point number on the cohort and
  * on all 28 tasks individually. Listed file recall, bodied precision, files
  * bodied and irrelevant bodied files were identical on all 28 too. The only
  * fields that moved were input tokens and, on 2 tasks in one repository,
  * symbol recall.
+ *
+ * (This docblock used to quote 16,709.607 -> 8,019.393, -52.01%. That pair is
+ * historical — a visp-dev measurement build, neither endpoint producible on the
+ * build that ships the default it justified. The shipped re-run adds a flat
+ * ~292 tokens to both arms and 0-7 to the capped one; every non-token metric
+ * above is unchanged, which is why the invariant below is unaffected.)
  *
  * That is the entire basis for shipping the cap on by default: it removes
  * snippet TEXT and it does not change WHICH FILES the pack decides to carry a
@@ -497,7 +505,7 @@ describe("the compact snippet cap with no understanding case", () => {
    * The guard against a vacuous invariant.
    *
    * Everything above would pass if the cap became a no-op, and a no-op cap is a
-   * silent -52% regression. So: the cap has to actually fire, it has to fire
+   * silent -51% regression. So: the cap has to actually fire, it has to fire
    * within its stated bounds, and what it removes has to be a SUBSET of what
    * the uncapped pack bodied — the cap deletes snippets, it never substitutes
    * one file's code for another's.
@@ -526,11 +534,11 @@ describe("the compact snippet cap with no understanding case", () => {
    * `compact` — the switch that withholds the project summary and the patterns
    * text — is set by the understanding case and by nothing else, because it is
    * a claim that somebody authored task-scoped evidence. The arm F pack that
-   * produced -52.01% carried both of those sections; a cap that also dropped
+   * produced -51.08% carried both of those sections; a cap that also dropped
    * them would be a configuration nobody measured, reported under a number
    * somebody did — and that number is a same-file-list saving (bodied recall
    * equals listed recall in that harness), measured in balanced mode on two
-   * repositories against a visp-dev measurement build.
+   * repositories on the shipped binary.
    */
   it("does not withhold anything the case withholds", async () => {
     const capped = await packTokens({});

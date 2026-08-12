@@ -57,14 +57,18 @@ released binary applied the cap on its own.
 
 ### What the cap is worth, measured without the graph
 
-28 held-out tasks, `balanced` budget, two repositories, cap versus no cap with
-no graph, no store and no understanding case on either side
-(`visp-dev/evidence/phase-23/arm-f-ablation-linux-x64-node24-local.json`, arm A
-against arm F):
+28 capability-eligible tasks, `balanced` budget, two repositories, cap versus no
+cap with no graph, no store and no understanding case on either side —
+**measured against the shipped binary** (`visp-kit` `develop` `56ff1af`, one
+build, no patch), so arm A is `--snippet-cap off`, arm F takes the shipped
+default, and each arm records the `snippetCapApplied` Kit itself reported rather
+than the one the harness asked for
+(`visp-dev/evidence/phase-23/arm-a-f-shipped-kit-56ff1af-linux-x64-node24-local.json`,
+reproduced in `visp-dev` with `pnpm ablation:shipped-kit:verify`):
 
 | | no cap | cap | delta |
 |---|---|---|---|
-| input tokens (mean) | 16,709.607 | 8,019.393 | **−52.01%** |
+| input tokens (mean) | 17,002.071 | 8,317.000 | **−51.08%** |
 | bodied file recall | 0.4646201021 | 0.4646201021 | **0.0000** |
 | bodied precision | 0.197556 | 0.197556 | 0.0000 |
 | files bodied (mean) | 8.429 | 8.429 | 0.000 |
@@ -86,7 +90,7 @@ arithmetically identical to listed recall. It is not a second, independent
 measurement. **Bit-identical bodied recall means the capped pack NAMES THE SAME
 FILES; it says nothing about how much of each file survives** — and the cap cuts
 source text from a full-length snippet per listed file down to at most four
-files at forty lines. The honest one-line reading of the −52.01% is **"the same
+files at forty lines. The honest one-line reading of the −51.08% is **"the same
 file list for half the tokens"**, not "the same information".
 
 **The cost, stated plainly.** Symbol recall falls, and all of it is 2 tasks in
@@ -97,19 +101,29 @@ alternative default produces a pack that exceeds the ceiling its own budget mode
 declares on 15 of 28 tasks; the trade is real, it is one flag wide, and it has
 not been measured outside `balanced` or outside those two repositories.
 
-**What the number does not cover.** The −52.01% was measured on a **visp-dev
-measurement build**, on **two repositories**, in **`balanced` mode only** — while
-Kit ships the cap on by default in **all three** budget modes. The constant in
-`lean` and `strict` is an extrapolation from the balanced measurement, not a
-result. Anyone citing the figure to justify the default in another mode, or on
-another repository, is quoting past the evidence.
+**What the number does not cover.** The −51.08% was measured on **two
+repositories**, in **`balanced` mode only** — while Kit ships the cap on by
+default in **all three** budget modes. The constant in `lean` and `strict` is an
+extrapolation from the balanced measurement, not a result. Anyone citing the
+figure to justify the default in another mode, or on another repository, is
+quoting past the evidence.
 
-**One disclosure.** The measurement ran against a private build in which the
-cap was reached by handing the selector an empty cited path, so every capped
-snippet was labelled "Highest-ranked file off the cited path". A pack with no
-case cites no path, so it now says "Highest-ranked file within the snippet cap"
-instead — about one token per snippet, at most four snippets. That is the whole
-difference between this configuration and the numbers above.
+**The retired pair, and why it moved.** This document, and the comment on
+`DEFAULT_COMPACT_SNIPPET_CAP`, used to justify the default with **16,709.607 →
+8,019.393, −52.01%**
+(`visp-dev/evidence/phase-23/arm-f-ablation-linux-x64-node24-local.json`). That
+pair is **historical and should not be quoted for shipped behaviour**: it came
+from a `visp-dev` measurement build in which the cap was reached by handing the
+selector an empty cited path, and **neither endpoint is producible by the binary
+that ships this default**. Re-running the same two arms over the same 28 tasks
+against shipped `56ff1af` adds a flat ~292 tokens to **both** arms — pack
+bookkeeping added since, not a cap effect, and a near-equal constant on both
+sides of a ratio moves it toward zero — plus 0–7 tokens on the capped arm only,
+where a snippet with no case is now labelled "Highest-ranked file within the
+snippet cap" instead of "Highest-ranked file off the cited path". Subtracting
+the flat component reproduces the older pair to the digit. **Every non-token
+metric is identical on all 28 tasks in both arms**, so what changed between
+−52.01% and −51.08% is the arithmetic, not the finding. Quote −51.08%.
 
 ## The compact pack
 
@@ -122,10 +136,10 @@ never in the prompt** — no entity dump, no relation table, no adjacency.
 The case does not turn the snippet cap on and the cap does not turn the case's
 compaction on. Withholding the whole-repository free text is a claim that
 somebody authored task-scoped evidence for this task; the cap is not that, and
-the packs behind the −52.01% carried both sections. (That −52.01% is a
-same-file-list saving measured in `balanced` mode on two repositories against a
-visp-dev measurement build; its unchanged bodied recall means the pack named the
-same files, not that it carried the same information.)
+the packs behind the −51.08% carried both sections. (That −51.08% is a
+same-file-list saving measured in `balanced` mode on two repositories; its
+unchanged bodied recall means the pack named the same files, not that it
+carried the same information.)
 
 Path membership is a **ranking signal, not a filter**. Every in-scope file
 keeps its summary; the path decides who gets the expensive body:
@@ -191,7 +205,9 @@ And, since the cap and the case became separate inputs, the same run splits that
 promoting files onto the cited path and adding path-only files, which is what it
 is for — it buys localisation, not tokens. That is the same direction as the
 28-task result, where adding the whole intel pipeline on top of the cap cost
-+19.52% tokens for +1.54% bodied file recall.
++19.52% tokens for +1.54% bodied file recall. (That arm-F-to-arm-D comparison is
+still a measurement-build figure: only arms A and F were re-run on the shipped
+binary, so quote it for direction, not for shipped arithmetic.)
 
 Reproduce it, from nothing:
 

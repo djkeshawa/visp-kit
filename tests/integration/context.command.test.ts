@@ -218,13 +218,14 @@ describe("visp-kit context command", () => {
   /**
    * Reachability, end to end, through the shipped binary.
    *
-   * The compact snippet cap is the mechanism behind a measured -52.01% in input
+   * The compact snippet cap is the mechanism behind a measured -51.08% in input
    * tokens at unchanged bodied file recall — which means the pack named the
    * same files, not that it carried the same information: bodied recall equals
    * listed recall in that harness, because a file counts as bodied on a
    * non-empty summary and Kit summarises every file it lists. It was measured
-   * in balanced mode on two repositories against a visp-dev measurement build.
-   * Until this change there was no
+   * in balanced mode on two repositories, on the shipped binary; the -52.01%
+   * this comment used to quote came from a visp-dev measurement build and is
+   * not producible here. Until this change there was no
    * configuration of any shipped binary in which it fired: it was reachable
    * only through an understanding case, so measuring it needed a private build.
    * This test is the standing proof that it is reachable from a command line,
