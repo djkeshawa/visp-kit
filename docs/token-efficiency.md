@@ -79,6 +79,16 @@ files, in the same order, with the same summaries — so a future change that
 makes the cap alter file selection fails the suite rather than quietly
 invalidating the table above.
 
+**Read the recall row narrowly.** The harness marks a file "bodied" when its
+pack entry carries a non-empty summary, and Kit summarises every file it lists —
+so `filesBodied` equals `filesListed` on every row above, and bodied recall is
+arithmetically identical to listed recall. It is not a second, independent
+measurement. **Bit-identical bodied recall means the capped pack NAMES THE SAME
+FILES; it says nothing about how much of each file survives** — and the cap cuts
+source text from a full-length snippet per listed file down to at most four
+files at forty lines. The honest one-line reading of the −52.01% is **"the same
+file list for half the tokens"**, not "the same information".
+
 **The cost, stated plainly.** Symbol recall falls, and all of it is 2 tasks in
 one of the two repositories measured (`mongo-exporter`: 0.6143 → 0.5524 over 7
 tasks; on the other 21 tasks it does not move). The same price is already paid
@@ -86,6 +96,13 @@ by the full intel pipeline for the same reason. The default is on because the
 alternative default produces a pack that exceeds the ceiling its own budget mode
 declares on 15 of 28 tasks; the trade is real, it is one flag wide, and it has
 not been measured outside `balanced` or outside those two repositories.
+
+**What the number does not cover.** The −52.01% was measured on a **visp-dev
+measurement build**, on **two repositories**, in **`balanced` mode only** — while
+Kit ships the cap on by default in **all three** budget modes. The constant in
+`lean` and `strict` is an extrapolation from the balanced measurement, not a
+result. Anyone citing the figure to justify the default in another mode, or on
+another repository, is quoting past the evidence.
 
 **One disclosure.** The measurement ran against a private build in which the
 cap was reached by handing the selector an empty cited path, so every capped
@@ -105,7 +122,10 @@ never in the prompt** — no entity dump, no relation table, no adjacency.
 The case does not turn the snippet cap on and the cap does not turn the case's
 compaction on. Withholding the whole-repository free text is a claim that
 somebody authored task-scoped evidence for this task; the cap is not that, and
-the packs behind the −52.01% carried both sections.
+the packs behind the −52.01% carried both sections. (That −52.01% is a
+same-file-list saving measured in `balanced` mode on two repositories against a
+visp-dev measurement build; its unchanged bodied recall means the pack named the
+same files, not that it carried the same information.)
 
 Path membership is a **ranking signal, not a filter**. Every in-scope file
 keeps its summary; the path decides who gets the expensive body:

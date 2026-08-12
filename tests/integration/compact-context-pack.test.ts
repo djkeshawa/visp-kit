@@ -315,9 +315,11 @@ describe("the compact context pack", () => {
    * for. Every token of the reduction, and then some, is the cap.
    *
    * This is the same shape as the 28-task measurement (cap alone -52.01%
-   * against no cap; adding the whole graph pipeline on top costs +19.52%
-   * tokens), and it is asserted here so that a change which quietly moves the
-   * saving from one mechanism to the other cannot pass.
+   * against no cap — a same-file-list saving measured in balanced mode on two
+   * repositories against a visp-dev measurement build; adding the whole graph
+   * pipeline on top costs +19.52% tokens), and it is asserted here so that a
+   * change which quietly moves the saving from one mechanism to the other
+   * cannot pass.
    */
   it("gets that saving from the cap and not from the case", async () => {
     const uncapped = await packTokens({ snippetCap: false });
@@ -526,7 +528,9 @@ describe("the compact snippet cap with no understanding case", () => {
    * a claim that somebody authored task-scoped evidence. The arm F pack that
    * produced -52.01% carried both of those sections; a cap that also dropped
    * them would be a configuration nobody measured, reported under a number
-   * somebody did.
+   * somebody did — and that number is a same-file-list saving (bodied recall
+   * equals listed recall in that harness), measured in balanced mode on two
+   * repositories against a visp-dev measurement build.
    */
   it("does not withhold anything the case withholds", async () => {
     const capped = await packTokens({});

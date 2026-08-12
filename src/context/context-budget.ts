@@ -61,10 +61,18 @@ export function effectiveMaxInputTokens(policy: ContextBudgetPolicy): number {
  * MEASURED, on 28 held-out tasks in `balanced` mode, cap versus no cap with no
  * graph, no store and no understanding case on either side:
  *
- *   - input tokens 16,709.6 -> 8,019.4, which is -52.01%;
+ *   - input tokens 16,709.6 -> 8,019.4, which is -52.01% — the same file list
+ *     for half the tokens, NOT the same information (see below);
  *   - bodied file recall 0.4646201021 on both sides — the same floating-point
  *     number on the cohort AND on all 28 tasks individually. Recall fell on
  *     zero tasks. So did listed recall, bodied precision and files bodied;
+ *     note that bodied recall is not an independent second metric here — the
+ *     harness marks a file bodied when its entry carries a non-empty summary
+ *     and Kit summarises every file it lists, so bodied recall is
+ *     arithmetically identical to listed recall. "Bit-identical bodied recall"
+ *     therefore means only that the capped pack NAMES THE SAME FILES; the cap
+ *     still cuts source text from a full snippet per listed file to at most
+ *     four files at forty lines;
  *   - over budget 15 of 28 -> 0 of 28;
  *   - symbol recall 0.6288 -> 0.6141. That is the whole cost, and it is not
  *     spread: it is 2 tasks in one of the two repositories measured
@@ -81,8 +89,10 @@ export function effectiveMaxInputTokens(policy: ContextBudgetPolicy): number {
  * this reason, so shipping the cap on does not introduce a trade the project
  * has not already taken.
  *
- * WHAT THIS DEFAULT IS NOT. It is not measured outside `balanced`, and it is
- * not measured outside those two repositories; the same constant in `lean` and
+ * WHAT THIS DEFAULT IS NOT. The run above was a visp-dev measurement build, on
+ * two repositories, in `balanced` mode only — and Kit ships this cap on in all
+ * three budget modes. It is not measured outside `balanced`, and it is not
+ * measured outside those two repositories; the same constant in `lean` and
  * `strict` is an extrapolation and is written here as one. A per-mode default
  * would be a second, unmeasured claim (that `strict` users want the uncapped
  * shape) on top of the first, so the default is uniform and the escape is
