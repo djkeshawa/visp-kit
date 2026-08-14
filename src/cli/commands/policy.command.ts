@@ -8,10 +8,12 @@ import { formatError } from "../../theme/terminal.js";
 import {
   formatPolicySummary,
   runPolicyInitWorkflow,
+  runPolicyMigrateWorkflow,
   runPolicySetStrictnessWorkflow,
   runPolicyShowWorkflow,
   runPolicyValidateWorkflow,
   type PolicyInitOptions,
+  type PolicyMigrateOptions,
   type PolicySetStrictnessOptions,
   type PolicyShowOptions,
   type PolicyValidateOptions,
@@ -25,6 +27,7 @@ export type PolicyCommandDependencies = {
   readonly runPolicyShow?: typeof runPolicyShowWorkflow;
   readonly runPolicyValidate?: typeof runPolicyValidateWorkflow;
   readonly runPolicySetStrictness?: typeof runPolicySetStrictnessWorkflow;
+  readonly runPolicyMigrate?: typeof runPolicyMigrateWorkflow;
   readonly writeOut?: (value: string) => void;
   readonly writeErr?: (value: string) => void;
   readonly cwd?: string;
@@ -41,6 +44,10 @@ type PolicyInitCommandOptions = JsonOption & {
 };
 
 type PolicySetStrictnessCommandOptions = JsonOption & {
+  readonly dryRun?: boolean;
+};
+
+type PolicyMigrateCommandOptions = JsonOption & {
   readonly dryRun?: boolean;
 };
 
@@ -122,6 +129,7 @@ export function createPolicyCommand(dependencies: PolicyCommandDependencies = {}
   const runShow = dependencies.runPolicyShow ?? runPolicyShowWorkflow;
   const runValidate = dependencies.runPolicyValidate ?? runPolicyValidateWorkflow;
   const runSetStrictness = dependencies.runPolicySetStrictness ?? runPolicySetStrictnessWorkflow;
+  const runMigrate = dependencies.runPolicyMigrate ?? runPolicyMigrateWorkflow;
   const writeOut = dependencies.writeOut ?? ((value: string) => process.stdout.write(value));
   const writeErr = dependencies.writeErr ?? ((value: string) => process.stderr.write(value));
   const writers = { writeOut, writeErr };
@@ -168,6 +176,21 @@ export function createPolicyCommand(dependencies: PolicyCommandDependencies = {}
         options,
         writers
       );
+    });
+
+  policy
+    .command("migrate")
+    .description("Record rule keys .visp/policy.json omits at its strictness defaults.")
+    .argument("[path]", "Target project path.")
+    .option("--dry-run", "Show what would be written without writing files.")
+    .option("--json", "Print a machine-readable summary.")
+    .action(async (targetPath: string | undefined, options: PolicyMigrateCommandOptions) => {
+      const migrateOptions: PolicyMigrateOptions = {
+        targetPath,
+        cwd: dependencies.cwd,
+        dryRun: options.dryRun ?? false
+      };
+      await handleResult(runMigrate(migrateOptions), options, writers);
     });
 
   policy

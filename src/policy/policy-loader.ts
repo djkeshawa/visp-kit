@@ -8,7 +8,7 @@ import { VispError } from "../core/errors.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
 import { relativePath, vispDir } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import { createDefaultPolicy } from "./policy-defaults.js";
+import { createDefaultPolicy, resolvePolicyRules } from "./policy-defaults.js";
 import { validatePolicyArtifact } from "./policy-validator.js";
 
 export type LoadedPolicy = {
@@ -18,6 +18,12 @@ export type LoadedPolicy = {
   readonly policyPathRelative: string;
   readonly exists: boolean;
   readonly warnings: readonly string[];
+  /**
+   * Rule keys absent from the stored file and supplied here from its strictness
+   * preset. Non-empty means the file understates what it enforces; `visp-kit
+   * policy migrate` writes them down.
+   */
+  readonly filledRuleKeys: readonly string[];
 };
 
 export async function ensureVispProject(targetPath: string): Promise<Result<void, VispError>> {
@@ -67,14 +73,50 @@ export async function readPolicyFile(targetPath: string): Promise<Result<LoadedP
     );
   }
 
+  const resolved = resolvePolicyRules(validation.value.rules, validation.value.strictnessMode);
+
   return ok({
-    policy: validation.value,
+    policy: { ...validation.value, rules: resolved.rules },
     source: "file",
     policyPath,
     policyPathRelative: relativePath(targetPath, policyPath),
     exists: true,
-    warnings: []
+    warnings:
+      resolved.filledKeys.length === 0
+        ? []
+        : [
+            `Policy file omits ${resolved.filledKeys.length} rule ${
+              resolved.filledKeys.length === 1 ? "key" : "keys"
+            } (${resolved.filledKeys.join(", ")}); they are being enforced at the ` +
+              `${validation.value.strictnessMode} defaults. Run \`visp-kit policy migrate\` to record them.`
+          ],
+    filledRuleKeys: resolved.filledKeys
   });
+}
+
+/**
+ * Read the stored policy artifact exactly as written, with no strictness
+ * back-fill. `policy migrate` needs the literal file to know what is missing.
+ */
+export async function readStoredPolicyFile(
+  targetPath: string
+): Promise<Result<PolicyArtifact, VispError>> {
+  const policyPath = policyArtifactPath(targetPath);
+  const raw = await readJsonFile<unknown>(policyPath);
+
+  if (!raw.ok) return raw;
+
+  const validation = validatePolicyArtifact(raw.value);
+
+  if (!validation.passed || validation.value === undefined) {
+    return err(
+      new VispError("VALIDATION_FAILED", `Invalid policy:\n- ${validation.errors.join("\n- ")}`, {
+        details: { path: policyPath, errors: validation.errors }
+      })
+    );
+  }
+
+  return ok(validation.value);
 }
 
 export async function loadEffectivePolicy(input: {
@@ -107,6 +149,7 @@ export async function loadEffectivePolicy(input: {
     policyPath,
     policyPathRelative: relativePath(input.targetPath, policyPath),
     exists: false,
-    warnings: ["Policy file is missing. Run `visp-kit policy init` to persist it."]
+    warnings: ["Policy file is missing. Run `visp-kit policy init` to persist it."],
+    filledRuleKeys: []
   });
 }

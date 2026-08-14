@@ -58,15 +58,15 @@ export function effectiveMaxInputTokens(policy: ContextBudgetPolicy): number {
  * The compact snippet cap is ON by default, in every budget mode, and this is
  * the argument for that.
  *
- * MEASURED, on 28 capability-eligible tasks in `balanced` mode, cap versus no
+ * MEASURED, on 21 capability-eligible tasks in `balanced` mode, cap versus no
  * cap with no graph, no store and no understanding case on either side, AGAINST
  * THE SHIPPED BINARY (`develop` 56ff1af — arm A is `--snippet-cap off`, arm F
  * takes this default, and each arm records the `snippetCapApplied` Kit reported):
  *
- *   - input tokens 17,002.071 -> 8,317.000, which is -51.08% — the same file
+ *   - input tokens 14,539.048 -> 7,343.333, which is -49.49% — the same file
  *     list for half the tokens, NOT the same information (see below);
- *   - bodied file recall 0.4646201021 on both sides — the same floating-point
- *     number on the cohort AND on all 28 tasks individually. Recall fell on
+ *   - bodied file recall 0.4382395382 on both sides — the same floating-point
+ *     number on the cohort AND on every task individually. Recall fell on
  *     zero tasks. So did listed recall, bodied precision and files bodied;
  *     note that bodied recall is not an independent second metric here — the
  *     harness marks a file bodied when its entry carries a non-empty summary
@@ -75,36 +75,43 @@ export function effectiveMaxInputTokens(policy: ContextBudgetPolicy): number {
  *     therefore means only that the capped pack NAMES THE SAME FILES; the cap
  *     still cuts source text from a full snippet per listed file to at most
  *     four files at forty lines;
- *   - over budget 15 of 28 -> 0 of 28;
- *   - symbol recall 0.6288 -> 0.6141. That is the whole cost, and it is not
- *     spread: it is 2 tasks in one of the two repositories measured
- *     (`mongo-exporter`, 0.6143 -> 0.5524 on 7 tasks); on the other 21 tasks
- *     symbol recall is unchanged to the digit.
+ *   - symbol recall 0.6333333 on both sides.
  *
- * A default is a claim about which failure is worse. Today's default produces a
- * pack that exceeds the ceiling its own mode declares on 15 of 28 tasks, and
- * the recommendation it then prints is "split the task" — the tool blaming the
- * user for its own retrieval. Against that, the cap costs part of one metric on
- * 2 of 28 tasks and costs nothing on the metric that decides whether the file
- * the human patched is in the pack at all. It also costs nothing new: arm D,
- * the full intel pipeline, pays exactly this symbol-recall price for exactly
- * this reason, so shipping the cap on does not introduce a trade the project
- * has not already taken.
+ * DO NOT READ THAT LAST ROW AS THE CAP BEING FREE. On the 28-record cohort the
+ * cap cost symbol recall (0.6288 -> 0.6141), all of it 2 tasks in
+ * `mongo-exporter`. Those are among the seven records the 21-record cohort
+ * drops, so the cost did not fall — the cases that paid it left. A figure that
+ * improves because its failures were removed has not improved.
  *
- * NOT -52.01%. An earlier version of this comment justified the default with
- * 16,709.6 -> 8,019.4 (-52.01%), from a visp-dev measurement build. That pair is
- * historical: neither endpoint is producible on the build that ships this
- * default. Re-running the same two arms on shipped Kit adds a flat ~292 tokens
- * to BOTH arms (pack bookkeeping, not a cap effect) plus 0-7 on the capped arm
- * (the snippet reason string), which is the whole of the move to -51.08%; every
- * non-token metric above is identical on all 28 tasks in both arms. The finding
- * did not move, the arithmetic did. See `docs/token-efficiency.md`.
+ * A default is a claim about which failure is worse. The uncapped default
+ * produces a pack that exceeds the ceiling its own mode declares on 15 of 28
+ * tasks (that count has not been re-aggregated on 21 and is quoted as the
+ * 28-record figure it is), and the recommendation it then prints is "split the
+ * task" — the tool blaming the user for its own retrieval. Against that, the
+ * cap costs nothing on the metric that decides whether the file the human
+ * patched is in the pack at all, and where it does cost symbol recall it costs
+ * nothing new: arm D, the full intel pipeline, pays exactly this price for
+ * exactly this reason.
  *
- * WHAT THIS DEFAULT IS NOT. The run above was on two repositories, in
- * `balanced` mode only — and Kit ships this cap on in all
- * three budget modes. It is not measured outside `balanced`, and it is not
- * measured outside those two repositories; the same constant in `lean` and
- * `strict` is an extrapolation and is written here as one. A per-mode default
+ * NOT -52.01%, AND NOT -51.08%. Two superseded pairs for the same finding.
+ * 16,709.6 -> 8,019.4 (-52.01%) came from a visp-dev measurement build; neither
+ * endpoint is producible on the build that ships this default, and re-running
+ * the same two arms on shipped Kit adds a flat ~292 tokens to BOTH arms (pack
+ * bookkeeping, not a cap effect) plus 0-7 on the capped arm (the snippet reason
+ * string). 17,002.071 -> 8,317.000 (-51.08%) is this same shipped-binary
+ * measurement on the 28-record cohort, before seven records whose contamination
+ * prose contradicted their own `provenance.author` were reclassified as
+ * author-dependent. No arm was re-run for -49.49%; the committed rows were
+ * re-aggregated. The finding did not move, the denominator did. See
+ * `docs/token-efficiency.md` and
+ * `visp-dev/evidence/phase-24/cohort-21-restatement.json`.
+ *
+ * WHAT THIS DEFAULT IS NOT. The run above was on two repositories (one of which
+ * now contributes only regression records), in `balanced` mode only — and Kit
+ * ships this cap on in all three budget modes. It is not measured outside
+ * `balanced`, and it is not measured outside those two repositories; the same
+ * constant in `lean` and `strict` is an extrapolation and is written here as
+ * one. A per-mode default
  * would be a second, unmeasured claim (that `strict` users want the uncapped
  * shape) on top of the first, so the default is uniform and the escape is
  * explicit: `--snippet-cap off`, or `contextSnippetCap: false` in

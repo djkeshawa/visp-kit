@@ -3,6 +3,7 @@ import path from "node:path";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
 import { clearTaskImplementMarker } from "../gates/implement-marker.js";
+import { assuranceActive } from "../oracle/assurance-activation.js";
 import { loadEffectivePolicy } from "../policy/policy-loader.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { runBudgetWorkflow } from "./budget.workflow.js";
@@ -126,10 +127,10 @@ export async function runDoneWorkflow(
   if (!policy.ok) return policy;
   const planExists = await oraclePlanExists(shared);
   if (!planExists.ok) return planExists;
-  const candidateRequired =
-    policy.value.policy.rules.requireOracleLockBeforeImplementation === true ||
-    policy.value.policy.assurance !== undefined ||
-    planExists.value;
+  const candidateRequired = assuranceActive({
+    policy: policy.value.policy,
+    oraclePlanExists: planExists.value
+  });
 
   if (candidateRequired) {
     const candidate = await runCandidateVerificationWorkflow({

@@ -1,9 +1,10 @@
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type GateBlockedCommand, type GateRuleFinding } from "../artifacts/schemas/gate.schema.js";
-import { sourceChangedFiles } from "../gates/artifact-presence.js";
+import { agentSourceChanges } from "../gates/artifact-presence.js";
 import { type ProjectState } from "./project-state.js";
 import { type WorkflowAction } from "../integration/workflow-action-schema.js";
 import { type AssuranceProfile } from "../artifacts/schemas/evidence.schema.js";
+import { type AssurancePhase } from "../oracle/assurance-activation.js";
 
 export type NextStep = {
   readonly success: boolean;
@@ -31,18 +32,21 @@ export type NextStep = {
   readonly implementationAllowed?: boolean;
   readonly prAllowed?: boolean;
   readonly assuranceProfile?: AssuranceProfile;
+  /**
+   * Where the selected task stands in the oracle/baseline/candidate sequence.
+   * `inactive` when the assurance system does not govern this task.
+   */
+  readonly assurancePhase?: AssurancePhase;
   readonly agentInstruction?: string;
   readonly action?: WorkflowAction;
 };
 
 // Phase detection asks a narrower question than scope validation: has the
-// agent STARTED implementing? A `.gitignore` edit alone cannot answer yes —
-// the toolchain's own setup appends to it, and treating that as implementation
-// skipped the implement phase on every fresh project. (.gitignore has since
-// become scope-exempt everywhere — base diffs killed the commit-to-clear
-// hatch — so the extra filter here is belt over braces, kept for clarity.)
+// agent STARTED implementing? `agentSourceChanges` draws that line — it drops
+// `.gitignore` (the toolchain appends to it) and the assurance evidence
+// directories (Visp writes those itself when the workflow runs `oracle plan`).
 function sourceChanges(state: ProjectState): boolean {
-  return sourceChangedFiles(state).some((file) => file !== ".gitignore");
+  return agentSourceChanges(state).length > 0;
 }
 
 function nextUnfinishedTask(state: ProjectState): Task | undefined {

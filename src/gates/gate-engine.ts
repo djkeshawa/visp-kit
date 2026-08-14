@@ -8,6 +8,7 @@ import {
 } from "../artifacts/schemas/gate.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
 import { selectAssuranceProfile } from "../assurance/assurance-profile.js";
+import { assuranceActive } from "../oracle/assurance-activation.js";
 import { VispError, toVispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
@@ -138,10 +139,10 @@ async function oracleAuthorizationChecks(input: {
     now: input.options.now
   };
   const planExists = await oraclePlanExists(workflowOptions);
-  const required =
-    input.context.policy.policy.rules.requireOracleLockBeforeImplementation === true ||
-    input.context.policy.policy.assurance !== undefined ||
-    (planExists.ok && planExists.value);
+  const required = assuranceActive({
+    policy: input.context.policy.policy,
+    oraclePlanExists: planExists.ok && planExists.value
+  });
 
   if (!required) return [];
 

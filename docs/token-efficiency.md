@@ -57,31 +57,48 @@ released binary applied the cap on its own.
 
 ### What the cap is worth, measured without the graph
 
-28 capability-eligible tasks, `balanced` budget, two repositories, cap versus no
-cap with no graph, no store and no understanding case on either side —
-**measured against the shipped binary** (`visp-kit` `develop` `56ff1af`, one
-build, no patch), so arm A is `--snippet-cap off`, arm F takes the shipped
-default, and each arm records the `snippetCapApplied` Kit itself reported rather
-than the one the harness asked for
+21 capability-eligible tasks, `balanced` budget, cap versus no cap with no
+graph, no store and no understanding case on either side — **measured against
+the shipped binary** (`visp-kit` `develop` `56ff1af`, one build, no patch), so
+arm A is `--snippet-cap off`, arm F takes the shipped default, and each arm
+records the `snippetCapApplied` Kit itself reported rather than the one the
+harness asked for
 (`visp-dev/evidence/phase-23/arm-a-f-shipped-kit-56ff1af-linux-x64-node24-local.json`,
-reproduced in `visp-dev` with `pnpm ablation:shipped-kit:verify`):
+re-aggregated on the 21-record cohort in
+`visp-dev/evidence/phase-24/cohort-21-restatement.json`, reproduced in
+`visp-dev` with `pnpm ablation:shipped-kit:verify`):
 
 | | no cap | cap | delta |
 |---|---|---|---|
-| input tokens (mean) | 17,002.071 | 8,317.000 | **−51.08%** |
-| bodied file recall | 0.4646201021 | 0.4646201021 | **0.0000** |
-| bodied precision | 0.197556 | 0.197556 | 0.0000 |
-| files bodied (mean) | 8.429 | 8.429 | 0.000 |
-| symbol recall | 0.6287982 | 0.6140590 | −2.34% |
-| over budget | 15 of 28 | **0 of 28** | — |
+| input tokens (mean) | 14,539.048 | 7,343.333 | **−49.49%** |
+| bodied file recall | 0.4382395382 | 0.4382395382 | **0.0000** |
+| bodied precision | 0.132067 | 0.132067 | 0.0000 |
+| files bodied (mean) | 7.952 | 7.952 | 0.000 |
+| symbol recall | 0.6333333 | 0.6333333 | **0.0000** |
 
-Bodied file recall is the same floating-point number on the cohort **and on all
-28 tasks individually**; recall fell on zero of them. The cap removes snippet
-text, not files. `tests/integration/compact-context-pack.test.ts` pins that as a
-property — capped and uncapped packs over this repository must select the same
-files, in the same order, with the same summaries — so a future change that
-makes the cap alter file selection fails the suite rather than quietly
-invalidating the table above.
+**Why 21 and not 28.** Rule 2 of the holdout — a capability claim may cite only
+author-independent records — was enforced by reading each record's contamination
+*prose* for a marker string. Prose is written by a person and can be wrong, and
+on seven `mongo-exporter` records it was: each said "history not authored here"
+while its own `provenance.author` named this workspace's committer. Eligibility
+now reads the field, and the capability cohort falls from 28 to 21.
+
+**Do not read the vanished symbol-recall cost as an improvement.** On 28 the cap
+cost symbol recall (0.6288 → 0.6141); on 21 it costs exactly none. That is not
+the cap getting cheaper. Every row where the cap dropped a symbol was a
+`mongo-exporter` row, and those are the rows that left. A figure that improves
+because the cases where it failed were removed has not improved. The same
+applies to any intel-favourable number restated on this cohort: `mongo-exporter`
+is Rust, intel has no Rust grammar, and its graph-conditioned arms were
+definitionally inert on all seven.
+
+Bodied file recall is the same floating-point number on the cohort **and on
+every task individually**; recall fell on none of them.
+`tests/integration/compact-context-pack.test.ts` pins that as a property —
+capped and uncapped packs over this repository must select the same files, in
+the same order, with the same summaries — so a future change that makes the cap
+alter file selection fails the suite rather than quietly invalidating the table
+above.
 
 **Read the recall row narrowly.** The harness marks a file "bodied" when its
 pack entry carries a non-empty summary, and Kit summarises every file it lists —
@@ -90,40 +107,45 @@ arithmetically identical to listed recall. It is not a second, independent
 measurement. **Bit-identical bodied recall means the capped pack NAMES THE SAME
 FILES; it says nothing about how much of each file survives** — and the cap cuts
 source text from a full-length snippet per listed file down to at most four
-files at forty lines. The honest one-line reading of the −51.08% is **"the same
+files at forty lines. The honest one-line reading of the −49.49% is **"the same
 file list for half the tokens"**, not "the same information".
 
-**The cost, stated plainly.** Symbol recall falls, and all of it is 2 tasks in
-one of the two repositories measured (`mongo-exporter`: 0.6143 → 0.5524 over 7
-tasks; on the other 21 tasks it does not move). The same price is already paid
-by the full intel pipeline for the same reason. The default is on because the
-alternative default produces a pack that exceeds the ceiling its own budget mode
-declares on 15 of 28 tasks; the trade is real, it is one flag wide, and it has
-not been measured outside `balanced` or outside those two repositories.
+**Why the default is on.** On the 28-record cohort the uncapped default produced
+a pack that exceeded the ceiling its own budget mode declares on 15 of 28 tasks,
+against 0 of 28 capped. That over-budget count has not been re-aggregated on the
+21-record cohort, so it is quoted here as the 28-record figure it is. The trade
+is one flag wide.
 
-**What the number does not cover.** The −51.08% was measured on **two
-repositories**, in **`balanced` mode only** — while Kit ships the cap on by
-default in **all three** budget modes. The constant in `lean` and `strict` is an
-extrapolation from the balanced measurement, not a result. Anyone citing the
-figure to justify the default in another mode, or on another repository, is
-quoting past the evidence.
+**What the number does not cover.** The −49.49% was measured on **two
+repositories** (one of which now contributes only regression records), in
+**`balanced` mode only** — while Kit ships the cap on by default in **all three**
+budget modes. The constant in `lean` and `strict` is an extrapolation from the
+balanced measurement, not a result. Anyone citing the figure to justify the
+default in another mode, or on another repository, is quoting past the evidence.
 
-**The retired pair, and why it moved.** This document, and the comment on
-`DEFAULT_COMPACT_SNIPPET_CAP`, used to justify the default with **16,709.607 →
-8,019.393, −52.01%**
-(`visp-dev/evidence/phase-23/arm-f-ablation-linux-x64-node24-local.json`). That
-pair is **historical and should not be quoted for shipped behaviour**: it came
+**The retired pairs, and why they moved.** Two superseded figures for the same
+finding, in the order they were retired.
+
+**−52.01%** (16,709.607 → 8,019.393,
+`visp-dev/evidence/phase-23/arm-f-ablation-linux-x64-node24-local.json`) came
 from a `visp-dev` measurement build in which the cap was reached by handing the
-selector an empty cited path, and **neither endpoint is producible by the binary
+selector an empty cited path, so **neither endpoint is producible by the binary
 that ships this default**. Re-running the same two arms over the same 28 tasks
 against shipped `56ff1af` adds a flat ~292 tokens to **both** arms — pack
 bookkeeping added since, not a cap effect, and a near-equal constant on both
 sides of a ratio moves it toward zero — plus 0–7 tokens on the capped arm only,
 where a snippet with no case is now labelled "Highest-ranked file within the
 snippet cap" instead of "Highest-ranked file off the cited path". Subtracting
-the flat component reproduces the older pair to the digit. **Every non-token
-metric is identical on all 28 tasks in both arms**, so what changed between
-−52.01% and −51.08% is the arithmetic, not the finding. Quote −51.08%.
+the flat component reproduces the older pair to the digit, and every non-token
+metric was identical on all 28 tasks in both arms.
+
+**−51.08%** (17,002.071 → 8,317.000) is the same shipped-binary measurement on
+the 28-record cohort, before the seven author-dependent records were
+reclassified. No arm was re-run to reach −49.49%; the committed result rows were
+re-aggregated with those seven dropped.
+
+Both retired figures are the same finding at a different denominator: the
+halving holds and moves only in the second digit. **Quote −49.49%.**
 
 ## The compact pack
 
@@ -136,10 +158,9 @@ never in the prompt** — no entity dump, no relation table, no adjacency.
 The case does not turn the snippet cap on and the cap does not turn the case's
 compaction on. Withholding the whole-repository free text is a claim that
 somebody authored task-scoped evidence for this task; the cap is not that, and
-the packs behind the −51.08% carried both sections. (That −51.08% is a
-same-file-list saving measured in `balanced` mode on two repositories; its
-unchanged bodied recall means the pack named the same files, not that it
-carried the same information.)
+the packs behind the −49.49% carried both sections. (That −49.49% is a
+same-file-list saving measured in `balanced` mode; its unchanged bodied recall
+means the pack named the same files, not that it carried the same information.)
 
 Path membership is a **ranking signal, not a filter**. Every in-scope file
 keeps its summary; the path decides who gets the expensive body:

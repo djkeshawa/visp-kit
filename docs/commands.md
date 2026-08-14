@@ -191,8 +191,17 @@ validation commands, baseline/candidate expectations, base commit, required
 providers, and any Git-proven pre-existing or explicitly pre-approved test
 hashes. `validate` fails when a bound input, base commit, or test file changes.
 Critical plans cannot be locked until a human approval is active. Revoked,
-expired, stale, or modified approvals and locks fail closed. When assurance is
-active, run `visp-kit verify --baseline --task <id>` after the initial lock. The
+expired, stale, or modified approvals and locks fail closed.
+
+**You do not have to remember this sequence.** When assurance is active,
+`visp-kit next` returns the one command that advances it — `oracle plan`, then
+`oracle approve` for critical tasks, then `oracle lock`, then
+`verify --baseline` — and only then the implementation prompt. After
+implementation it returns `verify --candidate` before ordinary verification. The
+`assurancePhase` field in `visp-kit next --json` names the current position:
+`inactive`, `plan`, `approve`, `lock`, `baseline`, `authorized`, `candidate`.
+
+When assurance is active, run `visp-kit verify --baseline --task <id>` after the initial lock. The
 accepted baseline is bound into the final implementation lock, which
 `visp-kit gate implement` binds into the implementation marker. Strict edit and
 commit hooks reject that marker if the lock or baseline later changes. Projects
@@ -585,7 +594,19 @@ Subcommands:
 - `visp-kit policy init [path] --strictness relaxed|standard|strict|locked`
 - `visp-kit policy show [path]`
 - `visp-kit policy validate [path]`
+- `visp-kit policy migrate [path]`
 - `visp-kit policy set-strictness <mode> [path]`
+
+`migrate` writes down the rule keys an existing `.visp/policy.json` omits, at
+the values its own `strictnessMode` declares. Rules added after a policy file
+was written are optional in the schema so old files keep validating; they are
+resolved to the preset default at load time, and `migrate` records that in the
+file so it states what it enforces. A key already stored as `false` is a
+decision and is left alone. `--dry-run` previews, `--json` prints the filled
+keys.
+
+`show` and `validate` name `policy migrate` as the next command whenever the
+stored file is understating what it enforces.
 
 ## `visp-kit gate <stage> [path]`
 

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -18,6 +18,16 @@ function expectOk<T>(result: { ok: true; value: T } | { ok: false }): T {
 async function exists(filePath: string): Promise<boolean> {
   return expectOk(await pathExists(filePath));
 }
+
+/** The six rules added after the policy artifact shipped, in declaration order. */
+const assuranceRuleKeys = [
+  "blockOnUnresolvedDrift",
+  "preventAssuranceProfileLowering",
+  "requireOracleLockBeforeImplementation",
+  "requireCurrentAssuranceDecisionBeforePr",
+  "requireSignedAssuranceDecision",
+  "requireUnderstandingBeforeBehaviouralImplementation"
+];
 
 describe("visp-kit policy command", () => {
   let tempDir: string;
@@ -129,6 +139,122 @@ describe("visp-kit policy command", () => {
     expect(dryRun.policy.strictnessMode).toBe("relaxed");
     expect(JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8"))).toMatchObject({
       strictnessMode: "standard"
+    });
+  });
+
+  it("migrates a legacy policy file that omits rule keys added after it was written", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "policy",
+      "init",
+      tempDir,
+      "--strictness",
+      "locked",
+      "--force",
+      "--json"
+    ]);
+
+    // Rewind the file to what an older `policy init` wrote: no VSP021-VSP026.
+    const written = JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8")) as {
+      rules: Record<string, boolean>;
+    };
+    const legacyRules: Record<string, boolean> = {};
+    for (const [key, value] of Object.entries(written.rules)) {
+      if (assuranceRuleKeys.includes(key)) continue;
+      legacyRules[key] = value;
+    }
+    await writeFile(
+      policyArtifactPath(tempDir),
+      `${JSON.stringify({ ...written, rules: legacyRules }, null, 2)}\n`,
+      "utf8"
+    );
+
+    output.length = 0;
+    await program.parseAsync(["node", "visp", "policy", "migrate", tempDir, "--dry-run", "--json"]);
+    const preview = JSON.parse(output.join("")) as {
+      dryRun: boolean;
+      filledRuleKeys: string[];
+    };
+    expect(preview.dryRun).toBe(true);
+    expect(preview.filledRuleKeys).toStrictEqual(assuranceRuleKeys);
+    // A dry run must not touch the file.
+    expect(
+      (JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8")) as { rules: object }).rules
+    ).not.toHaveProperty("requireOracleLockBeforeImplementation");
+
+    // A fresh program: commander keeps parsed option values on the command
+    // instance, so reusing `program` would carry `--dry-run` into this call.
+    output.length = 0;
+    const migrateProgram = createCli({ writeOut: (value) => output.push(value) });
+    await migrateProgram.parseAsync(["node", "visp", "policy", "migrate", tempDir, "--json"]);
+    const migrated = JSON.parse(output.join("")) as {
+      success: boolean;
+      updated: boolean;
+      filledRuleKeys: string[];
+    };
+    expect(migrated.success).toBe(true);
+    expect(migrated.updated).toBe(true);
+    expect(migrated.filledRuleKeys).toStrictEqual(assuranceRuleKeys);
+    expect(JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8"))).toMatchObject({
+      strictnessMode: "locked",
+      rules: { requireOracleLockBeforeImplementation: true }
+    });
+
+    // Idempotent: a second run has nothing to fill.
+    output.length = 0;
+    const secondProgram = createCli({ writeOut: (value) => output.push(value) });
+    await secondProgram.parseAsync(["node", "visp", "policy", "migrate", tempDir, "--json"]);
+    const second = JSON.parse(output.join("")) as {
+      updated: boolean;
+      filledRuleKeys: string[];
+    };
+    expect(second.updated).toBe(false);
+    expect(second.filledRuleKeys).toStrictEqual([]);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it("leaves an explicit opt-out alone when migrating", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "policy",
+      "init",
+      tempDir,
+      "--strictness",
+      "locked",
+      "--force",
+      "--json"
+    ]);
+    const written = JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8")) as {
+      rules: Record<string, boolean>;
+    };
+    await writeFile(
+      policyArtifactPath(tempDir),
+      `${JSON.stringify(
+        {
+          ...written,
+          rules: { ...written.rules, requireOracleLockBeforeImplementation: false }
+        },
+        null,
+        2
+      )}\n`,
+      "utf8"
+    );
+
+    output.length = 0;
+    await program.parseAsync(["node", "visp", "policy", "migrate", tempDir, "--json"]);
+
+    expect(JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8"))).toMatchObject({
+      rules: { requireOracleLockBeforeImplementation: false }
     });
   });
 

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createDefaultPolicy,
-  policyRulesForStrictness
+  policyRulesForStrictness,
+  resolvePolicyRules
 } from "../../../src/policy/policy-defaults.js";
 
 describe("policy defaults", () => {
@@ -46,6 +47,73 @@ describe("policy defaults", () => {
         }).rules.requireCurrentAssuranceDecisionBeforePr
       ).toBe(false);
     }
+  });
+
+  it("requires an oracle lock in locked mode only", () => {
+    expect(policyRulesForStrictness("locked").requireOracleLockBeforeImplementation).toBe(true);
+
+    for (const strictnessMode of ["relaxed", "standard", "strict"] as const) {
+      expect(policyRulesForStrictness(strictnessMode).requireOracleLockBeforeImplementation).toBe(
+        false
+      );
+    }
+  });
+
+  it("keeps locked identical to strict apart from the oracle lock rule", () => {
+    const strict = policyRulesForStrictness("strict");
+    const locked = policyRulesForStrictness("locked");
+
+    expect({ ...locked, requireOracleLockBeforeImplementation: false }).toStrictEqual(strict);
+  });
+
+  it("resolves rule keys a stored policy omits to its strictness defaults", () => {
+    // A `.visp/policy.json` written before VSP021-VSP026 existed: the rules
+    // object stops at stopOnFailedGate, and every gate read the missing keys as
+    // off, so the file claimed a strictness it did not carry.
+    const legacyStrict = {
+      ...policyRulesForStrictness("strict"),
+      blockOnUnresolvedDrift: undefined,
+      preventAssuranceProfileLowering: undefined,
+      requireOracleLockBeforeImplementation: undefined,
+      requireCurrentAssuranceDecisionBeforePr: undefined,
+      requireSignedAssuranceDecision: undefined,
+      requireUnderstandingBeforeBehaviouralImplementation: undefined
+    };
+
+    const resolved = resolvePolicyRules(legacyStrict, "strict");
+
+    expect(resolved.rules).toStrictEqual(policyRulesForStrictness("strict"));
+    expect(resolved.filledKeys).toStrictEqual([
+      "blockOnUnresolvedDrift",
+      "preventAssuranceProfileLowering",
+      "requireOracleLockBeforeImplementation",
+      "requireCurrentAssuranceDecisionBeforePr",
+      "requireSignedAssuranceDecision",
+      "requireUnderstandingBeforeBehaviouralImplementation"
+    ]);
+  });
+
+  it("turns the oracle lock on when a legacy locked policy omits the key", () => {
+    const resolved = resolvePolicyRules(
+      { ...policyRulesForStrictness("locked"), requireOracleLockBeforeImplementation: undefined },
+      "locked"
+    );
+
+    expect(resolved.rules.requireOracleLockBeforeImplementation).toBe(true);
+    expect(resolved.filledKeys).toStrictEqual(["requireOracleLockBeforeImplementation"]);
+  });
+
+  it("preserves a rule a project explicitly switched off", () => {
+    // `false` is a decision and survives resolution; only absence is filled.
+    // This is the documented opt-out for a locked project that does not want
+    // the pre-implementation baseline.
+    const resolved = resolvePolicyRules(
+      { ...policyRulesForStrictness("locked"), requireOracleLockBeforeImplementation: false },
+      "locked"
+    );
+
+    expect(resolved.rules.requireOracleLockBeforeImplementation).toBe(false);
+    expect(resolved.filledKeys).toStrictEqual([]);
   });
 
   it("returns defensive rule copies", () => {

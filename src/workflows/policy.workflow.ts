@@ -11,18 +11,28 @@ import { VispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
 import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
-import { createDefaultPolicy, policyRulesForStrictness } from "../policy/policy-defaults.js";
+import {
+  createDefaultPolicy,
+  policyRulesForStrictness,
+  resolvePolicyRules
+} from "../policy/policy-defaults.js";
 import {
   defaultPolicyStrictness,
   ensureVispProject,
   loadEffectivePolicy,
-  readPolicyFile
+  readPolicyFile,
+  readStoredPolicyFile
 } from "../policy/policy-loader.js";
 import { formatPolicySummary, type PolicyRenderSummary } from "../policy/policy-renderer.js";
 import { validatePolicyArtifact } from "../policy/policy-validator.js";
 
 export type PolicyWorkflowSummary = PolicyRenderSummary & {
-  readonly mode: "init" | "show" | "validate" | "set-strictness";
+  readonly mode: "init" | "show" | "validate" | "set-strictness" | "migrate";
+  /**
+   * Rule keys the stored file omitted. On `show`/`validate` these are being
+   * back-filled at load; on `migrate` these are the keys just written.
+   */
+  readonly filledRuleKeys?: readonly string[];
 };
 
 export type PolicyInitOptions = {
@@ -54,6 +64,13 @@ export type PolicySetStrictnessOptions = {
   readonly now?: string;
 };
 
+export type PolicyMigrateOptions = {
+  readonly targetPath?: string;
+  readonly cwd?: string;
+  readonly dryRun?: boolean;
+  readonly now?: string;
+};
+
 function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
   return path.resolve(options.cwd ?? process.cwd(), options.targetPath ?? ".");
 }
@@ -67,12 +84,14 @@ function validSummary(input: {
   readonly created: boolean;
   readonly updated: boolean;
   readonly warnings?: readonly string[];
+  readonly filledRuleKeys?: readonly string[];
   readonly nextCommand: string;
 }): PolicyWorkflowSummary {
   const policyPath = policyArtifactPath(input.targetPath);
 
   return {
     success: true,
+    filledRuleKeys: input.filledRuleKeys ?? [],
     mode: input.mode,
     command: input.mode,
     targetPath: input.targetPath,
@@ -220,7 +239,12 @@ export async function runPolicyShowWorkflow(
       created: false,
       updated: false,
       warnings: loaded.value.warnings,
-      nextCommand: loaded.value.exists ? "visp-kit policy validate" : "visp-kit policy init"
+      filledRuleKeys: loaded.value.filledRuleKeys,
+      nextCommand: !loaded.value.exists
+        ? "visp-kit policy init"
+        : loaded.value.filledRuleKeys.length > 0
+          ? "visp-kit policy migrate"
+          : "visp-kit policy validate"
     })
   );
 }
@@ -268,7 +292,10 @@ export async function runPolicyValidateWorkflow(
           dryRun: false,
           created: false,
           updated: false,
-          nextCommand: "visp-kit policy show"
+          warnings: raw.value.warnings,
+          filledRuleKeys: raw.value.filledRuleKeys,
+          nextCommand:
+            raw.value.filledRuleKeys.length > 0 ? "visp-kit policy migrate" : "visp-kit policy show"
         })
       : invalidSummary({
           mode: "validate",
@@ -318,6 +345,82 @@ export async function runPolicySetStrictnessWorkflow(
       dryRun,
       created: false,
       updated: true,
+      nextCommand: "visp-kit policy validate"
+    })
+  );
+}
+
+/**
+ * Write the strictness-preset value for every rule key the stored policy omits.
+ *
+ * Rules added after a file was written validate as absent, and absent used to
+ * mean off at every gate. The loader now resolves absence to the preset value,
+ * so this command does not change what is enforced — it makes the file say what
+ * is already true, which is the point of policy-as-code. Keys stored as `false`
+ * are decisions and are left alone; only absence is filled.
+ */
+export async function runPolicyMigrateWorkflow(
+  options: PolicyMigrateOptions = {}
+): Promise<Result<PolicyWorkflowSummary, VispError>> {
+  const targetPath = targetPathFrom(options);
+  const dryRun = options.dryRun ?? false;
+  const now = options.now ?? new Date().toISOString();
+  const initialized = await ensureVispProject(targetPath);
+
+  if (!initialized.ok) return initialized;
+
+  const required = await requirePolicyFile(targetPath);
+
+  if (!required.ok) return required;
+
+  const stored = await readStoredPolicyFile(targetPath);
+
+  if (!stored.ok) return stored;
+
+  const resolved = resolvePolicyRules(stored.value.rules, stored.value.strictnessMode);
+
+  if (resolved.filledKeys.length === 0) {
+    return ok(
+      validSummary({
+        mode: "migrate",
+        targetPath,
+        policy: stored.value,
+        source: "file",
+        dryRun,
+        created: false,
+        updated: false,
+        filledRuleKeys: [],
+        nextCommand: "visp-kit policy validate"
+      })
+    );
+  }
+
+  const policy: PolicyArtifact = {
+    ...stored.value,
+    rules: resolved.rules,
+    updatedAt: now
+  };
+
+  if (!dryRun) {
+    const write = await writePolicy(targetPath, policy);
+    if (!write.ok) return write;
+  }
+
+  return ok(
+    validSummary({
+      mode: "migrate",
+      targetPath,
+      policy,
+      source: "file",
+      dryRun,
+      created: false,
+      updated: !dryRun,
+      filledRuleKeys: resolved.filledKeys,
+      warnings: [
+        `Recorded ${resolved.filledKeys.length} previously absent rule ${
+          resolved.filledKeys.length === 1 ? "key" : "keys"
+        } at the ${stored.value.strictnessMode} defaults: ${resolved.filledKeys.join(", ")}.`
+      ],
       nextCommand: "visp-kit policy validate"
     })
   );

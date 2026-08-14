@@ -1,7 +1,8 @@
 import { type CommandRunner } from "../core/command-runner.js";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
-import { loadProjectState } from "../orchestrator/project-state.js";
+import { loadProjectState, type ProjectState } from "../orchestrator/project-state.js";
+import { type Task } from "../artifacts/schemas/task.schema.js";
 import { recommendNextStep, type NextStep } from "../orchestrator/next-step.js";
 import { evaluatePolicyGate } from "../gates/policy-gate-summary.js";
 import { formatHeader } from "../theme/terminal.js";
@@ -11,6 +12,13 @@ import {
   type WorkflowActionProtocol
 } from "../integration/workflow-action-schema.js";
 import { selectAssuranceProfile } from "../assurance/assurance-profile.js";
+import { loadEffectivePolicy } from "../policy/policy-loader.js";
+import { agentSourceChanges } from "../gates/artifact-presence.js";
+import {
+  inactiveAssuranceStep,
+  resolveAssuranceNextStep,
+  type AssuranceNextStep
+} from "./shared/assurance-next-step.js";
 
 export type NextWorkflowOptions = {
   readonly targetPath?: string;
@@ -29,6 +37,64 @@ export type NextWorkflowOptions = {
 export type NextWorkflowResult = NextStep & {
   readonly action: WorkflowAction;
 };
+
+/**
+ * The assurance step owed for the selected task, or an inactive step.
+ *
+ * `next` must never fail because assurance could not be inspected — it is the
+ * command an agent loop calls every turn, and a hard failure here would strand
+ * the loop over a subsystem that may not even be switched on. An unreadable
+ * assurance directory therefore degrades to "nothing owed"; the implement gate
+ * still fails closed on VSP023 and the blocker still reaches the caller.
+ */
+async function resolveAssuranceStep(input: {
+  readonly state: ProjectState;
+  readonly selectedTask: Task | undefined;
+  readonly now: string;
+  readonly commandRunner?: CommandRunner;
+}): Promise<AssuranceNextStep> {
+  const { state, selectedTask } = input;
+  if (selectedTask === undefined || state.selectedFeature === undefined)
+    return inactiveAssuranceStep;
+
+  const policy = await loadEffectivePolicy({ targetPath: state.targetPath, now: input.now });
+  if (!policy.ok) return inactiveAssuranceStep;
+
+  const step = await resolveAssuranceNextStep({
+    targetPath: state.targetPath,
+    featureKey: state.selectedFeature.key,
+    task: selectedTask,
+    policy: policy.value.policy,
+    // The same question `next`'s own phase detection asks: has the agent
+    // started writing code? Notably this excludes the assurance artifacts the
+    // preceding oracle steps just wrote.
+    implementationStarted: agentSourceChanges(state).length > 0,
+    now: input.now,
+    commandRunner: input.commandRunner
+  });
+
+  return step.ok ? step.value : inactiveAssuranceStep;
+}
+
+/**
+ * Whether the assurance sequence must run before the command the gates chose.
+ *
+ * Assurance brackets implementation: `oracle plan`/`lock`/`verify --baseline`
+ * come after the context pack and before the first edit, and
+ * `verify --candidate` comes after the last edit and before ordinary
+ * verification. Everything earlier in the workflow — scan, spec, plan, tasks,
+ * context — is upstream of the oracle plan's own inputs, so a pending assurance
+ * step must not displace it.
+ */
+function assuranceOwedBefore(gateSelectedCommand: string, step: AssuranceNextStep): boolean {
+  if (!step.active || step.nextCommand === undefined) return false;
+  if (step.nextCommand === gateSelectedCommand) return false;
+
+  return (
+    gateSelectedCommand.startsWith("Use .visp/prompts/") ||
+    /^visp(?:-kit)? verify\b/u.test(gateSelectedCommand)
+  );
+}
 
 export async function runNextWorkflow(
   options: NextWorkflowOptions = {}
@@ -166,6 +232,12 @@ export async function runNextWorkflow(
       : []),
     ...(prGate?.ok && !prGate.value.allowed ? prGate.value.failedRules : [])
   ];
+  const assuranceStep = await resolveAssuranceStep({
+    state: state.value,
+    selectedTask,
+    now: effectiveNow,
+    commandRunner: options.commandRunner
+  });
   const existingPreparationCommands = new Set(["visp-kit scan", "visp-kit constitution"]);
   const assuranceDecisionFailure = prGate?.ok
     ? prGate.value.failedRules.find((rule) => rule.ruleId === "VSP024")
@@ -176,13 +248,16 @@ export async function runNextWorkflow(
       : // Dual vocabulary (D-119): recommendations may carry either CLI name
         // during the deprecation window.
         /^Run (visp(?:-kit)? .+?)\.?$/u.exec(assuranceDecisionFailure.recommendation)?.[1];
-  const nextCommand =
+  const gateSelectedCommand =
     fallback.nextCommand === "visp-kit pr" && assuranceRemediation !== undefined
       ? assuranceRemediation
       : existingPreparationCommands.has(fallback.nextCommand) &&
           nextGate.value.nextAllowedCommand !== "visp-kit policy init --strictness strict"
         ? fallback.nextCommand
         : nextGate.value.nextAllowedCommand;
+  const nextCommand = assuranceOwedBefore(gateSelectedCommand, assuranceStep)
+    ? (assuranceStep.nextCommand ?? gateSelectedCommand)
+    : gateSelectedCommand;
   const implementationAllowed = implementationGate?.ok ? implementationGate.value.allowed : false;
   const prAllowed = prGate?.ok ? prGate.value.allowed : false;
 
@@ -196,7 +271,9 @@ export async function runNextWorkflow(
     reason:
       nextCommand === fallback.nextCommand
         ? fallback.reason
-        : "Policy gate selected the next allowed command.",
+        : nextCommand === assuranceStep.nextCommand
+          ? assuranceStep.reason
+          : "Policy gate selected the next allowed command.",
     warnings: [...new Set([...fallback.warnings, ...gateWarnings])],
     blockers: [
       ...fallback.blockers,
@@ -212,6 +289,7 @@ export async function runNextWorkflow(
     implementationAllowed,
     prAllowed,
     assuranceProfile: assuranceSelection?.selectedProfile,
+    assurancePhase: assuranceStep.phase,
     agentInstruction: implementationAllowed
       ? "Implementation is allowed only for the selected Visp task and context."
       : `Do not implement code until \`${nextCommand}\` succeeds.`

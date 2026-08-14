@@ -19,6 +19,31 @@ export function sourceChangedFiles(state: ProjectState): readonly string[] {
   );
 }
 
+/**
+ * Has the agent started writing code?
+ *
+ * A narrower question than scope validation, and it needs a narrower answer.
+ * `sourceChangedFiles` deliberately keeps `.visp/state/` and the per-task
+ * `assurance/` directories visible, because a file planted in either is a
+ * forgery that must surface. But phase detection is not looking for forgeries;
+ * it is asking whether to say "go implement" or "go verify". Running
+ * `oracle plan` writes into the assurance directory, so a project that followed
+ * the workflow was told it had already implemented before it had edited a line,
+ * and `next` skipped the implement phase entirely.
+ *
+ * The security zones stay fully visible to every gate that calls
+ * `sourceChangedFiles`; only the phase question ignores them, and only because
+ * Visp wrote them itself.
+ */
+export function agentSourceChanges(state: ProjectState): readonly string[] {
+  return sourceChangedFiles(state).filter(
+    (file) =>
+      file !== ".gitignore" &&
+      !file.startsWith(".visp/state/") &&
+      !/^\.visp\/features\/[^/]+\/assurance\//u.test(file)
+  );
+}
+
 export function changedDependencyFiles(state: ProjectState): readonly string[] {
   return sourceChangedFiles(state).filter((file) => isDependencyFile(file));
 }

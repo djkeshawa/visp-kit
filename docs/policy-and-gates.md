@@ -11,6 +11,7 @@ Create or update policy:
 ```bash
 visp-kit policy init --strictness strict
 visp-kit policy set-strictness locked
+visp-kit policy migrate
 visp-kit policy validate
 visp-kit policy show
 ```
@@ -20,7 +21,9 @@ Strictness modes:
 - `relaxed`: prefer warnings, useful for experiments
 - `standard`: default guardrails
 - `strict`: block missing required workflow evidence
-- `locked`: most cautious mode, disallows overrides unless policy explicitly permits them
+- `locked`: most cautious mode, disallows overrides unless policy explicitly
+  permits them, and the only mode that requires a pre-implementation oracle lock
+  (VSP023) by default
 
 ## Gate Command
 
@@ -87,6 +90,9 @@ Supported stages:
 | VSP020 | stop_on_failed_gate | all stages | no |
 | VSP021 | block_on_unresolved_drift | pr | yes |
 | VSP022 | prevent_assurance_profile_lowering | task-aware gates | yes, with an auditable reason |
+| VSP023 ‡ | require_oracle_lock_before_implementation | implement | no |
+| VSP024 | require_current_assurance_decision_before_pr | pr | no |
+| VSP025 | require_signed_assurance_decision | pr | no |
 | VSP026 † | require_understanding_before_behavioural_implementation | implement | yes, with an auditable reason |
 
 † **VSP026 is recorded, not enforced.** It is `false` in every strictness mode —
@@ -100,14 +106,79 @@ classification *record*, which `visp-kit gate` writes at `implement` and
 there is for finding out whether the rule is right, and it stays on. Treat the
 row above as a rule that exists and is off, not as a protection in force.
 
+‡ **VSP023 is on by default in `locked` and off everywhere else.** See
+[VSP023 — the assurance sequence](#vsp023--the-assurance-sequence) below.
+
 Non-overridable rules cannot be bypassed by `.visp/overrides.json`.
 
-VSP021 is optional in `.visp/policy.json` for backward compatibility: policies
-written before it existed keep validating, and gates fall back to the
-strictness default (enforced in `strict` and `locked`). It fails the PR gate
-when the active context pack was grounded on artifacts (spec, plan, task
-graph, policy) that changed after the pack was compiled. Run `visp-kit drift` for
-the full deterministic drift report.
+### Rules a policy file does not mention
+
+VSP021–VSP026 are optional in `.visp/policy.json` for backward compatibility:
+policies written before those rules existed keep validating. **An absent key is
+resolved to the value the file's own `strictnessMode` declares**, so a file
+saying `"strictnessMode": "strict"` enforces what `strict` means today, not what
+it meant when the file was written. A key stored as `false` is a decision and is
+honoured — except for VSP021 and VSP024, which the schema refuses to accept as
+`false` in `strict` or `locked` because those modes are a claim about
+enforcement. Drop to `standard` if you need them off.
+
+Run `visp-kit policy migrate` to write the resolved values into the file.
+Nothing changes about what is enforced — the resolution happens at load either
+way — but the file then states it, which is the point of policy-as-code.
+`visp-kit policy show` and `policy validate` warn while a file is understating
+itself.
+
+VSP021 fails the PR gate when the active context pack was grounded on artifacts
+(spec, plan, task graph, policy) that changed after the pack was compiled. Run
+`visp-kit drift` for the full deterministic drift report.
+
+## VSP023 — the assurance sequence
+
+VSP023 refuses implementation until the task has a current oracle lock bound to
+passing pre-implementation baseline evidence. It is the only rule in the set
+that asks whether the produced code *works* rather than whether an artifact
+exists, and it carries the test-strength signal: on behavioural and critical
+tasks the test proving the fix must be Git-proven pre-existing or explicitly
+pre-approved. That is the defence against an agent satisfying a task with a test
+that asserts nothing. Every other gate can be satisfied by a well-formed
+document.
+
+**It is on by default in `locked`, and off in `relaxed`, `standard` and
+`strict`.**
+
+A default is a claim about which failure is worse, so here is the claim. Turning
+VSP023 on costs three commands before a single line may be edited, and one of
+them runs the task's whole validation command set. That cost is paid on every
+task, not only the ones that would have gone wrong. Below `locked`, the worse
+failure is a blocked developer who never asked for a pre-implementation
+baseline. In `locked` — where overrides are already disallowed and the
+changed-file limit is five — the worse failure is unproven code.
+
+Both directions are reachable without editing Kit:
+
+```jsonc
+// .visp/policy.json — turn it on below locked
+{ "rules": { "requireOracleLockBeforeImplementation": true } }
+
+// .visp/policy.json — turn it off in locked (explicit, auditable, survives migrate)
+{ "rules": { "requireOracleLockBeforeImplementation": false } }
+```
+
+Two other things activate it at any strictness: declaring an
+`assurance.profile`, and the mere existence of an oracle plan for the task.
+The last one matters — **deleting the policy rule does not open a gate that a
+plan has already closed.**
+
+The sequence, which `visp-kit next` emits one command at a time:
+
+```bash
+visp-kit oracle plan --task T001        # bind policy, spec, plan, tasks, context, commands, base commit
+visp-kit oracle approve --task T001 ... # critical tasks only
+visp-kit oracle lock --task T001        # freeze it
+visp-kit verify --baseline --task T001  # run the locked commands BEFORE implementing
+# ... implement ...
+visp-kit verify --candidate --task T001 # run the same locked commands and compare
+```
 
 ## VSP026 — understanding before behavioural implementation
 

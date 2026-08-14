@@ -241,6 +241,36 @@ const strictRules: PolicyRules = {
   requireUnderstandingBeforeBehaviouralImplementation: false
 };
 
+// `locked` is the only preset whose name is a promise about enforcement rather
+// than a description of effort, so it is the only preset that carries VSP023.
+//
+// The argument, stated plainly because a default is a claim about which failure
+// is worse. Turning VSP023 on costs a user in a hurry three commands before
+// they may edit a line — `oracle plan`, `oracle lock`, `verify --baseline` —
+// and the third one runs the task's whole validation command set. That is a
+// real cost and it is paid on every task, not only the ones that would have
+// gone wrong. Against it: VSP023 is the only rule in the set that checks
+// whether the produced code actually works rather than whether an artifact
+// exists, and it carries the test-strength signal — the defence against an
+// agent satisfying a task with a test that asserts nothing. Every other gate in
+// Kit can be satisfied by a well-formed document.
+//
+// So the split follows who is being protected from what. In `relaxed`,
+// `standard` and `strict`, the worse failure is a blocked developer who did not
+// ask for a pre-implementation baseline, and VSP023 stays off. In `locked` —
+// where overrides are already disallowed and the changed-file limit is five —
+// the worse failure is unproven code, and it goes on. Neither direction needs a
+// source edit to reach: `locked` projects that want it off write
+// `"requireOracleLockBeforeImplementation": false` in .visp/policy.json (an
+// explicit, auditable opt-out that survives migration untouched), and any
+// project below `locked` that wants it on writes `true`. Setting an
+// `assurance.profile` also turns it on at any strictness, and so does the mere
+// existence of an oracle plan for the task — see gate-engine.ts.
+const lockedRules: PolicyRules = {
+  ...strictRules,
+  requireOracleLockBeforeImplementation: true
+};
+
 const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {
   relaxed: {
     ...allRulesOff,
@@ -261,7 +291,7 @@ const rulesByStrictness: Record<StrictnessMode, PolicyRules> = {
     stopOnFailedGate: true
   },
   strict: strictRules,
-  locked: strictRules
+  locked: lockedRules
 };
 
 const limitsByStrictness: Record<StrictnessMode, PolicyLimits> = {
@@ -332,6 +362,46 @@ const overridesByStrictness: Record<StrictnessMode, PolicyOverrides> = {
 
 export function policyRulesForStrictness(mode: StrictnessMode): PolicyRules {
   return { ...rulesByStrictness[mode] };
+}
+
+export type ResolvedPolicyRules = {
+  readonly rules: PolicyRules;
+  /** Rule keys the file omitted, filled here from the strictness preset. */
+  readonly filledKeys: readonly (keyof PolicyRules)[];
+};
+
+/**
+ * Fill rule keys a stored policy omits with the values its own strictness mode
+ * declares.
+ *
+ * Rules added after a `.visp/policy.json` was written are optional in the
+ * schema so old files keep validating. That kept them loading, but every gate
+ * reads them with `=== true`, so an omitted key silently meant "off" — a file
+ * saying `strictnessMode: "strict"` enforced the twenty rules that existed when
+ * it was written and none of the six added since. The schema comment has always
+ * claimed gates fall back to the strictness default; only VSP021 ever did. This
+ * makes the claim true for all of them, in one place, so the stored strictness
+ * name means what it says.
+ *
+ * A key present as `false` is a decision and is preserved. Only absence is
+ * filled. `visp-kit policy migrate` writes the result back so the file states
+ * what it enforces.
+ */
+export function resolvePolicyRules(rules: PolicyRules, mode: StrictnessMode): ResolvedPolicyRules {
+  const defaults = rulesByStrictness[mode] as Record<string, boolean | undefined>;
+  const stored = rules as Record<string, boolean | undefined>;
+  const resolved: Record<string, boolean | undefined> = { ...stored };
+  const filledKeys: (keyof PolicyRules)[] = [];
+
+  for (const key of policyRuleKeys) {
+    if (stored[key] !== undefined) continue;
+    const fallback = defaults[key];
+    if (fallback === undefined) continue;
+    resolved[key] = fallback;
+    filledKeys.push(key);
+  }
+
+  return { rules: resolved as PolicyRules, filledKeys };
 }
 
 export const strictnessOrder = ["relaxed", "standard", "strict", "locked"] as const;

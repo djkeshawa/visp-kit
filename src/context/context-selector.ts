@@ -1004,15 +1004,17 @@ export async function selectContextPack(input: ContextSelectionInput): Promise<C
   // narrower reason: the cap is measured, and what it is measured to do is
   // remove snippet TEXT at unchanged bodied file recall. Dropping the project
   // summary and the patterns is a different deletion that nobody has measured
-  // alongside it, and the arm F pack that produced -51.08% carried both of
+  // alongside it, and the arm F pack that produced -49.49% carried both of
   // them. Folding them in here would ship a configuration nobody ran under a
-  // number somebody did. Read that -51.08% narrowly: bodied recall held because
+  // number somebody did. Read that -49.49% narrowly: bodied recall held because
   // the capped pack named the same files, and bodied recall equals listed
   // recall in that harness (a file counts as bodied on a non-empty summary, and
   // Kit summarises everything it lists) — it is the same file list for half the
   // tokens, not the same information, and it was balanced mode on two
-  // repositories. (-52.01% was the same result on a visp-dev measurement build;
-  // it is not producible on shipped Kit and is not the figure to quote.)
+  // repositories. (Two superseded pairs: -52.01% was a visp-dev measurement
+  // build, not producible on shipped Kit; -51.08% was this same shipped-binary
+  // run on the 28-record cohort, before seven author-dependent records were
+  // reclassified out. Quote -49.49%.)
   const compact = input.understanding !== undefined;
   const projectContext = {
     summary:
