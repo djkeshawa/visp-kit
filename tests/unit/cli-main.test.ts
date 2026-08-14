@@ -19,7 +19,9 @@ describe("createCli", () => {
     const help = createCli().helpInformation();
 
     expect(help).toContain("Usage: visp-kit [options]");
-    expect(help).toContain("Small context. Clear specs. Accurate code.");
+    expect(help).toContain("Small context. Declared scope. Evidence a human can check.");
+    // The tagline must not promise an outcome this project has not measured.
+    expect(help).not.toMatch(/accurate|error.free|correct code/i);
     expect(help).toContain("-h, --help");
     expect(help).toContain("-V, --version");
     expect(help).toContain("agent");

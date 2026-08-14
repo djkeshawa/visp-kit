@@ -25,6 +25,26 @@ Strictness modes:
   permits them, and the only mode that requires a pre-implementation oracle lock
   (VSP023) by default
 
+### Choosing between them
+
+The three lower modes differ in how much *paperwork* they demand before a stage
+is allowed. They are all satisfied by well-formed documents, and none of them
+runs your tests.
+
+`locked` is a different kind of setting, and it is worth knowing before you pick
+it. It is the only mode that turns on **VSP023**, which refuses implementation
+until the task's own validation commands have been run and their result recorded
+as a baseline.
+
+| | below `locked` | `locked` |
+|---|---|---|
+| What it costs | nothing beyond writing the artifacts | **three extra commands before a single line may be edited**, one of which (`verify --baseline`) runs the task's entire validation command set — paid on every task, not only the ones that would have gone wrong |
+| What it buys | a gate that asks whether a document exists | the only gate that asks whether the code **runs**, plus the test-strength signal that a test proving a fix must pre-date the fix |
+| What it does **not** buy | — | any claim that the resulting code is more correct. **Nobody has measured that.** See [What VSP023 is not evidence for](#what-vsp023-is-not-evidence-for). |
+
+Both directions are one key wide, in either mode — see
+[VSP023 — the assurance sequence](#vsp023--the-assurance-sequence).
+
 ## Gate Command
 
 Examples:
@@ -125,8 +145,33 @@ enforcement. Drop to `standard` if you need them off.
 Run `visp-kit policy migrate` to write the resolved values into the file.
 Nothing changes about what is enforced — the resolution happens at load either
 way — but the file then states it, which is the point of policy-as-code.
-`visp-kit policy show` and `policy validate` warn while a file is understating
-itself.
+
+**Upgrading Kit can therefore raise enforcement in a repository whose
+`policy.json` nobody edited.** That is the intended behaviour of a strictness
+mode, but meeting it for the first time as a blocked PR gate is not. Every
+surface that reads the policy now names the back-fill before it can bite:
+
+| Where | What it tells you |
+|---|---|
+| `visp-kit doctor` | a warning, `Policy file understates what it enforces`, listing the omitted keys that resolve to **on** — this runs before any gate does |
+| `visp-kit gate <stage>` | the same warning on the gate report, because the gate is where the back-fill is actually felt |
+| `visp-kit policy show`, `policy validate`, `status` | the same warning while the file is understating itself |
+
+The warning distinguishes the two cases that matter, because they are not
+equally interesting. A key back-filled to `false` costs you nothing and is only
+counted. A key back-filled to `true` is enforcement your file never asked for,
+so it is named individually and by the rule id the gate report will print:
+
+```text
+Policy file omits 6 rule keys. 4 of them are ENFORCED at the strict defaults
+and can block a gate this project has not seen before: VSP021 (blockOnUnresolvedDrift),
+VSP022 (preventAssuranceProfileLowering), VSP024 (requireCurrentAssuranceDecisionBeforePr),
+VSP025 (requireSignedAssuranceDecision) (2 further omitted keys resolve to off).
+Run `visp-kit policy migrate` to record them.
+```
+
+Reading `VSP024` in a gate failure is no help if your file only ever mentions
+`requireCurrentAssuranceDecisionBeforePr`, so the warning prints both spellings.
 
 VSP021 fails the PR gate when the active context pack was grounded on artifacts
 (spec, plan, task graph, policy) that changed after the pack was compiled. Run
@@ -179,6 +224,28 @@ visp-kit verify --baseline --task T001  # run the locked commands BEFORE impleme
 # ... implement ...
 visp-kit verify --candidate --task T001 # run the same locked commands and compare
 ```
+
+### What VSP023 is not evidence for
+
+The sequence above is **reachable and verified to run**; it is not measured to
+help. Both halves of that sentence are load-bearing, so both are stated here.
+
+Verified, and checkable by you in a few minutes: on a fresh `visp-kit init`
+project the three lower presets resolve the rule `false` and `locked` resolves
+it `true`; deleting the key from a `locked` policy file falls back to the preset
+rather than to off; and running the sequence writes an `assurance/` directory
+you can open. `visp-kit policy show --json` reports the resolved value, so you
+never have to take this document's word for it.
+
+Not measured, and not implied anywhere in this package: **whether a task that
+went through the oracle sequence ends up with more correct code than one that
+did not.** No study has run. A trial designed to answer a related question about
+agent accuracy was preregistered and stopped early against an exhausted API
+quota, at 9 usable pairs out of 56 — far too few to resolve anything, and it is
+reported as resolving nothing. If you adopt `locked` for VSP023, adopt it
+because you want the baseline artifact and the refusal, which are real and
+inspectable. Do not adopt it on the strength of an outcome claim; there isn't
+one.
 
 ## VSP026 — understanding before behavioural implementation
 
@@ -326,7 +393,7 @@ When the verdict is behavioural, each condition is a separate finding:
 Clear it the same way as any other rule:
 
 ```bash
-visp-kit override add --rule VSP026 --scope task --feature <feature> --task <id> \
+visp-kit override create VSP026 --scope task --feature <feature> --task <id> \
   --reason "<at least twelve characters, auditable>"
 ```
 

@@ -19,15 +19,15 @@ pnpm test
 From this directory, after building and linking Visp Kit:
 
 ```bash
-visp init --agent codex --preset typescript --budget lean
-visp scan
-visp constitution --preset typescript --budget lean
-visp feature "Add note pinning"
-visp clarify
-visp spec
-visp plan
-visp tasks
-visp context --next
+visp-kit init --agent codex --preset typescript --budget lean
+visp-kit scan
+visp-kit constitution --preset typescript --budget lean
+visp-kit feature "Add note pinning"
+visp-kit clarify
+visp-kit spec
+visp-kit plan
+visp-kit tasks
+visp-kit context --next
 ```
 
 Then use:

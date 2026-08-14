@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -35,6 +35,48 @@ describe("visp-kit doctor command", () => {
     expect(process.exitCode).toBe(1);
     expect(output.join("")).toContain("Visp doctor");
     expect(output.join("")).toContain("Project is not initialized");
+  });
+
+  it("names the rules a policy file understates before a gate blocks on them", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const policyPath = path.join(tempDir, ".visp", "policy.json");
+    const stored = JSON.parse(await readFile(policyPath, "utf8")) as {
+      strictnessMode: string;
+      rules: Record<string, boolean>;
+    };
+    stored.strictnessMode = "strict";
+    for (const key of [
+      "blockOnUnresolvedDrift",
+      "preventAssuranceProfileLowering",
+      "requireOracleLockBeforeImplementation",
+      "requireCurrentAssuranceDecisionBeforePr",
+      "requireSignedAssuranceDecision",
+      "requireUnderstandingBeforeBehaviouralImplementation"
+    ]) {
+      delete stored.rules[key];
+    }
+    await writeFile(policyPath, JSON.stringify(stored, null, 2));
+
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "doctor", tempDir]);
+
+    // The console prints finding titles only, so the rule ids have to be in the
+    // title or the reader has to open a file to learn which rules changed.
+    const text = output.join("");
+    expect(text).toContain("Policy file understates what it enforces");
+    expect(text).toContain("VSP024 (requireCurrentAssuranceDecisionBeforePr)");
+    // VSP023 resolves off under `strict`, so it is not enforcement to report.
+    expect(text).not.toContain("VSP023");
+
+    // The remediation lives in the report the console just pointed at.
+    const report = await readFile(
+      path.join(tempDir, ".visp", "reports", "doctor-report.md"),
+      "utf8"
+    );
+    expect(report).toContain("VSP024 (requireCurrentAssuranceDecisionBeforePr)");
+    expect(report).toContain("visp-kit policy migrate");
   });
 
   it("returns JSON only", async () => {

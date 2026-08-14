@@ -27,17 +27,17 @@ pnpm test
 From this example directory, after building and linking Visp Kit:
 
 ```bash
-visp agent bootstrap codex --preset typescript --budget lean --strictness strict
-visp scan
-visp constitution
-visp policy validate
-visp feature "Add note pinning"
-visp clarify
-visp spec
-visp plan
-visp tasks
-visp context --next
-visp gate implement --task T001
+visp-kit agent bootstrap codex --preset typescript --budget lean --strictness strict
+visp-kit scan
+visp-kit constitution
+visp-kit policy validate
+visp-kit feature "Add note pinning"
+visp-kit clarify
+visp-kit spec
+visp-kit plan
+visp-kit tasks
+visp-kit context --next
+visp-kit gate implement --task T001
 ```
 
 Then use the generated agent workflow.
@@ -52,10 +52,10 @@ Continue with the next Visp task.
 After implementation:
 
 ```bash
-visp verify --task T001
-visp review --task T001
-visp reconcile --task T001 --update-traceability
-visp pr
+visp-kit verify --task T001
+visp-kit review --task T001
+visp-kit reconcile --task T001 --update-traceability
+visp-kit pr
 ```
 
 ## Override Example
@@ -63,10 +63,10 @@ visp pr
 Use overrides only when a human intentionally accepts a policy exception:
 
 ```bash
-visp override create VSP014 \
+visp-kit override create VSP014 \
   --scope task \
   --feature 001 \
   --task T001 \
   --reason "Example fixture records manual verification for this temporary task."
-visp override validate
+visp-kit override validate
 ```

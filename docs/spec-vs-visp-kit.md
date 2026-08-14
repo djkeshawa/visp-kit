@@ -79,7 +79,9 @@ Use Visp Kit when:
 
 - the repository is already large (brownfield work)
 - company teams have token budgets
-- you want cheaper or mid-tier models to follow the workflow accurately
+- you want the workflow enforced by the tooling rather than by the model's
+  willingness to follow instructions (whether this makes any model produce
+  better output is **unmeasured** — see the honest limits in the README)
 - work must stay in task scope, mechanically
 - dependencies need explicit approval
 - audit trails matter

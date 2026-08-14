@@ -14,8 +14,8 @@ Install the CLI globally after npm publishing:
 
 ```bash
 npm install -g visp-kit
-visp --version
-visp --help
+visp-kit --version
+visp-kit --help
 ```
 
 For local development, build this repository and install or link the local CLI package.
@@ -49,25 +49,25 @@ Fast local global install:
 
 ```bash
 pnpm run install:global
-visp --version
-visp --help
+visp-kit --version
+visp-kit --help
 ```
 
 Package-style install for a closer npm publishing smoke test:
 
 ```bash
 npm pack
-npm install -g ./visp-kit-0.2.0.tgz
-visp --version
-visp --help
+npm install -g ./visp-kit-*.tgz
+visp-kit --version
+visp-kit --help
 ```
 
 Recommended while actively editing Visp Kit:
 
 ```bash
 pnpm link --global
-visp --version
-visp --help
+visp-kit --version
+visp-kit --help
 ```
 
 If pnpm reports that the global bin directory is not configured:
@@ -80,7 +80,7 @@ Restart your shell, return to the `visp-kit` folder, and run:
 
 ```bash
 pnpm link --global
-visp --help
+visp-kit --help
 ```
 
 You can also run the built CLI without linking:

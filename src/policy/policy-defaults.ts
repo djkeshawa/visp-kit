@@ -176,6 +176,22 @@ export const policyRuleDefinitions: readonly PolicyRuleDefinition[] = [
 
 export const policyRuleKeys = policyRuleDefinitions.map((rule) => rule.key);
 
+const ruleIdByKey = new Map<keyof PolicyRules, string>(
+  policyRuleDefinitions.map((rule) => [rule.key, rule.id])
+);
+
+/**
+ * Render a rule key the way a gate report names it: `VSP024 (key)`.
+ *
+ * Back-fill warnings have to be actionable, and a reader who sees a PR gate
+ * fail on VSP024 cannot connect that to `requireCurrentAssuranceDecisionBeforePr`
+ * unless something prints both.
+ */
+export function describePolicyRuleKey(key: keyof PolicyRules): string {
+  const id = ruleIdByKey.get(key);
+  return id === undefined ? String(key) : `${id} (${String(key)})`;
+}
+
 const allRulesOff: PolicyRules = {
   requireScanBeforeFeature: false,
   requireConstitutionBeforeFeature: false,

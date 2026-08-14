@@ -66,6 +66,9 @@ unsure what to do.
 
 ## What you get
 
+Every row below is a property of what Kit writes and refuses, and every one of
+them can be checked on your own repository in a single run.
+
 | | |
 |---|---|
 | **Scope declared up front** | The task names the files it may touch. Edits elsewhere are blocked, not flagged later. |
@@ -74,19 +77,83 @@ unsure what to do.
 | **A record of the decision** | Who approved what, against which exact code and which policy. |
 | **Told what moved** | Come back a week later and Kit says what changed since you approved — not just that something did. |
 
+### Check the first row yourself
+
+The scope gate is the claim this package rests on, so it ships with a script
+that tries to defeat it:
+
+```bash
+pnpm build && scripts/benchmark-strict-workflow.sh
+```
+
+It runs the full strict workflow against a throwaway fixture, stages a
+deliberately out-of-scope edit, and proves the generated pre-commit hook refuses
+the commit — then edits the spec after context compilation and proves
+`visp-kit drift` fails closed. No LLM is called at any point. If either step
+passes when it should block, that is a bug worth reporting.
+
+Two things we have measured and can show you:
+
+- **The context pack is about half the size it used to be, naming the same
+  files.** On 21 held-out tasks in `balanced` mode, the shipped snippet cap cuts
+  mean pack input tokens by **−49.49%** with bodied file recall unchanged to
+  the tenth decimal. Read [token efficiency](docs/token-efficiency.md) for the
+  cohort, the arms, and — importantly — what an unchanged *file list* does and
+  does not tell you about unchanged *information*.
+- **Completion cannot be asserted.** A task cannot reach `done` without the
+  review and reconcile artifacts that evidence it, and hand-edited status
+  fields are detected rather than absorbed.
+
 ## Honest limits
 
-Read this before adopting it:
+Read this before adopting it. It is the section we would want to read first.
 
-- **No productivity claim.** Whether Visp makes teams faster or produces better
-  software is **unmeasured**. An evaluation protocol is frozen, but no study has
-  run. Any claim otherwise is a bug — please report it.
+- **We cannot tell you this makes your code more correct, because we do not
+  know.** That is the question most people ask of a tool like this, so it gets
+  the first line rather than a footnote. Three of the four internal head-to-head
+  rounds on record are parity or worse. A trial designed to settle it was
+  preregistered — paired, exact test, a 20-point bar set before any cell ran —
+  and it stopped early against an exhausted API quota at **9 usable pairs out of
+  56**. Nine agreeing pairs resolve nothing, and we do not quote them as if they
+  did. **Any claim in this package that Visp produces more correct code is a bug
+  — please report it.** What Kit can show you is bounded scope, artifacts, and
+  refusals; those are real, and they are not the same thing.
+- **Visp is not cheaper end to end.** The pack got smaller; the session did not.
+  In our own runs the full workflow cost several times a bare agent's tokens and
+  several times the wall clock. The −49.49% above is one line item inside that,
+  not a bottom line. If token spend is your binding constraint, this is the
+  wrong tool.
+- **No productivity claim.** Whether Visp makes teams faster is **unmeasured**.
+  An evaluation protocol is frozen, but no study has run.
+- **One measured behavioural result, narrow.** Given a vague request against an
+  8,800-line codebase, agents whose context pack named the project's existing
+  redaction helpers shipped a credential leak on the failure path in 0 of 4
+  runs, against 3 of 4 without it — scored from diffs, not from what the agents
+  said. Single codebase, small sample, and the effect partly depended on that
+  project naming its helper clearly. It is the only accuracy-adjacent result
+  this project can support, and it does not generalise on this evidence.
 - **Compatibility is proven pair by pair**, pinned to exact commits and package
   hashes. It is not a version-range support window.
 - **Conformance is partial.** Some areas are proven and some are not; the
   published report says which. Non-Linux systems are not yet covered.
 - **Assurance verdicts are often `inconclusive`.** That is deliberate — it means
   the evidence did not establish the claim, not that the claim failed.
+
+## Choosing a strictness level
+
+`init` gives you `standard`. The choice that actually changes your day is
+whether to use `locked`, because it is the only mode that turns on **VSP023** —
+the one gate that asks whether the code *runs* rather than whether a document
+exists.
+
+It costs **three commands before a single line may be edited**, one of which
+runs the task's entire validation command set, on every task. It buys a recorded
+pre-implementation baseline you can open, and a refusal if that baseline is
+missing. It does **not** buy any claim that the resulting code is more correct —
+see the first honest limit above.
+
+The full trade, and how to turn it on below `locked` or off inside it, is in
+[policy and gates](docs/policy-and-gates.md#choosing-between-them).
 
 ## Where to get help
 

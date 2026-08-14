@@ -56,6 +56,42 @@ describe("gate engine", () => {
     expect(result.allowed).toBe(true);
   });
 
+  it("tells the gate caller which omitted rules the back-fill is enforcing", async () => {
+    // The exact shape that bites an existing project: a `strict` policy.json
+    // written before VSP021-VSP026 existed. It validates, it loads, and the
+    // first thing that mentions VSP024 must not be a blocked PR gate.
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const stored = JSON.parse(await readFile(policyArtifactPath(tempDir), "utf8")) as {
+      strictnessMode: string;
+      rules: Record<string, boolean>;
+    };
+    stored.strictnessMode = "strict";
+    for (const key of [
+      "blockOnUnresolvedDrift",
+      "preventAssuranceProfileLowering",
+      "requireOracleLockBeforeImplementation",
+      "requireCurrentAssuranceDecisionBeforePr",
+      "requireSignedAssuranceDecision",
+      "requireUnderstandingBeforeBehaviouralImplementation"
+    ]) {
+      delete stored.rules[key];
+    }
+    await writeFile(policyArtifactPath(tempDir), JSON.stringify(stored, null, 2));
+
+    const result = expectOk(
+      await evaluateGate({
+        targetPath: tempDir,
+        stage: "pr",
+        dryRun: true,
+        now: "2026-01-01T00:00:00.000Z"
+      })
+    );
+
+    const warnings = result.warnings.join(" ");
+    expect(warnings).toContain("VSP024 (requireCurrentAssuranceDecisionBeforePr)");
+    expect(warnings).toContain("visp-kit policy migrate");
+  });
+
   it("strictness override affects only the current evaluation", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     expectOk(

@@ -48,6 +48,20 @@ content** than scan without one.
 
 ### Method
 
+> **Provenance, stated plainly (2026-08-15).** The tables in Findings 1–4 were
+> produced by a one-off ground-truth resolver written for this comparison. That
+> resolver is **not committed in this repository, and neither is its scoring
+> output.** The trees, the commits, the tool versions and the procedure are all
+> named below, so the measurement is *re-derivable by someone willing to rebuild
+> the resolver* — but it is **not** reproducible by running a committed script,
+> and nothing on disk here will reproduce these exact numbers for you. Treat
+> them as a recorded observation at named commits, not as a benchmark you can
+> re-run. The earlier figures this section retracts are the reason the
+> distinction is now spelled out rather than assumed. What *is* committed and
+> re-runnable is `scripts/benchmark-strict-workflow.sh` at the top of this page
+> and the pack measurement in
+> `tests/integration/compact-context-pack.test.ts`.
+
 Everything below is at named commits.
 
 - Trees: `visp-kit` `9d59cc2`, `visp-hyper-agent` `7813320`, `llm-memory`
@@ -203,6 +217,15 @@ measurement, and this section is not evidence for it.
 
 The table below compares *mechanisms*, not scores. Where another tool has no
 mechanism, no number can exist for it — that absence is the comparison.
+
+**How to read the "no" column, and how far to trust it.** These entries were
+compiled by reading each project's own public documentation, not by running the
+tools, and no version was pinned when they were written. A "no" therefore means
+*we found no such mechanism documented*, which is a weaker statement than *no
+such mechanism exists* — and these projects move quickly, so an entry can be out
+of date without anyone noticing. The Visp Kit column is the only one we can
+verify, and you can verify it yourself with the commands in it. If a row is
+wrong about your project, please open an issue and it will be corrected.
 
 | Capability | Visp Kit | GitHub Spec Kit | OpenSpec | BMAD |
 | --- | --- | --- | --- | --- |

@@ -108,7 +108,12 @@ const cliMetadataSchema = z.object({
 const cliMetadata = cliMetadataSchema.parse({
   name: "visp-kit",
   version: packageVersion(),
-  description: "Small context. Clear specs. Accurate code."
+  // "Accurate code" was the third clause here until 2026-08-15. Nothing in this
+  // project measures it: three of the four head-to-heads on record are parity
+  // or worse, and the one trial designed to settle it stopped at 9 of 56 pairs.
+  // The two clauses that remain are properties of what Kit writes, which a
+  // caller can check on their own repository in a single run.
+  description: "Small context. Declared scope. Evidence a human can check."
 });
 
 export function createCli(dependencies: CliDependencies = {}): Command {

@@ -130,6 +130,72 @@ describe("policy loader", () => {
     expect(loaded.filledRuleKeys).toStrictEqual(["requireOracleLockBeforeImplementation"]);
   });
 
+  it("names the back-filled rules that are enforced, by the id a gate will print", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const legacy = createDefaultPolicy({
+      strictnessMode: "strict",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const rules: Record<string, boolean> = {};
+    for (const [key, value] of Object.entries(legacy.rules)) {
+      // A pre-VSP021 file, the shape every project written before this quarter has.
+      if (
+        [
+          "blockOnUnresolvedDrift",
+          "preventAssuranceProfileLowering",
+          "requireOracleLockBeforeImplementation",
+          "requireCurrentAssuranceDecisionBeforePr",
+          "requireSignedAssuranceDecision",
+          "requireUnderstandingBeforeBehaviouralImplementation"
+        ].includes(key)
+      ) {
+        continue;
+      }
+      rules[key] = value as boolean;
+    }
+    await writeJsonFile(policyArtifactPath(tempDir), { ...legacy, rules });
+
+    const loaded = expectOk(await readPolicyFile(tempDir));
+    const warning = loaded.warnings.join(" ");
+
+    // Four of the six resolve on under `strict`; two resolve off.
+    expect(loaded.enforcedFilledRuleKeys).toStrictEqual([
+      "blockOnUnresolvedDrift",
+      "preventAssuranceProfileLowering",
+      "requireCurrentAssuranceDecisionBeforePr",
+      "requireSignedAssuranceDecision"
+    ]);
+    expect(warning).toContain("ENFORCED");
+    expect(warning).toContain("VSP024 (requireCurrentAssuranceDecisionBeforePr)");
+    expect(warning).toContain("VSP025 (requireSignedAssuranceDecision)");
+    expect(warning).toContain("2 further omitted keys resolve to off");
+    // The rules that resolve off must not be named as enforcement.
+    expect(warning).not.toContain("VSP023");
+    expect(warning).not.toContain("VSP026");
+  });
+
+  it("says nothing is enforced when every omitted key resolves to off", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    const legacy = createDefaultPolicy({
+      strictnessMode: "strict",
+      now: "2026-01-01T00:00:00.000Z"
+    });
+    const {
+      requireOracleLockBeforeImplementation,
+      requireUnderstandingBeforeBehaviouralImplementation,
+      ...rules
+    } = legacy.rules;
+    expect(requireOracleLockBeforeImplementation).toBe(false);
+    expect(requireUnderstandingBeforeBehaviouralImplementation).toBe(false);
+    await writeJsonFile(policyArtifactPath(tempDir), { ...legacy, rules });
+
+    const loaded = expectOk(await readPolicyFile(tempDir));
+
+    expect(loaded.filledRuleKeys).toHaveLength(2);
+    expect(loaded.enforcedFilledRuleKeys).toStrictEqual([]);
+    expect(loaded.warnings.join(" ")).toContain("nothing extra is enforced");
+  });
+
   it("reports no back-fill for a policy file that states every rule", async () => {
     expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
     const policy = createDefaultPolicy({

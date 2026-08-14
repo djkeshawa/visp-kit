@@ -2,6 +2,16 @@
 
 Visp Kit is designed for teams that want AI assistance without losing scope control, auditability, or token discipline.
 
+> **Before you build a business case on this, know what is not measured.**
+> Kit can show a team bounded scope, recorded evidence, and mechanical refusals.
+> It **cannot** show that code produced under Visp is more correct than code
+> produced without it — that has not been measured, and the trial designed to
+> measure it stopped early with too few pairs to resolve anything. Nor is Visp
+> cheaper: expect the full workflow to cost several times a bare agent's tokens
+> and wall clock. Pilot it for auditability and scope control, which are the
+> things it demonstrably does. The full list is under "Honest limits" in the
+> README.
+
 Recommended pilot default:
 
 ```bash

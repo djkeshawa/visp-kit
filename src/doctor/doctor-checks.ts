@@ -33,7 +33,7 @@ import { type ZodTypeAny } from "zod";
 import { readArtifact } from "../artifacts/artifact-reader.js";
 import { contextPackSchema } from "../artifacts/schemas/context-pack.schema.js";
 import { evaluationReportSchema } from "../artifacts/schemas/evaluation.schema.js";
-import { policyArtifactSchema } from "../artifacts/schemas/policy.schema.js";
+import { policyArtifactSchema, type PolicyRules } from "../artifacts/schemas/policy.schema.js";
 import { overrideArtifactSchema } from "../artifacts/schemas/override.schema.js";
 import { agentCapabilitiesPath } from "../agent/agent-paths.js";
 import { agentCapabilitiesSchema } from "../artifacts/schemas/agent.schema.js";
@@ -55,6 +55,7 @@ import { runIndexSchema } from "../artifacts/schemas/run.schema.js";
 import { workflowManifestSchema } from "../artifacts/schemas/workflow.schema.js";
 import { pathExists, readTextFile } from "../core/file-system.js";
 import { type ProjectState } from "../orchestrator/project-state.js";
+import { describePolicyRuleKey } from "../policy/policy-defaults.js";
 import { loadEffectivePolicy } from "../policy/policy-loader.js";
 import { readOverrideStore } from "../overrides/override-store.js";
 import { validateOverrideArtifact } from "../overrides/override-validator.js";
@@ -603,6 +604,46 @@ export async function checkArtifacts(state: ProjectState): Promise<DoctorCheckRe
         autoFixable: false
       })
     );
+  }
+
+  // Enforcement a project never wrote down is the failure mode this check
+  // exists for. Kit's loader resolves an omitted rule key to the value the
+  // file's own strictness declares, so upgrading Kit can raise enforcement in a
+  // repository whose policy.json nobody touched. That is intended, but meeting
+  // it as a blocked gate is not. `doctor` runs before the gate does, so it is
+  // where the change should be named.
+  if (await exists(policyArtifactPath(state.targetPath))) {
+    const loaded = await loadEffectivePolicy({
+      targetPath: state.targetPath,
+      now: new Date().toISOString()
+    });
+
+    if (loaded.ok && loaded.value.enforcedFilledRuleKeys.length > 0) {
+      const keys = loaded.value.enforcedFilledRuleKeys.map((key) =>
+        describePolicyRuleKey(key as keyof PolicyRules)
+      );
+      // The rule ids go in the TITLE, not only the description, because
+      // `formatDoctorSummary` prints titles and nothing else to the console.
+      // A finding that says only "understates what it enforces" sends the
+      // reader to a report to learn which rules — which is the trip this
+      // check exists to save them.
+      findings.push(
+        finding({
+          category: "artifacts",
+          severity: "warning",
+          title: `Policy file understates what it enforces: ${keys.join(", ")}`,
+          description:
+            `.visp/policy.json omits ${keys.length} rule ` +
+            `${keys.length === 1 ? "key that is" : "keys that are"} enforced at the ` +
+            `${loaded.value.policy.strictnessMode} defaults: ${keys.join(", ")}. ` +
+            "These will block a gate even though the file does not mention them.",
+          file: ".visp/policy.json",
+          recommendation:
+            "Run visp-kit policy migrate to write the resolved values, then set any you do not want to false.",
+          autoFixable: false
+        })
+      );
+    }
   }
 
   if (await exists(overridesArtifactPath(state.targetPath))) {

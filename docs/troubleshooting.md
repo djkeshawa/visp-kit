@@ -251,7 +251,7 @@ Fix from the Visp Kit repository:
 
 ```bash
 pnpm run install:global
-visp --help
+visp-kit --help
 ```
 
 Or use a package-style install:
@@ -259,8 +259,8 @@ Or use a package-style install:
 ```bash
 pnpm build
 npm pack
-npm install -g ./visp-kit-0.2.0.tgz
-visp --help
+npm install -g ./visp-kit-*.tgz
+visp-kit --help
 ```
 
 For active development, a pnpm link also works:
@@ -268,7 +268,7 @@ For active development, a pnpm link also works:
 ```bash
 pnpm build
 pnpm link --global
-visp --help
+visp-kit --help
 ```
 
 Or run directly:

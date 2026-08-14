@@ -84,6 +84,14 @@ export async function loadEffectiveGatePolicy(input: {
     };
   }
 
+  // The loader's back-fill warning has to reach the gate, because the gate is
+  // where the back-fill is felt. A policy file written before VSP024 existed
+  // loads clean, passes `policy validate`, and then fails the PR gate on a rule
+  // the file has never mentioned. `status` printed the warning and the gate did
+  // not, so the one command that blocks was the one command that did not say
+  // why the rule was in force.
+  warnings.push(...loaded.value.warnings);
+
   if (input.strictness === undefined) {
     return {
       initialized: true,

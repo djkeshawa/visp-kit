@@ -4,6 +4,15 @@ Visp Kit treats token efficiency as a product requirement.
 
 The goal is not to send the whole repository to an AI tool. The goal is to send the smallest sufficient task context.
 
+> **Read this before the numbers below: a smaller pack is not a smaller bill.**
+> Everything on this page measures **one context pack**. A Visp session is a
+> pack plus a workflow — clarify, spec, plan, tasks, verify, review, reconcile —
+> and in our own end-to-end runs that workflow cost **several times** a bare
+> agent's total tokens, and several times the wall clock. The savings here are
+> real and they are a line item inside a larger bill, not the bottom line.
+> Anyone quoting a figure from this page as a claim that Visp is cheaper than
+> not using Visp is quoting it against its own measurement.
+
 ## Why It Matters
 
 Large prompts can:
