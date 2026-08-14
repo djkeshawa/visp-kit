@@ -10,6 +10,21 @@ pnpm build
 scripts/benchmark-strict-workflow.sh
 ```
 
+Each planning stage generates a `TBD` template and then validates it hard, so
+the script fills those templates itself, deterministically, via
+`scripts/benchmark-fixture-artifacts.mjs` — it plays the part of the agent, and
+no LLM is called. You will see a `Validation: failed` line from each generate
+step before the fill; that is the template being correctly refused, not a
+broken run. The run ends with `Benchmark workflow complete.` and exit 0.
+
+**What this fixture does and does not show.** It is a five-file throwaway
+project, built to prove the two *enforcement* behaviours below. The
+`contextEfficiency.reductionRatio` it prints is **0 by construction** — the
+whole fixture is smaller than one context pack's overhead, so there is nothing
+to reduce. Do not read that zero as a result about context efficiency; the real
+pack measurement is in [token efficiency](token-efficiency.md), on held-out
+tasks in real repositories.
+
 The script runs the full strict workflow (init → scan → constitution →
 feature → clarify → spec → plan → tasks → context → gate), then:
 

@@ -60,10 +60,29 @@ git -C "$tmpdir" commit -m "initial fixture"
 "${VISP[@]}" constitution "$tmpdir" --preset typescript --budget lean
 "${VISP[@]}" policy validate "$tmpdir"
 "${VISP[@]}" feature "Add note pinning" "$tmpdir"
-"${VISP[@]}" clarify "$tmpdir"
-"${VISP[@]}" spec "$tmpdir" --force
-"${VISP[@]}" plan "$tmpdir" --force
-"${VISP[@]}" tasks "$tmpdir" --force
+
+# Each planning stage generates a TBD template and then validates it hard, so a
+# stage that is only generated exits non-zero. FIXTURE stands in for the human
+# or agent who would fill it in — deterministically, with no LLM.
+FIXTURE=(node "$ROOT_DIR/scripts/benchmark-fixture-artifacts.mjs")
+feature_dir="$tmpdir/.visp/features/001-add-note-pinning"
+
+"${VISP[@]}" clarify "$tmpdir" || true
+"${FIXTURE[@]}" clarifications "$feature_dir"
+"${VISP[@]}" clarify answer CQ001 "$tmpdir" --accept-default
+
+"${VISP[@]}" spec "$tmpdir" --force || true
+"${FIXTURE[@]}" spec "$feature_dir"
+"${VISP[@]}" spec "$tmpdir" --validate
+
+"${VISP[@]}" plan "$tmpdir" --force || true
+"${FIXTURE[@]}" plan "$feature_dir"
+"${VISP[@]}" plan "$tmpdir" --validate
+
+"${VISP[@]}" tasks "$tmpdir" --force || true
+"${FIXTURE[@]}" tasks "$feature_dir"
+"${VISP[@]}" tasks "$tmpdir" --validate
+
 "${VISP[@]}" context T001 "$tmpdir" --force
 "${VISP[@]}" gate implement "$tmpdir" --task T001
 "${VISP[@]}" hooks git "$tmpdir"
