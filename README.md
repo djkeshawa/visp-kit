@@ -29,12 +29,40 @@ as proof. As of 0.4.0 it provides the **`visp-kit`** command and no longer
 provides `visp`; that top-level command belongs to
 [`visp-hyper-agent`](https://www.npmjs.com/package/visp-hyper-agent).
 
-- **With Hyper:** `visp-hyper-agent` >= 0.6.0 drives this engine and presents
-  its decisions; install both for the full surface. Approvals recorded before
-  the rename stay valid — identity hashes no longer contain command wording.
+**Kit publishes no supported version range for Hyper, and a version number is
+not a compatibility claim.** A Kit/Hyper pairing is supported only when that
+exact pair — commit, tree, and package tarball hash on both sides — appears in
+the compatibility matrix Visp Dev publishes. The same version string has
+already carried different content on this project, so a range over version
+strings would range over something that does not identify a build, and would
+promise support no evidence backs. ADR 0007 records this and names what every
+other statement of the pair contract must say.
+
+Two consequences, both load-bearing:
+
+- **`visp-dev doctor` is the only installability answer.** If it reports
+  `installable: false`, the pair you have is unevidenced — whatever any other
+  command printed a moment earlier. A setup command that says `ok` has checked
+  that the binaries are present and runnable, not that they are a supported
+  pair.
+- **What actually binds Kit to Hyper at run time is the protocol, not the
+  package version.** `visp-kit integration contract` advertises the exact
+  WorkflowAction protocol versions Kit implements and the immutable canonical
+  schema hash of each. Hyper requests one of those exact versions and fails
+  closed on anything else. An unlisted protocol is a hard error at the seam,
+  and it is never resolved by comparing package versions.
+
+Approvals recorded before the `visp` rename stay valid — identity hashes no
+longer contain command wording.
+
+- **With Hyper:** `visp-hyper-agent` drives this engine and presents its
+  decisions; install both for the full surface, then confirm the pair with
+  `visp-dev doctor` before trusting it.
 - **With Memory:** this package does not talk to visp-memory directly; recall
   flows through Hyper.
-- **With Visp Dev:** not required; machine setup and checks live there.
+- **With Visp Dev:** not required to run Kit; machine setup and checks live
+  there — and its pinned matrix, not this README, is the compatibility
+  authority.
 
 Upgrading from a `visp`-era install: run `visp-kit agent refresh` and
 `visp-kit hooks ci --force` so generated instruction files and the CI
