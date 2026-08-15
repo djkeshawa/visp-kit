@@ -137,7 +137,13 @@ type TraceabilityFile = {
 };
 
 type TaskGraphFile = {
-  tasks: { acceptanceCriterionIds: string[] }[];
+  tasks: { acceptanceCriterionIds: string[]; requirementIds: string[] }[];
+};
+
+type Criterion = typeof criterion;
+
+type SpecFile = {
+  requirements: { acceptanceCriteria: Criterion[] }[];
 };
 
 describe("visp-kit tasks --validate", () => {
@@ -213,6 +219,52 @@ describe("visp-kit tasks --validate", () => {
     expect(text).toContain("Validation: failed");
     expect(text).toContain("AC404");
     expect(text).toContain("REQ001");
+  });
+
+  it("offers a criterion repair the spec gate still refuses, so no filler survives it", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+    const graphPath = path.join(featureDir, "task-graph.json");
+    const graph = await readJson<TaskGraphFile>(graphPath);
+    graph.tasks[0]!.acceptanceCriterionIds = ["AC001", "AC404"];
+    await writeFile(graphPath, `${JSON.stringify(graph, null, 2)}\n`, "utf8");
+
+    await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
+
+    const fragment = /\{"id":"AC404".*\}/u.exec(output.join(""))?.[0];
+    expect(fragment).toBeDefined();
+
+    // Paste the repair exactly as instructed, then ask the gate that owns the
+    // spec whether it accepts the result. It must not: the fastest path out of
+    // one error may not leave an acceptance criterion that asserts nothing.
+    const specPath = path.join(featureDir, "spec.json");
+    const spec = await readJson<SpecFile>(specPath);
+    spec.requirements[0]!.acceptanceCriteria.push(JSON.parse(fragment as string) as Criterion);
+    await writeFile(specPath, `${JSON.stringify(spec, null, 2)}\n`, "utf8");
+
+    const specOutput: string[] = [];
+    const specProgram = createCli({ writeOut: (value) => specOutput.push(value) });
+    await specProgram.parseAsync(["node", "visp", "spec", tempDir, "--validate"]);
+
+    expect(specOutput.join("")).toContain("Validation: failed");
+    expect(specOutput.join("")).toContain("placeholder text");
+  });
+
+  it("does not ask for a traceability entry against a requirement the spec never declared", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+    const graphPath = path.join(featureDir, "task-graph.json");
+    const graph = await readJson<TaskGraphFile>(graphPath);
+    graph.tasks[0]!.requirementIds = ["REQ999"];
+    await writeFile(graphPath, `${JSON.stringify(graph, null, 2)}\n`, "utf8");
+
+    await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
+
+    const text = output.join("");
+    expect(text).toContain("Validation: failed");
+    expect(text).toContain("T001 references requirement REQ999, which spec.json does not declare.");
+    expect(text).toContain('"id":"REQ999"');
+    expect(text).not.toContain("add to the taskIds of REQ999");
   });
 
   it("still reports a task whose requirement has no traceability entry", async () => {

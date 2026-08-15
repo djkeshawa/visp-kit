@@ -62,29 +62,40 @@ export async function planVispIgnore(targetPath: string): Promise<VispIgnorePlan
 }
 
 /**
- * Carries out a plan and reports it as an init action, or reports nothing when
- * there is no plan, the run is a dry run, or the write fails — an unwritable
- * `.gitignore` is not a reason to fail an otherwise complete init, but it is a
- * reason not to claim the file changed.
+ * Carries out a plan and reports what happened.
+ *
+ * A failed write claims no action — an unwritable `.gitignore` is not a reason
+ * to fail an otherwise complete init, and reporting a change that did not
+ * happen is the thing this module exists to prevent. It is still worth a note:
+ * silence leaves the user believing `.visp/` is ignored when it is not, and
+ * that belief only surfaces as a large untracked directory later.
  */
 export async function applyVispIgnore(input: {
   readonly targetPath: string;
   readonly plan: VispIgnorePlan;
   readonly dryRun: boolean;
-}): Promise<readonly InitFileAction[]> {
-  if (!input.plan.needed) return [];
+}): Promise<{
+  readonly actions: readonly InitFileAction[];
+  readonly warnings: readonly string[];
+}> {
+  if (!input.plan.needed) return { actions: [], warnings: [] };
 
   const action: InitFileAction = { path: ".gitignore", action: input.plan.action };
 
-  if (input.dryRun) return [action];
+  if (input.dryRun) return { actions: [action], warnings: [] };
 
   const { writeFile } = await import("node:fs/promises");
 
   try {
     await writeFile(path.join(input.targetPath, ".gitignore"), input.plan.contents, "utf8");
   } catch {
-    return [];
+    return {
+      actions: [],
+      warnings: [
+        `Could not write .gitignore, so .visp/ is not ignored. Add "${ENTRY}/" to it by hand to keep Visp's artifacts out of your history.`
+      ]
+    };
   }
 
-  return [action];
+  return { actions: [action], warnings: [] };
 }

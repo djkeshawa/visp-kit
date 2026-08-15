@@ -70,6 +70,8 @@ export type InitFilePlanInput = {
   readonly budget: BudgetMode;
   readonly strictness: StrictnessMode;
   readonly force: boolean;
+  /** Only the wording of the plan's warnings depends on this; the plan itself is the same. */
+  readonly dryRun: boolean;
   readonly now: string;
 };
 
@@ -239,8 +241,13 @@ async function agentPlan(input: InitFilePlanInput): Promise<Result<InitFilePlan,
 
   if (agentsExists.value && !input.force) {
     actions.push({ path: "AGENTS.md", action: "skipped" });
+    // A dry run writes nothing, so it may not claim it wrote something. The
+    // bootstrap path already says "Would write"; this one used to report the
+    // creation in the past tense two lines under "(nothing written)".
     warnings.push(
-      "AGENTS.md already exists. Created AGENTS.visp.md for manual merge or reference."
+      input.dryRun
+        ? "AGENTS.md already exists. Would write AGENTS.visp.md for manual merge or reference."
+        : "AGENTS.md already exists. Created AGENTS.visp.md for manual merge or reference."
     );
   }
 

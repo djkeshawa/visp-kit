@@ -70,9 +70,20 @@ export function formatInitSummary(summary: InitSummary): string {
     formatKeyValue("Preset", summary.preset),
     formatKeyValue("Budget", summary.budget),
     "",
-    formatKeyValue("Created", `${summary.createdFiles.length} files`),
-    formatKeyValue("Skipped", `${summary.skippedFiles.length} files`),
-    formatKeyValue("Overwritten", `${summary.overwrittenFiles.length} files`)
+    // A dry run wrote nothing, so every count it prints is a forecast. The
+    // header said so and these three lines contradicted it in the past tense.
+    formatKeyValue(
+      summary.dryRun ? "Would create" : "Created",
+      `${summary.createdFiles.length} files`
+    ),
+    formatKeyValue(
+      summary.dryRun ? "Would skip" : "Skipped",
+      `${summary.skippedFiles.length} files`
+    ),
+    formatKeyValue(
+      summary.dryRun ? "Would overwrite" : "Overwritten",
+      `${summary.overwrittenFiles.length} files`
+    )
   ];
 
   if (summary.projectRootFiles.length > 0) {
