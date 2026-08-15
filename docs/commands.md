@@ -20,6 +20,22 @@ Common flags:
 
 If `--preset` is omitted, Visp Kit auto-detects from project manifests.
 
+Almost everything init writes goes under `.visp/`. The exceptions are files your
+project already owns, so init names each one and says what happened to it:
+
+```text
+Project root:
+  AGENTS.md — skipped
+  AGENTS.visp.md — created
+  .gitignore — updated
+```
+
+An existing `AGENTS.md` is never overwritten without `--force`; `AGENTS.visp.md`
+is written beside it instead. The `.gitignore` line is a single appended `.visp/`
+entry, added only inside a git repository and only when it is not already
+ignored. `--dry-run` lists the same files without writing them, and `--json`
+reports them as `projectRootFiles`.
+
 Next: `visp-kit scan`
 
 ## `visp-kit scan [path]`

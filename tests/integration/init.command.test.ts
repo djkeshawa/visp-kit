@@ -1,5 +1,5 @@
 import { CommanderError } from "commander";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -100,6 +100,60 @@ describe("visp-kit init command", () => {
 
     expect(output.join("")).toContain("AGENTS.md — skipped");
     expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toBe("# Our own agent guide\n");
+  });
+
+  it("names the .gitignore it appended the .visp entry to", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await mkdir(path.join(tempDir, ".git"));
+    await writeFile(path.join(tempDir, ".gitignore"), "node_modules\n", "utf8");
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic"]);
+
+    expect(output.join("")).toContain(".gitignore — updated");
+    expect(await readFile(path.join(tempDir, ".gitignore"), "utf8")).toBe(
+      "node_modules\n\n# Visp Kit's workflow artifacts\n.visp/\n"
+    );
+  });
+
+  it("reports a .gitignore it had to create as created, not updated", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await mkdir(path.join(tempDir, ".git"));
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic"]);
+
+    expect(output.join("")).toContain(".gitignore — created");
+    expect(await readFile(path.join(tempDir, ".gitignore"), "utf8")).toBe(
+      "# Visp Kit's workflow artifacts\n.visp/\n"
+    );
+  });
+
+  it("claims no .gitignore change when the project already ignores .visp", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await mkdir(path.join(tempDir, ".git"));
+    await writeFile(path.join(tempDir, ".gitignore"), "node_modules\n.visp/\n", "utf8");
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic"]);
+
+    expect(output.join("")).not.toContain(".gitignore");
+    expect(await readFile(path.join(tempDir, ".gitignore"), "utf8")).toBe("node_modules\n.visp/\n");
+  });
+
+  it("names every project root file a dry run would write, and writes none of them", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await mkdir(path.join(tempDir, ".git"));
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic", "--dry-run"]);
+
+    const text = output.join("");
+    expect(text).toContain("Project root (nothing written):");
+    expect(text).toContain("AGENTS.md — created");
+    expect(text).toContain(".gitignore — created");
+    expect(await exists(path.join(tempDir, "AGENTS.md"))).toBe(false);
+    expect(await exists(path.join(tempDir, ".gitignore"))).toBe(false);
   });
 
   it("uses the current working directory when no path is provided", async () => {
