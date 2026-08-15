@@ -1,5 +1,5 @@
 import { CommanderError } from "commander";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -79,6 +79,27 @@ describe("visp-kit init command", () => {
     expect(summary.success).toBe(true);
     expect(summary.agent).toBe("none");
     expect(summary.createdFiles).toContain(".visp/project.json");
+  });
+
+  it("names the files it wrote outside .visp so a project root change is never silent", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic"]);
+
+    expect(output.join("")).toContain("Project root:");
+    expect(output.join("")).toContain("AGENTS.md — created");
+  });
+
+  it("says AGENTS.md was left alone when the project already owns one", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await writeFile(path.join(tempDir, "AGENTS.md"), "# Our own agent guide\n", "utf8");
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic"]);
+
+    expect(output.join("")).toContain("AGENTS.md — skipped");
+    expect(await readFile(path.join(tempDir, "AGENTS.md"), "utf8")).toBe("# Our own agent guide\n");
   });
 
   it("uses the current working directory when no path is provided", async () => {
