@@ -1,5 +1,5 @@
 import { CommanderError } from "commander";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -155,6 +155,53 @@ describe("visp-kit init command", () => {
     expect(await exists(path.join(tempDir, "AGENTS.md"))).toBe(false);
     expect(await exists(path.join(tempDir, ".gitignore"))).toBe(false);
   });
+
+  it("states a dry run's counts as a forecast rather than as work already done", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic", "--dry-run"]);
+
+    const text = output.join("");
+    expect(text).toContain("Would create:");
+    expect(text).toContain("Would skip:");
+    expect(text).toContain("Would overwrite:");
+    expect(text).not.toContain("Created:");
+    expect(text).not.toContain("Overwritten:");
+  });
+
+  it("does not claim a dry run created AGENTS.visp.md beside an existing AGENTS.md", async () => {
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await writeFile(path.join(tempDir, "AGENTS.md"), "# Our own agent guide\n", "utf8");
+    await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic", "--dry-run"]);
+
+    const text = output.join("");
+    expect(text).toContain("Would write AGENTS.visp.md");
+    expect(text).not.toContain("Created AGENTS.visp.md");
+    expect(await exists(path.join(tempDir, "AGENTS.visp.md"))).toBe(false);
+  });
+
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "says .visp is still unignored when it could not write .gitignore",
+    async () => {
+      const output: string[] = [];
+      const program = createCli({ writeOut: (value) => output.push(value) });
+      const gitignorePath = path.join(tempDir, ".gitignore");
+
+      await mkdir(path.join(tempDir, ".git"));
+      await writeFile(gitignorePath, "node_modules\n", "utf8");
+      await chmod(gitignorePath, 0o444);
+
+      await program.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic"]);
+
+      const text = output.join("");
+      expect(text).toContain("Could not write .gitignore, so .visp/ is not ignored");
+      expect(text).not.toContain(".gitignore — updated");
+      expect(await readFile(gitignorePath, "utf8")).toBe("node_modules\n");
+    }
+  );
 
   it("uses the current working directory when no path is provided", async () => {
     const originalCwd = process.cwd();

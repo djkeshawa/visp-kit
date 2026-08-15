@@ -73,6 +73,7 @@ export async function runInitWorkflow(
     budget,
     strictness,
     force,
+    dryRun,
     now
   });
 
@@ -98,22 +99,24 @@ export async function runInitWorkflow(
     actions.push(result.value);
   }
 
-  actions.push(
-    ...(await applyVispIgnore({
-      targetPath,
-      plan: await planVispIgnore(targetPath),
-      dryRun
-    }))
-  );
+  const ignore = await applyVispIgnore({
+    targetPath,
+    plan: await planVispIgnore(targetPath),
+    dryRun
+  });
+
+  actions.push(...ignore.actions);
+
+  const warnings = [...plan.value.warnings, ...ignore.warnings];
 
   const run = await recordWorkflowRun({
     targetPath,
     command: "init",
     endedAt: now,
     success: true,
-    result: plan.value.warnings.length > 0 ? "warnings" : "passed",
+    result: warnings.length > 0 ? "warnings" : "passed",
     actions,
-    warnings: plan.value.warnings,
+    warnings,
     dryRun
   });
 
@@ -132,7 +135,7 @@ export async function runInitWorkflow(
       budget,
       actions,
       dryRun,
-      warnings: [...plan.value.warnings, ...run.warnings]
+      warnings: [...warnings, ...run.warnings]
     })
   );
 }

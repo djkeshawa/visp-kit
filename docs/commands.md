@@ -32,9 +32,10 @@ Project root:
 
 An existing `AGENTS.md` is never overwritten without `--force`; `AGENTS.visp.md`
 is written beside it instead. The `.gitignore` line is a single appended `.visp/`
-entry, added only inside a git repository and only when it is not already
-ignored. `--dry-run` lists the same files without writing them, and `--json`
-reports them as `projectRootFiles`.
+entry, added only inside a git repository and only when the file does not
+already list it — the check is for that literal entry, not for whether git would
+ignore `.visp/` by some broader pattern. `--dry-run` lists the same files
+without writing them, and `--json` reports them as `projectRootFiles`.
 
 Next: `visp-kit scan`
 
@@ -172,6 +173,12 @@ Common flags:
 - `--dry-run`
 - `--json`
 - `--prompt-only`
+
+`--validate` also rewrites `traceability.json` once validation passes: each
+entry's `taskIds` are re-derived from the task graph it just validated, since a
+task states the requirements it implements. An entry a later stage promoted to
+`covered` or `verified` keeps that status. Nothing is written when validation
+fails or under `--dry-run`.
 
 Next: `visp-kit context --next`
 
