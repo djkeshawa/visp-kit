@@ -1,4 +1,5 @@
 import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
+import { isPlaceholderText } from "./semantic-lint.js";
 
 /**
  * Refuse a specification that cannot be proven, before implementation starts.
@@ -40,6 +41,26 @@ function normalize(value: string): string {
 }
 
 /**
+ * Two unfilled fields are not a contradiction.
+ *
+ * Every check below compares one declared field against another and reports a
+ * conflict when they match. On a freshly seeded specification they all hold the
+ * same placeholder, so the comparison succeeds on content nobody wrote: the
+ * head-to-head run's `visp-kit spec` produced the error `"TBD" is declared both
+ * a business rule and out of scope. It cannot be both required and excluded;
+ * delete whichever is wrong.` — advice about a word the author never chose,
+ * pointing at a field the template itself filled.
+ *
+ * The placeholder is already reported, once, by the placeholder lint. A
+ * contradiction between placeholders is that same fact wearing a costume, and a
+ * confusing one: it describes a semantic conflict that does not exist and names
+ * a repair ("delete whichever is wrong") that would delete the template.
+ */
+function isAuthored(value: string): boolean {
+  return !isPlaceholderText(value);
+}
+
+/**
  * A must-level requirement none of whose acceptance criteria is marked
  * testable. The specification is stating, in its own declared fields, that
  * something mandatory has no way to be proven. Reading two flags — no inference,
@@ -76,10 +97,12 @@ function nonGoalContradictsRequirement(spec: SpecArtifact): CriticFinding[] {
     spec.requirements.map((requirement) => [requirement.id.toLowerCase(), requirement])
   );
   const byTitle = new Map(
-    spec.requirements.map((requirement) => [normalize(requirement.title), requirement])
+    spec.requirements
+      .filter((requirement) => isAuthored(requirement.title))
+      .map((requirement) => [normalize(requirement.title), requirement])
   );
 
-  for (const entry of spec.outOfScope) {
+  for (const entry of spec.outOfScope.filter(isAuthored)) {
     const normalized = normalize(entry);
     const titleMatch = byTitle.get(normalized);
     if (titleMatch) {
@@ -117,8 +140,11 @@ function nonGoalContradictsRequirement(spec: SpecArtifact): CriticFinding[] {
  * constraints that cannot both hold, read directly off the two lists.
  */
 function contradictoryConstraints(spec: SpecArtifact): CriticFinding[] {
-  const excluded = new Map(spec.outOfScope.map((entry) => [normalize(entry), entry]));
+  const excluded = new Map(
+    spec.outOfScope.filter(isAuthored).map((entry) => [normalize(entry), entry])
+  );
   return spec.businessRules
+    .filter(isAuthored)
     .filter((rule) => excluded.has(normalize(rule)))
     .map((rule) => ({
       code: "constraint_contradicts_non_goal",

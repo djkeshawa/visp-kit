@@ -73,6 +73,41 @@ describe("phase 7 validators", () => {
     );
   });
 
+  // The head-to-head run's most confusing single line. The seeded spec writes
+  // "TBD" into businessRules AND into outOfScope, and the contradiction critic
+  // compared the two lists and reported `"TBD" is declared both a business rule
+  // and out of scope. It cannot be both required and excluded; delete whichever
+  // is wrong.` — a semantic conflict between two fields the author never wrote,
+  // whose named repair would have deleted the template.
+  it("does not report contradictions between fields nobody has filled in", () => {
+    const spec = createSpecArtifact({ feature, now });
+    const traceability = createTraceabilitySeed({ feature, spec, now });
+    const errors = validateSpec({ spec, traceability }).errors.join("\n");
+
+    expect(errors).not.toContain("declared both a business rule and out of scope");
+    expect(errors).not.toContain("cannot be both required and excluded");
+    expect(errors).not.toContain("The specification both demands and excludes");
+    // Nor a critique of prose that has not been written yet.
+    expect(errors).not.toContain("must state an observable outcome");
+    // The one real problem is still reported.
+    expect(errors).toContain("placeholder text");
+  });
+
+  // The other half: the critic must keep firing on a real contradiction. The
+  // fix above skips placeholders, not authored text.
+  it("still reports a contradiction between two authored fields", () => {
+    const seeded = createSpecArtifact({ feature, now });
+    const spec = {
+      ...seeded,
+      businessRules: ["Pinned notes sort before unpinned notes."],
+      outOfScope: ["Pinned notes sort before unpinned notes."]
+    };
+
+    expect(validateSpec({ spec }).errors.join("\n")).toContain(
+      "declared both a business rule and out of scope"
+    );
+  });
+
   it("catches missing task dependencies and cycles", () => {
     const spec = createSpecArtifact({ feature, now });
     const taskGraph = createTaskGraphArtifact({ feature, now });

@@ -69,7 +69,10 @@ function workflowOptions(
     updateTaskStatus: options.updateTaskStatus ?? false,
     // Commander's --no-status-update sets statusUpdate to false; default true.
     statusUpdates: options.statusUpdate ?? true,
-    requireCommandEvidence: options.requireCommandEvidence ?? false,
+    // Left undefined when the flag is absent so the workflow's own default
+    // applies. Passing `false` here used to opt every default invocation OUT
+    // of the only check that asks whether anything ran.
+    requireCommandEvidence: options.requireCommandEvidence,
     force: options.force ?? false,
     dryRun: options.dryRun ?? false,
     jsonOutput: options.json ?? false
@@ -112,7 +115,7 @@ export function createVerifyCommand(dependencies: VerifyCommandDependencies = {}
     )
     .option(
       "--require-command-evidence",
-      "Fail unless at least one validation command actually executed."
+      "Also demand executed-command evidence from a run whose commands were skipped. Runs that execute commands already refuse to pass on zero."
     )
     .option(
       "--force",

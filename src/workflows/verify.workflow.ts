@@ -66,6 +66,8 @@ import {
 } from "../gates/policy-gate-summary.js";
 import { validateScope } from "../verification/scope-validator.js";
 import { validateTraceability } from "../verification/traceability-validator.js";
+import { evaluateCodeEvidence } from "../verification/code-evidence.js";
+import { classifyValidationCommand } from "../verification/command-classifier.js";
 import {
   selectValidationCommands,
   type VerificationCommandMode
@@ -104,8 +106,16 @@ export type VerifyWorkflowOptions = {
    */
   readonly statusUpdates?: boolean;
   /**
-   * P10-US-02 / D-115: when true, verification fails unless at least one
-   * validation command actually executed. Closes the zero-command false pass.
+   * P10-US-02 / D-115: verification fails unless at least one validation
+   * command actually executed. Closes the zero-command false pass.
+   *
+   * D-128 made this the DEFAULT wherever the command channel is on, because
+   * opt-in was the same as off: the head-to-head run never passed the flag, and
+   * a verification stage that executed nothing reported success over a game
+   * that erased its own screen. Leave it unset for that default. Setting it
+   * true additionally demands evidence from a run whose command channel was
+   * deliberately skipped; setting it false is not a way to make a
+   * command-running verification pass on zero commands.
    */
   readonly requireCommandEvidence?: boolean;
   readonly force?: boolean;
@@ -304,7 +314,8 @@ function collectWarnings(report: Omit<VerificationReport, "summary">): readonly 
     ...report.traceabilityValidation.warnings,
     ...report.commandValidation.warnings,
     ...report.scopeValidation.warnings,
-    ...report.dependencyValidation.warnings
+    ...report.dependencyValidation.warnings,
+    ...(report.codeEvidence?.warnings ?? [])
   ];
 }
 
@@ -315,7 +326,8 @@ function collectErrors(report: Omit<VerificationReport, "summary">): readonly st
     ...report.traceabilityValidation.errors,
     ...report.commandValidation.errors,
     ...report.scopeValidation.errors,
-    ...report.dependencyValidation.errors
+    ...report.dependencyValidation.errors,
+    ...(report.codeEvidence?.errors ?? [])
   ];
 }
 
@@ -513,7 +525,7 @@ export async function runVerifyWorkflow(
         contextPack,
         project
       })
-    : { commands: [], warnings: [] };
+    : { commands: [], rejected: [], warnings: [] };
   // The diff is collected BEFORE the validation commands run. The commands
   // are the project's own tests and CLI invocations, and what they create at
   // runtime (a todo app's todos.json, a build cache) is not the task's work —
@@ -567,6 +579,25 @@ export async function runVerifyWorkflow(
         plan
       })
     : skippedDependencies();
+  // D-128. The stage that is supposed to run something now has to say whether
+  // it did, and a run that ran nothing is refused instead of reported as a
+  // pass. Placed after the sections above so it can see what they produced.
+  const codeEvidence = evaluateCodeEvidence({
+    commandChannelEnabled: checks.commands,
+    commandResults,
+    rejectedCommands: commandSelection.rejected,
+    changedFiles: git.changedFiles,
+    spec,
+    traceability,
+    task: selectedTask,
+    projectHasCommands: [
+      ...(project?.testCommands ?? []),
+      ...(project?.typecheckCommands ?? []),
+      ...(project?.lintCommands ?? []),
+      ...(project?.buildCommands ?? [])
+    ].some((command) => classifyValidationCommand(command).kind === "executable"),
+    dryRun
+  });
   const endedAt = new Date().toISOString();
   const baseReport: Omit<VerificationReport, "summary"> = {
     id: `VER-${feature.value.id}-${selectedTask?.id ?? "feature"}`,
@@ -583,6 +614,7 @@ export async function runVerifyWorkflow(
     commandValidation,
     scopeValidation,
     dependencyValidation,
+    codeEvidence: codeEvidence.section,
     policyGate,
     warnings,
     errors: policyGateUnavailable === undefined ? [] : [policyGateUnavailable],
@@ -601,8 +633,12 @@ export async function runVerifyWorkflow(
   const executedCommandCount = commandValidation.commands.filter(
     (command) => !command.skipped
   ).length;
+  // The refusal in `codeEvidence` already covers the default path. This adds
+  // the explicit demand for evidence from a run whose command channel was off,
+  // which the composite `done` flow relies on when candidate evidence is what
+  // actually executed.
   const commandEvidenceErrors =
-    options.requireCommandEvidence === true && executedCommandCount === 0
+    options.requireCommandEvidence === true && executedCommandCount === 0 && !dryRun
       ? ["No validation command was executed; at least one must run to count as evidence."]
       : [];
   const collectedErrors = [
@@ -615,9 +651,10 @@ export async function runVerifyWorkflow(
   const nextCommand =
     collectedErrors.length === 0
       ? "visp-kit review --diff-only"
-      : selectedTask === undefined
-        ? "visp-kit verify"
-        : `visp-kit verify --task ${selectedTask.id}`;
+      : (codeEvidence.nextCommand ??
+        (selectedTask === undefined
+          ? "visp-kit verify"
+          : `visp-kit verify --task ${selectedTask.id}`));
   const withMessages: Omit<VerificationReport, "summary"> = {
     ...baseReport,
     success: collectedErrors.length === 0,
@@ -764,6 +801,13 @@ export async function runVerifyWorkflow(
       commands: parsed.data.commandValidation.status,
       scope: parsed.data.scopeValidation.status,
       dependencies: parsed.data.dependencyValidation.status
+    },
+    codeEvidence: {
+      evidence: codeEvidence.section.evidence,
+      executedCommands: codeEvidence.section.executedCommands,
+      passedCommands: codeEvidence.section.passedCommands,
+      changedCodeFiles: codeEvidence.section.changedCodeFiles.length,
+      assertedCriteria: codeEvidence.section.assertedCriteria
     },
     commands: parsed.data.commandValidation.commands.map((command) => ({
       command: command.command,

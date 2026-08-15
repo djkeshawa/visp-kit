@@ -72,6 +72,31 @@ function passingRunner(changedFiles: readonly string[] = []): CommandRunner {
   };
 }
 
+/** Like {@link passingRunner}, but remembers everything it was asked to run. */
+function recordingRunner(sink: string[], changedFiles: readonly string[] = []): CommandRunner {
+  const inner = passingRunner(changedFiles);
+
+  return {
+    async run(command, args, options) {
+      if (command !== "git") sink.push([command, ...(args ?? [])].join(" "));
+      return inner.run(command, args, options);
+    }
+  };
+}
+
+async function setTaskValidationCommands(
+  rootPath: string,
+  commands: readonly string[]
+): Promise<void> {
+  const graphPath = taskGraphArtifactPath(rootPath, "001-add-note-pinning");
+  const graph = JSON.parse(await readFile(graphPath, "utf8")) as {
+    tasks: { validationCommands: readonly string[] }[];
+  };
+
+  graph.tasks[0]!.validationCommands = [...commands];
+  await writeFile(graphPath, `${JSON.stringify(graph, null, 2)}\n`, "utf8");
+}
+
 function failingRunner(): CommandRunner {
   return {
     async run(command, args, options) {
@@ -358,6 +383,119 @@ describe("runVerifyWorkflow", () => {
       )
     ) as { tasks: Array<{ id: string; status: string }> };
     expect(taskGraph.tasks[0]).toMatchObject({ id: "T001", status: "ready" });
+  });
+
+  // ------------------------------------------------------------------
+  // D-128. The defect the head-to-head found, reproduced end to end.
+  //
+  // Two agents built the same browser game. The one driving the full
+  // toolchain shipped a game that emptied its own screen in six seconds from
+  // a two-line screen-wrap bug, and every gate passed — because the gates ran
+  // around the code and never on it. The task's declared check was an English
+  // sentence, so `/bin/sh` was asked to run "Manually", verification recorded
+  // a failing test, and no run ever executed anything over the diff.
+  // ------------------------------------------------------------------
+  it("refuses to pass when the task's only declared check is an English sentence", async () => {
+    await createVerifyFixture(tempDir);
+    await setTaskValidationCommands(tempDir, [
+      "Manually open index.html and check the snake wraps at the screen edge"
+    ]);
+
+    const executed: string[] = [];
+    const summary = expectOk(
+      await runVerifyWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        statusUpdates: false,
+        commandRunner: recordingRunner(executed, ["src/notes/sort.ts"]),
+        now: timestamp
+      })
+    );
+
+    // The sentence is never handed to a shell.
+    expect(executed).not.toContain(
+      "Manually open index.html and check the snake wraps at the screen edge"
+    );
+    // The selector falls back to the project's generic `pnpm test`, which
+    // passes — it has no test for wrapping, because nobody wrote one. That
+    // fallback is real evidence about something, and about a DIFFERENT
+    // question than the task asked. It must not be allowed to stand in for
+    // the check the task declared.
+    expect(executed).toContain("pnpm test");
+    expect(summary.success).toBe(false);
+    expect(summary.codeEvidence.evidence).toBe("executed");
+    expect(summary.errors.join(" ")).toContain("was not executed because");
+    expect(summary.errors.join(" ")).toContain("answered a different question");
+    // A refusal that does not say what to do next is just a different dead
+    // end, so the next command is part of the contract.
+    expect(summary.nextCommand).toBe("visp-kit tasks --validate");
+  });
+
+  it("refuses to pass when nothing runnable exists at all", async () => {
+    await createVerifyFixture(tempDir);
+    await setTaskValidationCommands(tempDir, []);
+    await writeArtifact(
+      projectProfileArtifactPath(tempDir),
+      projectProfileSchema,
+      {
+        ...validProjectProfile,
+        testCommands: [],
+        typecheckCommands: [],
+        lintCommands: [],
+        buildCommands: []
+      },
+      { artifactName: "project profile" }
+    );
+
+    const summary = expectOk(
+      await runVerifyWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        statusUpdates: false,
+        commandRunner: passingRunner(["src/notes/sort.ts"]),
+        now: timestamp
+      })
+    );
+
+    expect(summary.success).toBe(false);
+    expect(summary.codeEvidence.evidence).toBe("refused");
+    expect(summary.nextCommand).toBe("visp-kit scan");
+    // The refusal names what the spec said was provable, so the gap between
+    // "the spec asserted this" and "nothing checked it" is on the page.
+    expect(summary.codeEvidence.assertedCriteria.length).toBeGreaterThan(0);
+    expect(summary.errors.join(" ")).toContain(
+      summary.codeEvidence.assertedCriteria[0] ?? "unreachable"
+    );
+  });
+
+  it("records executed evidence, and the report says so in words", async () => {
+    await createVerifyFixture(tempDir);
+
+    const summary = expectOk(
+      await runVerifyWorkflow({
+        targetPath: tempDir,
+        taskId: "T001",
+        statusUpdates: false,
+        commandRunner: passingRunner(["src/notes/sort.ts"]),
+        now: timestamp
+      })
+    );
+
+    expect(summary.success).toBe(true);
+    expect(summary.codeEvidence.evidence).toBe("executed");
+    expect(summary.codeEvidence.executedCommands).toBe(1);
+    expect(summary.codeEvidence.passedCommands).toBe(1);
+
+    const markdown = await readFile(
+      path.join(tempDir, ".visp", "features", "001-add-note-pinning", "verification.md"),
+      "utf8"
+    );
+
+    expect(markdown).toContain("## Code Evidence");
+    expect(markdown).toContain("Evidence: executed");
+    // The report must not let a reader upgrade "a check ran" into "the spec
+    // was proven". That is the exact inference the head-to-head made.
+    expect(markdown).toContain("do not by themselves prove");
   });
 
   // D-115 measured the zero-command false pass: commands skipped, overall

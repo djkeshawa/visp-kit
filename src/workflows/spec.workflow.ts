@@ -264,6 +264,7 @@ export async function runSpecWorkflow(
     promptPath: promptDisplayPath,
     warnings,
     nextCommand: "visp-kit plan",
-    now
+    now,
+    draft: true
   });
 }

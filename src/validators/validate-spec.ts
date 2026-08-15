@@ -67,6 +67,11 @@ export function validateSpec(input: {
 
     if (isPlaceholderText(criterion.description)) {
       errors.push(`${criterion.id} contains placeholder text.`);
+      // One unfilled field, one instruction. The tautology check below reads
+      // an unfilled description as a badly written one and adds "must state an
+      // observable outcome rather than repeat its requirement" — a critique of
+      // prose that does not exist yet, on the same field, in the same run.
+      continue;
     }
 
     const requirement = input.spec.requirements.find((item) => item.id === criterion.requirementId);

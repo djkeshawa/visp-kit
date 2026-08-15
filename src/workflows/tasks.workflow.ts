@@ -363,7 +363,8 @@ export async function runTasksWorkflow(
     promptPath: promptDisplayPath,
     warnings: spec.value.warnings,
     nextCommand: "visp-kit context --next",
-    now
+    now,
+    draft: true
   });
 
   if (!summary.ok || promptOnly || !summary.value.validation.passed) {

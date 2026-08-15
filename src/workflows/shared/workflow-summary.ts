@@ -11,8 +11,30 @@ export type WorkflowValidation = {
 
 export type TemplateCommandName = "clarify" | "spec" | "plan" | "tasks";
 
+/**
+ * What a template command actually did.
+ *
+ * `draft` exists because the generation path could not do anything else. These
+ * four commands seed a skeleton whose fields are the literal "TBD", and the
+ * validator they then run rejects "TBD" — by design, since an unfilled draft
+ * must not advance the workflow. The result was a tool that generated a
+ * document which could not pass its own validator, reported that as a
+ * VALIDATION FAILURE, and exited 1. In the head-to-head run all four of
+ * clarify/spec/plan/tasks "failed" on their first and only correct invocation,
+ * and the agent spent turns trying to repair a tool that was working.
+ *
+ * The seeding is not the failure; calling it one was. A draft now reports as a
+ * draft: exit 0, the unfilled fields listed as work to do rather than as
+ * errors. Nothing downstream is relaxed — `validation.passed` stays false, the
+ * workflow state is NOT advanced, and the gates (which read artifact readiness,
+ * not artifact existence) still refuse the next stage until
+ * `visp-kit <command> --validate` passes.
+ */
+export type TemplateWorkflowOutcome = "draft" | "passed" | "failed";
+
 export type TemplateWorkflowSummary = {
   readonly success: boolean;
+  readonly outcome: TemplateWorkflowOutcome;
   readonly command: TemplateCommandName;
   readonly targetPath: string;
   readonly feature: {
@@ -44,9 +66,19 @@ export function createTemplateWorkflowSummary(input: {
   readonly promptPath: string;
   readonly warnings: readonly string[];
   readonly nextCommand: string;
+  /** The command seeded a fresh skeleton. See {@link TemplateWorkflowOutcome}. */
+  readonly draft?: boolean;
 }): TemplateWorkflowSummary {
+  const outcome: TemplateWorkflowOutcome =
+    input.draft === true && !input.validation.passed
+      ? "draft"
+      : input.validation.passed
+        ? "passed"
+        : "failed";
+
   return {
-    success: input.validation.passed,
+    success: outcome !== "failed",
+    outcome,
     command: input.command,
     targetPath: input.targetPath,
     feature: {
@@ -77,11 +109,14 @@ export function createTemplateWorkflowSummary(input: {
 }
 
 export function formatTemplateWorkflowSummary(summary: TemplateWorkflowSummary): string {
+  const draft = summary.outcome === "draft";
   const lines = [
     formatHeader(
       summary.dryRun
         ? `Visp ${summary.command} dry run.`
-        : `Visp ${summary.command} template ready.`
+        : draft
+          ? `Visp ${summary.command} draft written.`
+          : `Visp ${summary.command} template ready.`
     ),
     "",
     formatKeyValue("Feature", `${summary.feature.id}-${summary.feature.slug}`)
@@ -114,17 +149,37 @@ export function formatTemplateWorkflowSummary(summary: TemplateWorkflowSummary):
     lines.push("", "Updated:", ...summary.updatedFiles.map((file) => `  ${file}`));
   }
 
-  lines.push("", formatKeyValue("Validation", summary.validation.passed ? "passed" : "failed"));
+  lines.push(
+    "",
+    formatKeyValue(
+      draft ? "Draft" : "Validation",
+      draft ? "not filled in yet" : summary.validation.passed ? "passed" : "failed"
+    )
+  );
 
   if (summary.validation.errors.length > 0) {
-    lines.push("", "Validation errors:", ...summary.validation.errors.map((error) => `  ${error}`));
+    lines.push(
+      "",
+      draft ? "Still to fill in:" : "Validation errors:",
+      ...summary.validation.errors.map((error) => `  ${error}`)
+    );
   }
 
   if (summary.warnings.length > 0) {
     lines.push("", "Warnings:", ...summary.warnings.map((warning) => `  ${warning}`));
   }
 
-  if (summary.validation.passed) {
+  if (draft) {
+    lines.push(
+      "",
+      `This is a skeleton, not an accepted ${summary.command} artifact. ${summary.nextCommand}`,
+      `will refuse it until the fields above are filled in and validation passes.`,
+      "",
+      "Next:",
+      `  Use ${summary.promptPath} with your AI coding tool to fill in ${summary.feature.path}, then run:`,
+      `  visp-kit ${summary.command} --validate`
+    );
+  } else if (summary.validation.passed) {
     lines.push(
       "",
       "Next:",

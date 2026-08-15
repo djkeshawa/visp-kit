@@ -67,6 +67,26 @@ Common flags:
 
 Next: `visp-kit clarify`
 
+## Drafts: `clarify`, `spec`, `plan`, `tasks`
+
+These four commands have two modes, and they report differently.
+
+**Without `--validate`** they seed a skeleton whose fields are placeholders for
+you (or your AI coding tool) to fill in. That is the whole job, so the command
+succeeds and exits `0`, with `"outcome": "draft"` in `--json` and the unfilled
+fields listed as work to do. It is not an accepted artifact: `validation.passed`
+stays `false`, the workflow state does not advance, and the next stage refuses
+the file until you validate it.
+
+**With `--validate`** they judge what you actually wrote. Placeholders fail
+there, exactly as before.
+
+The distinction exists because the generation path could not do anything else:
+these templates contain the literal `TBD`, and the validator rejects `TBD`.
+Calling that a validation FAILURE meant every first, correct invocation of all
+four commands exited `1`, and agents spent turns trying to repair a tool that
+was working.
+
 ## `visp-kit clarify [path]`
 
 Purpose: generate or validate clarification artifacts.
@@ -337,9 +357,37 @@ Common flags:
 - `--scope`
 - `--dependencies`
 - `--update-task-status`
+- `--require-command-evidence`
 - `--force`
 - `--dry-run`
 - `--json`
+
+### Code evidence
+
+Verification refuses to report a pass it cannot support. A run that was
+supposed to execute validation commands and executed none FAILS, and the
+failure names the single command that unblocks it — `visp-kit scan` when the
+project has no known commands, `visp-kit tasks --validate` when a declared
+entry is not runnable. A missing check is not a passing check.
+
+A `validationCommands` entry that reads as an English sentence is never handed
+to a shell. It is reported as a check that was declared and never performed,
+and that is an error even when other commands ran and passed: a generic test
+suite answers a different question than the one the task asked.
+
+Every report carries a `codeEvidence` section stating which of three things
+happened:
+
+| `evidence` | Meaning |
+|---|---|
+| `executed` | A runnable check ran over this diff. |
+| `refused` | Nothing ran. The run fails. |
+| `delegated` | The command channel was deliberately off (`--skip-commands`, dry run, or the composite flow where `verify --candidate` executed the evidence). The run makes no claim about behaviour. |
+
+`executed` claims that a check ran and exited zero. It does not claim the
+specification was proven — that holds only insofar as an executed test asserts
+it, and the report says so alongside the acceptance criteria the spec declared
+testable.
 
 Generated artifacts:
 

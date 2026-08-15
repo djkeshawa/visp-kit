@@ -202,6 +202,7 @@ export async function runClarifyWorkflow(
     promptPath: promptDisplayPath,
     warnings: [],
     nextCommand: "visp-kit spec",
-    now
+    now,
+    draft: true
   });
 }

@@ -207,6 +207,7 @@ export async function runPlanWorkflow(
     promptPath: promptDisplayPath,
     warnings: [],
     nextCommand: "visp-kit tasks",
-    now
+    now,
+    draft: true
   });
 }

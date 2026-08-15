@@ -24,6 +24,7 @@ import { readyCommand, readyCommandBare } from "../../../src/gates/stage-checks.
 import {
   formatTemplateWorkflowSummary,
   type TemplateCommandName,
+  type TemplateWorkflowOutcome,
   type TemplateWorkflowSummary
 } from "../../../src/workflows/shared/workflow-summary.js";
 import { type Task } from "../../../src/artifacts/schemas/task.schema.js";
@@ -121,9 +122,14 @@ describe("every command Kit emits names Kit's own binary", () => {
   // -------------------------------------------------------------------
   const TEMPLATE_COMMANDS: readonly TemplateCommandName[] = ["clarify", "spec", "plan", "tasks"];
 
-  function summaryFor(command: TemplateCommandName, passed: boolean): TemplateWorkflowSummary {
+  function summaryFor(
+    command: TemplateCommandName,
+    outcome: TemplateWorkflowOutcome
+  ): TemplateWorkflowSummary {
+    const passed = outcome === "passed";
     return {
-      success: passed,
+      success: outcome !== "failed",
+      outcome,
       command,
       targetPath: "/tmp/project",
       feature: { id: "001", slug: "a-feature", path: ".visp/features/001-a-feature" },
@@ -144,10 +150,12 @@ describe("every command Kit emits names Kit's own binary", () => {
   it.each(
     TEMPLATE_COMMANDS
   )("the %s workflow summary emits only runnable visp-kit commands", (command) => {
-    for (const passed of [true, false]) {
-      const rendered = formatTemplateWorkflowSummary(summaryFor(command, passed));
+    // "draft" is included because it is the outcome the generation path always
+    // produces, and it renders its own next-step block.
+    for (const outcome of ["passed", "failed", "draft"] as const) {
+      const rendered = formatTemplateWorkflowSummary(summaryFor(command, outcome));
       for (const line of rendered.split("\n").map((value) => value.trim())) {
-        assertNamesKit(line, `${command} summary (validation ${passed ? "passed" : "failed"})`);
+        assertNamesKit(line, `${command} summary (outcome ${outcome})`);
       }
     }
   });

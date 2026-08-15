@@ -122,6 +122,41 @@ export const dependencyValidationSectionSchema = z
   })
   .strict();
 
+/**
+ * Whether this run actually looked at the produced code (D-128).
+ *
+ * - `executed`  — at least one runnable check ran over the diff.
+ * - `refused`   — nothing ran. The run FAILS; a pass would be unsupported.
+ * - `delegated` — the command channel was deliberately off for this
+ *                 invocation, so the run makes no claim about behaviour.
+ */
+export const codeEvidenceStateSchema = z.enum(["executed", "refused", "delegated"]);
+
+export const rejectedValidationCommandSchema = z
+  .object({
+    command: commandStringSchema,
+    kind: z.enum(["prose", "placeholder"]),
+    reason: nonEmptyStringSchema
+  })
+  .strict();
+
+export const codeEvidenceSectionSchema = z
+  .object({
+    status: verificationCheckStatusSchema,
+    evidence: codeEvidenceStateSchema,
+    executedCommands: z.number().int().nonnegative(),
+    passedCommands: z.number().int().nonnegative(),
+    /** Declared validation entries that were NOT executed, and why. */
+    rejectedCommands: z.array(rejectedValidationCommandSchema),
+    /** Changed files excluding Kit's own `.visp/` bookkeeping. */
+    changedCodeFiles: z.array(pathStringSchema),
+    /** Acceptance criteria the spec declared testable for this scope. */
+    assertedCriteria: z.array(idSchema),
+    warnings: stringListSchema,
+    errors: stringListSchema
+  })
+  .strict();
+
 export const verificationSummarySchema = z
   .object({
     passed: z.boolean(),
@@ -154,6 +189,10 @@ export const verificationReportSchema = z
     commandValidation: commandValidationSectionSchema,
     scopeValidation: scopeValidationSectionSchema,
     dependencyValidation: dependencyValidationSectionSchema,
+    // Optional for the same reason `policyGate` is: reports written by earlier
+    // versions must stay readable. Every report `visp-kit verify` writes from
+    // now on carries it.
+    codeEvidence: codeEvidenceSectionSchema.optional(),
     policyGate: policyGateSummarySchema.optional(),
     warnings: stringListSchema,
     errors: stringListSchema,
@@ -171,5 +210,8 @@ export type TraceabilityValidationSection = z.infer<typeof traceabilityValidatio
 export type CommandValidationSection = z.infer<typeof commandValidationSectionSchema>;
 export type ScopeValidationSection = z.infer<typeof scopeValidationSectionSchema>;
 export type DependencyValidationSection = z.infer<typeof dependencyValidationSectionSchema>;
+export type CodeEvidenceState = z.infer<typeof codeEvidenceStateSchema>;
+export type RejectedValidationCommand = z.infer<typeof rejectedValidationCommandSchema>;
+export type CodeEvidenceSection = z.infer<typeof codeEvidenceSectionSchema>;
 export type VerificationSummary = z.infer<typeof verificationSummarySchema>;
 export type VerificationReport = z.infer<typeof verificationReportSchema>;

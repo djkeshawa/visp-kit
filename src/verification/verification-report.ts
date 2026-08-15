@@ -24,6 +24,7 @@ export function createVerificationSummary(
     ...report.commandValidation.warnings,
     ...report.scopeValidation.warnings,
     ...report.dependencyValidation.warnings,
+    ...(report.codeEvidence?.warnings ?? []),
     ...report.warnings
   ]).size;
   const artifactsFailed = report.artifactValidation.checked.filter(
@@ -115,6 +116,43 @@ ${output}
     .join("\n");
 }
 
+/**
+ * The section a reviewer should read first: did anything execute over the code?
+ *
+ * Written in words rather than a status token, because the whole failure this
+ * closes was a reader seeing "passed" and assuming it meant the code had been
+ * examined.
+ */
+function codeEvidenceSection(report: VerificationReport): string {
+  const evidence = report.codeEvidence;
+
+  if (evidence === undefined) {
+    return "Not recorded. This report predates code-evidence tracking.";
+  }
+
+  const claim =
+    evidence.evidence === "executed"
+      ? `${evidence.passedCommands} of ${evidence.executedCommands} executed check(s) passed over ` +
+        `${evidence.changedCodeFiles.length} changed code file(s).`
+      : evidence.evidence === "refused"
+        ? "REFUSED. Nothing executed over the produced code, so this run cannot support a pass."
+        : "Delegated. This run deliberately executed nothing and makes no claim about behaviour.";
+
+  return `Evidence: ${evidence.evidence}
+Status: ${statusText(evidence.status)}
+
+${claim}
+
+Acceptance criteria the specification declared testable for this scope:
+${list([...evidence.assertedCriteria])}
+
+Declared validation entries that were NOT executed:
+${list(evidence.rejectedCommands.map((entry) => `\`${entry.command}\` (${entry.kind}) — ${entry.reason}`))}
+
+Changed code files:
+${list([...evidence.changedCodeFiles])}`;
+}
+
 export function renderVerificationMarkdown(report: VerificationReport): string {
   return `# Verification Report
 
@@ -136,6 +174,11 @@ export function renderVerificationMarkdown(report: VerificationReport): string {
 - Commands: ${statusText(report.commandValidation.status)}
 - Scope: ${statusText(report.scopeValidation.status)}
 - Dependencies: ${statusText(report.dependencyValidation.status)}
+- Code evidence: ${report.codeEvidence?.evidence ?? "not recorded"}
+
+## Code Evidence
+
+${codeEvidenceSection(report)}
 
 ${renderPolicyGateMarkdown(report.policyGate)}
 

@@ -130,6 +130,14 @@ export async function completeTemplateWorkflow(input: {
   readonly warnings: readonly string[];
   readonly nextCommand: string;
   readonly now: string;
+  /**
+   * This call seeded a fresh skeleton rather than judging authored content.
+   * Set only on the generation path, where the artifact being validated is the
+   * template this command just built — so its unfilled fields are work to do,
+   * not a failure to report. Never set on `--validate`, which judges what the
+   * author actually wrote and must still fail on placeholders.
+   */
+  readonly draft?: boolean;
 }): Promise<Result<TemplateWorkflowSummary, VispError>> {
   if (input.validateOnly) {
     const actions: WorkflowFileAction[] = [];
@@ -238,6 +246,17 @@ export async function completeTemplateWorkflow(input: {
     );
   }
 
+  // A seeded skeleton is recorded as a run that produced work to do, not as a
+  // failed run. Its unfilled fields still travel in the ledger — as warnings,
+  // where a reader can see them — so nothing is hidden by the reclassification.
+  const isDraft = input.draft === true && !input.validation.passed;
+  const draftWarnings = isDraft
+    ? [
+        `Draft written with ${input.validation.errors.length} field(s) still to fill in. ` +
+          `Not accepted until \`visp-kit ${input.command} --validate\` passes.`,
+        ...input.validation.errors
+      ]
+    : [];
   const run = await recordWorkflowRun({
     targetPath: input.targetPath,
     command: input.command,
@@ -246,15 +265,17 @@ export async function completeTemplateWorkflow(input: {
       id: input.feature.id,
       slug: input.feature.slug
     },
-    success: input.validation.passed,
+    success: input.validation.passed || isDraft,
     result: input.validation.passed
       ? input.warnings.length > 0
         ? "warnings"
         : "passed"
-      : "failed",
+      : isDraft
+        ? "warnings"
+        : "failed",
     actions: finalActions,
-    warnings: input.warnings,
-    errors: input.validation.errors,
+    warnings: [...input.warnings, ...draftWarnings],
+    errors: isDraft ? [] : input.validation.errors,
     dryRun: input.dryRun
   });
 
@@ -276,7 +297,8 @@ export async function completeTemplateWorkflow(input: {
       dryRun: input.dryRun,
       promptPath: input.promptPath,
       warnings: [...input.warnings, ...run.warnings],
-      nextCommand: input.nextCommand
+      nextCommand: input.nextCommand,
+      draft: input.draft
     })
   );
 }

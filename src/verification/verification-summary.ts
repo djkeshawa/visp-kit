@@ -1,4 +1,5 @@
 import {
+  type CodeEvidenceState,
   type VerificationCommandRunner,
   type VerificationMode
 } from "../artifacts/schemas/verification.schema.js";
@@ -20,6 +21,14 @@ export type VerifySummary = {
     readonly scope: string;
     readonly dependencies: string;
   };
+  /** Did anything execute over the produced code? See `code-evidence.ts`. */
+  readonly codeEvidence: {
+    readonly evidence: CodeEvidenceState;
+    readonly executedCommands: number;
+    readonly passedCommands: number;
+    readonly changedCodeFiles: number;
+    readonly assertedCriteria: readonly string[];
+  };
   readonly commands: readonly {
     readonly command: string;
     readonly exitCode: number | null;
@@ -36,6 +45,29 @@ export type VerifySummary = {
   readonly dryRun: boolean;
 };
 
+/**
+ * One line, in plain words, for the question the old summary never answered.
+ *
+ * "Commands: skipped" is a status token; a reader skims past it. "no — nothing
+ * ran over the 7 changed file(s)" is a sentence they cannot misread.
+ */
+function codeEvidenceLine(summary: VerifySummary): string {
+  const evidence = summary.codeEvidence;
+
+  if (evidence.evidence === "executed") {
+    return (
+      `yes — ${evidence.passedCommands}/${evidence.executedCommands} check(s) passed over ` +
+      `${evidence.changedCodeFiles} changed code file(s)`
+    );
+  }
+
+  if (evidence.evidence === "refused") {
+    return `no — nothing ran over the ${evidence.changedCodeFiles} changed code file(s)`;
+  }
+
+  return "no — command execution was skipped, so this run says nothing about behaviour";
+}
+
 export function formatVerifySummary(summary: VerifySummary): string {
   const lines = [
     formatHeader(summary.success ? "Visp verification complete." : "Visp verification failed."),
@@ -50,7 +82,9 @@ export function formatVerifySummary(summary: VerifySummary): string {
     `  Traceability: ${summary.summary.traceability}`,
     `  Commands: ${summary.summary.commands}`,
     `  Scope: ${summary.summary.scope}`,
-    `  Dependencies: ${summary.summary.dependencies}`
+    `  Dependencies: ${summary.summary.dependencies}`,
+    "",
+    formatKeyValue("Code examined", codeEvidenceLine(summary))
   ];
 
   if (summary.reportPath !== null) {

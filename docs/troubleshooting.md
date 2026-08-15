@@ -169,6 +169,8 @@ Read:
 Common causes:
 
 - validation command failed
+- **no validation command ran at all** (see below)
+- **a declared validation entry is not runnable** (see below)
 - artifact JSON invalid
 - traceability broken
 - out-of-scope files changed
@@ -179,6 +181,26 @@ Fix:
 ```bash
 visp-kit verify --task T001
 ```
+
+### "No validation command was executed"
+
+Nothing looked at the code, so verification refused to call the run a pass.
+This is not a bug in the check; it is the absence of one. The error names the
+command that fixes it:
+
+- `visp-kit scan` — the project profile has no known test/typecheck commands.
+- `visp-kit tasks --validate` — the task declared an entry that cannot run.
+
+### "Validation command ... was not executed because it reads as a sentence"
+
+A `validationCommands` entry is English prose, not a command. Kit does not
+hand it to a shell — doing so produces `Manually: not found` and records a
+manual check as a failing test.
+
+Replace it with something a shell can run. If the check really is manual,
+record it in the task description and add an automated check that proves the
+same thing; a manual note in `validationCommands` is a check nobody will
+perform.
 
 ## Review Failed
 
