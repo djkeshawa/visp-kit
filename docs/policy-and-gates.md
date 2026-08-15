@@ -115,16 +115,18 @@ Supported stages:
 | VSP025 | require_signed_assurance_decision | pr | no |
 | VSP026 † | require_understanding_before_behavioural_implementation | implement | yes, with an auditable reason |
 
-† **VSP026 is recorded, not enforced.** It is `false` in every strictness mode —
-`relaxed`, `standard`, `strict` and `locked` — so it is not one of the
-protections this table otherwise lists. It has never fired in a measured run:
-on the 29-task planned set used for the Phase 21 measurement, all 29 reached the
-ambiguous default because those task records declare no change surface, so the
-rule's misclassification rate is **unmeasured**. What runs today is the
+† **VSP026 is `false` in every strictness mode — `relaxed`, `standard`, `strict`
+and `locked` — and that is a decision, not an oversight.** See
+[Why `locked` carries VSP023 and not VSP026](#why-locked-carries-vsp023-and-not-vsp026).
+A project that has exported an intel understanding case for the task gets the
+gate anyway, without touching policy; a project that has never run intel gets
+nothing, because nothing in Kit could satisfy the gate for it. Its
+misclassification rate is still **unmeasured**: on the 29-task planned set used
+for the Phase 21 measurement, all 29 reached the ambiguous default because those
+task records declare no change surface. What runs unconditionally is the
 classification *record*, which `visp-kit gate` writes at `implement` and
-`verify` whether or not the rule is enabled — that record is the only instrument
-there is for finding out whether the rule is right, and it stays on. Treat the
-row above as a rule that exists and is off, not as a protection in force.
+`verify` whether or not the rule is active — that record is the only instrument
+there is for finding out whether the rule is right, and it stays on.
 
 ‡ **VSP023 is on by default in `locked` and off everywhere else.** See
 [VSP023 — the assurance sequence](#vsp023--the-assurance-sequence) below.
@@ -254,14 +256,74 @@ untouched, and an ambiguous task counts as mechanical: under-gating a
 behavioural task costs today's behaviour, while over-gating a trivial edit
 teaches agents that the gate is noise and they then route around it everywhere.
 
-It is **off by default in every strictness mode**. Enable it per project:
+### When VSP026 is active
 
-```json
-{ "rules": { "requireUnderstandingBeforeBehaviouralImplementation": true } }
-```
+Two triggers, either one is enough.
+
+1. **The policy rule.** `false` in all four presets; set it per project.
+
+   ```json
+   { "rules": { "requireUnderstandingBeforeBehaviouralImplementation": true } }
+   ```
+
+2. **An exported understanding case for the task.** If
+   `.visp-intel/understanding/<task-id>.json` exists, the gate runs, whatever
+   policy says. Running intel and exporting a case for the task is all it takes.
+
+Trigger 2 is the mirror of the oracle-plan trigger on VSP023, and it exists
+because without it VSP026 activated on **nothing**. Doing the right thing —
+indexing the repository, exporting an understanding case for the task you are
+about to implement — earned no gate, and the only route to one was hand-editing
+`.visp/policy.json`. A gate no correct action can reach is a gate in name only.
+
+The trigger is the export's **presence**, not its freshness and not its
+validity, for the same reason VSP023's is. A stale case, or one Kit rejects as
+self-contradictory, keeps the gate **on** and fails G1 — so letting a case rot
+cannot open a gate that exporting it closed. Deleting the file does open it,
+which is true of the oracle plan too; that is a visible deletion of a named
+artifact, not a silent lapse, and it shows up in your diff.
+
+When the gate is active by trigger 2 and blocks something, the gate report says
+so in a warning, because a reader who checks `policy.json`, sees `false`, and
+then meets a VSP026 error has otherwise been handed a contradiction.
+
+### Why `locked` carries VSP023 and not VSP026
+
+These two rules look identical in `policy-defaults.ts` — a hard question,
+`false` in all four presets — and VSP023 was promoted into `locked` while
+VSP026 was not. Written down here so it is read as a choice rather than as a
+gap someone forgot to close.
+
+**It is not about strictness. It is about who can satisfy the precondition.**
+
+Every gate `locked` turns on has a precondition some Kit command can produce —
+an artifact from `spec`, `plan`, `tasks`, `context`, `verify`, a decision from
+`assurance accept`. VSP023's precondition is three of them — `oracle plan`,
+`oracle lock`, `verify --baseline` — so a `locked` user who hits that gate is
+inconvenienced and then unblocked, by this tool, on their own machine.
+
+VSP026's precondition is `.visp-intel/understanding/<task-id>.json`, and **Kit
+cannot write that file**. It never writes into `.visp-intel/`, never shells out
+to `visp-intel`, and never imports an intel package. Turning VSP026 on in
+`locked` would block every behavioural task in every locked project that does
+not run intel, with no Kit command able to clear it — and `locked` sets
+`overrides.allowed: false`, so the recorded override that clears VSP026
+everywhere else is unavailable there as well. The only exit would be
+hand-editing `.visp/policy.json`. The preset would ship a dead end and call it
+enforcement.
+
+That is a categorical difference from VSP023, not a difference of degree, and it
+does not soften as intel adoption grows: a preset has to be satisfiable by the
+tool that ships it. **So VSP026 is deliberately off in all four presets,
+`locked` included.** The population it can protect is the projects that run
+intel, and those projects now get it automatically through trigger 2 above —
+which is what makes "off in every preset" an honest default rather than a rule
+nobody can reach.
+
+### The record runs either way
 
 The classification is recorded in the gate report as `taskClassification`
-whether or not the rule is enabled, so the rule's own accuracy can be measured.
+whether or not the rule is active, so the rule's own accuracy can be measured.
 It reads only declared, auditable inputs — the change surface
 (`allowedFiles` ∪ `expectedFiles`), the declared fields (`taskClass`,
 `riskFactors`, `blastRadius`, `reversibility`), the intel case when one is
@@ -397,9 +459,23 @@ visp-kit override create VSP026 --scope task --feature <feature> --task <id> \
   --reason "<at least twelve characters, auditable>"
 ```
 
-There is no flag, no environment variable, and no silent policy escape. Once
-the rule is on, deleting `.visp-intel/` does not open the gate — G1 fails and
-the task stays blocked.
+There is no flag, no environment variable, and no silent policy escape. The one
+way to reopen a gate that is on differs by trigger, and both are stated because
+the difference matters:
+
+- **Rule on in policy.** Deleting `.visp-intel/` does not open the gate — G1
+  fails and the task stays blocked. The constraint cannot be removed by removing
+  the thing that satisfies it.
+- **Active because the case exists.** Deleting that one export file does turn
+  the gate off, exactly as deleting an oracle plan turns VSP023 off. Staleness
+  does not, corruption does not, only deletion does — and deleting your own
+  evidence is a visible line in a diff. If you want the gate to survive that,
+  set the policy rule as well.
+
+G1 distinguishes the two ways it can find no case: nothing was exported (run
+intel), or something was exported and Kit refused it (the warnings say what it
+objected to, and the recommendation says re-export). They call for opposite
+actions, so they do not share a message.
 
 ## Reading intel's artifacts
 

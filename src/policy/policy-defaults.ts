@@ -247,12 +247,12 @@ const strictRules: PolicyRules = {
   requireOracleLockBeforeImplementation: false,
   requireCurrentAssuranceDecisionBeforePr: true,
   requireSignedAssuranceDecision: true,
-  // Off even in strict, matching VSP023's rollout. The rule depends on an
-  // artifact only intel can produce, and a default-on rule would block every
-  // behavioural task in every project that has never run intel — which is all
-  // of them today. Turning it on is a project decision recorded in
-  // .visp/policy.json, and once on, deleting the intel store does NOT open the
-  // gate: G1 fails and the task stays blocked. The constraint cannot be
+  // Off even in strict, and off in `locked` too — see below, where the reason
+  // it is not a strictness question is written out. The short version: the rule
+  // depends on an artifact only `visp-intel` can produce, and a default-on rule
+  // would block every behavioural task in every project that has never run
+  // intel. Once the policy rule is on, deleting the intel store does NOT open
+  // the gate: G1 fails and the task stays blocked. The constraint cannot be
   // removed by removing the thing that satisfies it.
   requireUnderstandingBeforeBehaviouralImplementation: false
 };
@@ -282,6 +282,49 @@ const strictRules: PolicyRules = {
 // project below `locked` that wants it on writes `true`. Setting an
 // `assurance.profile` also turns it on at any strictness, and so does the mere
 // existence of an oracle plan for the task — see gate-engine.ts.
+//
+// ---------------------------------------------------------------------------
+// Why `locked` carries VSP023 and NOT VSP026, decided rather than inherited
+// ---------------------------------------------------------------------------
+//
+// The two rules are lexically the same shape here — a hard question, `false` in
+// all four presets until someone turns it on — and a reader who notices that
+// VSP023 was promoted into `locked` and VSP026 was not is owed a reason rather
+// than a resemblance — the shape has already been flagged once as a possible
+// oversight. This is the answer, and it is meant to end the question.
+//
+// It is not about strictness. It is about who can satisfy the precondition.
+//
+// Every other gate `locked` turns on has a precondition some command in THIS
+// tool produces — an artifact from `spec`, `plan`, `tasks`, `context`,
+// `verify`, a decision from `assurance accept`. VSP023's precondition is three
+// of them — `oracle plan`, `oracle lock`, `verify --baseline` — so a `locked`
+// user who hits the gate is inconvenienced and then unblocked, by Kit, on their
+// own machine. VSP026's precondition is
+// `.visp-intel/understanding/<task>.json`, which only `visp-intel` writes. Kit
+// never writes that file, never shells out to intel and never imports it
+// (see `intelDir` in artifacts/artifact-paths.ts). Turning VSP026 on in
+// `locked` would therefore block every behavioural task in every locked project
+// that does not run intel, with NO command in Kit able to clear it — and
+// `locked` sets `overrides.allowed: false`, so the recorded override that
+// clears VSP026 everywhere else is unavailable there too. The only exit would
+// be hand-editing .visp/policy.json, which is to say: the preset would ship a
+// dead end and call it enforcement.
+//
+// That is a categorical difference from VSP023, not a difference of degree, and
+// it does not soften as intel adoption grows. A preset must be satisfiable by
+// the tool that ships it. So VSP026 is DELIBERATELY off in all four presets,
+// `locked` included, and this is not an oversight to be re-litigated.
+//
+// The corollary, and the thing that changed when this was decided: an
+// unreachable gate is worse than an absent one, so VSP026 no longer activates
+// on nothing. A project that has actually run intel and exported an
+// understanding case for the task now gets the gate automatically — presence of
+// the export is the trigger, exactly as presence of an oracle plan is a trigger
+// for VSP023. See `understandingGateActive` in
+// understanding/understanding-activation.ts. The preset stays off because Kit
+// cannot produce the artifact; the gate turns itself on for the projects that
+// can, which is the only population the rule was ever able to protect.
 const lockedRules: PolicyRules = {
   ...strictRules,
   requireOracleLockBeforeImplementation: true

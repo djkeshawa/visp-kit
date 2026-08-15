@@ -80,6 +80,17 @@ export type UnderstandingGateInput = {
   readonly contextPack?: ContextPack;
   /** Realized change surface, used by the post-hoc check at verify. */
   readonly realizedSurface?: readonly string[];
+  /**
+   * Whether an export file is on disk for this task, as the caller established
+   * it — the same fact that activates the gate.
+   *
+   * G1 needs it to say which of two different things happened. Both reach this
+   * function as `understanding === undefined`, and they call for opposite
+   * actions: nothing was ever exported (run intel), or something was exported
+   * and Kit rejected it (fix the export). Absent, G1 reported the first one for
+   * both, which is the reading a caller cannot check.
+   */
+  readonly exportPresent?: boolean;
 };
 
 export type UnderstandingGateEvaluation = {
@@ -204,7 +215,14 @@ export async function evaluateUnderstandingGate(
   });
   const currentness =
     understanding === undefined
-      ? { current: false, reasons: ["no understanding case export was found"] }
+      ? {
+          current: false,
+          reasons: [
+            input.exportPresent === true
+              ? "an understanding case export is on disk for this task but Kit could not use it; see the gate warnings for what it objected to"
+              : "no understanding case export was found"
+          ]
+        }
       : understandingCurrentness({
           export: understanding,
           scanRepositoryInstanceId: await readScanIntelInstanceId(input.targetPath),
@@ -246,7 +264,9 @@ export async function evaluateUnderstandingGate(
           fail(
             "G1",
             "No current understanding case is available for this behavioural task.",
-            `Run the intel understanding export for ${input.task.id}, then re-run this gate.`,
+            input.exportPresent === true
+              ? `Re-export the intel understanding case for ${input.task.id} against the current commit, or fix what the warnings say is wrong with it.`
+              : `Run the intel understanding export for ${input.task.id}, then re-run this gate.`,
             currentness.reasons.join("; ")
           )
         ]

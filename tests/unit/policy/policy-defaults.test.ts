@@ -59,6 +59,22 @@ describe("policy defaults", () => {
     }
   });
 
+  it("leaves the understanding gate off in every preset, locked included", () => {
+    // A decision, not a gap, and this test is where a future sweep meets it.
+    // VSP026's precondition is `.visp-intel/understanding/<task>.json`, which
+    // only `visp-intel` writes — Kit has no command that produces it. A preset
+    // that turned the rule on would block every behavioural task in a project
+    // that does not run intel, and in `locked` (overrides.allowed: false) with
+    // no way out but hand-editing policy. The projects the rule CAN protect
+    // reach it through `understandingGateActive`, which activates on an
+    // exported case. See the argument in src/policy/policy-defaults.ts.
+    for (const strictnessMode of ["relaxed", "standard", "strict", "locked"] as const) {
+      expect(
+        policyRulesForStrictness(strictnessMode).requireUnderstandingBeforeBehaviouralImplementation
+      ).toBe(false);
+    }
+  });
+
   it("keeps locked identical to strict apart from the oracle lock rule", () => {
     const strict = policyRulesForStrictness("strict");
     const locked = policyRulesForStrictness("locked");

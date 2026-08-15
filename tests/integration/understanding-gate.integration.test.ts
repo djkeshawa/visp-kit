@@ -321,6 +321,70 @@ describe("VSP026 understanding gate", () => {
     expect(vsp026(result)).toEqual([]);
   });
 
+  /**
+   * Asymmetry 2, closed. VSP026 used to activate on nothing: a project that had
+   * run intel and exported a case for the task still got no gate until someone
+   * hand-edited .visp/policy.json. Presence of the export is now a trigger, the
+   * way presence of an oracle plan is a trigger for VSP023.
+   *
+   * `enableVsp026` is deliberately NOT called in this block.
+   */
+  describe("activation by an exported case, with the rule off in policy", () => {
+    it("runs the gate because the case exists", async () => {
+      await writeUnderstandingExport(understandingExport({}));
+
+      const result = await implementGate();
+
+      expect(result.passedRules).toContain("VSP026");
+      expect(vsp026(result)).toEqual([]);
+    });
+
+    it("blocks on the condition that fails, and says why the gate is on", async () => {
+      await writeUnderstandingExport(
+        understandingExport({ candidateFilePath: "src/undeclared.ts" })
+      );
+
+      const result = await implementGate();
+
+      expect(result.allowed).toBe(false);
+      expect(vsp026(result).join(" ")).toContain("G6");
+      // A reader who checks policy, sees `false`, then meets a VSP026 error has
+      // been handed a contradiction unless the report names the other trigger.
+      expect(result.warnings.join(" ")).toContain("not because .visp/policy.json enables it");
+    });
+
+    it("keeps the gate on when the case goes stale rather than opening it", async () => {
+      // The ratchet. Letting a case rot must not return the task to the ungated
+      // default — that would make staleness a silent escape hatch.
+      await writeUnderstandingExport(understandingExport({ gitCommit: "b".repeat(40) }));
+
+      const result = await implementGate();
+
+      expect(result.allowed).toBe(false);
+      expect(vsp026(result).join(" ")).toContain("G1");
+    });
+
+    it("distinguishes an unusable export from no export at all", async () => {
+      // Both reach the gate as "no case". They call for opposite actions, and
+      // G1 used to report the second one for both.
+      await writeUnderstandingExport({ kind: "understanding-case-export", schemaVersion: "1.0" });
+
+      const g1 = (await implementGate()).failedRules.find((rule) => rule.message.startsWith("G1"));
+
+      expect(g1?.evidence).toContain("could not use it");
+      expect(g1?.recommendation).toContain("Re-export");
+    });
+
+    it("stays silent when intel has never run for this task", async () => {
+      // The population the preset protects: no export, no policy rule, no gate.
+      const result = await implementGate();
+
+      expect(result.taskClassification?.verdict).toBe("behavioural");
+      expect(result.failedRules.some((rule) => rule.ruleId === "VSP026")).toBe(false);
+      expect(result.passedRules).not.toContain("VSP026");
+    });
+  });
+
   it("blocks a behavioural task that has no understanding case", async () => {
     await enableVsp026();
 
@@ -511,12 +575,14 @@ describe("VSP026 understanding gate", () => {
   });
 
   /**
-   * Recorded as the boundary of what this closes, not as a feature. VSP026 is
-   * off by default in every strictness mode, so in shipped policy a refuted
-   * declaration is still only written down. Turning the rule on by default is
-   * an owner decision and is on the enhancement backlog.
+   * The boundary of what this closes. VSP026 is `false` in all four presets,
+   * `locked` included, and that is now a recorded decision rather than a
+   * backlog item: the precondition is an artifact only `visp-intel` writes, so
+   * a preset that turned it on would ship a gate Kit cannot satisfy. See the
+   * argument in `policy-defaults.ts`. A project with no exported case
+   * therefore still only gets the refuted declaration written down.
    */
-  it("enforces nothing at verify while VSP026 is off, and still records it", async () => {
+  it("enforces nothing at verify while VSP026 is inactive, and still records it", async () => {
     await updateTask({
       taskClass: "documentation",
       allowedFiles: ["docs/notes.md"],
@@ -531,6 +597,26 @@ describe("VSP026 understanding gate", () => {
       "B4_mechanical_class_refuted_by_surface"
     ]);
     expect(result.failedRules.some((rule) => rule.ruleId === "VSP026")).toBe(false);
+  });
+
+  it("enforces the refuted declaration at verify once a case has been exported", async () => {
+    // Same run as above with one difference: intel has exported a case for this
+    // task, so the gate is live and the diff refuting the declared class blocks
+    // rather than being written down. Policy is untouched.
+    await writeUnderstandingExport(understandingExport({}));
+    await updateTask({
+      taskClass: "documentation",
+      allowedFiles: ["docs/notes.md"],
+      expectedFiles: [],
+      riskFactors: []
+    });
+    await writeSourceChange();
+
+    const result = await verifyGate();
+
+    expect(vsp026(result).join(" ")).toContain("the change it made is code");
+    expect(result.allowed).toBe(false);
+    expect(result.warnings.join(" ")).toContain("not because .visp/policy.json enables it");
   });
 
   it("clears the block through the existing recorded override, not a flag", async () => {

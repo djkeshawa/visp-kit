@@ -36,6 +36,10 @@ import {
   oraclePlanExists
 } from "../workflows/oracle-authorization.workflow.js";
 import { evaluateReviewDecisionRequirement } from "../review/review-decision.js";
+import {
+  understandingExportExists,
+  understandingGateActive
+} from "../understanding/understanding-activation.js";
 import { sourceChangedFiles } from "./artifact-presence.js";
 import { evaluateUnderstandingGate } from "./understanding-gate.js";
 import { type TaskClassification } from "./task-classification.js";
@@ -271,6 +275,27 @@ function classificationRecord(value: TaskClassification): TaskClassificationReco
 }
 
 /**
+ * Say why VSP026 is live when `.visp/policy.json` does not say so.
+ *
+ * Activation by artifact is the useful behaviour and the surprising one: a
+ * reader who checks policy, sees `false`, and then meets a VSP026 error has
+ * been given a contradiction unless something names the other trigger. Emitted
+ * only when the gate actually raised something, so a run that passes is not
+ * annotated with an explanation of a block that did not happen.
+ */
+function activationNote(input: {
+  readonly taskId: string;
+  readonly enabledByPolicy: boolean;
+  readonly raised: boolean;
+}): readonly string[] {
+  if (input.enabledByPolicy || !input.raised) return [];
+
+  return [
+    `VSP026 is active for ${input.taskId} because an understanding case export exists at .visp-intel/understanding/${input.taskId}.json, not because .visp/policy.json enables it. Exporting the case is what turns the gate on.`
+  ];
+}
+
+/**
  * VSP026 at `implement`, and the realized-surface check at `verify`.
  *
  * The classification is recorded at both stages even when the rule is
@@ -288,22 +313,42 @@ async function understandingChecks(input: {
     return noUnderstandingOutcome;
   }
 
+  const exportPresent = await understandingExportExists({
+    targetPath: input.options.targetPath,
+    taskId: task.id
+  });
   const declared = await evaluateUnderstandingGate({
     targetPath: input.options.targetPath,
     task,
+    exportPresent,
     ...(input.context.state.contextPack === undefined
       ? {}
       : { contextPack: input.context.state.contextPack })
   });
-  const enabled =
+  const enabledByPolicy =
     input.context.policy.policy.rules.requireUnderstandingBeforeBehaviouralImplementation === true;
+  // Policy is one of two triggers; an exported case for this task is the other.
+  // See `understandingGateActive` for why the second one exists.
+  const enabled = understandingGateActive({
+    policy: input.context.policy.policy,
+    understandingExportExists: exportPresent
+  });
 
   if (stage === "implement") {
+    const checks = enabled ? declared.checks : [];
+
     return {
-      // Disabled means today's behaviour exactly: the record is written, the
+      // Inactive means today's behaviour exactly: the record is written, the
       // findings are not raised.
-      checks: enabled ? declared.checks : [],
-      warnings: declared.warnings,
+      checks,
+      warnings: [
+        ...declared.warnings,
+        ...activationNote({
+          taskId: task.id,
+          enabledByPolicy,
+          raised: checks.some((check) => !check.passed)
+        })
+      ],
       classification: classificationRecord(declared.classification)
     };
   }
@@ -322,6 +367,7 @@ async function understandingChecks(input: {
     targetPath: input.options.targetPath,
     task,
     realizedSurface,
+    exportPresent,
     ...(input.context.state.contextPack === undefined
       ? {}
       : { contextPack: input.context.state.contextPack })
@@ -336,32 +382,35 @@ async function understandingChecks(input: {
   // retroactive to block here; this one is a task having chosen its own gate,
   // and the diff is the strongest evidence there is that the choice was wrong.
   //
-  // Enforced only while VSP026 is enabled, so a project that has not turned the
-  // rule on sees exactly today's behaviour, and clearable through the ordinary
-  // recorded override — VSP026 is not in `nonOverridableRules`.
+  // Enforced only while VSP026 is active, so a project with neither the policy
+  // rule nor an exported case sees exactly today's behaviour, and clearable
+  // through the ordinary recorded override — VSP026 is not in
+  // `nonOverridableRules`.
   const refutedDeclaration =
     invalidated && realized.classification.basis.includes("B4_mechanical_class_refuted_by_surface");
+  const blocked = enabled && refutedDeclaration;
 
   return {
-    checks:
-      enabled && refutedDeclaration
-        ? [
-            {
-              ruleId: "VSP026" as const,
-              passed: false,
-              severity: "error" as const,
-              message: `VSP026: task ${task.id} declares taskClass "${task.taskClass ?? "(none)"}", but the change it made is code.`,
-              recommendation: `Correct the declared class on ${task.id} so it matches what changed, or record a VSP026 override naming the files.`,
-              evidence: realized.classification.evidence.join("; ")
-            }
-          ]
-        : [],
-    warnings:
-      invalidated && !refutedDeclaration
+    checks: blocked
+      ? [
+          {
+            ruleId: "VSP026" as const,
+            passed: false,
+            severity: "error" as const,
+            message: `VSP026: task ${task.id} declares taskClass "${task.taskClass ?? "(none)"}", but the change it made is code.`,
+            recommendation: `Correct the declared class on ${task.id} so it matches what changed, or record a VSP026 override naming the files.`,
+            evidence: realized.classification.evidence.join("; ")
+          }
+        ]
+      : [],
+    warnings: [
+      ...(invalidated && !refutedDeclaration
         ? [
             `VSP026: task ${task.id} was classified mechanical but its realized change surface classifies behavioural (${realized.classification.basis.join(", ")}). Recorded, not enforced.`
           ]
-        : [],
+        : []),
+      ...activationNote({ taskId: task.id, enabledByPolicy, raised: blocked })
+    ],
     classification: classificationRecord(declared.classification),
     ...(invalidated
       ? {
