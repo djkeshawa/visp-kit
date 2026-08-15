@@ -6,7 +6,7 @@ import {
 import { policyArtifactPath } from "../artifacts/artifact-paths.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, readJsonFile, readTextFile } from "../core/file-system.js";
-import { relativePath, resolvePath } from "../core/paths.js";
+import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { ensureVispProject, loadEffectivePolicy } from "../policy/policy-loader.js";
 import {
@@ -26,6 +26,7 @@ import {
 } from "./agent-paths.js";
 import { agentWorkflowNames } from "./agent-renderer.js";
 import { runAgentInstall } from "./agent-installer.js";
+import { targetPathFrom } from "../core/paths.js";
 
 export type AgentDoctorOptions = {
   readonly targetPath?: string;
@@ -60,10 +61,6 @@ export type AgentDoctorSummary = {
   readonly nextCommand: string;
   readonly dryRun: boolean;
 };
-
-function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
-  return resolvePath(options.cwd ?? process.cwd(), options.targetPath ?? ".");
-}
 
 function finding(input: Omit<AgentDoctorFinding, "id">, index: number): AgentDoctorFinding {
   return {

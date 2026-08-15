@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import { overridesArtifactPath } from "../artifacts/artifact-paths.js";
 import { type GateStage, gateStageSchema } from "../artifacts/schemas/gate.schema.js";
 import { type OverrideRecord, type OverrideScope } from "../artifacts/schemas/override.schema.js";
@@ -22,6 +20,7 @@ import {
   isNonOverridableRule,
   validateOverrideArtifact
 } from "../overrides/override-validator.js";
+import { targetPathFrom } from "../core/paths.js";
 
 export type OverrideCreateWorkflowOptions = {
   readonly targetPath?: string;
@@ -70,10 +69,6 @@ export type OverrideValidateWorkflowOptions = {
   readonly cwd?: string;
   readonly now?: string;
 };
-
-function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
-  return path.resolve(options.cwd ?? process.cwd(), options.targetPath ?? ".");
-}
 
 function summary(input: Omit<OverrideWorkflowSummary, "overridesPath">): OverrideWorkflowSummary {
   return {

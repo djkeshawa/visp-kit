@@ -3,12 +3,9 @@ import path from "node:path";
 
 import { isBinaryPath, isLockFile } from "./ignore-rules.js";
 import { type FileIndexEntry, type FileSummary } from "./types.js";
+import { uniqueLocaleSorted as unique } from "../core/collections.js";
 
 export const maxSummaryFileSizeBytes = 250 * 1024;
-
-function unique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
-}
 
 function matches(content: string, regex: RegExp, group = 1): string[] {
   return unique(

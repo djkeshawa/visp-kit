@@ -1,9 +1,6 @@
 import { type ContextSnippet } from "../artifacts/schemas/context-pack.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
-
-function unique(values: readonly string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
+import { uniqueTrimmed as unique } from "../core/collections.js";
 
 export function taskKeywords(task: Task): readonly string[] {
   return unique(`${task.title} ${task.description}`.toLowerCase().split(/[^a-z0-9]+/)).filter(

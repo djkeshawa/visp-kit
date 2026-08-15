@@ -13,7 +13,7 @@ import {
 } from "../artifacts/schemas/policy.schema.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
-import { relativePath, resolvePath } from "../core/paths.js";
+import { relativePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { policyRulesForStrictness } from "../policy/policy-defaults.js";
 import { ensureVispProject, loadEffectivePolicy } from "../policy/policy-loader.js";
@@ -41,6 +41,7 @@ import { copilotTargetFiles } from "./targets/copilot.js";
 import { cursorTargetFiles } from "./targets/cursor.js";
 import { geminiTargetFiles } from "./targets/gemini.js";
 import { opencodeTargetFiles } from "./targets/opencode.js";
+import { targetPathFrom } from "../core/paths.js";
 
 export type AgentInstallOptions = {
   readonly targetPath?: string;
@@ -67,10 +68,6 @@ export type AgentInstallSummary = {
   readonly warnings: readonly string[];
   readonly nextInstructions: string;
 };
-
-function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
-  return resolvePath(options.cwd ?? process.cwd(), options.targetPath ?? ".");
-}
 
 function emptyMetadata(): InstalledAgentTargets {
   return { installedTargets: [] };

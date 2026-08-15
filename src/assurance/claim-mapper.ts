@@ -5,7 +5,11 @@ import { type OraclePlan } from "../artifacts/schemas/oracle-plan.schema.js";
 import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
-import { canonicalJsonV1, compareUtf16CodeUnits } from "../integration/canonical-json.js";
+import {
+  canonicalJsonV1,
+  compareUtf16CodeUnits,
+  sortedUnique
+} from "../integration/canonical-json.js";
 import { normalizeReviewPath } from "../review/diff-summary.js";
 import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
@@ -20,10 +24,6 @@ export type ClaimMappingResult = {
   readonly unresolvedItems: readonly UnresolvedItem[];
   readonly unmappedChangeUnitIds: readonly string[];
 };
-
-function sortedUnique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort(compareUtf16CodeUnits);
-}
 
 function pathsForUnit(unit: ChangeUnit): string[] {
   return unit.kind === "hunk"

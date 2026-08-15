@@ -5,7 +5,11 @@ import { type OraclePlan } from "../artifacts/schemas/oracle-plan.schema.js";
 import { type OverrideRecord } from "../artifacts/schemas/override.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
 import { isDependencyFile } from "../dependencies/dependency-files.js";
-import { canonicalJsonV1, compareUtf16CodeUnits } from "../integration/canonical-json.js";
+import {
+  canonicalJsonV1,
+  compareUtf16CodeUnits,
+  sortedUnique
+} from "../integration/canonical-json.js";
 import { isTestFile, normalizeReviewPath } from "../review/diff-summary.js";
 import { validateScope } from "../verification/scope-validator.js";
 
@@ -35,10 +39,6 @@ const severityByCategory: Record<Category, Pick<Hotspot, "severity" | "mandatory
   override_usage: { severity: "high", mandatory: true },
   generated_behavior: { severity: "high", mandatory: true }
 };
-
-function sortedUnique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort(compareUtf16CodeUnits);
-}
 
 function unitPaths(unit: ChangeUnit): string[] {
   return unit.kind === "hunk"

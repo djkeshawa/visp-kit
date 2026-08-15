@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import { policyArtifactPath } from "../artifacts/artifact-paths.js";
 import { writeArtifact } from "../artifacts/artifact-writer.js";
 import {
@@ -25,6 +23,7 @@ import {
 } from "../policy/policy-loader.js";
 import { formatPolicySummary, type PolicyRenderSummary } from "../policy/policy-renderer.js";
 import { validatePolicyArtifact } from "../policy/policy-validator.js";
+import { targetPathFrom } from "../core/paths.js";
 
 export type PolicyWorkflowSummary = PolicyRenderSummary & {
   readonly mode: "init" | "show" | "validate" | "set-strictness" | "migrate";
@@ -70,10 +69,6 @@ export type PolicyMigrateOptions = {
   readonly dryRun?: boolean;
   readonly now?: string;
 };
-
-function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
-  return path.resolve(options.cwd ?? process.cwd(), options.targetPath ?? ".");
-}
 
 function validSummary(input: {
   readonly mode: PolicyWorkflowSummary["mode"];

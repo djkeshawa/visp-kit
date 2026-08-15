@@ -22,6 +22,14 @@ export function compareUtf16CodeUnits(left: string, right: string): number {
   return left.length - right.length;
 }
 
+/**
+ * Unique strings in UTF-16 code unit order — the collation-independent ordering
+ * every canonical and assurance artifact is built on.
+ */
+export function sortedUnique(values: readonly string[]): string[] {
+  return [...new Set(values)].sort(compareUtf16CodeUnits);
+}
+
 function serializationError(reason: string, path: string): never {
   throw new TypeError(`canonical-json-v1: ${reason} at ${path}`);
 }

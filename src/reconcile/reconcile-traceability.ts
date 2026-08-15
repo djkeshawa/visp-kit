@@ -7,10 +7,7 @@ import {
   type TraceabilityMatrix
 } from "../artifacts/schemas/traceability.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
-
-function unique(values: readonly string[]): string[] {
-  return [...new Set(values.filter((value) => value.trim().length > 0))].sort();
-}
+import { uniqueSortedNonBlank as unique } from "../core/collections.js";
 
 function entryMatchesTask(entry: TraceabilityEntry, task: Task | undefined): boolean {
   return task !== undefined && entry.taskIds.includes(task.id);

@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import { contextChecklistJsonPath } from "../artifacts/artifact-paths.js";
 import {
   implementationChecklistStatusSchema,
@@ -19,6 +17,7 @@ import {
 } from "../context/implementation-checklist.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { resolveActiveFeature, type ActiveFeature } from "./shared/active-feature.js";
+import { targetPathFrom } from "../core/paths.js";
 
 export type ChecklistStatusWorkflowOptions = {
   readonly targetPath?: string;
@@ -53,10 +52,6 @@ export type ChecklistWorkflowSummary = {
   readonly warnings: readonly string[];
   readonly nextCommand: string;
 };
-
-function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
-  return path.resolve(options.cwd ?? process.cwd(), options.targetPath ?? ".");
-}
 
 function taskIdFrom(taskId: string | undefined): Result<string, VispError> {
   if (taskId === undefined || taskId.trim().length === 0) {

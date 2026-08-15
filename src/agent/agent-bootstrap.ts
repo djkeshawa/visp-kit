@@ -1,5 +1,3 @@
-import path from "node:path";
-
 import { type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
 import { type BudgetMode, type Preset } from "../artifacts/schemas/common.schema.js";
 import { type StrictnessMode } from "../artifacts/schemas/policy.schema.js";
@@ -24,6 +22,7 @@ import { cursorTargetFiles } from "./targets/cursor.js";
 import { geminiTargetFiles } from "./targets/gemini.js";
 import { genericTargetFiles } from "./targets/generic.js";
 import { opencodeTargetFiles } from "./targets/opencode.js";
+import { targetPathFrom } from "../core/paths.js";
 
 export type AgentBootstrapOptions = {
   readonly targetPath?: string;
@@ -50,10 +49,6 @@ export type AgentBootstrapSummary = {
   readonly nextCommand: string;
   readonly nextInstructions: string;
 };
-
-function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
-  return path.resolve(options.cwd ?? process.cwd(), options.targetPath ?? ".");
-}
 
 async function dryRunInstallSummary(input: {
   readonly targetPath: string;

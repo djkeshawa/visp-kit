@@ -4,11 +4,11 @@ import {
 } from "../artifacts/schemas/agent.schema.js";
 import { VispError } from "../core/errors.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
-import { resolvePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { ensureVispProject } from "../policy/policy-loader.js";
 import { installedTargetsPath } from "./agent-paths.js";
 import { runAgentInstall, type AgentInstallSummary } from "./agent-installer.js";
+import { targetPathFrom } from "../core/paths.js";
 
 export type AgentRefreshOptions = {
   readonly targetPath?: string;
@@ -22,10 +22,6 @@ export type AgentRefreshOptions = {
 export type AgentRefreshSummary = AgentInstallSummary & {
   readonly command: "refresh";
 };
-
-function targetPathFrom(options: { readonly targetPath?: string; readonly cwd?: string }): string {
-  return resolvePath(options.cwd ?? process.cwd(), options.targetPath ?? ".");
-}
 
 async function readInstalledTargetNames(
   targetPath: string
