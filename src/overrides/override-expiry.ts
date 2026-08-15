@@ -15,6 +15,15 @@ export function parseOverrideExpiry(value: string | undefined, now: string): str
     }
 
     date.setUTCDate(date.getUTCDate() + days);
+
+    // A day count large enough to run past the representable date range leaves
+    // an Invalid Date, and `toISOString` then throws a bare RangeError that
+    // reaches the user as "Invalid time value". Report it as the input problem
+    // it is.
+    if (Number.isNaN(date.getTime())) {
+      throw new Error("--expires duration is too large to express as a date.");
+    }
+
     return date.toISOString();
   }
 

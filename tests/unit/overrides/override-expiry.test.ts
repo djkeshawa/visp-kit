@@ -36,4 +36,10 @@ describe("override expiry", () => {
     ).toBe(true);
     expect(overrideExpired({ expiresAt: "2027-01-01T00:00:00.000Z", now: "nonsense" })).toBe(true);
   });
+
+  it("reports an unrepresentable day duration as an input error", () => {
+    expect(() => parseOverrideExpiry("999999999999d", "2026-01-01T00:00:00.000Z")).toThrowError(
+      /--expires duration is too large/
+    );
+  });
 });
