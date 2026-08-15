@@ -13,6 +13,7 @@ import { buildInitFilePlan } from "./init/file-plan.js";
 import { createInitSummary, type InitFileAction, type InitSummary } from "./init/init-summary.js";
 import { detectPreset } from "../presets/preset-detection.js";
 import { writePlannedFile } from "./init/planned-file.js";
+import { applyVispIgnore, planVispIgnore } from "./init/visp-ignore.js";
 import { recordWorkflowRun } from "./shared/run-recorder.js";
 
 export type InitWorkflowOptions = {
@@ -44,51 +45,6 @@ async function ensureDirectories(
   }
 
   return ok(undefined);
-}
-
-/**
- * Keep Kit's own artifact directory out of the user's history.
- *
- * `init` writes `.visp/` into the working tree and never ignored it. On a real
- * project the untracked volume was large enough that the owner added the entry
- * by hand mid-session so their IDE would load the repository again — the same
- * failure visp-memory had with its vector store.
- *
- * Append-only and idempotent: an entry the user already wrote is left alone,
- * and nothing is written outside a git repository, where creating a .gitignore
- * would be presumptuous.
- */
-async function ensureVispIgnored(targetPath: string): Promise<readonly string[]> {
-  const { access, readFile, writeFile } = await import("node:fs/promises");
-  const gitignorePath = path.join(targetPath, ".gitignore");
-
-  try {
-    await access(path.join(targetPath, ".git"));
-  } catch {
-    return [];
-  }
-
-  let existing = "";
-  try {
-    existing = await readFile(gitignorePath, "utf8");
-  } catch {
-    // A project with no .gitignore yet is fine; one gets created below.
-  }
-
-  const present = new Set(existing.split("\n").map((line) => line.trim().replace(/\/$/u, "")));
-  if (present.has(".visp")) return [];
-
-  const separator = existing.length === 0 || existing.endsWith("\n") ? "" : "\n";
-  try {
-    await writeFile(
-      gitignorePath,
-      `${existing}${separator}\n# Visp Kit's workflow artifacts\n.visp/\n`,
-      "utf8"
-    );
-  } catch {
-    return [];
-  }
-  return [".visp/"];
 }
 
 export async function runInitWorkflow(
@@ -142,11 +98,13 @@ export async function runInitWorkflow(
     actions.push(result.value);
   }
 
-  const ignored = dryRun ? [] : await ensureVispIgnored(targetPath);
-
-  if (ignored.length > 0) {
-    actions.push({ path: ".gitignore", action: "updated" });
-  }
+  actions.push(
+    ...(await applyVispIgnore({
+      targetPath,
+      plan: await planVispIgnore(targetPath),
+      dryRun
+    }))
+  );
 
   const run = await recordWorkflowRun({
     targetPath,

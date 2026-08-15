@@ -185,6 +185,20 @@ describe("visp-kit tasks --validate", () => {
     expect(traceability.entries[0]?.status).toBe("partial");
   });
 
+  it("leaves a coverage judgement a later stage already recorded", async () => {
+    const program = createCli({ writeOut: () => undefined });
+    const tracePath = path.join(featureDir, "traceability.json");
+    const traceability = await readJson<TraceabilityFile>(tracePath);
+    traceability.entries[0]!.status = "verified";
+    await writeFile(tracePath, `${JSON.stringify(traceability, null, 2)}\n`, "utf8");
+
+    await program.parseAsync(["node", "visp", "tasks", tempDir, "--validate"]);
+
+    const updated = await readJson<TraceabilityFile>(tracePath);
+    expect(updated.entries[0]?.status).toBe("verified");
+    expect(updated.entries[0]?.taskIds).toEqual(["T001"]);
+  });
+
   it("still reports a criterion no part of the spec declares", async () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
