@@ -92,9 +92,24 @@ export function validateTaskGraph(input: {
       }
     }
 
+    // The spec states criteria in two mirrored places, so "missing" means
+    // absent from both. Naming the requirement to attach it to, and the shape
+    // it has to take, turns a lookup across two files into a one-block edit.
     for (const criterionId of task.acceptanceCriterionIds) {
       if (!criterionSet.has(criterionId)) {
-        errors.push(`${task.id} references missing acceptance criterion ${criterionId}.`);
+        const requirementId = task.requirementIds[0] ?? "REQ001";
+
+        errors.push(
+          `${task.id} references acceptance criterion ${criterionId}, which spec.json does not declare.\n` +
+            `  Add it to the acceptanceCriteria of ${requirementId} in spec.json:\n` +
+            `  ${JSON.stringify({
+              id: criterionId,
+              requirementId,
+              description: "State the observable outcome that proves the requirement is met.",
+              testable: true,
+              validationMethod: "unit"
+            })}`
+        );
       }
     }
   }

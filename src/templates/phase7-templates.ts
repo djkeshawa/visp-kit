@@ -819,13 +819,20 @@ export function traceabilityWithTasks(input: {
 }): TraceabilityMatrix {
   return {
     ...input.traceability,
-    entries: input.traceability.entries.map((entry) => ({
-      ...entry,
-      taskIds: input.taskGraph.tasks
+    entries: input.traceability.entries.map((entry) => {
+      const taskIds = input.taskGraph.tasks
         .filter((task) => task.requirementIds.includes(entry.requirementId))
-        .map((task) => task.id),
-      status: "partial"
-    })),
+        .map((task) => task.id);
+
+      return {
+        ...entry,
+        taskIds,
+        // A later stage may already have promoted this entry to covered or
+        // verified. Re-deriving its task ids restates who implements the
+        // requirement; it does not undo that judgement.
+        status: entry.status === "missing" && taskIds.length > 0 ? "partial" : entry.status
+      };
+    }),
     updatedAt: input.now
   };
 }

@@ -214,6 +214,71 @@ function normalizeRequirement(requirement: unknown, index: number, changes: stri
   return output;
 }
 
+function criterionId(value: unknown): string | undefined {
+  if (!isObject(value)) return undefined;
+
+  return typeof value.id === "string" && value.id.trim() !== "" ? value.id.trim() : undefined;
+}
+
+/**
+ * An acceptance criterion may be written inside its requirement, in the
+ * top-level `acceptanceCriteria` list, or in both. The two validators disagree
+ * about which one is authoritative: `validateSpec` requires the nested list and
+ * `validateTaskGraph` resolves task references against the top-level one. A
+ * spec that stated its criteria in only one place therefore passed
+ * `spec --validate` and then failed `tasks --validate` on a criterion it plainly
+ * declared, with no documented way to produce the other form.
+ *
+ * Mirroring makes the two lists one set. Nothing is relaxed — every criterion
+ * still parses against the same schema and every reference still has to resolve.
+ */
+function mirrorAcceptanceCriteria(output: MutableObject, changes: string[]): void {
+  if (!Array.isArray(output.requirements)) return;
+
+  const topLevel = Array.isArray(output.acceptanceCriteria) ? [...output.acceptanceCriteria] : [];
+  const topLevelIds = new Set(topLevel.map(criterionId).filter((id) => id !== undefined));
+
+  output.requirements = output.requirements.map((requirement) => {
+    if (!isObject(requirement) || !Array.isArray(requirement.acceptanceCriteria)) {
+      return requirement;
+    }
+
+    const nestedIds = new Set(requirement.acceptanceCriteria.map(criterionId));
+
+    for (const criterion of requirement.acceptanceCriteria) {
+      const id = criterionId(criterion);
+
+      if (id === undefined || topLevelIds.has(id)) continue;
+
+      topLevel.push(criterion);
+      topLevelIds.add(id);
+      changes.push(`acceptanceCriteria: added ${id} from requirement ${String(requirement.id)}`);
+    }
+
+    const adopted = topLevel.filter(
+      (criterion) =>
+        isObject(criterion) &&
+        criterion.requirementId === requirement.id &&
+        !nestedIds.has(criterionId(criterion))
+    );
+
+    if (adopted.length === 0) return requirement;
+
+    for (const criterion of adopted) {
+      changes.push(
+        `requirement ${String(requirement.id)}: added acceptance criterion ${String(criterionId(criterion))}`
+      );
+    }
+
+    return {
+      ...requirement,
+      acceptanceCriteria: [...requirement.acceptanceCriteria, ...adopted]
+    };
+  });
+
+  output.acceptanceCriteria = topLevel;
+}
+
 export function normalizeSpecArtifact(value: unknown): SpecNormalizationResult {
   if (!isObject(value)) {
     return { value, changes: [] };
@@ -235,6 +300,10 @@ export function normalizeSpecArtifact(value: unknown): SpecNormalizationResult {
       normalizeRequirement(requirement, index, changes)
     );
   }
+
+  // After both lists have been normalized, so a criterion copied across carries
+  // the corrected enum rather than the raw one.
+  mirrorAcceptanceCriteria(output, changes);
 
   return { value: output, changes };
 }
