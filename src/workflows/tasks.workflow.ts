@@ -88,6 +88,7 @@ async function validateExisting(input: {
   readonly targetPath: string;
   readonly featureKey: string;
   readonly dryRun: boolean;
+  readonly now: string;
 }): Promise<{
   readonly validation: WorkflowValidation;
   readonly warnings: readonly string[];
@@ -117,13 +118,26 @@ async function validateExisting(input: {
     traceabilityMatrixSchema,
     "traceability"
   );
+  // Which tasks implement a requirement is stated by the task graph itself, so
+  // demanding it in traceability.json first made this gate unsatisfiable: the
+  // task ids it asked for are produced by the very step it was validating.
+  // Deriving them removes the deadlock without removing a check — a task whose
+  // requirement has no entry at all is still reported below.
+  const derivedTraceability =
+    taskGraph.value === undefined || traceability.value === undefined
+      ? traceability.value
+      : traceabilityWithTasks({
+          traceability: traceability.value,
+          taskGraph: taskGraph.value,
+          now: input.now
+        });
   const semantic =
     taskGraph.value === undefined || spec.value === undefined
       ? { passed: false, errors: [] }
       : validateTaskGraph({
           taskGraph: taskGraph.value,
           spec: spec.value,
-          traceability: traceability.value
+          traceability: derivedTraceability
         });
   const errors = [
     ...textErrors,
@@ -137,7 +151,7 @@ async function validateExisting(input: {
     validation: { passed: errors.length === 0, errors },
     warnings: spec.warnings,
     taskGraph: taskGraph.value,
-    traceability: traceability.value
+    traceability: derivedTraceability
   };
 }
 
@@ -165,7 +179,8 @@ export async function runTasksWorkflow(
     const validation = await validateExisting({
       targetPath,
       featureKey: feature.value.key,
-      dryRun
+      dryRun,
+      now
     });
 
     const derivedFiles = [
@@ -184,6 +199,13 @@ export async function runTasksWorkflow(
       ...(validation.traceability === undefined
         ? []
         : [
+            artifactGeneratedFile({
+              targetPath,
+              path: traceabilityArtifactPath(targetPath, feature.value.key),
+              artifactName: "traceability",
+              schema: traceabilityMatrixSchema,
+              value: validation.traceability
+            }),
             textGeneratedFile({
               targetPath,
               path: traceabilityMarkdownPath(targetPath, feature.value.key),

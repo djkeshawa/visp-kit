@@ -125,4 +125,39 @@ describe("spec normalizer", () => {
       }
     ]);
   });
+
+  it("lifts a criterion written only inside its requirement into the top-level list", () => {
+    const result = normalizeSpecArtifact({ ...baseSpec, acceptanceCriteria: [] });
+    const parsed = specArtifactSchema.safeParse(result.value);
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error("Expected normalized spec to parse.");
+
+    expect(parsed.data.acceptanceCriteria.map((criterion) => criterion.id)).toEqual([
+      "AC001",
+      "AC002"
+    ]);
+    expect(result.changes.join("\n")).toContain("AC001");
+  });
+
+  it("copies a criterion written only in the top-level list into its requirement", () => {
+    const result = normalizeSpecArtifact({
+      ...baseSpec,
+      requirements: [{ ...baseSpec.requirements[0], acceptanceCriteria: [] }]
+    });
+    const parsed = specArtifactSchema.safeParse(result.value);
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) throw new Error("Expected normalized spec to parse.");
+
+    expect(
+      parsed.data.requirements[0]?.acceptanceCriteria.map((criterion) => criterion.id)
+    ).toEqual(["AC001", "AC002"]);
+  });
+
+  it("leaves a spec that already states both lists unchanged", () => {
+    const result = normalizeSpecArtifact(baseSpec);
+
+    expect(result.changes.join("\n")).not.toContain("acceptance criterion");
+  });
 });
