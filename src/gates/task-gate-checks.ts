@@ -93,7 +93,10 @@ export function taskScopeChecks(state: ProjectState): readonly GateCheck[] {
   const outOfScope = scopeUndeclared
     ? []
     : changed.filter((file) => !declaredScope.has(file) && !forbidden.has(file));
-  const dependencyChanged = changedDependencyFiles(state);
+  // Normalized like every other membership test above. `changedDependencyFiles`
+  // returns raw paths, so this one test was comparing raw against normalized —
+  // the single exception to the rule the comment on `changed` states.
+  const dependencyChanged = changedDependencyFiles(state).map(normalizeRepositoryPath);
   const dependencyApproved = dependencyChanged.every(
     (file) => allowed.has(file) || expected.has(file)
   );

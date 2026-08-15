@@ -27,15 +27,32 @@ describe("scope validator", () => {
     expect(result.forbiddenChangedFiles).toEqual(["package.json"]);
   });
 
-  it("warns when allowedFiles is empty", () => {
+  it("warns when the task declares no file scope at all", () => {
     const result = validateScope({
       changedFiles: ["src/other.ts"],
-      task: { ...validTaskGraph.tasks[0]!, allowedFiles: [] },
+      task: { ...validTaskGraph.tasks[0]!, allowedFiles: [], expectedFiles: [] },
       explicit: false,
       gitWarnings: []
     });
 
     expect(result.status).toBe("warned");
+    expect(result.outOfScopeFiles).toEqual([]);
+  });
+
+  it("still enforces scope declared only through expectedFiles", () => {
+    const result = validateScope({
+      changedFiles: ["src/other.ts"],
+      task: {
+        ...validTaskGraph.tasks[0]!,
+        allowedFiles: [],
+        expectedFiles: ["src/notes/sort.ts"]
+      },
+      explicit: false,
+      gitWarnings: []
+    });
+
+    expect(result.outOfScopeFiles).toEqual(["src/other.ts"]);
+    expect(result.status).toBe("failed");
   });
 
   it("ignores .visp generated files", () => {
@@ -109,6 +126,35 @@ describe("scope validator", () => {
 
     expect(result.changedFiles).toEqual([invalidMarker]);
     expect(result.outOfScopeFiles).toEqual([invalidMarker]);
+    expect(result.status).toBe("failed");
+  });
+
+  it("reads a ./-prefixed declared path as the same file the gate layer reads", () => {
+    const result = validateScope({
+      changedFiles: ["src/notes/sort.ts"],
+      task: { ...validTaskGraph.tasks[0]!, allowedFiles: ["./src/notes/sort.ts"] },
+      explicit: true,
+      gitWarnings: []
+    });
+
+    expect(result.allowedFiles).toEqual(["src/notes/sort.ts"]);
+    expect(result.outOfScopeFiles).toEqual([]);
+    expect(result.status).toBe("passed");
+  });
+
+  it("enforces a forbidden path that was declared with a ./ prefix", () => {
+    const result = validateScope({
+      changedFiles: ["package.json"],
+      task: {
+        ...validTaskGraph.tasks[0]!,
+        allowedFiles: ["package.json"],
+        forbiddenFiles: ["./package.json"]
+      },
+      explicit: true,
+      gitWarnings: []
+    });
+
+    expect(result.forbiddenChangedFiles).toEqual(["package.json"]);
     expect(result.status).toBe("failed");
   });
 });
