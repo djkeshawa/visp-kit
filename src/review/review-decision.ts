@@ -1,90 +1,56 @@
-import { randomUUID } from "node:crypto";
-import { lstat, open, readdir, rename, rm } from "node:fs/promises";
-import path from "node:path";
-import { type ZodType } from "zod";
-
 import { computeAssuranceDelta, type AssuranceDelta } from "../assurance/assurance-delta.js";
 
 import {
   assuranceCaseArtifactPath,
   currentReviewDecisionArtifactPath,
-  oracleApprovalArtifactPath,
-  overridesArtifactPath,
-  reviewDecisionHistoryDir,
   reviewDecisionHistoryArtifactPath
 } from "../artifacts/artifact-paths.js";
 import { readArtifact } from "../artifacts/artifact-reader.js";
-import { baselineEvidenceSchema } from "../artifacts/schemas/baseline-evidence.schema.js";
-import { candidateEvidenceSchema } from "../artifacts/schemas/candidate-evidence.schema.js";
 import {
   assuranceCaseSchema,
   type AssuranceCase
 } from "../artifacts/schemas/assurance-case.schema.js";
-import { contextPackSchema } from "../artifacts/schemas/context-pack.schema.js";
 import {
   diffSnapshotSchema,
   type DiffSnapshot
 } from "../artifacts/schemas/diff-snapshot.schema.js";
 import {
-  oracleApprovalSchema,
-  oracleLockSchema
-} from "../artifacts/schemas/oracle-authorization.schema.js";
-import { oraclePlanSchema } from "../artifacts/schemas/oracle-plan.schema.js";
-import { overrideArtifactSchema } from "../artifacts/schemas/override.schema.js";
-import { planDraftArtifactSchema } from "../artifacts/schemas/plan.schema.js";
-import { policyArtifactSchema } from "../artifacts/schemas/policy.schema.js";
-import {
-  currentReviewDecisionPointerSchema,
   reviewDecisionSchema,
-  type CurrentReviewDecisionPointer,
   type ReviewDecision,
-  type ReviewDecisionFreshnessInput,
   type ReviewDecisionStatus
 } from "../artifacts/schemas/review-decision.schema.js";
-import { specArtifactSchema } from "../artifacts/schemas/spec.schema.js";
-import { taskGraphArtifactSchema } from "../artifacts/schemas/task.schema.js";
 import { defaultCommandRunner, type CommandRunner } from "../core/command-runner.js";
-import { VispError, toVispError } from "../core/errors.js";
-import {
-  type ExclusiveFileIdentity,
-  pathExists,
-  readTextFile,
-  withExclusiveDirectoryLock,
-  writeTextFileExclusiveWithIdentity
-} from "../core/file-system.js";
+import { VispError } from "../core/errors.js";
 import { relativePath, resolvePath } from "../core/paths.js";
 import { err, ok, type Result } from "../core/result.js";
 import { canonicalJsonV1, compareUtf16CodeUnits } from "../integration/canonical-json.js";
-import { hashOracleText } from "../oracle/oracle-authorization.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
-import { loadAssuranceInputs } from "../assurance/assurance-inputs.js";
-import { deriveCandidateStateSha } from "../assurance/assurance-semantics.js";
-import { hashOracleValue } from "../oracle/oracle-authorization.js";
 import { createReviewDecisionHash } from "./review-decision-hash.js";
 import { signDecisionHash, verifyDecisionSignature } from "./review-decision-signature.js";
 import { captureDiffSnapshot } from "../assurance/diff-snapshot.js";
 import { isGeneratedVispReviewFile } from "./diff-summary.js";
+import {
+  captureFreshnessInputs,
+  codeIdentity,
+  validateReconstructedAssuranceInputs
+} from "./review-decision-freshness.js";
+import {
+  loadCurrentDecision,
+  loadDecisionHistoryGraph,
+  validateSupersessionChain
+} from "./review-decision-history.js";
+import {
+  pointerFor,
+  pointerRaw,
+  publishDecisionAndPointer,
+  writeAtomicPointer
+} from "./review-decision-store.js";
 
-type MaterialSchema = ZodType<unknown>;
 type LoadedReviewCase = {
   readonly targetPath: string;
   readonly featureKey: string;
   readonly casePath: string;
   readonly assuranceCase: AssuranceCase;
-};
-
-const schemaByRole: Partial<Record<AssuranceCase["bindings"][number]["role"], MaterialSchema>> = {
-  policy: policyArtifactSchema,
-  specification: specArtifactSchema,
-  plan: planDraftArtifactSchema,
-  task_graph: taskGraphArtifactSchema,
-  task: taskGraphArtifactSchema,
-  context: contextPackSchema,
-  oracle_plan: oraclePlanSchema,
-  oracle_lock: oracleLockSchema,
-  baseline_evidence: baselineEvidenceSchema,
-  candidate_evidence: candidateEvidenceSchema,
-  diff_snapshot: diffSnapshotSchema
 };
 
 export type ReviewDecisionCurrentness = {
@@ -195,221 +161,6 @@ export type ReviewDecisionRequirement = {
   readonly currentness: ReviewDecisionCurrentness;
 };
 
-function materialPath(unit: DiffSnapshot["changeUnits"][number]): string[] {
-  return unit.kind === "hunk"
-    ? [unit.path]
-    : [unit.beforePath, unit.afterPath].filter((value): value is string => value !== undefined);
-}
-
-function codeIdentity(snapshot: DiffSnapshot): string {
-  return canonicalJsonV1(
-    snapshot.changeUnits.filter((unit) => !materialPath(unit).every(isGeneratedVispReviewFile))
-  );
-}
-
-async function freshnessInput(input: {
-  readonly targetPath: string;
-  readonly label: string;
-  readonly relativePath: string;
-  readonly schema?: MaterialSchema;
-}): Promise<Result<ReviewDecisionFreshnessInput, VispError>> {
-  const absolutePath = resolvePath(input.targetPath, input.relativePath);
-  const exists = await pathExists(absolutePath);
-  if (!exists.ok) return exists;
-  if (!exists.value) {
-    return ok({
-      label: input.label,
-      path: input.relativePath,
-      status: "missing"
-    });
-  }
-  const raw = await readTextFile(absolutePath);
-  if (!raw.ok) return raw;
-  const sha256 = hashOracleText(raw.value);
-  if (input.schema !== undefined) {
-    try {
-      const parsed = JSON.parse(raw.value) as unknown;
-      if (!input.schema.safeParse(parsed).success) {
-        return ok({
-          label: input.label,
-          path: input.relativePath,
-          status: "invalid",
-          sha256
-        });
-      }
-    } catch {
-      return ok({
-        label: input.label,
-        path: input.relativePath,
-        status: "invalid",
-        sha256
-      });
-    }
-  }
-  return ok({
-    label: input.label,
-    path: input.relativePath,
-    status: "available",
-    sha256
-  });
-}
-
-async function captureFreshnessInputs(input: {
-  readonly targetPath: string;
-  readonly featureKey: string;
-  readonly taskId: string;
-  readonly assuranceCase: AssuranceCase;
-}): Promise<Result<readonly ReviewDecisionFreshnessInput[], VispError>> {
-  const requested: Array<{
-    label: string;
-    relativePath: string;
-    schema?: MaterialSchema;
-  }> = input.assuranceCase.bindings.map((binding) => ({
-    label: `binding:${binding.role}`,
-    relativePath: binding.path,
-    schema: schemaByRole[binding.role]
-  }));
-  requested.push({
-    label: "override_store",
-    relativePath: relativePath(input.targetPath, overridesArtifactPath(input.targetPath)),
-    schema: overrideArtifactSchema
-  });
-
-  const oraclePlanBinding = input.assuranceCase.bindings.find(
-    (binding) => binding.role === "oracle_plan"
-  );
-  if (oraclePlanBinding !== undefined) {
-    const plan = await readArtifact(
-      resolvePath(input.targetPath, oraclePlanBinding.path),
-      oraclePlanSchema,
-      { artifactName: "oracle plan" }
-    );
-    if (plan.ok) {
-      for (const evidence of plan.value.testStrengthEvidence) {
-        requested.push({
-          label: `test_strength:${evidence.path}`,
-          relativePath: evidence.path
-        });
-      }
-      if (plan.value.criticalReviewApproval.required) {
-        requested.push({
-          label: "oracle_approval",
-          relativePath: relativePath(
-            input.targetPath,
-            oracleApprovalArtifactPath(input.targetPath, input.featureKey, input.taskId)
-          ),
-          schema: oracleApprovalSchema
-        });
-      }
-    }
-  }
-
-  const results: ReviewDecisionFreshnessInput[] = [];
-  for (const item of requested) {
-    const captured = await freshnessInput({
-      targetPath: input.targetPath,
-      ...item
-    });
-    if (!captured.ok) return captured;
-    results.push(captured.value);
-  }
-  results.sort(
-    (left, right) =>
-      compareUtf16CodeUnits(left.label, right.label) || compareUtf16CodeUnits(left.path, right.path)
-  );
-  return ok(results);
-}
-
-async function validateReconstructedAssuranceInputs(input: {
-  readonly targetPath: string;
-  readonly featureKey: string;
-  readonly taskId: string;
-  readonly assuranceCase: AssuranceCase;
-  readonly now?: string;
-  readonly commandRunner?: CommandRunner;
-}): Promise<Result<void, VispError>> {
-  const loaded = await loadAssuranceInputs({
-    targetPath: input.targetPath,
-    feature: input.featureKey,
-    taskId: input.taskId,
-    mode: input.assuranceCase.diff.mode,
-    targetRevision:
-      input.assuranceCase.diff.mode === "base_to_commit"
-        ? input.assuranceCase.diff.targetRevision
-        : undefined,
-    now: input.now,
-    commandRunner: input.commandRunner
-  });
-  if (!loaded.ok) return loaded;
-  const selected = loaded.value.state;
-  const plan = loaded.value.authorization.plan;
-  const storedSnapshotBinding = input.assuranceCase.bindings.find(
-    (binding) => binding.role === "diff_snapshot"
-  );
-  if (storedSnapshotBinding === undefined) {
-    return err(new VispError("VALIDATION_FAILED", "Assurance case has no diff snapshot binding."));
-  }
-  const storedSnapshot = await readArtifact(
-    resolvePath(input.targetPath, storedSnapshotBinding.path),
-    diffSnapshotSchema,
-    { artifactName: "stored diff snapshot" }
-  );
-  if (!storedSnapshot.ok) return storedSnapshot;
-  const reconstructedBindings = loaded.value.bindings
-    .map((binding) =>
-      binding.role === "diff_snapshot"
-        ? { ...binding, sha256: storedSnapshot.value.snapshotSha256 }
-        : binding
-    )
-    .sort((left, right) => compareUtf16CodeUnits(left.id, right.id));
-  const caseBindings = [...input.assuranceCase.bindings].sort((left, right) =>
-    compareUtf16CodeUnits(left.id, right.id)
-  );
-  const reconstructedOverrides = [...loaded.value.overrides].sort((left, right) =>
-    compareUtf16CodeUnits(left.id, right.id)
-  );
-  const caseOverrides = input.assuranceCase.overrides
-    .map((item) => item.record)
-    .sort((left, right) => compareUtf16CodeUnits(left.id, right.id));
-  const candidateBinding = reconstructedBindings.find(
-    (binding) => binding.role === "candidate_evidence"
-  );
-  const expectedCandidateSha =
-    candidateBinding === undefined
-      ? undefined
-      : deriveCandidateStateSha({
-          actionId: input.assuranceCase.actionId,
-          diffStateSha256: storedSnapshot.value.state.stateSha256,
-          candidateEvidenceBinding: candidateBinding
-        });
-  if (
-    selected.selectedFeature.id !== input.assuranceCase.featureId ||
-    selected.selectedFeature.slug !== input.assuranceCase.featureSlug ||
-    selected.selectedTask.id !== input.assuranceCase.taskId ||
-    plan.assuranceProfile !== input.assuranceCase.assuranceProfile ||
-    plan.baseCommit.status !== "captured" ||
-    plan.baseCommit.commit !== input.assuranceCase.diff.baseRevision ||
-    canonicalJsonV1(reconstructedBindings) !== canonicalJsonV1(caseBindings) ||
-    canonicalJsonV1(reconstructedOverrides) !== canonicalJsonV1(caseOverrides) ||
-    storedSnapshot.value.snapshotSha256 !== input.assuranceCase.diff.snapshotSha256 ||
-    input.assuranceCase.codeStates.baseline.status !== "captured" ||
-    input.assuranceCase.codeStates.baseline.revision !== plan.baseCommit.commit ||
-    input.assuranceCase.codeStates.baseline.sha256 !==
-      hashOracleValue({ revision: plan.baseCommit.commit }) ||
-    input.assuranceCase.codeStates.candidate.status !== "captured" ||
-    input.assuranceCase.codeStates.candidate.revision !== storedSnapshot.value.targetRevision ||
-    input.assuranceCase.codeStates.candidate.sha256 !== expectedCandidateSha
-  ) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Reconstructed authoritative assurance inputs do not match the assurance case."
-      )
-    );
-  }
-  return ok(undefined);
-}
-
 async function loadCase(input: {
   readonly targetPath?: string;
   readonly cwd?: string;
@@ -450,403 +201,43 @@ async function loadCase(input: {
   });
 }
 
-function pointerFor(input: {
-  readonly targetPath: string;
-  readonly featureKey: string;
-  readonly decision: ReviewDecision;
-}): CurrentReviewDecisionPointer {
-  return {
-    version: "1.0",
-    featureId: input.decision.featureId,
-    featureSlug: input.decision.featureSlug,
-    taskId: input.decision.taskId,
-    decisionPath: relativePath(
-      input.targetPath,
-      reviewDecisionHistoryArtifactPath(
-        input.targetPath,
-        input.featureKey,
-        input.decision.taskId,
-        input.decision.decisionHash
-      )
-    ),
-    decisionHash: input.decision.decisionHash,
-    updatedAt: input.decision.decidedAt
-  };
-}
+/**
+ * Does `git status --porcelain=v1 -z` report nothing but files Visp generated?
+ *
+ * The `-z` format is not the human one. Each entry is `XY <path>` in its own
+ * NUL-terminated field, and a rename or copy puts its ORIGINAL path in a second,
+ * bare field with no `XY ` prefix — it never uses the ` -> ` spelling that only
+ * the non-`-z` output has.
+ *
+ * Reading every field as `field.slice(3)` therefore chopped three characters off
+ * each original path (`src/old.ts` was read as `/old.ts`), which no longer
+ * matched the generated-file test. Renaming a generated artifact reported the
+ * tree as dirty and invalidated a review decision that was in fact current. The
+ * error was in the safe direction, but it was still a wrong answer.
+ */
+export function isWorkingTreeOnlyGenerated(porcelainZ: string): boolean {
+  const fields = porcelainZ.split("\0");
+  const paths: string[] = [];
 
-async function writeImmutableDecision(
-  historyPath: string,
-  decision: ReviewDecision
-): Promise<
-  Result<
-    {
-      readonly path: string;
-      readonly createdIdentity?: ExclusiveFileIdentity;
-    },
-    VispError
-  >
-> {
-  const serialized = `${JSON.stringify(decision, null, 2)}\n`;
-  const written = await writeTextFileExclusiveWithIdentity(historyPath, serialized);
-  if (written.ok) {
-    return ok({ path: written.value.path, createdIdentity: written.value.identity });
-  }
+  for (let index = 0; index < fields.length; index += 1) {
+    const field = fields[index];
+    if (field === undefined || field.length === 0) continue;
 
-  if ((written.error.cause as NodeJS.ErrnoException | undefined)?.code !== "EEXIST") {
-    return written;
-  }
+    const status = field.slice(0, 2);
+    paths.push(field.slice(3));
 
-  const existing = await readArtifact(historyPath, reviewDecisionSchema, {
-    artifactName: "review decision history"
-  });
-  if (!existing.ok) return existing;
-  return canonicalJsonV1(existing.value) === canonicalJsonV1(decision)
-    ? ok({ path: historyPath })
-    : err(
-        new VispError(
-          "VALIDATION_FAILED",
-          "Content-addressed review decision history already contains different content."
-        )
-      );
-}
-
-async function withPointerLock<T>(
-  pointerPath: string,
-  operation: () => Promise<Result<T, VispError>>
-): Promise<Result<T, VispError>> {
-  return withExclusiveDirectoryLock(
-    `${pointerPath}.lock`,
-    "review decision pointer update",
-    operation
-  );
-}
-
-async function assertExpectedPointer(
-  pointerPath: string,
-  expectedPointerRaw: string | undefined
-): Promise<Result<void, VispError>> {
-  const currentExists = await pathExists(pointerPath);
-  if (!currentExists.ok) return currentExists;
-  const currentRaw = currentExists.value ? await readTextFile(pointerPath) : ok(undefined);
-  if (!currentRaw.ok) return currentRaw;
-  return currentRaw.value === expectedPointerRaw
-    ? ok(undefined)
-    : err(
-        new VispError(
-          "VALIDATION_FAILED",
-          "Current review decision pointer changed concurrently; retry the command."
-        )
-      );
-}
-
-async function replacePointer(
-  pointerPath: string,
-  pointer: CurrentReviewDecisionPointer
-): Promise<Result<string, VispError>> {
-  const tempPath = path.join(
-    path.dirname(pointerPath),
-    `.${path.basename(pointerPath)}.${process.pid}.${randomUUID()}.tmp`
-  );
-  try {
-    const handle = await open(tempPath, "wx");
-    try {
-      await handle.writeFile(`${JSON.stringify(pointer, null, 2)}\n`, "utf8");
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-    await rename(tempPath, pointerPath);
-    return ok(pointerPath);
-  } catch (error) {
-    await rm(tempPath, { force: true }).catch(() => undefined);
-    return err(toVispError(error, "FILE_SYSTEM_ERROR"));
-  }
-}
-
-async function writeAtomicPointer(
-  pointerPath: string,
-  pointer: CurrentReviewDecisionPointer,
-  expectedPointerRaw: string | undefined
-): Promise<Result<string, VispError>> {
-  const parsed = currentReviewDecisionPointerSchema.safeParse(pointer);
-  if (!parsed.success) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        `Invalid review decision pointer: ${parsed.error.issues[0]?.message ?? "unknown error"}.`
-      )
-    );
-  }
-  return withPointerLock(pointerPath, async () => {
-    const expected = await assertExpectedPointer(pointerPath, expectedPointerRaw);
-    return expected.ok ? replacePointer(pointerPath, parsed.data) : expected;
-  });
-}
-
-async function removeCreatedHistory(
-  historyPath: string,
-  identity: ExclusiveFileIdentity
-): Promise<void> {
-  try {
-    const current = await lstat(historyPath);
-    if (current.dev === identity.device && current.ino === identity.inode) {
-      await rm(historyPath);
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
-}
-
-async function publishDecisionAndPointer(input: {
-  readonly historyPath: string;
-  readonly decision: ReviewDecision;
-  readonly pointerPath: string;
-  readonly pointer: CurrentReviewDecisionPointer;
-  readonly expectedPointerRaw: string | undefined;
-}): Promise<Result<string, VispError>> {
-  return withPointerLock(input.pointerPath, async () => {
-    const expected = await assertExpectedPointer(input.pointerPath, input.expectedPointerRaw);
-    if (!expected.ok) return expected;
-
-    const history = await writeImmutableDecision(input.historyPath, input.decision);
-    if (!history.ok) return history;
-    const written = await replacePointer(input.pointerPath, input.pointer);
-    if (!written.ok && history.value.createdIdentity !== undefined) {
-      try {
-        await removeCreatedHistory(input.historyPath, history.value.createdIdentity);
-      } catch (error) {
-        return err(toVispError(error, "FILE_SYSTEM_ERROR"));
+    // A rename or copy is followed by its bare original path. Consume it here
+    // so the loop never reads it as though it carried a status prefix.
+    if (status.startsWith("R") || status.startsWith("C")) {
+      const original = fields[index + 1];
+      if (original !== undefined && original.length > 0) {
+        paths.push(original);
+        index += 1;
       }
     }
-    return written;
-  });
-}
+  }
 
-async function pointerRaw(pointerPath: string): Promise<Result<string | undefined, VispError>> {
-  const exists = await pathExists(pointerPath);
-  if (!exists.ok) return exists;
-  if (!exists.value) return ok(undefined);
-  return readTextFile(pointerPath);
-}
-
-type DecisionHistoryGraph = {
-  readonly terminal?: ReviewDecision;
-  readonly decisions: ReadonlyMap<string, ReviewDecision>;
-};
-
-const reviewDecisionTemporaryFilePattern =
-  /^\.[a-f0-9]{64}\.json\.\d+\.[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.tmp$/u;
-
-async function loadDecisionHistoryGraph(input: {
-  readonly targetPath: string;
-  readonly featureKey: string;
-  readonly featureId: string;
-  readonly featureSlug: string;
-  readonly taskId: string;
-}): Promise<Result<DecisionHistoryGraph, VispError>> {
-  const historyDir = reviewDecisionHistoryDir(input.targetPath, input.featureKey, input.taskId);
-  let names: string[];
-  try {
-    names = (await readdir(historyDir)).sort(compareUtf16CodeUnits);
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "ENOENT"
-      ? ok({ decisions: new Map() })
-      : err(toVispError(error, "FILE_SYSTEM_ERROR"));
-  }
-  const decisions = new Map<string, ReviewDecision>();
-  for (const name of names) {
-    const digest = /^([a-f0-9]{64})\.json$/u.exec(name)?.[1];
-    if (digest === undefined) {
-      // Exclusive publication hard-links a complete sibling into place before
-      // removing the sibling. A crash in that committed two-name window may
-      // leave this exact internal residue, which carries no additional
-      // decision and must not invalidate the canonical history entry.
-      if (reviewDecisionTemporaryFilePattern.test(name)) continue;
-      return err(
-        new VispError("VALIDATION_FAILED", `Invalid review decision history filename: ${name}.`)
-      );
-    }
-    const decision = await readArtifact(path.join(historyDir, name), reviewDecisionSchema, {
-      artifactName: "review decision history"
-    });
-    if (!decision.ok) return decision;
-    if (
-      decision.value.decisionHash !== `sha256:${digest}` ||
-      decision.value.featureId !== input.featureId ||
-      decision.value.featureSlug !== input.featureSlug ||
-      decision.value.taskId !== input.taskId
-    ) {
-      return err(
-        new VispError("VALIDATION_FAILED", "Review decision history identity is invalid.")
-      );
-    }
-    decisions.set(decision.value.decisionHash, decision.value);
-  }
-  if (decisions.size === 0) return ok({ decisions });
-  const referenced = new Set<string>();
-  for (const decision of decisions.values()) {
-    const previous = decision.supersedesDecisionHash;
-    if (previous === null) continue;
-    if (!decisions.has(previous)) {
-      return err(
-        new VispError("VALIDATION_FAILED", "Review decision history has a missing predecessor.")
-      );
-    }
-    if (referenced.has(previous)) {
-      return err(new VispError("VALIDATION_FAILED", "Review decision history contains a fork."));
-    }
-    referenced.add(previous);
-    const predecessor = decisions.get(previous)!;
-    if (Date.parse(predecessor.decidedAt) >= Date.parse(decision.decidedAt)) {
-      return err(
-        new VispError(
-          "VALIDATION_FAILED",
-          "Superseded review decisions must be older than their successor."
-        )
-      );
-    }
-  }
-  const terminals = [...decisions.values()].filter(
-    (decision) => !referenced.has(decision.decisionHash)
-  );
-  if (terminals.length !== 1) {
-    return err(
-      new VispError("VALIDATION_FAILED", "Review decision history has multiple terminal decisions.")
-    );
-  }
-  const visited = new Set<string>();
-  let cursor: ReviewDecision | undefined = terminals[0];
-  while (cursor !== undefined) {
-    if (visited.has(cursor.decisionHash)) {
-      return err(new VispError("VALIDATION_FAILED", "Review decision history is cyclic."));
-    }
-    visited.add(cursor.decisionHash);
-    cursor =
-      cursor.supersedesDecisionHash === null
-        ? undefined
-        : decisions.get(cursor.supersedesDecisionHash);
-  }
-  if (visited.size !== decisions.size) {
-    return err(
-      new VispError("VALIDATION_FAILED", "Review decision history is disconnected or cyclic.")
-    );
-  }
-  return ok({ terminal: terminals[0], decisions });
-}
-
-async function loadCurrentDecision(input: {
-  readonly targetPath: string;
-  readonly featureKey: string;
-  readonly featureId: string;
-  readonly featureSlug: string;
-  readonly taskId: string;
-}): Promise<Result<ReviewDecision | undefined, VispError>> {
-  const graph = await loadDecisionHistoryGraph(input);
-  if (!graph.ok) return graph;
-  const pointerPath = currentReviewDecisionArtifactPath(
-    input.targetPath,
-    input.featureKey,
-    input.taskId
-  );
-  const exists = await pathExists(pointerPath);
-  if (!exists.ok) return exists;
-  if (!exists.value) {
-    return graph.value.terminal === undefined
-      ? ok(undefined)
-      : err(
-          new VispError(
-            "VALIDATION_FAILED",
-            "Review decision pointer is missing while valid history exists; run visp-kit assurance repair."
-          )
-        );
-  }
-  const pointer = await readArtifact(pointerPath, currentReviewDecisionPointerSchema, {
-    artifactName: "review decision pointer"
-  });
-  if (!pointer.ok) return pointer;
-  const expectedHistoryPath = reviewDecisionHistoryArtifactPath(
-    input.targetPath,
-    input.featureKey,
-    input.taskId,
-    pointer.value.decisionHash
-  );
-  if (
-    pointer.value.featureId !== input.featureId ||
-    pointer.value.featureSlug !== input.featureSlug ||
-    pointer.value.taskId !== input.taskId ||
-    pointer.value.decisionPath !== relativePath(input.targetPath, expectedHistoryPath)
-  ) {
-    return err(new VispError("VALIDATION_FAILED", "Review decision pointer identity is invalid."));
-  }
-  const decision = await readArtifact(expectedHistoryPath, reviewDecisionSchema, {
-    artifactName: "review decision history"
-  });
-  if (!decision.ok) return decision;
-  if (
-    decision.value.decisionHash !== pointer.value.decisionHash ||
-    decision.value.featureId !== input.featureId ||
-    decision.value.featureSlug !== input.featureSlug ||
-    decision.value.taskId !== input.taskId ||
-    pointer.value.updatedAt !== decision.value.decidedAt
-  ) {
-    return err(new VispError("VALIDATION_FAILED", "Review decision history identity is invalid."));
-  }
-  if (graph.value.terminal?.decisionHash !== decision.value.decisionHash) {
-    return err(
-      new VispError(
-        "VALIDATION_FAILED",
-        "Review decision pointer does not reference the unique terminal history decision; run visp-kit assurance repair."
-      )
-    );
-  }
-  return ok(decision.value);
-}
-
-async function validateSupersessionChain(input: {
-  readonly targetPath: string;
-  readonly featureKey: string;
-  readonly decision: ReviewDecision;
-}): Promise<Result<void, VispError>> {
-  const seen = new Set<string>([input.decision.decisionHash]);
-  let previous = input.decision.supersedesDecisionHash;
-  let newerDecidedAt = input.decision.decidedAt;
-  while (previous !== null) {
-    if (seen.has(previous)) {
-      return err(new VispError("VALIDATION_FAILED", "Review decision supersession is cyclic."));
-    }
-    seen.add(previous);
-    const previousPath = reviewDecisionHistoryArtifactPath(
-      input.targetPath,
-      input.featureKey,
-      input.decision.taskId,
-      previous
-    );
-    const read = await readArtifact(previousPath, reviewDecisionSchema, {
-      artifactName: "superseded review decision"
-    });
-    if (!read.ok) return read;
-    if (
-      read.value.decisionHash !== previous ||
-      read.value.featureId !== input.decision.featureId ||
-      read.value.featureSlug !== input.decision.featureSlug ||
-      read.value.taskId !== input.decision.taskId
-    ) {
-      return err(
-        new VispError("VALIDATION_FAILED", "Superseded review decision identity is invalid.")
-      );
-    }
-    if (Date.parse(read.value.decidedAt) >= Date.parse(newerDecidedAt)) {
-      return err(
-        new VispError(
-          "VALIDATION_FAILED",
-          "Superseded review decisions must be older than their successor."
-        )
-      );
-    }
-    newerDecidedAt = read.value.decidedAt;
-    previous = read.value.supersedesDecisionHash;
-  }
-  return ok(undefined);
+  return paths.every((candidate) => isGeneratedVispReviewFile(candidate));
 }
 
 /**
@@ -888,13 +279,9 @@ async function currentCodeMatches(input: {
       }
     );
     if (!status.ok) return status;
-    const fields = status.value.stdout.split("\0").filter(Boolean);
-    const nonGenerated = fields.some((field) => {
-      const rawPath = field.slice(3);
-      const candidatePath = rawPath.includes(" -> ") ? rawPath.split(" -> ").at(-1)! : rawPath;
-      return !isGeneratedVispReviewFile(candidatePath);
-    });
-    if (nonGenerated) return ok({ matches: false, snapshot: snapshot.value });
+    if (!isWorkingTreeOnlyGenerated(status.value.stdout)) {
+      return ok({ matches: false, snapshot: snapshot.value });
+    }
   }
   const stored = await readArtifact(
     resolvePath(

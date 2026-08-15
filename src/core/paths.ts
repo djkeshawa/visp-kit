@@ -72,6 +72,19 @@ export function isSubpath(parentPath: string, childPath: string): boolean {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+/**
+ * The absolute project root a command operates on.
+ *
+ * Every command takes the same optional `--target-path`, relative to an
+ * optional `cwd`, and both default to the process working directory.
+ */
+export function targetPathFrom(options: {
+  readonly targetPath?: string;
+  readonly cwd?: string;
+}): string {
+  return path.resolve(options.cwd ?? process.cwd(), options.targetPath ?? ".");
+}
+
 export function vispDir(rootPath: string): string {
   return path.join(rootPath, ".visp");
 }

@@ -2,18 +2,11 @@ import { type ReconcileChangedFile } from "../artifacts/schemas/reconcile.schema
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { type LoadedDiffFile } from "../review/diff-loader.js";
-import { normalizeReviewPath } from "../review/diff-summary.js";
+import {
+  normalizeDeclaredPathList as normalizeList,
+  normalizeReviewPath
+} from "../review/diff-summary.js";
 import { reconcileFinding, type ReconcileFindingDraft } from "./reconcile-findings.js";
-
-function normalizeList(values: readonly string[] | undefined): readonly string[] {
-  return [
-    ...new Set(
-      (values ?? [])
-        .map(normalizeReviewPath)
-        .filter((value) => value.length > 0 && value.toUpperCase() !== "TBD")
-    )
-  ].sort();
-}
 
 function relatedFromTraceability(input: {
   readonly filePath: string;

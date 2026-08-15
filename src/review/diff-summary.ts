@@ -7,6 +7,22 @@ export function normalizeReviewPath(value: string): string {
   return value.replaceAll("\\", "/");
 }
 
+/**
+ * Declared file scope from a task or traceability entry, reduced to a
+ * comparable list. `TBD` is a placeholder authors leave behind, not a path.
+ */
+export function normalizeDeclaredPathList(
+  values: readonly string[] | undefined
+): readonly string[] {
+  return [
+    ...new Set(
+      (values ?? [])
+        .map(normalizeReviewPath)
+        .filter((value) => value.length > 0 && value.toUpperCase() !== "TBD")
+    )
+  ].sort();
+}
+
 export function isDependencyFile(filePath: string): boolean {
   return isKnownDependencyFile(filePath);
 }

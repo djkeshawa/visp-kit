@@ -5,16 +5,12 @@ import { type EvidenceResult } from "../artifacts/schemas/evidence.schema.js";
 import { type EvidenceProviderIdentity } from "../artifacts/schemas/evidence.schema.js";
 import { type EvidenceProviderRun } from "../artifacts/schemas/provider-run.schema.js";
 import { type OraclePlanOracle } from "../artifacts/schemas/oracle-plan.schema.js";
-import { compareUtf16CodeUnits } from "../integration/canonical-json.js";
+import { compareUtf16CodeUnits, sortedUnique } from "../integration/canonical-json.js";
 import { deriveEvidenceConclusion } from "./assurance-semantics.js";
 
 type Comparison = AssuranceCaseWithoutHash["evidenceComparisons"][number];
 type EvidenceSide = Comparison["baseline"];
 type EvidenceOutcome = EvidenceSide["outcome"];
-
-function sortedUnique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort(compareUtf16CodeUnits);
-}
 
 function relevantResults(
   runs: readonly EvidenceProviderRun[],

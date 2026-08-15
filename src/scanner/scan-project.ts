@@ -8,12 +8,9 @@ import { detectSourceRoots, detectTestRoots } from "./project-roots.js";
 import { scanFiles } from "./scan-files.js";
 import { summarizeLanguages } from "./language.js";
 import { type FileIndexEntry, type ProjectDetection } from "./types.js";
+import { uniqueLocaleSorted as unique } from "../core/collections.js";
 
 const testFrameworkNames = new Set(["vitest", "jest", "playwright", "cypress"]);
-
-function unique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
-}
 
 function lockFiles(files: readonly FileIndexEntry[]): string[] {
   const names = new Set([

@@ -1,5 +1,6 @@
 import { type IntelFileGraph } from "./intel-graph.js";
 import { type FileIndexEntry, type FileSummary } from "./types.js";
+import { uniqueLocaleSorted as unique } from "../core/collections.js";
 
 export type ModuleMapEntry = {
   readonly name: string;
@@ -15,10 +16,6 @@ export type ModuleMap = {
   readonly sourceRoots: readonly string[];
   readonly modules: readonly ModuleMapEntry[];
 };
-
-function unique(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((a, b) => a.localeCompare(b));
-}
 
 function moduleName(filePath: string, sourceRoots: readonly string[]): string {
   const root = sourceRoots.find((candidate) => filePath.startsWith(`${candidate}/`));

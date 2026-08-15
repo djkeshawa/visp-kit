@@ -2,18 +2,8 @@ import { isExemptFromTaskScope } from "./diff-summary.js";
 import { type ReviewChangedFile } from "../artifacts/schemas/review.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type LoadedDiffFile } from "./diff-loader.js";
-import { normalizeReviewPath } from "./diff-summary.js";
+import { normalizeDeclaredPathList as normalizeList } from "./diff-summary.js";
 import { finding, type ReviewFindingDraft } from "./review-findings.js";
-
-function normalizeList(values: readonly string[] | undefined): readonly string[] {
-  return [
-    ...new Set(
-      (values ?? [])
-        .map(normalizeReviewPath)
-        .filter((value) => value.length > 0 && value.toUpperCase() !== "TBD")
-    )
-  ].sort();
-}
 
 function taskFiles(input: {
   readonly task?: Task;
