@@ -143,7 +143,10 @@ export async function runInitWorkflow(
   }
 
   const ignored = dryRun ? [] : await ensureVispIgnored(targetPath);
-  void ignored;
+
+  if (ignored.length > 0) {
+    actions.push({ path: ".gitignore", action: "updated" });
+  }
 
   const run = await recordWorkflowRun({
     targetPath,

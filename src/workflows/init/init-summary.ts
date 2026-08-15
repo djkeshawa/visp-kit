@@ -18,6 +18,12 @@ export type InitSummary = {
   readonly createdFiles: readonly string[];
   readonly skippedFiles: readonly string[];
   readonly overwrittenFiles: readonly string[];
+  /**
+   * Everything init touched outside `.visp/`. These are files the project
+   * already owns and version controls, so a count of 29 is not an answer to
+   * "what did you put in my repository" — they are named individually.
+   */
+  readonly projectRootFiles: readonly InitFileAction[];
   readonly dryRun: boolean;
   readonly success: boolean;
   readonly nextCommand: "visp-kit scan";
@@ -47,6 +53,7 @@ export function createInitSummary(input: {
     overwrittenFiles: input.actions
       .filter((entry) => entry.action === "overwritten")
       .map((entry) => entry.path),
+    projectRootFiles: input.actions.filter((entry) => !entry.path.startsWith(".visp/")),
     dryRun: input.dryRun,
     success: true,
     nextCommand: "visp-kit scan",
@@ -67,6 +74,14 @@ export function formatInitSummary(summary: InitSummary): string {
     formatKeyValue("Skipped", `${summary.skippedFiles.length} files`),
     formatKeyValue("Overwritten", `${summary.overwrittenFiles.length} files`)
   ];
+
+  if (summary.projectRootFiles.length > 0) {
+    lines.push(
+      "",
+      summary.dryRun ? "Project root (nothing written):" : "Project root:",
+      ...summary.projectRootFiles.map((entry) => `  ${entry.path} — ${entry.action}`)
+    );
+  }
 
   if (summary.warnings.length > 0) {
     lines.push("", "Notes:", ...summary.warnings.map((warning) => `  ${warning}`));
