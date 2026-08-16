@@ -21,6 +21,7 @@ import { policyArtifactPath } from "../artifacts/artifact-paths.js";
 import {
   agentGuidePath,
   agentsMarkdownPath,
+  agentsVispMarkdownPath,
   geminiMarkdownPath,
   installedTargetsPath,
   workflowMapPath
@@ -30,6 +31,7 @@ import { agentCapabilitiesPlannedFile } from "./agent-capabilities.js";
 import {
   generatedContentHash,
   plannedFileContents,
+  wroteFile,
   writeAgentPlannedFile,
   type AgentFileAction,
   type AgentPlannedFile
@@ -163,6 +165,30 @@ function bucketActions(
   };
 }
 
+/**
+ * What `agent install` says about the `AGENTS.visp.md` it plans beside a
+ * project's own `AGENTS.md`.
+ *
+ * Four claims, because two conditions decide whether a write happens and only
+ * one of them is the run mode. A dry run writes nothing; a second real run
+ * usually writes nothing either, because the fallback file is already there and
+ * this branch never carries `--force`. The sentence used to be pushed the
+ * moment control reached the branch, in the past tense, with nothing checking
+ * the write — so the command claimed a file had been refreshed to options it
+ * never saw. `init` keys its copy of this note on the same question.
+ */
+function fallbackAgentsNote(input: { readonly dryRun: boolean; readonly wrote: boolean }): string {
+  if (!input.wrote) {
+    return input.dryRun
+      ? "AGENTS.md already exists. Would leave the existing AGENTS.visp.md unchanged, so it may not reflect this run's options."
+      : "AGENTS.md already exists. Left the existing AGENTS.visp.md unchanged, so it may not reflect this run's options.";
+  }
+
+  return input.dryRun
+    ? "AGENTS.md already exists. Would write AGENTS.visp.md for manual merge or reference."
+    : "AGENTS.md already exists. Wrote AGENTS.visp.md for manual merge or reference.";
+}
+
 async function targetFiles(input: {
   readonly targetPath: string;
   readonly target: AgentTargetName;
@@ -170,7 +196,15 @@ async function targetFiles(input: {
   readonly force: boolean;
 }): Promise<
   Result<
-    { readonly files: readonly AgentPlannedFile[]; readonly warnings: readonly string[] },
+    {
+      readonly files: readonly AgentPlannedFile[];
+      /**
+       * Set only when the plan diverted the guide to `AGENTS.visp.md`. The note
+       * about that file is written after the write loop, from the action this
+       * path actually got.
+       */
+      readonly fallbackAgentsPath?: string;
+    },
     VispError
   >
 > {
@@ -188,9 +222,6 @@ async function targetFiles(input: {
   if (!agentsExists.ok) return agentsExists;
 
   const useFallbackAgentsFile = shouldPlanAgentsFile && agentsExists.value && !input.force;
-  const warnings = useFallbackAgentsFile
-    ? ["AGENTS.md already exists. Wrote AGENTS.visp.md for manual merge or reference."]
-    : [];
 
   const files = (() => {
     switch (input.target) {
@@ -234,7 +265,11 @@ async function targetFiles(input: {
     }
   })();
 
-  return ok({ files, warnings });
+  return ok(
+    useFallbackAgentsFile
+      ? { files, fallbackAgentsPath: agentsVispMarkdownPath(input.targetPath) }
+      : { files }
+  );
 }
 
 function nextMetadata(input: {
@@ -363,8 +398,6 @@ export async function runAgentInstall(
 
   if (!plan.ok) return plan;
 
-  warnings.push(...plan.value.warnings);
-
   const metadata = await readInstalledTargets(targetPath);
 
   if (!metadata.ok) return metadata;
@@ -373,6 +406,7 @@ export async function runAgentInstall(
     (installed) => installed.target === options.target
   );
   const nextFileHashes: Record<string, string> = {};
+  let fallbackAgentsAction: AgentFileAction | undefined;
   for (const file of plan.value.files) {
     const relPath = relativePath(targetPath, file.path);
     const write = await writeAgentPlannedFile(targetPath, file, {
@@ -386,6 +420,7 @@ export async function runAgentInstall(
 
     if (!write.ok) return write;
     actions.push(write.value);
+    if (file.path === plan.value.fallbackAgentsPath) fallbackAgentsAction = write.value.action;
     const planned = plannedFileContents(file);
     if (planned !== undefined) {
       if (write.value.action === "stale") {
@@ -397,6 +432,15 @@ export async function runAgentInstall(
         nextFileHashes[relPath] = generatedContentHash(planned);
       }
     }
+  }
+
+  if (plan.value.fallbackAgentsPath !== undefined) {
+    warnings.push(
+      fallbackAgentsNote({
+        dryRun,
+        wrote: fallbackAgentsAction !== undefined && wroteFile(fallbackAgentsAction)
+      })
+    );
   }
 
   const metadataPlan = metadataFiles({
