@@ -250,6 +250,40 @@ describe("visp-kit agent command", () => {
     expect(await exists(path.join(tempDir, "GEMINI.visp.md"))).toBe(false);
   });
 
+  // A leftover fallback file with no `.visp/` — a previous install whose
+  // `.visp/` was deleted, or a file restored from another machine — broke the
+  // dry run's assumption that the fallback "cannot already be there". The dry
+  // run promised a write; the real run refused the divergent file as stale.
+  it("does not promise a fallback write the real run will refuse, when a leftover fallback file exists", async () => {
+    await writeFile(path.join(tempDir, "GEMINI.md"), "# My own Gemini config\n", "utf8");
+    await writeFile(
+      path.join(tempDir, "GEMINI.visp.md"),
+      "# Leftover from an old install\n",
+      "utf8"
+    );
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "agent",
+      "bootstrap",
+      "gemini",
+      tempDir,
+      "--dry-run",
+      "--json"
+    ]);
+
+    const warnings = (JSON.parse(output.join("")) as { warnings: string[] }).warnings.join("\n");
+
+    expect(warnings).toContain("Would leave the existing GEMINI.visp.md unchanged");
+    expect(warnings).not.toContain("Would write GEMINI.visp.md");
+    expect(await readFile(path.join(tempDir, "GEMINI.visp.md"), "utf8")).toBe(
+      "# Leftover from an old install\n"
+    );
+  });
+
   it("installs generic guidance and prompt files with JSON output", async () => {
     await initProject(tempDir);
     const output: string[] = [];

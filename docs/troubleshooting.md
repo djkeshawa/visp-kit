@@ -254,6 +254,27 @@ Fix: repair the artifact named in the error, then run:
 visp-kit doctor --check schemas
 ```
 
+## Acceptance Criterion Declared Twice With Different Content
+
+Symptom: `visp-kit spec --validate` or `visp-kit tasks` reports
+`acceptance criterion AC00X is declared with different content in ...` and
+refuses the spec. The spec loaded before this version of Kit.
+
+Cause: the criterion id appears in both the top-level `acceptanceCriteria` list
+and a requirement's list (or twice in one list) with the two copies disagreeing.
+Kit used to merge them and keep both, so the artifact that defines "done" said
+two different things. It now refuses rather than pick one for you.
+
+Fix in `.visp/features/<feature>/spec.json` — which one depends on what you
+meant:
+
+- one criterion, written twice: make the copies identical, or delete the
+  duplicate;
+- two different criteria: give the second its own id, and add that id to
+  `traceability.json` so `visp-kit spec --validate` still passes.
+
+Then re-run the command. There is no override for this; see `CHANGELOG.md`.
+
 ## Review Decision Lock Remains
 
 Symptom: an assurance accept, reject, or repair command reports that another

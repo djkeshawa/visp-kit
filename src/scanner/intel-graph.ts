@@ -189,8 +189,8 @@ export function collapseToFileGraph(projection: IntelProjection): IntelFileGraph
   return {
     repositoryInstanceId: projection.identity.repositoryInstanceId,
     headSnapshotId: projection.identity.headSnapshotId,
-    filePaths: [...filePaths].sort((a, b) => a.localeCompare(b)),
-    testFilePaths: [...testFilePaths].sort((a, b) => a.localeCompare(b)),
+    filePaths: [...filePaths].sort(byCodeUnit),
+    testFilePaths: [...testFilePaths].sort(byCodeUnit),
     internalEdges: sortedMap(internalEdges),
     externalEdges: sortedMap(externalEdges),
     testEdges: sortedMap(testEdges)
@@ -207,11 +207,26 @@ function externalName(cell: unknown): string {
   return cell.split("#")[0]?.trim() ?? "";
 }
 
+/**
+ * The order the collapse contract pins: UTF-16 code unit ascending, never
+ * locale collation.
+ *
+ * `localeCompare` was the wrong comparator twice over. It disagrees with the
+ * pinned rule — it sorts `src/service/api.ts` before `src/service/Router.ts`
+ * where the rule puts `Router.ts` first — and its result depends on the host's
+ * ICU data and locale, so two machines could collapse one projection into two
+ * different orders. The module map builds its dependency lists from these
+ * edges in the order they arrive, so both faults reached a Kit artifact.
+ */
+function byCodeUnit(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function sortedMap(input: Map<string, Set<string>>): ReadonlyMap<string, readonly string[]> {
   return new Map(
     [...input.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, values]) => [key, [...values].sort((a, b) => a.localeCompare(b))] as const)
+      .sort(([left], [right]) => byCodeUnit(left, right))
+      .map(([key, values]) => [key, [...values].sort(byCodeUnit)] as const)
   );
 }
 

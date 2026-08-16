@@ -267,6 +267,48 @@ describe("visp-kit tasks --validate", () => {
     expect(text).not.toContain("add to the taskIds of REQ999");
   });
 
+  // LC-32: tasks --validate is the last gate before implementation, and it
+  // reported "passed" on artifacts spec --validate refused — a spec criterion
+  // the traceability matrix never covers. Passing the last gate has to mean the
+  // earlier gate on the same artifacts would still hold.
+  it("fails when the spec gate would fail on the same artifacts", async () => {
+    const specPath = path.join(featureDir, "spec.json");
+    const spec = await readJson<SpecFile>(specPath);
+    spec.requirements[0]!.acceptanceCriteria.push({
+      id: "AC404",
+      requirementId: "REQ001",
+      description: "Reassigning CONSTANTS.scorePerWave throws in strict mode.",
+      testable: true,
+      validationMethod: "unit"
+    });
+    await writeFile(specPath, `${JSON.stringify(spec, null, 2)}\n`, "utf8");
+
+    const specOutput: string[] = [];
+    await createCli({ writeOut: (value) => specOutput.push(value) }).parseAsync([
+      "node",
+      "visp",
+      "spec",
+      tempDir,
+      "--validate"
+    ]);
+    expect(specOutput.join(""), "the spec gate must refuse this fixture").toContain(
+      "Traceability is missing acceptance criteria AC404"
+    );
+
+    const output: string[] = [];
+    await createCli({ writeOut: (value) => output.push(value) }).parseAsync([
+      "node",
+      "visp",
+      "tasks",
+      tempDir,
+      "--validate"
+    ]);
+
+    const text = output.join("");
+    expect(text).toContain("Validation: failed");
+    expect(text).toContain("Traceability is missing acceptance criteria AC404");
+  });
+
   it("still reports a task whose requirement has no traceability entry", async () => {
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
