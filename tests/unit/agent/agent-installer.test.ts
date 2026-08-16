@@ -102,6 +102,47 @@ describe("agent installer", () => {
     expect(await exists(path.join(tempDir, "AGENTS.visp.md"))).toBe(true);
   });
 
+  it("does not claim a second identical run wrote the AGENTS.visp.md it left alone", async () => {
+    await writeFile(path.join(tempDir, "AGENTS.md"), "# Existing\n", "utf8");
+    expectOk(await runAgentInstall({ targetPath: tempDir, target: "generic" }));
+    const written = await readFile(path.join(tempDir, "AGENTS.visp.md"), "utf8");
+
+    const second = expectOk(await runAgentInstall({ targetPath: tempDir, target: "generic" }));
+
+    const warnings = second.warnings.join("\n");
+    expect(second.skippedFiles).toContain("AGENTS.visp.md");
+    expect(warnings).toContain("Left the existing AGENTS.visp.md unchanged");
+    expect(warnings).not.toContain("Wrote AGENTS.visp.md");
+    // The note is only true if the file really was left alone.
+    expect(await readFile(path.join(tempDir, "AGENTS.visp.md"), "utf8")).toBe(written);
+  });
+
+  it("says it wrote AGENTS.visp.md when a rerun really does rewrite it", async () => {
+    await writeFile(path.join(tempDir, "AGENTS.md"), "# Existing\n", "utf8");
+    expectOk(
+      await runAgentInstall({ targetPath: tempDir, target: "generic", strictness: "standard" })
+    );
+    const written = await readFile(path.join(tempDir, "AGENTS.visp.md"), "utf8");
+
+    const second = expectOk(
+      await runAgentInstall({ targetPath: tempDir, target: "generic", strictness: "locked" })
+    );
+
+    expect(second.warnings.join("\n")).toContain("Wrote AGENTS.visp.md for manual merge");
+    expect(await readFile(path.join(tempDir, "AGENTS.visp.md"), "utf8")).not.toBe(written);
+  });
+
+  it("does not claim a dry run wrote AGENTS.visp.md", async () => {
+    await writeFile(path.join(tempDir, "AGENTS.md"), "# Existing\n", "utf8");
+
+    const summary = expectOk(
+      await runAgentInstall({ targetPath: tempDir, target: "generic", dryRun: true })
+    );
+
+    expect(summary.warnings.join("\n")).toContain("Would write AGENTS.visp.md");
+    expect(await exists(path.join(tempDir, "AGENTS.visp.md"))).toBe(false);
+  });
+
   it("dry-run writes nothing", async () => {
     const summary = expectOk(
       await runAgentInstall({

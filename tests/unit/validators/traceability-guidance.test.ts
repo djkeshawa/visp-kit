@@ -118,40 +118,41 @@ describe("traceability repair guidance (F-D4)", () => {
     expect(message).toContain("REQ002: add AC003 to its acceptanceCriterionIds");
   });
 
-  it("names the requirement entry a missing task belongs to", () => {
-    const taskGraph = {
-      featureId: "001",
-      status: "ready" as const,
-      tasks: [
-        {
-          id: "T001",
-          title: "Add the sign-in form",
-          description: "Render and wire the sign-in form.",
-          dependsOn: [],
-          requirementIds: ["REQ001"],
-          acceptanceCriterionIds: ["AC001"],
-          validationCommands: ["npm test"],
-          allowedFiles: ["src/sign-in.ts"],
-          expectedFiles: ["src/sign-in.ts"],
-          riskFactors: [],
-          taskClass: "bounded_feature" as const
-        },
-        {
-          id: "T002",
-          title: "Add the sign-out control",
-          description: "Render and wire the sign-out control.",
-          dependsOn: ["T001"],
-          requirementIds: ["REQ002"],
-          acceptanceCriterionIds: ["AC002"],
-          validationCommands: ["npm test"],
-          allowedFiles: ["src/sign-out.ts"],
-          expectedFiles: ["src/sign-out.ts"],
-          riskFactors: [],
-          taskClass: "bounded_feature" as const
-        }
-      ],
-      updatedAt: now
-    };
+  const taskGraph = {
+    featureId: "001",
+    status: "ready" as const,
+    tasks: [
+      {
+        id: "T001",
+        title: "Add the sign-in form",
+        description: "Render and wire the sign-in form.",
+        dependsOn: [],
+        requirementIds: ["REQ001"],
+        acceptanceCriterionIds: ["AC001"],
+        validationCommands: ["npm test"],
+        allowedFiles: ["src/sign-in.ts"],
+        expectedFiles: ["src/sign-in.ts"],
+        riskFactors: [],
+        taskClass: "bounded_feature" as const
+      },
+      {
+        id: "T002",
+        title: "Add the sign-out control",
+        description: "Render and wire the sign-out control.",
+        dependsOn: ["T001"],
+        requirementIds: ["REQ002"],
+        acceptanceCriterionIds: ["AC002"],
+        validationCommands: ["npm test"],
+        allowedFiles: ["src/sign-out.ts"],
+        expectedFiles: ["src/sign-out.ts"],
+        riskFactors: [],
+        taskClass: "bounded_feature" as const
+      }
+    ],
+    updatedAt: now
+  };
+
+  it("hands over an entry to author when the task's requirement has none", () => {
     const result = validateTaskGraph({
       taskGraph,
       spec,
@@ -159,10 +160,57 @@ describe("traceability repair guidance (F-D4)", () => {
     } as never);
     const message = result.errors.join("\n");
 
-    // T002 already declares the requirement it implements, so the validator
-    // can say exactly which entry to edit rather than leaving the reader to
-    // correlate two files by hand.
-    expect(message).toContain("T002: add to the taskIds of REQ002");
-    expect(message).not.toContain("T001: add to the taskIds");
+    // REQ002 has no entry at all, so "add to the taskIds of REQ002" would name
+    // an array that does not exist. The repair is the entry itself.
+    expect(message).toContain("traceability.json does not list T002");
+    expect(message).toContain("has no entry for REQ002");
+    expect(message).toContain('Append to "entries" in traceability.json');
+    expect(message).not.toContain("T001");
+  });
+
+  it("asks for a one-line edit when the task's requirement entry already exists", () => {
+    const req002Untasked = {
+      ...tracedOnlyReq001,
+      entries: [
+        tracedOnlyReq001.entries[0]!,
+        {
+          requirementId: "REQ002",
+          acceptanceCriterionIds: ["AC002", "AC003"],
+          taskIds: [],
+          filePaths: [],
+          testPaths: [],
+          status: "missing" as const
+        }
+      ]
+    };
+    const result = validateTaskGraph({ taskGraph, spec, traceability: req002Untasked } as never);
+    const message = result.errors.join("\n");
+
+    // Same defect as the test above, different repair. Conflating the two sends
+    // the reader to author a duplicate entry for a requirement that has one.
+    expect(message).toContain("REQ002: add T002 to its taskIds");
+    expect(message).not.toContain('Append to "entries"');
+  });
+
+  it("clears the error when the printed entry is pasted back", () => {
+    const before = validateTaskGraph({
+      taskGraph,
+      spec,
+      traceability: tracedOnlyReq001
+    } as never);
+    const message = before.errors.find((error) => error.includes("T002"))!;
+    const additions = jsonBlockFrom(message) as never[];
+    const repaired = {
+      ...tracedOnlyReq001,
+      entries: [...tracedOnlyReq001.entries, ...additions]
+    };
+
+    const after = validateTaskGraph({ taskGraph, spec, traceability: repaired } as never);
+
+    // The whole value of printing an entry is that pasting it works, so this
+    // runs the same validator over the pasted result rather than re-checking
+    // the fragment against the schema alone.
+    expect(traceabilityMatrixSchema.safeParse(repaired).success).toBe(true);
+    expect(after.errors.filter((error) => error.includes("traceability.json"))).toEqual([]);
   });
 });

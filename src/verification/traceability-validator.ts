@@ -2,6 +2,7 @@ import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type Task, type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
 import { type TraceabilityValidationSection } from "../artifacts/schemas/verification.schema.js";
+import { untracedTaskErrors } from "../validators/traceability-repair.js";
 
 function duplicates(values: readonly string[], label: string): readonly string[] {
   const seen = new Set<string>();
@@ -149,15 +150,21 @@ export function validateTraceability(input: {
     }
   }
 
+  // Same repair the task-graph validator prints, from the same helper, so the
+  // two stages cannot drift into describing one defect two ways.
+  errors.push(
+    ...untracedTaskErrors({
+      untracedTasks: input.taskGraph.tasks.filter((task) => !tracedTasks.has(task.id)),
+      traceability: input.traceability,
+      ...(input.spec === undefined ? {} : { spec: input.spec })
+    })
+  );
+
   for (const task of input.taskGraph.tasks) {
-    if (!tracedTasks.has(task.id)) {
-      // Same repair the task-graph validator prints: the task already names
-      // its requirements, so say exactly which entries to extend.
-      const repair =
-        task.requirementIds.length > 0
-          ? ` Add ${task.id} to the taskIds of ${task.requirementIds.join(", ")} in traceability.json.`
-          : "";
-      errors.push(`Traceability is missing task ${task.id}.${repair}`);
+    // A task naming no requirement has no entry to be pointed at; the repair is
+    // to give it one, which is the error immediately below.
+    if (!tracedTasks.has(task.id) && task.requirementIds.length === 0) {
+      errors.push(`Traceability is missing task ${task.id}.`);
     }
 
     if (input.spec !== undefined) {
@@ -190,12 +197,20 @@ export function validateTraceability(input: {
       );
     }
 
+    // The selected task gets its own error naming itself first, because the
+    // reader asked about this one task; the repair behind it is the shared one.
     if (!tracedTasks.has(input.task.id)) {
-      const repair =
-        input.task.requirementIds.length > 0
-          ? ` Add ${input.task.id} to the taskIds of ${input.task.requirementIds.join(", ")} in traceability.json.`
-          : "";
-      errors.push(`${input.task.id} is missing from traceability.${repair}`);
+      const repairs = untracedTaskErrors({
+        untracedTasks: [input.task],
+        traceability: input.traceability,
+        ...(input.spec === undefined ? {} : { spec: input.spec })
+      });
+
+      errors.push(
+        repairs.length > 0
+          ? `${input.task.id} is missing from traceability.json.\n${repairs.join("\n")}`
+          : `${input.task.id} is missing from traceability.json.`
+      );
     }
   }
 
