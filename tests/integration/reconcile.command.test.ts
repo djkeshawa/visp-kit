@@ -103,9 +103,7 @@ async function prepareReconcileFixture(rootPath: string): Promise<void> {
   process.exitCode = undefined;
 }
 
-// These suites spawn git and run the full pipeline, which is slow on Windows
-// CI; raise the per-hook/test timeout above the 5s default.
-describe("visp-kit reconcile command", { timeout: 30000 }, () => {
+describe("visp-kit reconcile command", () => {
   let tempDir: string;
 
   beforeEach(async () => {

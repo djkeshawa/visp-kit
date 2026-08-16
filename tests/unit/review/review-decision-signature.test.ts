@@ -43,7 +43,7 @@ describe("review decision signature", () => {
       otherKeyPath,
       "-q"
     ]);
-  }, 60_000);
+  });
 
   afterAll(async () => {
     await rm(dir, { recursive: true, force: true });
@@ -71,7 +71,7 @@ describe("review decision signature", () => {
 
     expect(verified.value.verified).toBe(true);
     expect(verified.value.keyFingerprint).toBe(signed.value.keyFingerprint);
-  }, 60_000);
+  });
 
   it("rejects a signature over a different decision hash", async () => {
     const signed = await signDecisionHash({
@@ -91,7 +91,7 @@ describe("review decision signature", () => {
     expect(verified.ok).toBe(true);
     if (!verified.ok) return;
     expect(verified.value.verified).toBe(false);
-  }, 60_000);
+  });
 
   it("rejects a signature whose recorded fingerprint was rewritten", async () => {
     const signed = await signDecisionHash({
@@ -115,7 +115,7 @@ describe("review decision signature", () => {
     if (!verified.ok) return;
     expect(verified.value.verified).toBe(false);
     expect(verified.value.reason).toContain("not the recorded");
-  }, 60_000);
+  });
 
   it("rejects a signature made for a different namespace", async () => {
     const payloadPath = path.join(dir, "foreign-payload");
@@ -144,5 +144,5 @@ describe("review decision signature", () => {
     expect(verified.ok).toBe(true);
     if (!verified.ok) return;
     expect(verified.value.verified).toBe(false);
-  }, 60_000);
+  });
 });

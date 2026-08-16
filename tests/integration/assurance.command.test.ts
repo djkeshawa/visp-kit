@@ -29,8 +29,6 @@ import { runAssuranceWorkflow } from "../../src/workflows/assurance.workflow.js"
 import { runNextWorkflow } from "../../src/workflows/next.workflow.js";
 import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
 
-const DECISION_TEST_TIMEOUT_MS = process.platform === "win32" ? 60_000 : 30_000;
-
 async function prepareAssuranceFixture(targetPath: string): Promise<void> {
   await createPhase8Fixture(targetPath);
   expectOk(await runCommand("git", ["init"], { cwd: targetPath }));
@@ -114,7 +112,7 @@ function pairedCommandRunners(): readonly [CommandRunner, CommandRunner] {
   return [createRunner(), createRunner()];
 }
 
-describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
+describe("assurance command", () => {
   const roots: string[] = [];
 
   afterEach(() => {
@@ -337,7 +335,7 @@ describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
     expect(secondBytes).toEqual(firstBytes);
     expect(secondSummary.caseHash).toBe(firstSummary.caseHash);
     expect(secondSummary.snapshotHash).toBe(firstSummary.snapshotHash);
-  }, 30_000);
+  });
 
   it("fails closed when the assurance case swaps during review snapshot evaluation", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-snapshot-swap-"));
@@ -399,7 +397,7 @@ describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
         decisionHash: null
       }
     });
-  }, 30_000);
+  });
 
   it("fails closed when authoritative inputs change after the initial build", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-drift-"));
@@ -459,7 +457,7 @@ describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
     expect(result.error.message).toContain(
       "Authoritative assurance inputs or workflow action changed"
     );
-  }, 30_000);
+  });
 
   it("records append-only reject and accept decisions and validates currentness", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-decision-"));
@@ -922,7 +920,7 @@ describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
         })
       )
     ).toMatchObject({ status: "rejected", decisionHash: winner.value.decisionHash });
-  }, 30_000);
+  });
 
   it("reconstructs authoritative inputs and applies override expiry at evaluation time", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-authority-"));
@@ -1038,5 +1036,5 @@ describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
         })
       ).status
     ).toBe("stale");
-  }, 30_000);
+  });
 });
