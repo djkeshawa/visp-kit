@@ -159,5 +159,92 @@ describe("spec normalizer", () => {
     const result = normalizeSpecArtifact(baseSpec);
 
     expect(result.changes.join("\n")).not.toContain("acceptance criterion");
+    expect(result.conflicts).toEqual([]);
+  });
+
+  // The mirror unions by id. Two declarations of one id that disagree are a
+  // question Kit cannot answer: picking either one silently rewrites or
+  // discards an acceptance claim the author stated, in the artifact verify and
+  // review treat as the definition of done.
+  it("refuses a spec whose two declarations of one criterion id disagree", () => {
+    const result = normalizeSpecArtifact({
+      ...baseSpec,
+      acceptanceCriteria: [
+        baseSpec.acceptanceCriteria[0],
+        { ...baseSpec.acceptanceCriteria[1]!, description: "No regression tests are needed." }
+      ]
+    });
+
+    expect(result.conflicts.join("\n")).toContain("AC002");
+    expect(result.conflicts.join("\n")).toContain("requirement REQ001");
+    expect(result.conflicts.join("\n")).not.toContain("AC001");
+  });
+
+  it("leaves both criterion lists untouched when it refuses", () => {
+    const conflicted = {
+      ...baseSpec,
+      requirements: [
+        {
+          ...baseSpec.requirements[0]!,
+          acceptanceCriteria: [
+            baseSpec.requirements[0]!.acceptanceCriteria[0],
+            {
+              ...baseSpec.requirements[0]!.acceptanceCriteria[1]!,
+              description: "No regression tests are needed."
+            }
+          ]
+        }
+      ]
+    };
+    const result = normalizeSpecArtifact(conflicted) as {
+      value: {
+        acceptanceCriteria: { id: string; description: string }[];
+        requirements: { acceptanceCriteria: { id: string; description: string }[] }[];
+      };
+      conflicts: readonly string[];
+    };
+
+    expect(result.conflicts.length).toBe(1);
+    // Neither declaration was copied over the other, and neither list grew, so
+    // the file the error names still shows the disagreement it is about.
+    expect(result.value.acceptanceCriteria).toHaveLength(2);
+    expect(result.value.requirements[0]?.acceptanceCriteria).toHaveLength(2);
+    expect(
+      result.value.acceptanceCriteria.find((criterion) => criterion.id === "AC002")?.description
+    ).toBe("Regression tests are run.");
+    expect(
+      result.value.requirements[0]?.acceptanceCriteria.find((criterion) => criterion.id === "AC002")
+        ?.description
+    ).toBe("No regression tests are needed.");
+  });
+
+  // Two declarations differing only by a spelling the normalizer corrects are
+  // the same criterion, not a conflict; the mirror runs after both lists are
+  // normalized so that this stays true.
+  it("accepts two declarations that differ only by an enum spelling it corrects", () => {
+    const result = normalizeSpecArtifact({
+      ...baseSpec,
+      acceptanceCriteria: [
+        baseSpec.acceptanceCriteria[0],
+        { ...baseSpec.acceptanceCriteria[1]!, validationMethod: "automated tests" }
+      ]
+    });
+
+    expect(result.conflicts).toEqual([]);
+  });
+
+  it("refuses one list that declares the same criterion id twice with different content", () => {
+    const result = normalizeSpecArtifact({
+      ...baseSpec,
+      requirements: [{ ...baseSpec.requirements[0]!, acceptanceCriteria: [] }],
+      acceptanceCriteria: [
+        ...baseSpec.acceptanceCriteria,
+        { ...baseSpec.acceptanceCriteria[0]!, description: "Issues are ignored." }
+      ]
+    });
+
+    expect(result.conflicts).toEqual([
+      "acceptance criterion AC001 is declared with different content in the top-level acceptanceCriteria list twice"
+    ]);
   });
 });

@@ -81,6 +81,41 @@ describe("traceability validator", () => {
     );
   });
 
+  // The graph-wide sweep and the selected-task error both used to print the
+  // repair, so verify put the same `Append to "entries"` JSON on screen twice.
+  // A reader who copied the whole block wrote the entry twice and ended up with
+  // two traceability entries for one requirement.
+  it("states the repair for an untraced selected task once, so the output can be pasted whole", () => {
+    const result = validateTraceability({
+      taskGraph: validTaskGraph,
+      task: validTaskGraph.tasks[0],
+      traceability: { ...validTraceabilityMatrix, entries: [] },
+      explicit: true
+    });
+
+    const text = result.errors.join("\n");
+
+    expect(text.split('Append to "entries"')).toHaveLength(2);
+    expect(text.split("traceability.json does not list")).toHaveLength(2);
+    // The reader still gets a line naming the task they asked about.
+    expect(text).toContain("T001 is missing from traceability.json.");
+    expect(text).toContain("apply it once");
+  });
+
+  it("still prints the repair for a selected task the task graph does not contain", () => {
+    const result = validateTraceability({
+      taskGraph: { ...validTaskGraph, tasks: [] },
+      task: validTaskGraph.tasks[0],
+      traceability: { ...validTraceabilityMatrix, entries: [] },
+      explicit: true
+    });
+
+    const text = result.errors.join("\n");
+
+    expect(text).toContain("T001 is missing from traceability.json.");
+    expect(text.split('Append to "entries"')).toHaveLength(2);
+  });
+
   it("offers no entry repair for a task that names no requirement", () => {
     const unanchored = { ...validTaskGraph.tasks[0]!, requirementIds: [] };
     const result = validateTraceability({

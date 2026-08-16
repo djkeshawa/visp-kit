@@ -7,6 +7,11 @@ type MutableObject = Record<string, unknown>;
 export type SpecNormalizationResult = {
   readonly value: unknown;
   readonly changes: readonly string[];
+  /**
+   * Why the spec cannot be normalized at all, one message per conflicting
+   * acceptance criterion id. Non-empty means the caller must refuse the spec.
+   */
+  readonly conflicts: readonly string[];
 };
 
 function isObject(value: unknown): value is MutableObject {
@@ -221,6 +226,86 @@ function criterionId(value: unknown): string | undefined {
 }
 
 /**
+ * A criterion reduced to a form two declarations of it can be compared by.
+ *
+ * Key order carries no meaning in an acceptance criterion, so it is removed
+ * before comparing; anything else surviving here is a difference the author
+ * wrote on purpose.
+ */
+function canonicalForm(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalForm).join(",")}]`;
+
+  if (isObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalForm(value[key])}`)
+      .join(",")}}`;
+  }
+
+  return JSON.stringify(value) ?? "null";
+}
+
+/**
+ * Ids that name two *different* criteria across the lists the mirror merges.
+ *
+ * The mirror unions by id, which is sound only while an id names one criterion.
+ * When two declarations of `AC002` disagree there is no resolution Kit can
+ * compute and none it may pick: last-wins silently rewrites an acceptance claim
+ * the author stated, first-wins silently discards one, and either way the
+ * disagreement disappears into an artifact that verify, review and the
+ * traceability matrix all treat as the contract for what "done" means. Choosing
+ * would make Kit the author of an acceptance claim nobody wrote.
+ *
+ * So Kit refuses. A spec whose criterion ids are ambiguous is malformed, and a
+ * malformed strict contract fails closed rather than being repaired into one of
+ * the two things it might have meant. The author resolves it by making the
+ * declarations identical or by giving them different ids — both one edit, and
+ * both a decision only they can make.
+ */
+function conflictingCriteria(input: {
+  readonly topLevel: readonly unknown[];
+  readonly requirements: readonly unknown[];
+}): readonly string[] {
+  /** criterion id -> canonical form -> the places that form was declared in. */
+  const formsById = new Map<string, Map<string, Set<string>>>();
+
+  const record = (criterion: unknown, origin: string): void => {
+    const id = criterionId(criterion);
+
+    if (id === undefined) return;
+
+    const forms = formsById.get(id) ?? new Map<string, Set<string>>();
+    const form = canonicalForm(criterion);
+    const origins = forms.get(form) ?? new Set<string>();
+
+    origins.add(origin);
+    forms.set(form, origins);
+    formsById.set(id, forms);
+  };
+
+  for (const criterion of input.topLevel) {
+    record(criterion, "the top-level acceptanceCriteria list");
+  }
+
+  for (const requirement of input.requirements) {
+    if (!isObject(requirement) || !Array.isArray(requirement.acceptanceCriteria)) continue;
+
+    for (const criterion of requirement.acceptanceCriteria) {
+      record(criterion, `requirement ${String(requirement.id)}`);
+    }
+  }
+
+  return [...formsById]
+    .filter(([, forms]) => forms.size > 1)
+    .map(([id, forms]) => {
+      const origins = [...new Set([...forms.values()].flatMap((set) => [...set]))];
+      const where = origins.length > 1 ? origins.join(" and ") : `${origins[0]} twice`;
+
+      return `acceptance criterion ${id} is declared with different content in ${where}`;
+    });
+}
+
+/**
  * An acceptance criterion may be written inside its requirement, in the
  * top-level `acceptanceCriteria` list, or in both. The two validators disagree
  * about which one is authoritative: `validateSpec` requires the nested list and
@@ -231,11 +316,19 @@ function criterionId(value: unknown): string | undefined {
  *
  * Mirroring makes the two lists one set. Nothing is relaxed — every criterion
  * still parses against the same schema and every reference still has to resolve.
+ *
+ * Returns the id conflicts that stopped it, empty when it mirrored.
  */
-function mirrorAcceptanceCriteria(output: MutableObject, changes: string[]): void {
-  if (!Array.isArray(output.requirements)) return;
+function mirrorAcceptanceCriteria(output: MutableObject, changes: string[]): readonly string[] {
+  if (!Array.isArray(output.requirements)) return [];
 
   const topLevel = Array.isArray(output.acceptanceCriteria) ? [...output.acceptanceCriteria] : [];
+  const conflicts = conflictingCriteria({ topLevel, requirements: output.requirements });
+
+  // Both lists are left exactly as the author wrote them, so the error the
+  // caller raises points at a file that still shows the disagreement.
+  if (conflicts.length > 0) return conflicts;
+
   const topLevelIds = new Set(topLevel.map(criterionId).filter((id) => id !== undefined));
 
   output.requirements = output.requirements.map((requirement) => {
@@ -277,11 +370,13 @@ function mirrorAcceptanceCriteria(output: MutableObject, changes: string[]): voi
   });
 
   output.acceptanceCriteria = topLevel;
+
+  return [];
 }
 
 export function normalizeSpecArtifact(value: unknown): SpecNormalizationResult {
   if (!isObject(value)) {
-    return { value, changes: [] };
+    return { value, changes: [], conflicts: [] };
   }
 
   const changes: string[] = [];
@@ -302,8 +397,10 @@ export function normalizeSpecArtifact(value: unknown): SpecNormalizationResult {
   }
 
   // After both lists have been normalized, so a criterion copied across carries
-  // the corrected enum rather than the raw one.
-  mirrorAcceptanceCriteria(output, changes);
+  // the corrected enum rather than the raw one — and so two declarations that
+  // differ only by a spelling this normalizer corrects are not read as a
+  // conflict.
+  const conflicts = mirrorAcceptanceCriteria(output, changes);
 
-  return { value: output, changes };
+  return { value: output, changes, conflicts };
 }
