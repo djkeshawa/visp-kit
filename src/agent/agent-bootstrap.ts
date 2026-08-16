@@ -9,12 +9,15 @@ import { runInitWorkflow } from "../workflows/init.workflow.js";
 import { type InitSummary } from "../workflows/init/init-summary.js";
 import {
   agentGuidePath,
-  agentsMarkdownPath,
-  geminiMarkdownPath,
   installedTargetsPath,
+  sharedGuidanceFile,
   workflowMapPath
 } from "./agent-paths.js";
-import { runAgentInstall, type AgentInstallSummary } from "./agent-installer.js";
+import {
+  fallbackAgentsNote,
+  runAgentInstall,
+  type AgentInstallSummary
+} from "./agent-installer.js";
 import { claudeTargetFiles } from "./targets/claude.js";
 import { codexTargetFiles } from "./targets/codex.js";
 import { copilotTargetFiles } from "./targets/copilot.js";
@@ -56,15 +59,15 @@ async function dryRunInstallSummary(input: {
   readonly strictness: StrictnessMode;
   readonly force: boolean;
 }): Promise<Result<AgentInstallSummary, VispError>> {
-  const agentsExists = ["codex", "generic", "copilot", "opencode"].includes(input.target)
-    ? await pathExists(agentsMarkdownPath(input.targetPath))
-    : input.target === "gemini"
-      ? await pathExists(geminiMarkdownPath(input.targetPath))
-      : ok(false);
+  // The same question `agent install` asks, from the same helper, so a dry run
+  // cannot promise a divert the real run will not perform.
+  const guidance = sharedGuidanceFile(input.target, input.targetPath);
+  const guidanceExists =
+    guidance === undefined ? ok(false) : await pathExists(guidance.primaryPath);
 
-  if (!agentsExists.ok) return agentsExists;
+  if (!guidanceExists.ok) return guidanceExists;
 
-  const useFallbackAgentsFile = agentsExists.value && !input.force;
+  const useFallbackAgentsFile = guidanceExists.value && !input.force;
   const targetFiles = (() => {
     switch (input.target) {
       case "codex":
@@ -125,9 +128,19 @@ async function dryRunInstallSummary(input: {
     staleFiles: [],
     overwrittenFiles: [],
     updatedFiles: [],
-    warnings: useFallbackAgentsFile
-      ? ["AGENTS.md already exists. Would write AGENTS.visp.md for manual merge or reference."]
-      : [],
+    warnings:
+      useFallbackAgentsFile && guidance !== undefined
+        ? [
+            fallbackAgentsNote({
+              dryRun: true,
+              // This path runs only for a project with no `.visp/` yet, so the
+              // fallback file cannot already be there.
+              wrote: true,
+              primaryName: guidance.primaryName,
+              fallbackName: guidance.fallbackName
+            })
+          ]
+        : [],
     nextInstructions: nextInstructions(input.target)
   });
 }

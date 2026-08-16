@@ -2,7 +2,7 @@ import { writeArtifact } from "../../artifacts/artifact-writer.js";
 import { normalizeSpecArtifact } from "../../artifacts/normalizers/spec-normalizer.js";
 import { specArtifactSchema, type SpecArtifact } from "../../artifacts/schemas/spec.schema.js";
 import { createArtifactValidationError } from "../../artifacts/validation-error.js";
-import { type VispError } from "../../core/errors.js";
+import { VispError } from "../../core/errors.js";
 import { readJsonFile } from "../../core/file-system.js";
 import { err, ok, type Result } from "../../core/result.js";
 
@@ -38,6 +38,29 @@ export async function readSpecArtifactWithNormalization(input: {
   if (!raw.ok) return raw;
 
   const normalized = normalizeSpecArtifact(raw.value);
+
+  // The schema cannot catch this: two declarations of one criterion id sit in
+  // two different arrays, so each one parses. Refusing here is what keeps an
+  // ambiguous acceptance claim from reaching the stages that treat the spec as
+  // the contract.
+  if (normalized.conflicts.length > 0) {
+    return err(
+      new VispError(
+        "VALIDATION_FAILED",
+        `Invalid spec:\n${normalized.conflicts.map((conflict) => `- ${conflict}`).join("\n")}\n` +
+          "An acceptance criterion id must name exactly one criterion. Make the declarations " +
+          "identical or give them different ids; Kit will not choose which one is authoritative.",
+        {
+          details: {
+            artifactName: "spec",
+            artifactPath: input.artifactPath,
+            conflicts: [...normalized.conflicts]
+          }
+        }
+      )
+    );
+  }
+
   const parsed = specArtifactSchema.safeParse(normalized.value);
 
   if (!parsed.success) {

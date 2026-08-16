@@ -150,11 +150,13 @@ export function validateTraceability(input: {
     }
   }
 
+  const untracedGraphTasks = input.taskGraph.tasks.filter((task) => !tracedTasks.has(task.id));
+
   // Same repair the task-graph validator prints, from the same helper, so the
   // two stages cannot drift into describing one defect two ways.
   errors.push(
     ...untracedTaskErrors({
-      untracedTasks: input.taskGraph.tasks.filter((task) => !tracedTasks.has(task.id)),
+      untracedTasks: untracedGraphTasks,
       traceability: input.traceability,
       ...(input.spec === undefined ? {} : { spec: input.spec })
     })
@@ -186,31 +188,52 @@ export function validateTraceability(input: {
     }
   }
 
-  if (input.task !== undefined) {
-    if (input.task.requirementIds.length === 0) {
-      errors.push(`${input.task.id} must map to at least one requirement.`);
+  const selectedTask = input.task;
+
+  if (selectedTask !== undefined) {
+    if (selectedTask.requirementIds.length === 0) {
+      errors.push(`${selectedTask.id} must map to at least one requirement.`);
     }
 
-    if (input.task.acceptanceCriterionIds.length === 0) {
+    if (selectedTask.acceptanceCriterionIds.length === 0) {
       warnings.push(
-        `${input.task.id} has no acceptance criterion mapping; behavior-changing tasks should map criteria.`
+        `${selectedTask.id} has no acceptance criterion mapping; behavior-changing tasks should map criteria.`
       );
     }
 
     // The selected task gets its own error naming itself first, because the
-    // reader asked about this one task; the repair behind it is the shared one.
-    if (!tracedTasks.has(input.task.id)) {
-      const repairs = untracedTaskErrors({
-        untracedTasks: [input.task],
-        traceability: input.traceability,
-        ...(input.spec === undefined ? {} : { spec: input.spec })
-      });
+    // reader asked about this one task.
+    //
+    // It does NOT repeat the repair. The selected task is a member of the task
+    // graph, so the sweep above already printed a repair covering it, and
+    // printing a second copy here put the same `Append to "entries"` JSON on
+    // screen twice — a reader who copied the whole verify output wrote the entry
+    // twice and got a `traceability.json` with duplicate entries for one
+    // requirement. `untracedTaskErrors` speaks only for tasks that name a
+    // requirement, so a task with none is still owed its own repair-free line.
+    if (!tracedTasks.has(selectedTask.id)) {
+      const coveredBySweep =
+        selectedTask.requirementIds.length > 0 &&
+        untracedGraphTasks.some((task) => task.id === selectedTask.id);
 
-      errors.push(
-        repairs.length > 0
-          ? `${input.task.id} is missing from traceability.json.\n${repairs.join("\n")}`
-          : `${input.task.id} is missing from traceability.json.`
-      );
+      if (coveredBySweep) {
+        errors.push(
+          `${selectedTask.id} is missing from traceability.json. ` +
+            `The traceability.json repair above already covers ${selectedTask.id}; apply it once.`
+        );
+      } else {
+        const repairs = untracedTaskErrors({
+          untracedTasks: [selectedTask],
+          traceability: input.traceability,
+          ...(input.spec === undefined ? {} : { spec: input.spec })
+        });
+
+        errors.push(
+          repairs.length > 0
+            ? `${selectedTask.id} is missing from traceability.json.\n${repairs.join("\n")}`
+            : `${selectedTask.id} is missing from traceability.json.`
+        );
+      }
     }
   }
 

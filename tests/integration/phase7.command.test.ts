@@ -160,8 +160,16 @@ async function writeNormalizableSpecMistakes(specPath: string): Promise<void> {
 
   spec.requirements[0]!.source = "constitution";
   spec.requirements[0]!.assumptions = ["Follow existing project conventions."];
+  // Both lists hold the SAME criterion, AC001, so the two spellings written
+  // here have to mean the same thing. They used to be "review" and "test",
+  // which normalize to `manual` and `unit` — this fixture was declaring that
+  // AC001 is satisfied by a human review in one list and by a unit test in the
+  // other, and the test then asserted that both survived. That is the defect
+  // LC-41 names, not a normalization Kit should perform: two spellings of one
+  // value are a mistake to fix, two different values under one id are a
+  // question only the author can answer.
   spec.requirements[0]!.acceptanceCriteria[0]!.validationMethod = "review";
-  spec.acceptanceCriteria[0]!.validationMethod = "test";
+  spec.acceptanceCriteria[0]!.validationMethod = "qa review";
   spec.assumptions = ["Repository state may include user changes."];
 
   await writeFile(specPath, `${JSON.stringify(spec, null, 2)}\n`, "utf8");
@@ -398,8 +406,9 @@ describe("phase 7 template commands", () => {
     };
 
     expect(normalized.requirements[0]?.source).toBe("derived");
+    // Two spellings, one meaning, one criterion: both lists come out agreeing.
     expect(normalized.requirements[0]?.acceptanceCriteria[0]?.validationMethod).toBe("manual");
-    expect(normalized.acceptanceCriteria[0]?.validationMethod).toBe("unit");
+    expect(normalized.acceptanceCriteria[0]?.validationMethod).toBe("manual");
     expect(normalized.assumptions[0]).toEqual({
       id: "ASM001",
       description: "Repository state may include user changes."

@@ -20,11 +20,10 @@ import { ensureVispProject, loadEffectivePolicy } from "../policy/policy-loader.
 import { policyArtifactPath } from "../artifacts/artifact-paths.js";
 import {
   agentGuidePath,
-  agentsMarkdownPath,
-  agentsVispMarkdownPath,
-  geminiMarkdownPath,
   installedTargetsPath,
-  workflowMapPath
+  sharedGuidanceFile,
+  workflowMapPath,
+  type SharedGuidanceFile
 } from "./agent-paths.js";
 import { buildWorkflowMapForTargets, renderAgentGuide } from "./agent-renderer.js";
 import { agentCapabilitiesPlannedFile } from "./agent-capabilities.js";
@@ -166,8 +165,9 @@ function bucketActions(
 }
 
 /**
- * What `agent install` says about the `AGENTS.visp.md` it plans beside a
- * project's own `AGENTS.md`.
+ * What `agent install` says about the fallback guidance file it plans beside a
+ * project's own — `AGENTS.visp.md` beside `AGENTS.md`, `GEMINI.visp.md` beside
+ * `GEMINI.md`.
  *
  * Four claims, because two conditions decide whether a write happens and only
  * one of them is the run mode. A dry run writes nothing; a second real run
@@ -176,17 +176,26 @@ function bucketActions(
  * moment control reached the branch, in the past tense, with nothing checking
  * the write — so the command claimed a file had been refreshed to options it
  * never saw. `init` keys its copy of this note on the same question.
+ *
+ * The file names are arguments rather than literals because the note is not
+ * only about `AGENTS.md`; naming it in a gemini run described a file that run
+ * never touched.
  */
-function fallbackAgentsNote(input: { readonly dryRun: boolean; readonly wrote: boolean }): string {
+export function fallbackAgentsNote(input: {
+  readonly dryRun: boolean;
+  readonly wrote: boolean;
+  readonly primaryName: string;
+  readonly fallbackName: string;
+}): string {
   if (!input.wrote) {
     return input.dryRun
-      ? "AGENTS.md already exists. Would leave the existing AGENTS.visp.md unchanged, so it may not reflect this run's options."
-      : "AGENTS.md already exists. Left the existing AGENTS.visp.md unchanged, so it may not reflect this run's options.";
+      ? `${input.primaryName} already exists. Would leave the existing ${input.fallbackName} unchanged, so it may not reflect this run's options.`
+      : `${input.primaryName} already exists. Left the existing ${input.fallbackName} unchanged, so it may not reflect this run's options.`;
   }
 
   return input.dryRun
-    ? "AGENTS.md already exists. Would write AGENTS.visp.md for manual merge or reference."
-    : "AGENTS.md already exists. Wrote AGENTS.visp.md for manual merge or reference.";
+    ? `${input.primaryName} already exists. Would write ${input.fallbackName} for manual merge or reference.`
+    : `${input.primaryName} already exists. Wrote ${input.fallbackName} for manual merge or reference.`;
 }
 
 async function targetFiles(input: {
@@ -199,29 +208,22 @@ async function targetFiles(input: {
     {
       readonly files: readonly AgentPlannedFile[];
       /**
-       * Set only when the plan diverted the guide to `AGENTS.visp.md`. The note
-       * about that file is written after the write loop, from the action this
-       * path actually got.
+       * Set only when the plan diverted the guide to the target's `*.visp.md`
+       * sibling. The note about that file is written after the write loop, from
+       * the action this path actually got.
        */
-      readonly fallbackAgentsPath?: string;
+      readonly fallbackAgents?: SharedGuidanceFile;
     },
     VispError
   >
 > {
-  const shouldPlanAgentsFile =
-    input.target === "codex" ||
-    input.target === "generic" ||
-    input.target === "copilot" ||
-    input.target === "opencode";
-  const agentsExists = shouldPlanAgentsFile
-    ? await pathExists(agentsMarkdownPath(input.targetPath))
-    : input.target === "gemini"
-      ? await pathExists(geminiMarkdownPath(input.targetPath))
-      : ok(false);
+  const guidance = sharedGuidanceFile(input.target, input.targetPath);
+  const guidanceExists =
+    guidance === undefined ? ok(false) : await pathExists(guidance.primaryPath);
 
-  if (!agentsExists.ok) return agentsExists;
+  if (!guidanceExists.ok) return guidanceExists;
 
-  const useFallbackAgentsFile = shouldPlanAgentsFile && agentsExists.value && !input.force;
+  const useFallbackAgentsFile = guidanceExists.value && !input.force;
 
   const files = (() => {
     switch (input.target) {
@@ -266,8 +268,8 @@ async function targetFiles(input: {
   })();
 
   return ok(
-    useFallbackAgentsFile
-      ? { files, fallbackAgentsPath: agentsVispMarkdownPath(input.targetPath) }
+    useFallbackAgentsFile && guidance !== undefined
+      ? { files, fallbackAgents: guidance }
       : { files }
   );
 }
@@ -420,7 +422,9 @@ export async function runAgentInstall(
 
     if (!write.ok) return write;
     actions.push(write.value);
-    if (file.path === plan.value.fallbackAgentsPath) fallbackAgentsAction = write.value.action;
+    if (file.path === plan.value.fallbackAgents?.fallbackPath) {
+      fallbackAgentsAction = write.value.action;
+    }
     const planned = plannedFileContents(file);
     if (planned !== undefined) {
       if (write.value.action === "stale") {
@@ -434,11 +438,13 @@ export async function runAgentInstall(
     }
   }
 
-  if (plan.value.fallbackAgentsPath !== undefined) {
+  if (plan.value.fallbackAgents !== undefined) {
     warnings.push(
       fallbackAgentsNote({
         dryRun,
-        wrote: fallbackAgentsAction !== undefined && wroteFile(fallbackAgentsAction)
+        wrote: fallbackAgentsAction !== undefined && wroteFile(fallbackAgentsAction),
+        primaryName: plan.value.fallbackAgents.primaryName,
+        fallbackName: plan.value.fallbackAgents.fallbackName
       })
     );
   }

@@ -1,3 +1,4 @@
+import { type AgentTargetName } from "../artifacts/schemas/agent.schema.js";
 import { joinPath, vispDir } from "../core/paths.js";
 
 export function agentMetadataDir(rootPath: string): string {
@@ -86,6 +87,60 @@ export function geminiVispMarkdownPath(rootPath: string): string {
 
 export function geminiCommandPath(rootPath: string, name: string): string {
   return joinPath(rootPath, ".gemini", "commands", `${name}.toml`);
+}
+
+export type SharedGuidanceFile = {
+  /** The file the target reads, which the project may already own. */
+  readonly primaryPath: string;
+  /** Where Kit's guidance goes instead, when the project owns the primary. */
+  readonly fallbackPath: string;
+  readonly primaryName: string;
+  readonly fallbackName: string;
+};
+
+/**
+ * The guidance file a target reads when that file is one the project may have
+ * written for itself, plus the `*.visp.md` sibling Kit diverts to rather than
+ * overwrite it.
+ *
+ * One answer for every target, in one place, because the question was
+ * previously asked twice with two different answers. `agent install` decided
+ * which targets divert from a list that omitted `gemini`, so a project's own
+ * `GEMINI.md` was overwritten while `AGENTS.md` was protected — even though
+ * `geminiTargetFiles` had taken the divert flag all along and `agent doctor`
+ * already looked for `GEMINI.visp.md`. `agent bootstrap --dry-run` used a
+ * different list that did include `gemini`, so the dry run promised a divert the
+ * real run did not perform.
+ *
+ * `claude` and `cursor` write only into their own `.claude/` and `.cursor/`
+ * directories, so they have nothing to divert.
+ */
+export function sharedGuidanceFile(
+  target: AgentTargetName,
+  rootPath: string
+): SharedGuidanceFile | undefined {
+  switch (target) {
+    case "codex":
+    case "generic":
+    case "copilot":
+    case "opencode":
+      return {
+        primaryPath: agentsMarkdownPath(rootPath),
+        fallbackPath: agentsVispMarkdownPath(rootPath),
+        primaryName: "AGENTS.md",
+        fallbackName: "AGENTS.visp.md"
+      };
+    case "gemini":
+      return {
+        primaryPath: geminiMarkdownPath(rootPath),
+        fallbackPath: geminiVispMarkdownPath(rootPath),
+        primaryName: "GEMINI.md",
+        fallbackName: "GEMINI.visp.md"
+      };
+    case "claude":
+    case "cursor":
+      return undefined;
+  }
 }
 
 export function copilotInstructionsPath(rootPath: string): string {

@@ -224,6 +224,32 @@ describe("visp-kit agent command", () => {
     expect(await exists(path.join(tempDir, ".visp"))).toBe(false);
   });
 
+  // The dry run and the real run answered "does this target divert?" from two
+  // different lists, and only one of them included gemini, so the dry run
+  // promised a GEMINI.visp.md the install would not have written.
+  it("reports the gemini fallback in a bootstrap dry run", async () => {
+    await writeFile(path.join(tempDir, "GEMINI.md"), "# My own Gemini config\n", "utf8");
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "agent",
+      "bootstrap",
+      "gemini",
+      tempDir,
+      "--dry-run",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as { warnings: string[] };
+
+    expect(summary.warnings.join("\n")).toContain("GEMINI.md already exists");
+    expect(summary.warnings.join("\n")).toContain("GEMINI.visp.md");
+    expect(await exists(path.join(tempDir, "GEMINI.visp.md"))).toBe(false);
+  });
+
   it("installs generic guidance and prompt files with JSON output", async () => {
     await initProject(tempDir);
     const output: string[] = [];
@@ -262,6 +288,45 @@ describe("visp-kit agent command", () => {
       "# Existing agent guide\n"
     );
     expect(await exists(path.join(tempDir, "AGENTS.visp.md"))).toBe(true);
+  });
+
+  // `GEMINI.md` is the Gemini CLI user's own configuration, exactly as
+  // `AGENTS.md` is Codex's, so it gets the same protection. The install path
+  // used to decide which targets divert from a list that left `gemini` out, so
+  // a gemini user with their own config had it overwritten while every other
+  // target's was preserved.
+  it("writes GEMINI.visp.md when GEMINI.md already exists without force", async () => {
+    await initProject(tempDir);
+    await writeFile(path.join(tempDir, "GEMINI.md"), "# My own Gemini config\n", "utf8");
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "agent", "install", "gemini", tempDir, "--json"]);
+
+    const summary = JSON.parse(output.join("")) as { warnings: string[] };
+
+    expect(await readFile(path.join(tempDir, "GEMINI.md"), "utf8")).toBe(
+      "# My own Gemini config\n"
+    );
+    expect(await exists(path.join(tempDir, "GEMINI.visp.md"))).toBe(true);
+    expect(summary.warnings.join("\n")).toContain("GEMINI.visp.md");
+    expect(
+      summary.warnings.join("\n"),
+      "a gemini run must not report a file it never touched"
+    ).not.toContain("AGENTS");
+  });
+
+  it("overwrites GEMINI.md when force is given", async () => {
+    await initProject(tempDir);
+    await writeFile(path.join(tempDir, "GEMINI.md"), "# My own Gemini config\n", "utf8");
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync(["node", "visp", "agent", "install", "gemini", tempDir, "--force"]);
+
+    expect(await readFile(path.join(tempDir, "GEMINI.md"), "utf8")).not.toBe(
+      "# My own Gemini config\n"
+    );
+    expect(await exists(path.join(tempDir, "GEMINI.visp.md"))).toBe(false);
   });
 
   it("refreshes installed targets", async () => {
