@@ -101,9 +101,7 @@ async function prepareImplementedTask(
   }
 }
 
-// These suites spawn git and run the full post-implementation pipeline, which
-// is slow on Windows CI; raise the per-hook/test timeout above the 5s default.
-describe("visp-kit done command", { timeout: 30000 }, () => {
+describe("visp-kit done command", () => {
   let tempDir: string;
 
   beforeEach(async () => {
