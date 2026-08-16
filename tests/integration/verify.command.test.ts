@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { verificationReportSchema } from "../../src/artifacts/schemas/verification.schema.js";
 import { createCli } from "../../src/cli/main.js";
 import { pathExists } from "../../src/core/file-system.js";
 import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
@@ -126,6 +127,76 @@ describe("visp-kit verify command", () => {
     expect(summary.success).toBe(true);
     expect(summary.taskId).toBe("T001");
     expect(summary.summary.commands).toBe("passed");
+  });
+
+  it("writes a verification report that validates against its own schema", async () => {
+    await createPhase8Fixture(tempDir);
+    await useFastPassingCommand(tempDir);
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001"]);
+
+    const raw = await readFile(
+      path.join(tempDir, ".visp", "features", "001-add-note-pinning", "verification.json"),
+      "utf8"
+    );
+    const parsed = verificationReportSchema.safeParse(JSON.parse(raw));
+
+    // LC-23. Nothing checked that a *produced* report satisfies the schema that
+    // reads it back — every other test here asserts the file exists or reads
+    // one field out of it. A field run reported ~25 errors on a report Visp
+    // wrote, `id: Required` and `summary.passed: Expected boolean, received
+    // number` among them, so those two are named rather than left to the
+    // aggregate.
+    expect(
+      parsed.success
+        ? []
+        : parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+    ).toEqual([]);
+    expect(parsed.success).toBe(true);
+
+    const report = parsed.success ? parsed.data : undefined;
+    expect(report?.id).toBeTruthy();
+    expect(typeof report?.summary.passed).toBe("boolean");
+  });
+
+  it("does not report the verification report it wrote as an invalid artifact", async () => {
+    await createPhase8Fixture(tempDir);
+    await useFastPassingCommand(tempDir);
+    const first = createCli({ writeOut: () => undefined });
+    const second = createCli({ writeOut: () => undefined });
+
+    await first.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001"]);
+    // The second run validates the artifact the first one wrote, which is the
+    // surface a user would meet as "the tool rejects its own output".
+    await second.parseAsync(["node", "visp", "verify", tempDir, "--task", "T001"]);
+
+    const report = JSON.parse(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "verification.json"),
+        "utf8"
+      )
+    ) as {
+      artifactValidation: {
+        status: string;
+        checked: readonly {
+          readonly path: string;
+          readonly present: boolean;
+          readonly passed: boolean;
+          readonly errors: readonly string[];
+        }[];
+      };
+    };
+    const verificationCheck = report.artifactValidation.checked.find((check) =>
+      check.path.endsWith("verification.json")
+    );
+
+    expect(verificationCheck).toBeDefined();
+    // Present, or the second run never read the first run's output and this
+    // test proves nothing.
+    expect(verificationCheck?.present).toBe(true);
+    expect(verificationCheck?.errors).toEqual([]);
+    expect(verificationCheck?.passed).toBe(true);
   });
 
   it("skips commands when requested", async () => {
