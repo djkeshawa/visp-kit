@@ -256,7 +256,11 @@ describe("visp-kit agent command", () => {
   // run promised a write; the real run refused the divergent file as stale.
   it("does not promise a fallback write the real run will refuse, when a leftover fallback file exists", async () => {
     await writeFile(path.join(tempDir, "GEMINI.md"), "# My own Gemini config\n", "utf8");
-    await writeFile(path.join(tempDir, "GEMINI.visp.md"), "# Leftover from an old install\n", "utf8");
+    await writeFile(
+      path.join(tempDir, "GEMINI.visp.md"),
+      "# Leftover from an old install\n",
+      "utf8"
+    );
     const output: string[] = [];
     const program = createCli({ writeOut: (value) => output.push(value) });
 

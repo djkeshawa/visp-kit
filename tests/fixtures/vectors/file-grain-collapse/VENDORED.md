@@ -17,6 +17,11 @@ Kit's collapse and these vectors is a finding in Kit, never a vector problem.
 
 Content is pinned twice: by that commit id, and by `manifest.json`, which carries a
 SHA-256 and byte length for every document.
+
+`biome.json` excludes `tests/fixtures/vectors` from the formatter for this reason.
+Biome would reformat these documents on sight, which changes their bytes and breaks
+both the manifest hashes and the byte-for-byte correspondence with intel's copy. The
+exclusion is what keeps `lint:fix` from silently un-vendoring them.
 `tests/unit/scanner/intel-graph.conformance.test.ts` verifies the manifest hashes on
 every run, so a re-vendor that changes bytes fails there and updates this file
 deliberately or not at all. If intel republishes the vectors, the hashes move and that

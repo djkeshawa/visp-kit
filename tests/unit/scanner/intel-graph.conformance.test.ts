@@ -18,14 +18,7 @@ import { collapseToFileGraph, loadIntelGraph } from "../../../src/scanner/intel-
  * graph intel published. Provenance and the deliberately-unconformed subset are
  * recorded in the fixture directory's VENDORED.md.
  */
-const VECTOR_DIR = path.join(
-  __dirname,
-  "..",
-  "..",
-  "fixtures",
-  "vectors",
-  "file-grain-collapse"
-);
+const VECTOR_DIR = path.join(__dirname, "..", "..", "fixtures", "vectors", "file-grain-collapse");
 
 function vectorBytes(name: string): Buffer {
   return readFileSync(path.join(VECTOR_DIR, name));

@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!node_modules", "!**/*.md"]
+    "includes": ["**", "!dist", "!node_modules", "!**/*.md", "!tests/fixtures/vectors"]
   },
   "formatter": {
     "enabled": true,
