@@ -36,6 +36,7 @@ import {
 } from "../templates/phase7-templates.js";
 import { validateTaskGraph } from "../validators/validate-task-graph.js";
 import { validatePlan } from "../validators/validate-plan.js";
+import { validateSpec } from "../validators/validate-spec.js";
 import { resolveActiveFeature, type ActiveFeature } from "./shared/active-feature.js";
 import { refreshBudgetReport } from "./shared/budget-refresh.js";
 import {
@@ -139,12 +140,22 @@ async function validateExisting(input: {
           spec: spec.value,
           traceability: derivedTraceability
         });
+  // This is the last gate before implementation, so passing it must mean the
+  // spec gate still holds on the same artifacts. It did not: criterion coverage
+  // in traceability is a spec-gate check, and a spec `spec --validate` refused
+  // sailed through here as "passed". Deriving task ids above never touches the
+  // fields the spec gate reads, so the two gates see the same artifacts.
+  const specGate =
+    spec.value === undefined
+      ? { passed: false, errors: [] }
+      : validateSpec({ spec: spec.value, traceability: derivedTraceability });
   const errors = [
     ...textErrors,
     ...taskGraph.errors,
     ...spec.errors,
     ...traceability.errors,
-    ...semantic.errors
+    ...semantic.errors,
+    ...specGate.errors
   ];
 
   return {
