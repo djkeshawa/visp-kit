@@ -335,7 +335,7 @@ describe("assurance command", () => {
     expect(secondBytes).toEqual(firstBytes);
     expect(secondSummary.caseHash).toBe(firstSummary.caseHash);
     expect(secondSummary.snapshotHash).toBe(firstSummary.snapshotHash);
-  }, 30_000);
+  });
 
   it("fails closed when the assurance case swaps during review snapshot evaluation", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-snapshot-swap-"));
@@ -397,7 +397,7 @@ describe("assurance command", () => {
         decisionHash: null
       }
     });
-  }, 30_000);
+  });
 
   it("fails closed when authoritative inputs change after the initial build", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-drift-"));
@@ -457,7 +457,7 @@ describe("assurance command", () => {
     expect(result.error.message).toContain(
       "Authoritative assurance inputs or workflow action changed"
     );
-  }, 30_000);
+  });
 
   it("records append-only reject and accept decisions and validates currentness", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-decision-"));
@@ -920,7 +920,7 @@ describe("assurance command", () => {
         })
       )
     ).toMatchObject({ status: "rejected", decisionHash: winner.value.decisionHash });
-  }, 30_000);
+  });
 
   it("reconstructs authoritative inputs and applies override expiry at evaluation time", async () => {
     const targetPath = await mkdtemp(path.join(os.tmpdir(), "visp-assurance-authority-"));
@@ -1036,5 +1036,5 @@ describe("assurance command", () => {
         })
       ).status
     ).toBe("stale");
-  }, 30_000);
+  });
 });
