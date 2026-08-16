@@ -7,6 +7,15 @@ import { formatHeader, formatKeyValue } from "../../theme/terminal.js";
 
 export type InitFileAction = {
   readonly path: string;
+  /**
+   * What init did to this file, or would do — the vocabulary describes the
+   * plan, and `dryRun` on the enclosing summary is what says whether it
+   * happened. There is deliberately no `would_create` spelling: this is the
+   * `--json` surface, a second set of names would force every consumer to
+   * handle two spellings of one fact, and a consumer that had not learned the
+   * new ones would miss files silently. The human report carries the tense
+   * instead, in its header and its counts.
+   */
   readonly action: "created" | "skipped" | "overwritten" | "updated";
 };
 

@@ -40,6 +40,7 @@ import {
   agentCapabilitiesPath,
   agentGuidePath,
   agentsMarkdownPath,
+  agentsVispMarkdownPath,
   installedTargetsPath,
   workflowMapPath
 } from "../../agent/agent-paths.js";
@@ -224,6 +225,30 @@ function baseFiles(input: InitFilePlanInput): readonly PlannedFile[] {
   ];
 }
 
+/**
+ * What init says about the `AGENTS.visp.md` it writes beside a project's own
+ * `AGENTS.md`.
+ *
+ * Four claims, because two conditions decide whether a write happens and only
+ * one of them is the run mode. A dry run writes nothing; a second real run
+ * writes nothing either, because the fallback file is already there and this
+ * branch never carries `--force`. Reporting a creation in that second case put
+ * "Created AGENTS.visp.md" on the same screen as "Created: 0 files", and left
+ * the reader believing a file had been refreshed to the options they just
+ * passed when it still held the ones from the first run.
+ */
+function fallbackAgentsNote(input: { readonly dryRun: boolean; readonly writes: boolean }): string {
+  if (!input.writes) {
+    return input.dryRun
+      ? "AGENTS.md already exists. Would leave the existing AGENTS.visp.md unchanged, so it may not reflect this run's options."
+      : "AGENTS.md already exists. Left the existing AGENTS.visp.md unchanged, so it may not reflect this run's options.";
+  }
+
+  return input.dryRun
+    ? "AGENTS.md already exists. Would write AGENTS.visp.md for manual merge or reference."
+    : "AGENTS.md already exists. Created AGENTS.visp.md for manual merge or reference.";
+}
+
 async function agentPlan(input: InitFilePlanInput): Promise<Result<InitFilePlan, VispError>> {
   const target = agentTargetFromMode(input.agent);
 
@@ -240,15 +265,14 @@ async function agentPlan(input: InitFilePlanInput): Promise<Result<InitFilePlan,
   }
 
   if (agentsExists.value && !input.force) {
+    const fallbackExists = await pathExists(agentsVispMarkdownPath(input.targetPath));
+
+    if (!fallbackExists.ok) {
+      return fallbackExists;
+    }
+
     actions.push({ path: "AGENTS.md", action: "skipped" });
-    // A dry run writes nothing, so it may not claim it wrote something. The
-    // bootstrap path already says "Would write"; this one used to report the
-    // creation in the past tense two lines under "(nothing written)".
-    warnings.push(
-      input.dryRun
-        ? "AGENTS.md already exists. Would write AGENTS.visp.md for manual merge or reference."
-        : "AGENTS.md already exists. Created AGENTS.visp.md for manual merge or reference."
-    );
+    warnings.push(fallbackAgentsNote({ dryRun: input.dryRun, writes: !fallbackExists.value }));
   }
 
   const useFallbackAgentsFile = agentsExists.value && !input.force;
