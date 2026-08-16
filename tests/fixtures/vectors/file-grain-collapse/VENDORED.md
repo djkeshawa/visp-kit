@@ -24,8 +24,14 @@ both the manifest hashes and the byte-for-byte correspondence with intel's copy.
 exclusion is what keeps `lint:fix` from silently un-vendoring them.
 `tests/unit/scanner/intel-graph.conformance.test.ts` verifies the manifest hashes on
 every run, so a re-vendor that changes bytes fails there and updates this file
-deliberately or not at all. If intel republishes the vectors, the hashes move and that
-test goes red — which is the intended way to find out.
+deliberately or not at all.
+
+**That test is tamper-evidence for this tree, not drift detection against intel.** Kit's
+CI has no visibility into `visp-intel`. If intel republishes the vectors, Kit stays green
+while conforming to a superseded contract — and a full re-vendor copies `manifest.json`
+too, so it goes green as well. What the test actually catches is a *partial* re-vendor or
+a hand edit. Finding out that intel has moved needs a refresh mechanism that does not
+exist yet.
 
 ## What Kit conforms to, and what it does not
 

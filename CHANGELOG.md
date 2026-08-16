@@ -22,10 +22,10 @@ list. The error names each ambiguous id and where the copies were found. A spec
 that loaded and ran yesterday can stop loading today; no artifact is rewritten
 and nothing is deleted.
 
-`plan`, `verify`, `review` and `oracle` read the spec straight through its Zod
-schema and are not affected. The refusal therefore stops an ambiguous spec at
-the point where tasks are derived from it, which is before implementation
-begins.
+`plan`, `verify`, `review`, `oracle` and `reconcile` read the spec straight
+through its Zod schema and are not affected. The refusal therefore stops an
+ambiguous spec at the point where tasks are derived from it, which is before
+implementation begins.
 
 Criterion ids declared twice with *identical* content are unaffected. That is
 the normal mirrored shape and it still normalizes to one criterion. Key order
