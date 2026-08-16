@@ -68,6 +68,16 @@ async function dryRunInstallSummary(input: {
   if (!guidanceExists.ok) return guidanceExists;
 
   const useFallbackAgentsFile = guidanceExists.value && !input.force;
+  // No `.visp/` does not mean no fallback file: a leftover `AGENTS.visp.md` or
+  // `GEMINI.visp.md` survives a deleted `.visp/`, and the real run refuses a
+  // divergent existing file as stale. The dry run asks the disk the same
+  // question rather than promising a write.
+  const fallbackExists =
+    useFallbackAgentsFile && guidance !== undefined
+      ? await pathExists(guidance.fallbackPath)
+      : ok(false);
+
+  if (!fallbackExists.ok) return fallbackExists;
   const targetFiles = (() => {
     switch (input.target) {
       case "codex":
@@ -133,9 +143,7 @@ async function dryRunInstallSummary(input: {
         ? [
             fallbackAgentsNote({
               dryRun: true,
-              // This path runs only for a project with no `.visp/` yet, so the
-              // fallback file cannot already be there.
-              wrote: true,
+              wrote: !fallbackExists.value,
               primaryName: guidance.primaryName,
               fallbackName: guidance.fallbackName
             })
