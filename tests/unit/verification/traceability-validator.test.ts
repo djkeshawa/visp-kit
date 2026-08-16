@@ -80,4 +80,25 @@ describe("traceability validator", () => {
       validTaskGraph.tasks[0]!.requirementIds[0]!
     );
   });
+
+  it("offers no entry repair for a task that names no requirement", () => {
+    const unanchored = { ...validTaskGraph.tasks[0]!, requirementIds: [] };
+    const result = validateTraceability({
+      taskGraph: { ...validTaskGraph, tasks: [unanchored] },
+      task: unanchored,
+      traceability: { ...validTraceabilityMatrix, entries: [] },
+      explicit: true
+    });
+
+    const text = result.errors.join("\n");
+
+    // An entry can only exist for a requirement that exists, so there is
+    // nothing to name. Pointing at one anyway is what produced traceability
+    // entries for phantom requirements; the real repair is the mapping error.
+    expect(text).toContain("Traceability is missing task T001.");
+    expect(text).toContain("T001 is missing from traceability.json.");
+    expect(text).toContain("must map to at least one requirement");
+    expect(text).not.toContain("taskIds");
+    expect(text).not.toContain('Append to "entries"');
+  });
 });
