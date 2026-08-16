@@ -1,6 +1,7 @@
 import { type SpecArtifact } from "../artifacts/schemas/spec.schema.js";
 import { type TaskGraphArtifact } from "../artifacts/schemas/task.schema.js";
 import { type TraceabilityMatrix } from "../artifacts/schemas/traceability.schema.js";
+import { untracedTaskErrors } from "./traceability-repair.js";
 import { duplicateIds, validation } from "./validation-helpers.js";
 import { type WorkflowValidation } from "../workflows/shared/workflow-summary.js";
 import {
@@ -153,23 +154,20 @@ export function validateTaskGraph(input: {
 
   if (input.traceability !== undefined) {
     const tracedTasks = new Set(input.traceability.entries.flatMap((entry) => entry.taskIds));
-    const missingTasks = input.taskGraph.tasks.filter(
-      (task) => !tracedTasks.has(task.id) && !unanchoredTasks.has(task.id)
+
+    // The task already names the requirements it implements, so the validator
+    // can name the exact entry rather than leaving the reader to correlate two
+    // files by hand — and can tell an entry that needs one more task ID apart
+    // from a requirement that has no entry at all.
+    errors.push(
+      ...untracedTaskErrors({
+        untracedTasks: input.taskGraph.tasks.filter(
+          (task) => !tracedTasks.has(task.id) && !unanchoredTasks.has(task.id)
+        ),
+        traceability: input.traceability,
+        spec: input.spec
+      })
     );
-
-    // A task belongs in the entry for each requirement it implements, and the
-    // task already names those requirements. Naming the exact entries turns a
-    // "go read two files and work out the correspondence" failure into a
-    // one-line edit.
-    if (missingTasks.length > 0) {
-      const repairs = missingTasks
-        .map((task) => `  ${task.id}: add to the taskIds of ${task.requirementIds.join(", ")}`)
-        .join("\n");
-
-      errors.push(
-        `Traceability is missing ${missingTasks.map((task) => task.id).join(", ")}.\n${repairs}`
-      );
-    }
   }
 
   return validation(errors);
