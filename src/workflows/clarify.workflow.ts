@@ -13,7 +13,7 @@ import {
 } from "../artifacts/schemas/clarification.schema.js";
 import { VispError } from "../core/errors.js";
 import { relativePath } from "../core/paths.js";
-import { err, ok, type Result } from "../core/result.js";
+import { err, type Result } from "../core/result.js";
 import { renderClarifyPrompt } from "../prompts/render-clarify-prompt.js";
 import {
   createClarificationArtifact,
