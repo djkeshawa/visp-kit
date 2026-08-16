@@ -29,8 +29,6 @@ import { runAssuranceWorkflow } from "../../src/workflows/assurance.workflow.js"
 import { runNextWorkflow } from "../../src/workflows/next.workflow.js";
 import { createPhase8Fixture, expectOk, removeTempDirWithRetry } from "./phase8-fixture.js";
 
-const DECISION_TEST_TIMEOUT_MS = process.platform === "win32" ? 60_000 : 30_000;
-
 async function prepareAssuranceFixture(targetPath: string): Promise<void> {
   await createPhase8Fixture(targetPath);
   expectOk(await runCommand("git", ["init"], { cwd: targetPath }));
@@ -114,7 +112,7 @@ function pairedCommandRunners(): readonly [CommandRunner, CommandRunner] {
   return [createRunner(), createRunner()];
 }
 
-describe("assurance command", { timeout: DECISION_TEST_TIMEOUT_MS }, () => {
+describe("assurance command", () => {
   const roots: string[] = [];
 
   afterEach(() => {
