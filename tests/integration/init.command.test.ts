@@ -183,6 +183,34 @@ describe("visp-kit init command", () => {
     expect(await exists(path.join(tempDir, "AGENTS.visp.md"))).toBe(false);
   });
 
+  it("does not claim a second real run created the AGENTS.visp.md it left alone", async () => {
+    const first = createCli({ writeOut: () => undefined });
+    const output: string[] = [];
+    const second = createCli({ writeOut: (value) => output.push(value) });
+
+    await writeFile(path.join(tempDir, "AGENTS.md"), "# Our own agent guide\n", "utf8");
+    await first.parseAsync(["node", "visp", "init", tempDir, "--agent", "generic"]);
+    const written = await readFile(path.join(tempDir, "AGENTS.visp.md"), "utf8");
+
+    await second.parseAsync([
+      "node",
+      "visp",
+      "init",
+      tempDir,
+      "--agent",
+      "generic",
+      "--strictness",
+      "locked"
+    ]);
+
+    const text = output.join("");
+    expect(text).toContain("AGENTS.visp.md — skipped");
+    expect(text).not.toContain("Created AGENTS.visp.md");
+    expect(text).toContain("Left the existing AGENTS.visp.md unchanged");
+    // The note is only true if the file really did keep the first run's options.
+    expect(await readFile(path.join(tempDir, "AGENTS.visp.md"), "utf8")).toBe(written);
+  });
+
   it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
     "says .visp is still unignored when it could not write .gitignore",
     async () => {
