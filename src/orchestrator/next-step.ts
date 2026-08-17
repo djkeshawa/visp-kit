@@ -5,6 +5,7 @@ import { type ProjectState } from "./project-state.js";
 import { type WorkflowAction } from "../integration/workflow-action-schema.js";
 import { type AssuranceProfile } from "../artifacts/schemas/evidence.schema.js";
 import { type AssurancePhase } from "../oracle/assurance-activation.js";
+import { contextPackIsStale } from "../context/context-pack-staleness.js";
 
 export type NextStep = {
   readonly success: boolean;
@@ -247,11 +248,7 @@ export function recommendNextStep(input: {
   // The pack exists but its embedded task no longer matches the graph — the
   // task was re-scoped after context generation. Same repair as the gate's
   // answer: regenerate, do not limp forward on a stale pack.
-  if (
-    state.contextPack !== undefined &&
-    state.contextPack.taskId === selectedTask.id &&
-    JSON.stringify(state.contextPack.selectedTask) !== JSON.stringify(selectedTask)
-  ) {
+  if (contextPackIsStale({ contextPack: state.contextPack, task: selectedTask })) {
     return output({
       state,
       task: selectedTask,

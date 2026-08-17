@@ -122,6 +122,127 @@ describe("visp-kit review command", () => {
     );
   });
 
+  it("states the basis it reviewed and which files it examined", async () => {
+    await createPhase8Fixture(tempDir);
+    await initGitBaseline(tempDir);
+    await modifySource(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "review",
+      tempDir,
+      "--task",
+      "T001",
+      "--skip-verification"
+    ]);
+
+    const printed = output.join("");
+
+    expect(printed).toContain("Scope:");
+    expect(printed).toContain("Uncommitted working tree");
+    expect(printed).toContain("Files examined: 1");
+    expect(printed).toContain("src/notes.ts");
+    expect(printed).toContain("Reviewable files: 1");
+    expect(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review", "T001.review.md"),
+        "utf8"
+      )
+    ).toContain("## Review Basis");
+  });
+
+  it("refuses to pass when the working tree holds nothing it can review", async () => {
+    await createPhase8Fixture(tempDir);
+    await modifySource(tempDir);
+    // The defect this pins: the agent commits its work, so the working tree is
+    // clean and review sees only Visp's own artifacts. It used to report a
+    // clean pass over zero of the author's files.
+    await initGitBaseline(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "review",
+      tempDir,
+      "--task",
+      "T001",
+      "--json",
+      "--skip-verification"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      success: boolean;
+      result: string;
+      scopeBasis: { kind: string; empty: boolean; reviewableFiles: string[] };
+      findings: Array<{ severity: string; title: string }>;
+    };
+
+    expect(summary.result).not.toBe("passed");
+    expect(summary.result).toBe("failed");
+    expect(summary.success).toBe(false);
+    expect(summary.scopeBasis.kind).toBe("working-tree");
+    expect(summary.scopeBasis.empty).toBe(true);
+    expect(summary.scopeBasis.reviewableFiles).toEqual([]);
+    expect(summary.findings).toContainEqual(
+      expect.objectContaining({
+        severity: "error",
+        title: "Review examined no reviewable changes"
+      })
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("reviews the committed work when --base names the range", async () => {
+    await createPhase8Fixture(tempDir);
+    await initGitBaseline(tempDir);
+    await modifySource(tempDir);
+    await execFileAsync("git", ["add", "."], { cwd: tempDir });
+    await execFileAsync(
+      "git",
+      [
+        "-c",
+        "user.email=visp@example.test",
+        "-c",
+        "user.name=Visp Test",
+        "commit",
+        "-m",
+        "implement the task"
+      ],
+      { cwd: tempDir }
+    );
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "review",
+      tempDir,
+      "--task",
+      "T001",
+      "--base",
+      "HEAD~1",
+      "--json",
+      "--skip-verification"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as {
+      result: string;
+      scopeBasis: { kind: string; baseRef: string; empty: boolean; reviewableFiles: string[] };
+    };
+
+    expect(summary.scopeBasis.kind).toBe("base-range");
+    expect(summary.scopeBasis.baseRef).toBe("HEAD~1");
+    expect(summary.scopeBasis.empty).toBe(false);
+    expect(summary.scopeBasis.reviewableFiles).toContain("src/notes.ts");
+    expect(summary.result).not.toBe("failed");
+  });
+
   it("works at feature level when no task is selected", async () => {
     await createPhase8Fixture(tempDir);
     await initGitBaseline(tempDir);

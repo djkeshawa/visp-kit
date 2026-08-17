@@ -92,6 +92,30 @@ export const reviewDiffSummarySchema = z
   })
   .strict();
 
+export const reviewBasisKindSchema = z.enum(["working-tree", "base-range"]);
+
+/**
+ * What the review actually looked at. Without this a review that examined
+ * nothing was indistinguishable from a review that examined everything and
+ * found nothing wrong — the report said `passed` either way.
+ *
+ * `filesExamined` counts every path in the diff; `reviewableFiles` lists the
+ * subset that is the author's own work rather than Visp's generated artifacts,
+ * because a diff containing only `.visp/` output is an empty review.
+ */
+export const reviewScopeBasisSchema = z
+  .object({
+    kind: reviewBasisKindSchema,
+    description: nonEmptyStringSchema,
+    diffSource: nonEmptyStringSchema,
+    baseRef: nonEmptyStringSchema.nullable(),
+    filesExamined: z.number().int().nonnegative(),
+    examinedFiles: z.array(pathStringSchema),
+    reviewableFiles: z.array(pathStringSchema),
+    empty: z.boolean()
+  })
+  .strict();
+
 export const reviewScopeSchema = z
   .object({
     status: reviewSectionStatusSchema,
@@ -182,6 +206,11 @@ export const reviewReportSchema = z
     result: reviewResultSchema,
     changedFiles: z.array(reviewChangedFileSchema),
     diffSummary: reviewDiffSummarySchema,
+    /**
+     * Optional so review reports written before the basis existed still parse.
+     * Every report this version writes carries it.
+     */
+    scopeBasis: reviewScopeBasisSchema.optional(),
     scopeReview: reviewScopeSchema,
     traceabilityReview: reviewTraceabilitySchema,
     verificationReview: reviewVerificationSchema,
@@ -204,6 +233,8 @@ export type ReviewMode = z.infer<typeof reviewModeSchema>;
 export type ReviewFindingCategory = z.infer<typeof reviewFindingCategorySchema>;
 export type ReviewFindingSeverity = z.infer<typeof reviewFindingSeveritySchema>;
 export type ReviewChangedFile = z.infer<typeof reviewChangedFileSchema>;
+export type ReviewBasisKind = z.infer<typeof reviewBasisKindSchema>;
+export type ReviewScopeBasis = z.infer<typeof reviewScopeBasisSchema>;
 export type ReviewFinding = z.infer<typeof reviewFindingSchema>;
 export type ReviewReport = z.infer<typeof reviewReportSchema>;
 export type SecurityChecklistItem = z.infer<typeof securityChecklistItemSchema>;

@@ -62,6 +62,26 @@ function securityChecklist(report: ReviewReport): string {
   return report.securityChecklist.map((item) => `- [ ] ${item.text}`).join("\n");
 }
 
+function reviewBasisMarkdown(report: ReviewReport): string {
+  const basis = report.scopeBasis;
+
+  if (basis === undefined) return "";
+
+  return `## Review Basis
+
+- Basis: ${basis.kind}
+- Detail: ${basis.description}
+- Files examined: ${basis.filesExamined}
+- Reviewable files: ${basis.reviewableFiles.length}${
+    basis.empty ? " (nothing to review — this verdict is inconclusive)" : ""
+  }
+
+Files examined:
+${list(basis.examinedFiles)}
+
+`;
+}
+
 export function renderReviewMarkdown(report: ReviewReport): string {
   const errors = findingCount(report.findings, "error");
   const warnings = findingCount(report.findings, "warning");
@@ -80,7 +100,7 @@ export function renderReviewMarkdown(report: ReviewReport): string {
 
 ${renderPolicyGateMarkdown(report.policyGate)}
 
-## Changed Files
+${reviewBasisMarkdown(report)}## Changed Files
 
 | File | Change | Additions | Deletions | Scope |
 |------|--------|-----------|-----------|-------|

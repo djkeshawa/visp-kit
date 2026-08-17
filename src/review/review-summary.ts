@@ -1,5 +1,7 @@
-import { type ReviewReport } from "../artifacts/schemas/review.schema.js";
+import { type ReviewReport, type ReviewScopeBasis } from "../artifacts/schemas/review.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
+
+const maxListedFiles = 10;
 
 export type ReviewSummary = {
   readonly success: boolean;
@@ -10,6 +12,8 @@ export type ReviewSummary = {
   };
   readonly taskId: string | null;
   readonly result: "passed" | "warnings" | "failed";
+  /** What the review looked at. Absent only on reports written before LC-106. */
+  readonly scopeBasis: ReviewScopeBasis | null;
   readonly changedFiles: readonly {
     readonly path: string;
     readonly changeType: string;
@@ -47,6 +51,7 @@ export function reviewSummaryFromReport(input: {
     },
     taskId: input.report.taskId,
     result: input.report.result,
+    scopeBasis: input.report.scopeBasis ?? null,
     changedFiles: input.report.changedFiles.map((file) => ({
       path: file.path,
       changeType: file.changeType,
@@ -67,6 +72,30 @@ export function reviewSummaryFromReport(input: {
   };
 }
 
+/**
+ * The scope block answers "what did this review actually look at?" before it
+ * answers "what did it find?". A verdict with no stated scope was how eight
+ * reviews of zero files read as eight clean reviews.
+ */
+function scopeLines(basis: ReviewScopeBasis | null): readonly string[] {
+  if (basis === null) return [];
+
+  const listed = basis.examinedFiles.slice(0, maxListedFiles);
+  const remaining = basis.examinedFiles.length - listed.length;
+
+  return [
+    "",
+    "Scope:",
+    `  Basis: ${basis.description}`,
+    `  Files examined: ${basis.filesExamined}`,
+    ...listed.map((file) => `    ${file}`),
+    ...(remaining > 0 ? [`    ...and ${remaining} more`] : []),
+    `  Reviewable files: ${basis.reviewableFiles.length}${
+      basis.empty ? " (nothing to review — this verdict is inconclusive)" : ""
+    }`
+  ];
+}
+
 export function formatReviewSummary(summary: ReviewSummary): string {
   const errors = count(summary, "error");
   const warnings = count(summary, "warning");
@@ -77,6 +106,7 @@ export function formatReviewSummary(summary: ReviewSummary): string {
     formatKeyValue("Feature", `${summary.feature.id}-${summary.feature.slug}`),
     formatKeyValue("Task", summary.taskId ?? "feature-level"),
     formatKeyValue("Result", summary.result),
+    ...scopeLines(summary.scopeBasis),
     "",
     `Changed files: ${summary.changedFiles.length}`,
     "Findings:",

@@ -11,6 +11,7 @@ import { runCandidateVerificationWorkflow } from "./candidate-verification.workf
 import { runChecklistStatusWorkflow } from "./checklist.workflow.js";
 import { runNextWorkflow } from "./next.workflow.js";
 import { oraclePlanExists } from "./oracle-authorization.workflow.js";
+import { describeTaskStatusUpdate } from "../reconcile/task-status-update.js";
 import { runReconcileWorkflow } from "./reconcile.workflow.js";
 import { runReviewWorkflow } from "./review.workflow.js";
 import { runVerifyWorkflow } from "./verify.workflow.js";
@@ -260,13 +261,22 @@ export async function runDoneWorkflow(
     return ok(summarize(`visp-kit review --task ${taskId}`));
   }
 
+  const reviewScope = review.value.scopeBasis;
+  const reviewedFiles =
+    reviewScope === null
+      ? ""
+      : ` Scope: ${reviewScope.reviewableFiles.length} reviewable of ${reviewScope.filesExamined} examined (${reviewScope.kind}).`;
+  const blockingReviewFindings = review.value.findings
+    .filter((item) => item.severity === "error")
+    .map((item) => item.title);
+
   steps.push(
     step({
       name: "review",
       success: review.value.success,
       detail: review.value.success
-        ? `Review ${review.value.result}.`
-        : "Review failed. Fix the blocking findings, then rerun.",
+        ? `Review ${review.value.result}.${reviewedFiles}`
+        : `Review failed: ${blockingReviewFindings.join("; ") || "fix the blocking findings, then rerun"}.${reviewedFiles}`,
       recovery: review.value.success ? undefined : `visp-kit review --task ${taskId}`
     })
   );
@@ -275,9 +285,15 @@ export async function runDoneWorkflow(
     return ok(summarize(`visp-kit review --task ${taskId}`));
   }
 
+  // `updateTaskStatus` is what moves the task out of `pending`, and reconcile
+  // is the only step that can do it. Omitting it here (LC-107) meant nine green
+  // `done` runs left nine tasks pending and `visp-kit next` pointing at T001
+  // forever — the documented loop had no ending.
   const reconcile = await runReconcileWorkflow({
     ...shared,
     updateTraceability: true,
+    updateTaskStatus: true,
+    closeTaskOnWarnings: true,
     dryRun
   });
 
@@ -293,21 +309,46 @@ export async function runDoneWorkflow(
     return ok(summarize(`visp-kit reconcile --task ${taskId} --update-traceability`));
   }
 
+  // A task that did not move is not a finished task, whatever the rest of the
+  // pipeline reported. In a dry run nothing is written by design, so the
+  // absence of a status move is expected rather than a failure.
+  const statusUpdate = reconcile.value.taskStatusUpdate;
+  const taskAdvanced = dryRun || statusUpdate?.performed === true;
+  const reconcileRecovery = `visp-kit reconcile --task ${taskId} --update-traceability --update-task-status`;
+
   steps.push(
     step({
       name: "reconcile",
-      success: reconcile.value.success,
-      detail: reconcile.value.success
-        ? `Reconciliation ${reconcile.value.result}.`
-        : "Reconciliation failed. Fix the reported drift, then rerun.",
-      recovery: reconcile.value.success
-        ? undefined
-        : `visp-kit reconcile --task ${taskId} --update-traceability`
+      success: reconcile.value.success && taskAdvanced,
+      detail: !reconcile.value.success
+        ? "Reconciliation failed. Fix the reported drift, then rerun."
+        : taskAdvanced
+          ? `Reconciliation ${reconcile.value.result}. ${describeTaskStatusUpdate(
+              statusUpdate ?? {
+                requested: true,
+                performed: false,
+                taskId,
+                previousStatus: null,
+                newStatus: null,
+                skippedReason: "reconcile report carries no task status record"
+              }
+            )}.`
+          : `Reconciliation ${reconcile.value.result} but the task status did not move: ${
+              statusUpdate?.skippedReason ?? "reconcile report carries no task status record"
+            }.`,
+      recovery:
+        reconcile.value.success && taskAdvanced
+          ? undefined
+          : reconcile.value.success
+            ? `${reconcileRecovery} --force`
+            : reconcileRecovery
     })
   );
 
-  if (!reconcile.value.success) {
-    return ok(summarize(`visp-kit reconcile --task ${taskId} --update-traceability`));
+  if (!reconcile.value.success || !taskAdvanced) {
+    return ok(
+      summarize(reconcile.value.success ? `${reconcileRecovery} --force` : reconcileRecovery)
+    );
   }
 
   const checklist = await runChecklistStatusWorkflow(shared);

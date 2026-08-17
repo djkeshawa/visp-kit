@@ -1,5 +1,9 @@
-import { type ReconcileReport } from "../artifacts/schemas/reconcile.schema.js";
+import {
+  type ReconcileReport,
+  type TaskStatusUpdate
+} from "../artifacts/schemas/reconcile.schema.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
+import { describeTaskStatusUpdate } from "./task-status-update.js";
 
 export type ReconcileSummary = {
   readonly success: boolean;
@@ -29,6 +33,8 @@ export type ReconcileSummary = {
     readonly performed: boolean;
     readonly updatedFiles: readonly string[];
   };
+  /** Absent only on reconcile reports written before LC-107. */
+  readonly taskStatusUpdate: TaskStatusUpdate | null;
   readonly reportPath: string | null;
   readonly promptPath: string | null;
   readonly nextCommand: string;
@@ -72,6 +78,7 @@ export function reconcileSummaryFromReport(input: {
       performed: input.report.traceabilityUpdate.performed,
       updatedFiles: input.report.traceabilityUpdate.updatedFiles
     },
+    taskStatusUpdate: input.report.taskStatusUpdate ?? null,
     reportPath: input.dryRun ? null : input.report.reportPath,
     promptPath: input.dryRun ? null : input.report.promptPath,
     nextCommand: input.report.nextCommand,
@@ -100,7 +107,10 @@ export function formatReconcileSummary(summary: ReconcileSummary): string {
     `  Info: ${count(summary, "info")}`,
     "",
     "Traceability:",
-    `  ${summary.traceabilityUpdate.performed ? "updated" : "not updated"}`
+    `  ${summary.traceabilityUpdate.performed ? "updated" : "not updated"}`,
+    ...(summary.taskStatusUpdate === null
+      ? []
+      : ["", "Task status:", `  ${describeTaskStatusUpdate(summary.taskStatusUpdate)}`])
   ];
 
   if (summary.reportPath !== null) {

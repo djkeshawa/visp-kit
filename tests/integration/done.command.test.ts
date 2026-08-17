@@ -53,6 +53,46 @@ async function initGitBaseline(rootPath: string): Promise<void> {
   );
 }
 
+/**
+ * Write the task's actual work into the files it declared.
+ *
+ * These fixtures used to commit everything and then change nothing, so the
+ * whole pipeline ran over a diff of Visp's own artifacts and still reported
+ * `passed` (LC-106). A task that implements nothing is not a task that is done.
+ */
+async function implementTask(
+  rootPath: string,
+  options: { readonly tests?: boolean } = {}
+): Promise<void> {
+  const sourcePath = path.join(rootPath, "src", "notes.ts");
+
+  await writeFile(
+    sourcePath,
+    `${await readFile(sourcePath, "utf8")}
+export function unpinNote(note: Note): Note {
+  return { ...note, pinned: false };
+}
+`,
+    "utf8"
+  );
+
+  // A locked oracle pins existing test files by hash, so under assurance the
+  // task cannot touch them without invalidating its own lock.
+  if (options.tests === false) return;
+
+  const testPath = path.join(rootPath, "tests", "notes.test.ts");
+
+  await writeFile(
+    testPath,
+    `${await readFile(testPath, "utf8")}
+test("unpinNote", () => {
+  expect(unpinNote({ id: "1", title: "A", pinned: true }).pinned).toBe(false);
+});
+`,
+    "utf8"
+  );
+}
+
 async function prepareImplementedTask(
   rootPath: string,
   options: { readonly assurance?: boolean; readonly validationCommand?: string } = {}
@@ -81,6 +121,7 @@ async function prepareImplementedTask(
     await silent.parseAsync(["node", "visp", "verify", rootPath, "--baseline", "--task", "T001"]);
   }
   await silent.parseAsync(["node", "visp", "gate", "implement", rootPath, "--task", "T001"]);
+  await implementTask(rootPath, { tests: !(options.assurance ?? false) });
 
   for (const item of ["read-context", "implement-selected-task", "scope-check", "tests-updated"]) {
     await silent.parseAsync([
@@ -153,6 +194,98 @@ describe("visp-kit done command", () => {
 
     const markerPath = path.join(tempDir, ".visp", "state", "implement-allowed.json");
     await expect(readFile(markerPath, "utf8")).rejects.toThrow();
+  });
+
+  it("leaves the task in a terminal state the workflow can move past", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareImplementedTask(tempDir);
+    const program = createCli({ writeOut: () => undefined });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "done",
+      tempDir,
+      "--task",
+      "T001",
+      "--usage-unavailable",
+      "--usage-note",
+      "Agent surface did not expose numeric token usage."
+    ]);
+
+    const taskGraph = JSON.parse(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "task-graph.json"),
+        "utf8"
+      )
+    ) as { tasks: Array<{ id: string; status: string }> };
+
+    expect(taskGraph.tasks.find((task) => task.id === "T001")?.status).toBe("verified");
+    expect(taskGraph.tasks.some((task) => task.status === "pending")).toBe(false);
+
+    const statusOutput: string[] = [];
+    const status = createCli({ writeOut: (value) => statusOutput.push(value) });
+    await status.parseAsync(["node", "visp", "status", tempDir, "--json"]);
+
+    const statusSummary = JSON.parse(statusOutput.join("")) as {
+      taskSummary: { pending: number; verified: number };
+    };
+
+    expect(statusSummary.taskSummary.verified).toBe(1);
+    expect(statusSummary.taskSummary.pending).toBe(0);
+
+    const nextOutput: string[] = [];
+    const next = createCli({ writeOut: (value) => nextOutput.push(value) });
+    await next.parseAsync(["node", "visp", "next", tempDir, "--json"]);
+
+    const nextSummary = JSON.parse(nextOutput.join("")) as { nextCommand: string };
+
+    // The loop has an ending: `next` moves off the finished task instead of
+    // pointing at `visp-kit context T001` forever.
+    expect(nextSummary.nextCommand).not.toContain("T001");
+    expect(nextSummary.nextCommand).toBe("visp-kit pr");
+  });
+
+  it("does not close the task when the pipeline stops on a blocking finding", async () => {
+    await createPhase8Fixture(tempDir);
+    await prepareImplementedTask(tempDir);
+    // A forbidden dependency change is blocking drift. The pipeline stops at
+    // the first step that sees it, and the task must not be closed behind it.
+    await updateTask(tempDir, { forbiddenFiles: ["package.json"] });
+    await writeFile(
+      path.join(tempDir, "package.json"),
+      `${await readFile(path.join(tempDir, "package.json"), "utf8")}\n`,
+      "utf8"
+    );
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync([
+      "node",
+      "visp",
+      "done",
+      tempDir,
+      "--task",
+      "T001",
+      "--usage-unavailable",
+      "--usage-note",
+      "Agent surface did not expose numeric token usage.",
+      "--json"
+    ]);
+
+    const summary = JSON.parse(output.join("")) as DoneJson;
+    const taskGraph = JSON.parse(
+      await readFile(
+        path.join(tempDir, ".visp", "features", "001-add-note-pinning", "task-graph.json"),
+        "utf8"
+      )
+    ) as { tasks: Array<{ id: string; status: string }> };
+
+    expect(summary.success).toBe(false);
+    expect(summary.steps.some((item) => !item.success)).toBe(true);
+    expect(taskGraph.tasks.find((task) => task.id === "T001")?.status).not.toBe("verified");
+    expect(taskGraph.tasks.find((task) => task.id === "T001")?.status).not.toBe("done");
+    expect(process.exitCode).toBe(1);
   });
 
   it("stops at the first failing step and reports a recovery command", async () => {
