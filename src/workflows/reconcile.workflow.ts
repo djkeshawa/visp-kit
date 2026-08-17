@@ -48,6 +48,7 @@ import {
   type Task,
   type TaskGraphArtifact
 } from "../artifacts/schemas/task.schema.js";
+import { type TaskStatus } from "../artifacts/schemas/common.schema.js";
 import {
   traceabilityMatrixSchema,
   type TraceabilityMatrix
@@ -91,6 +92,7 @@ import {
   type ReconcileSummary
 } from "../reconcile/reconcile-summary.js";
 import { updateTraceabilityForReconcile } from "../reconcile/reconcile-traceability.js";
+import { planTaskStatusUpdate } from "../reconcile/task-status-update.js";
 import {
   renderTasksMarkdownFromArtifact,
   renderTraceabilityMarkdownFromArtifact
@@ -118,6 +120,12 @@ export type ReconcileWorkflowOptions = {
   readonly base?: string;
   readonly updateTraceability?: boolean;
   readonly updateTaskStatus?: boolean;
+  /**
+   * Close the task even when reconciliation reports warnings, without granting
+   * anything `--force` grants. Set by `visp-kit done`, whose pipeline already
+   * accepted those warnings at verify, review and reconcile. Not a CLI flag.
+   */
+  readonly closeTaskOnWarnings?: boolean;
   readonly promptOnly?: boolean;
   readonly force?: boolean;
   readonly dryRun?: boolean;
@@ -394,21 +402,16 @@ async function updateStatus(input: {
   return ok(undefined);
 }
 
-async function updateTaskStatus(input: {
+async function writeTaskStatus(input: {
   readonly targetPath: string;
   readonly feature: ActiveFeature;
   readonly featureKey: string;
   readonly taskGraph: TaskGraphArtifact;
   readonly task: Task;
-  readonly result: ReconcileResult;
-  readonly force: boolean;
-  readonly verificationPassed: boolean;
+  readonly nextStatus: TaskStatus;
   readonly now: string;
 }): Promise<Result<void, VispError>> {
-  if (input.result === "failed") return ok(undefined);
-  if (input.result === "warnings" && !input.force) return ok(undefined);
-
-  const nextStatus = input.verificationPassed ? "verified" : "done";
+  const nextStatus = input.nextStatus;
   const nextGraph: TaskGraphArtifact = {
     ...input.taskGraph,
     tasks: input.taskGraph.tasks.map((task) =>
@@ -661,6 +664,16 @@ export async function runReconcileWorkflow(
     dryRun,
     traceability: traceability as TraceabilityMatrix | undefined
   });
+  const taskStatusUpdate = planTaskStatusUpdate({
+    requested: options.updateTaskStatus ?? false,
+    promptOnly: options.promptOnly ?? false,
+    dryRun,
+    ...(selectedTask === undefined ? {} : { task: selectedTask }),
+    result,
+    force,
+    closeOnWarnings: options.closeTaskOnWarnings ?? false,
+    verificationPassed: verificationEvidence.evidence.passed === true
+  });
   const traceabilityUpdate: TraceabilityUpdate = traceUpdate.performed
     ? {
         ...traceUpdate,
@@ -719,6 +732,7 @@ export async function runReconcileWorkflow(
     dependencyEvidence: dependencies.dependencyEvidence,
     policyGate,
     traceabilityUpdate,
+    taskStatusUpdate,
     findings,
     followUpSuggestions: [],
     warnings,
@@ -816,16 +830,14 @@ export async function runReconcileWorkflow(
       if (!writeTraceMarkdown.ok) return writeTraceMarkdown;
     }
 
-    if (!options.promptOnly && options.updateTaskStatus && selectedTask !== undefined) {
-      const update = await updateTaskStatus({
+    if (taskStatusUpdate.performed && selectedTask !== undefined && taskStatusUpdate.newStatus) {
+      const update = await writeTaskStatus({
         targetPath,
         feature: feature.value,
         featureKey: feature.value.key,
         taskGraph: taskGraph.value,
         task: selectedTask,
-        result: parsed.data.result,
-        force,
-        verificationPassed: verificationEvidence.evidence.passed === true,
+        nextStatus: taskStatusUpdate.newStatus,
         now: endedAt
       });
 

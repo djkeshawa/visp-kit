@@ -4,9 +4,18 @@ import {
   type ReconcileReport
 } from "../artifacts/schemas/reconcile.schema.js";
 import { renderPolicyGateMarkdown } from "../gates/policy-gate-markdown.js";
+import { describeTaskStatusUpdate } from "./task-status-update.js";
 
 function list(values: readonly string[], empty = "- None."): string {
   return values.length === 0 ? empty : values.map((value) => `- ${value}`).join("\n");
+}
+
+function taskStatusUpdateMarkdown(report: ReconcileReport): string {
+  if (report.taskStatusUpdate === undefined) {
+    return "This report predates task status recording.";
+  }
+
+  return `Task status: ${describeTaskStatusUpdate(report.taskStatusUpdate)}`;
 }
 
 function count(
@@ -127,6 +136,10 @@ ${list(report.followUpSuggestions)}
 Traceability was ${report.traceabilityUpdate.performed ? "updated" : "not updated"}.
 
 ${report.traceabilityUpdate.performed ? `Updated files:\n${list(report.traceabilityUpdate.updatedFiles)}` : `Skipped reason:\n${report.traceabilityUpdate.skippedReason ?? "not requested"}`}
+
+## Task Status Update
+
+${taskStatusUpdateMarkdown(report)}
 
 ## Warnings
 

@@ -5,7 +5,8 @@ import {
   isoDateTimeSchema,
   nonEmptyStringSchema,
   pathStringSchema,
-  stringListSchema
+  stringListSchema,
+  taskStatusSchema
 } from "./common.schema.js";
 import { policyGateSummarySchema } from "./gate.schema.js";
 import { reviewChangeTypeSchema } from "./review.schema.js";
@@ -166,6 +167,25 @@ export const traceabilityUpdateSchema = z
   })
   .strict();
 
+/**
+ * Whether reconciliation moved the selected task's status, and if not, why.
+ *
+ * The task-status write is the only step in the whole workflow that can put a
+ * task into a terminal state. Before LC-107 it produced no record at all, so
+ * `visp-kit done` could run its full pipeline, skip this write entirely and
+ * still report `Result: passed` with every task left `pending`.
+ */
+export const taskStatusUpdateSchema = z
+  .object({
+    requested: z.boolean(),
+    performed: z.boolean(),
+    taskId: idSchema.nullable(),
+    previousStatus: taskStatusSchema.nullable(),
+    newStatus: taskStatusSchema.nullable(),
+    skippedReason: nonEmptyStringSchema.nullable()
+  })
+  .strict();
+
 export const reconcileReportSchema = z
   .object({
     id: idSchema,
@@ -187,6 +207,11 @@ export const reconcileReportSchema = z
     dependencyEvidence: reconcileDependencyEvidenceSchema,
     policyGate: policyGateSummarySchema.optional(),
     traceabilityUpdate: traceabilityUpdateSchema,
+    /**
+     * Optional so reconcile reports written before LC-107 still parse. Every
+     * report this version writes carries it.
+     */
+    taskStatusUpdate: taskStatusUpdateSchema.optional(),
     findings: z.array(reconcileFindingSchema),
     followUpSuggestions: stringListSchema,
     warnings: stringListSchema,
@@ -203,3 +228,4 @@ export type ReconcileFinding = z.infer<typeof reconcileFindingSchema>;
 export type ReconcileChangedFile = z.infer<typeof reconcileChangedFileSchema>;
 export type ReconcileReport = z.infer<typeof reconcileReportSchema>;
 export type TraceabilityUpdate = z.infer<typeof traceabilityUpdateSchema>;
+export type TaskStatusUpdate = z.infer<typeof taskStatusUpdateSchema>;

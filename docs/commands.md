@@ -442,6 +442,18 @@ current authorization/baseline bindings, and complete provider results.
 
 Purpose: run deterministic Git diff review.
 
+**Review scope is the uncommitted working tree by default** — unstaged changes,
+staged changes and untracked files. Committed work is outside that basis; pass
+`--base <git-ref>` to review the commit range `<ref>...HEAD` instead. Every
+review states the basis it used and the files it examined, in the terminal
+output and in the `scopeBasis` field of its report.
+
+**A review that examined nothing fails; it never passes.** If the diff contains
+no files of your own — an empty tree, or nothing but Visp's own `.visp/`
+artifacts — the review records a blocking `scope` finding and returns `failed`.
+A verdict with no evidence behind it is inconclusive, and reporting it as clean
+is worse than reporting nothing.
+
 Common flags:
 
 - `--feature <id-or-slug-or-folder>`
@@ -493,9 +505,16 @@ Generated artifacts:
 Purpose: run the full post-implementation pipeline for one task in order.
 When assurance is active it first runs candidate evidence, then ordinary
 verification without duplicating the locked command batch, usage recording,
-review, reconcile (with traceability update), checklist status, and the
-next-step recommendation. The pipeline stops at the first failing step and
-prints the exact recovery command.
+review, reconcile (with traceability and task status update), checklist status,
+and the next-step recommendation. The pipeline stops at the first failing step
+and prints the exact recovery command.
+
+**`done` closes the task**, which is how the workflow reaches an ending:
+reconcile writes the selected task's status to `verified` when verification
+passed and `done` otherwise, and `visp-kit next` then moves on. Warnings do not
+block the close — the pipeline already accepted them at verify, review and
+reconcile — but a failed reconciliation does, and `done` then reports which step
+stopped it rather than reporting success over an unchanged task.
 
 Common flags:
 

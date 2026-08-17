@@ -6,6 +6,7 @@ import {
 } from "./artifact-readiness.js";
 import { sourceChangedFiles } from "./artifact-presence.js";
 import { type GateContext } from "./gate-context.js";
+import { contextPackIsStale } from "../context/context-pack-staleness.js";
 
 function taskFlag(taskId: string | undefined): string {
   return taskId === undefined ? "" : ` --task ${taskId}`;
@@ -75,10 +76,8 @@ export function nextAllowedCommand(context: GateContext): string {
   // embedded copy of the task disagrees with the graph, regenerating the
   // context IS the next step.
   if (
-    state.contextPack !== undefined &&
     state.selectedTask !== undefined &&
-    state.contextPack.taskId === state.selectedTask.id &&
-    JSON.stringify(state.contextPack.selectedTask) !== JSON.stringify(state.selectedTask)
+    contextPackIsStale({ contextPack: state.contextPack, task: state.selectedTask })
   ) {
     return `visp-kit context ${state.selectedTask.id} --force`;
   }

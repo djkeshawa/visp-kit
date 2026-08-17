@@ -63,6 +63,7 @@ import {
 import { selectTaskById } from "../context/task-selector.js";
 import { reviewDependencies } from "../review/dependency-review.js";
 import { loadGitDiff } from "../review/diff-loader.js";
+import { emptyScopeFinding, emptyScopeMessage, reviewScopeBasis } from "../review/review-basis.js";
 import { summarizeDiff } from "../review/diff-summary.js";
 import { reviewDocumentation } from "../review/documentation-review.js";
 import { finding, numberFindings, type ReviewFindingDraft } from "../review/review-findings.js";
@@ -500,6 +501,11 @@ export async function runReviewWorkflow(
   const documentationFindings = reviewDocumentation({
     changedFiles: scope.changedFiles
   });
+  const scopeBasis = reviewScopeBasis({
+    changedFiles: scope.changedFiles,
+    diffSource: diff.value.diffSource,
+    baseRef: diff.value.baseRef
+  });
   const gateBlocks =
     policyGate === undefined
       ? policyGateUnavailable !== undefined
@@ -533,6 +539,14 @@ export async function runReviewWorkflow(
         );
   const findingDrafts: ReviewFindingDraft[] = [
     ...gateFindings,
+    ...(scopeBasis.empty
+      ? [
+          emptyScopeFinding({
+            basis: scopeBasis,
+            ...(selectedTask === undefined ? {} : { taskId: selectedTask.id })
+          })
+        ]
+      : []),
     ...scope.findings,
     ...trace.findings,
     ...verify.findings,
@@ -545,6 +559,10 @@ export async function runReviewWorkflow(
   const messages = collectMessages({
     optionalWarnings,
     sections: [
+      {
+        warnings: [],
+        errors: scopeBasis.empty ? [emptyScopeMessage(scopeBasis)] : []
+      },
       scope.scopeReview,
       trace.traceabilityReview,
       verify.verificationReview,
@@ -582,6 +600,7 @@ export async function runReviewWorkflow(
       diffSource: diff.value.diffSource,
       baseRef: diff.value.baseRef
     }),
+    scopeBasis,
     scopeReview: scope.scopeReview,
     traceabilityReview: trace.traceabilityReview,
     verificationReview: verify.verificationReview,
