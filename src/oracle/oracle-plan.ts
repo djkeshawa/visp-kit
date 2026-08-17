@@ -17,6 +17,7 @@ import { VispError } from "../core/errors.js";
 import { err, ok, type Result } from "../core/result.js";
 import { builtinEvidenceProviders } from "../evidence/provider-registry.js";
 import { canonicalJsonV1 } from "../integration/canonical-json.js";
+import { contextCopyMismatch, nestedCriterionMismatch } from "./oracle-authority-errors.js";
 
 type BoundArtifact<T> = {
   readonly path: string;
@@ -88,7 +89,13 @@ function oracleFor(
     canonicalJsonV1(nestedCriterion) !== canonicalJsonV1(criterion)
   ) {
     return fail(
-      `Requirement ${requirement.id} does not contain the authoritative ${criterion.id} criterion.`
+      nestedCriterionMismatch({
+        requirementId: requirement.id,
+        criterionId: criterion.id,
+        specPath: input.specification.path,
+        authoritative: criterion,
+        found: nestedCriterion
+      })
     );
   }
 
@@ -100,7 +107,15 @@ function oracleFor(
     canonicalJsonV1(contextRequirement) !== canonicalJsonV1(requirement)
   ) {
     return fail(
-      `Context for task ${input.task.id} does not contain the authoritative ${requirement.id} requirement.`
+      contextCopyMismatch({
+        kind: "requirement",
+        entityId: requirement.id,
+        taskId: input.task.id,
+        specPath: input.specification.path,
+        contextPath: input.context.path,
+        authoritative: requirement,
+        found: contextRequirement
+      })
     );
   }
 
@@ -113,7 +128,15 @@ function oracleFor(
     canonicalJsonV1(contextCriterion) !== canonicalJsonV1(criterion)
   ) {
     return fail(
-      `Context for task ${input.task.id} does not contain the authoritative ${criterion.id} criterion.`
+      contextCopyMismatch({
+        kind: "criterion",
+        entityId: criterion.id,
+        taskId: input.task.id,
+        specPath: input.specification.path,
+        contextPath: input.context.path,
+        authoritative: criterion,
+        found: contextCriterion
+      })
     );
   }
 

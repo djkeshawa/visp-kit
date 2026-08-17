@@ -37,6 +37,19 @@ export const driftFindingSchema = z
 
 export const driftResultSchema = z.enum(["passed", "warnings", "failed"]);
 
+/**
+ * One step of the ordered sequence that clears the reported drift. Per-finding
+ * recommendations are not a recovery on their own: they can require a specific
+ * order (a scan before a pack rebuild) and one step can widen the work the next
+ * ones have to do.
+ */
+export const driftRecoveryStepSchema = z
+  .object({
+    command: nonEmptyStringSchema,
+    reason: nonEmptyStringSchema
+  })
+  .strict();
+
 export const driftSummarySchema = z
   .object({
     stale_context_provenance: z.number().int().nonnegative(),
@@ -64,6 +77,11 @@ export const driftReportSchema = z
     errors: stringListSchema,
     reportPath: pathStringSchema.nullable(),
     jsonPath: pathStringSchema.nullable(),
+    /**
+     * Optional so drift reports written before the recovery plan existed still
+     * parse. Every report this version writes carries it.
+     */
+    recovery: z.array(driftRecoveryStepSchema).optional(),
     nextCommand: nonEmptyStringSchema
   })
   .strict();
@@ -72,5 +90,6 @@ export type DriftKind = z.infer<typeof driftKindSchema>;
 export type DriftSeverity = z.infer<typeof driftSeveritySchema>;
 export type DriftFinding = z.infer<typeof driftFindingSchema>;
 export type DriftResult = z.infer<typeof driftResultSchema>;
+export type DriftRecoveryStep = z.infer<typeof driftRecoveryStepSchema>;
 export type DriftSummary = z.infer<typeof driftSummarySchema>;
 export type DriftReport = z.infer<typeof driftReportSchema>;

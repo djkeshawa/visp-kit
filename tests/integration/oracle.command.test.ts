@@ -213,7 +213,14 @@ describe("visp-kit oracle command", () => {
     });
     await program.parseAsync(["node", "visp", "oracle", "validate", tempDir, "--task", "T001"]);
     expect(process.exitCode).toBe(1);
-    expect(errors.join("")).toContain("authoritative REQ001 requirement");
+    // LC-112: the message must name the authoritative copy, the JSON path of
+    // the copy that disagrees, and the command that repairs it — the old one
+    // named only the container, and three attempts on a real project could not
+    // act on it.
+    const message = errors.join("");
+    expect(message).toContain("Requirement REQ001 in the context pack for T001");
+    expect(message).toContain("includedRequirements[id=REQ001]");
+    expect(message).toContain("visp-kit context T001 --force");
   });
 
   it("rejects provider requirements substituted in the stored plan", async () => {

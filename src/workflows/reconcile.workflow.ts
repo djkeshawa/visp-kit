@@ -93,6 +93,7 @@ import {
 } from "../reconcile/reconcile-summary.js";
 import { updateTraceabilityForReconcile } from "../reconcile/reconcile-traceability.js";
 import { planTaskStatusUpdate } from "../reconcile/task-status-update.js";
+import { applyTaskStatusUpdate } from "../reconcile/task-status-writer.js";
 import {
   renderTasksMarkdownFromArtifact,
   renderTraceabilityMarkdownFromArtifact
@@ -402,45 +403,6 @@ async function updateStatus(input: {
   return ok(undefined);
 }
 
-async function writeTaskStatus(input: {
-  readonly targetPath: string;
-  readonly feature: ActiveFeature;
-  readonly featureKey: string;
-  readonly taskGraph: TaskGraphArtifact;
-  readonly task: Task;
-  readonly nextStatus: TaskStatus;
-  readonly now: string;
-}): Promise<Result<void, VispError>> {
-  const nextStatus = input.nextStatus;
-  const nextGraph: TaskGraphArtifact = {
-    ...input.taskGraph,
-    tasks: input.taskGraph.tasks.map((task) =>
-      task.id === input.task.id ? { ...task, status: nextStatus } : task
-    ),
-    updatedAt: input.now
-  };
-
-  const write = await writeArtifact(
-    taskGraphArtifactPath(input.targetPath, input.featureKey),
-    taskGraphArtifactSchema,
-    nextGraph,
-    { artifactName: "task graph" }
-  );
-
-  if (!write.ok) return write;
-
-  // tasks.md is a derived view of task-graph.json. Rewriting the graph without
-  // re-rendering the markdown desynchronizes the pair on the very next command
-  // after `visp-kit tasks --validate` synchronized it.
-  const writeMarkdown = await writeTextFile(
-    tasksMarkdownPath(input.targetPath, input.featureKey),
-    renderTasksMarkdownFromArtifact({ feature: input.feature, artifact: nextGraph })
-  );
-
-  if (!writeMarkdown.ok) return writeMarkdown;
-  return ok(undefined);
-}
-
 export async function runReconcileWorkflow(
   options: ReconcileWorkflowOptions = {}
 ): Promise<Result<ReconcileSummary, VispError>> {
@@ -664,7 +626,8 @@ export async function runReconcileWorkflow(
     dryRun,
     traceability: traceability as TraceabilityMatrix | undefined
   });
-  const taskStatusUpdate = planTaskStatusUpdate({
+  const verificationPassed = verificationEvidence.evidence.passed === true;
+  const taskStatusPlan = planTaskStatusUpdate({
     requested: options.updateTaskStatus ?? false,
     promptOnly: options.promptOnly ?? false,
     dryRun,
@@ -672,7 +635,7 @@ export async function runReconcileWorkflow(
     result,
     force,
     closeOnWarnings: options.closeTaskOnWarnings ?? false,
-    verificationPassed: verificationEvidence.evidence.passed === true
+    verificationPassed
   });
   const traceabilityUpdate: TraceabilityUpdate = traceUpdate.performed
     ? {
@@ -684,6 +647,24 @@ export async function runReconcileWorkflow(
       }
     : traceUpdate;
   const endedAt = new Date().toISOString();
+  // Written before the report is built, so the report records what happened
+  // rather than what was intended. A failed write now fails the command instead
+  // of leaving an evidence artifact asserting a transition that never occurred.
+  const applied = await applyTaskStatusUpdate({
+    plan: taskStatusPlan,
+    targetPath,
+    feature: feature.value,
+    featureKey: feature.value.key,
+    taskGraph: taskGraph.value,
+    ...(selectedTask === undefined ? {} : { task: selectedTask }),
+    ...(review === undefined ? {} : { review: review as ReviewReport }),
+    verificationPassed,
+    now: endedAt
+  });
+
+  if (!applied.ok) return applied;
+
+  const taskStatusUpdate = applied.value;
   const warnings = collectWarnings(
     { warnings: optionalWarnings },
     mapped.fileMapping,
@@ -828,20 +809,6 @@ export async function runReconcileWorkflow(
       );
 
       if (!writeTraceMarkdown.ok) return writeTraceMarkdown;
-    }
-
-    if (taskStatusUpdate.performed && selectedTask !== undefined && taskStatusUpdate.newStatus) {
-      const update = await writeTaskStatus({
-        targetPath,
-        feature: feature.value,
-        featureKey: feature.value.key,
-        taskGraph: taskGraph.value,
-        task: selectedTask,
-        nextStatus: taskStatusUpdate.newStatus,
-        now: endedAt
-      });
-
-      if (!update.ok) return update;
     }
 
     if (!options.promptOnly && parsed.data.success) {

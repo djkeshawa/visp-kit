@@ -27,6 +27,7 @@ import {
   type CurrentFileState
 } from "../drift/drift-checks.js";
 import { retrievalInputContentHash } from "../context/retrieval-inputs.js";
+import { driftRecoveryPlan } from "../drift/drift-recovery.js";
 import { driftResult, renderDriftMarkdown } from "../drift/drift-report.js";
 import { implementMarkerPath } from "../gates/implement-marker.js";
 import { loadProjectState } from "../orchestrator/project-state.js";
@@ -241,6 +242,10 @@ export async function runDriftWorkflow(
     files
   });
   const result = driftResult(findings);
+  const recovery = driftRecoveryPlan({
+    findings,
+    contextPackTaskIds: contextPacks.map((pack) => pack.taskId)
+  });
   const errorMessages = findings
     .filter((finding) => finding.severity === "error")
     .map((finding) => finding.evidence);
@@ -265,11 +270,10 @@ export async function runDriftWorkflow(
     errors: errorMessages,
     reportPath: dryRun ? null : reportPath,
     jsonPath: dryRun ? null : jsonPath,
-    nextCommand:
-      result === "passed"
-        ? "visp-kit next"
-        : ((findings.find((finding) => finding.severity === "error") ?? findings[0])
-            ?.recommendation ?? "visp-kit next")
+    recovery: [...recovery],
+    // The first recovery step, never the first finding's recommendation: the
+    // steps are ordered, and starting anywhere else does not clear the drift.
+    nextCommand: recovery[0]?.command ?? "visp-kit next"
   };
 
   if (!dryRun) {
@@ -341,6 +345,19 @@ export function formatDriftSummary(report: DriftReport): string {
     "Findings:",
     ...findingLines
   ];
+
+  const recovery = report.recovery ?? [];
+
+  if (recovery.length > 0) {
+    lines.push(
+      "",
+      "Recovery (run in this order):",
+      ...recovery.flatMap((step, index) => [
+        `  ${index + 1}. ${step.command}`,
+        `     ${step.reason}`
+      ])
+    );
+  }
 
   if (report.reportPath !== null) {
     lines.push("", "Report:", `  ${report.reportPath}`);

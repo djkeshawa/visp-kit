@@ -206,10 +206,24 @@ export function formatEvalSummary(report: EvaluationReport): string {
     ),
     formatKeyValue("Task", report.taskId ?? "none"),
     "",
+    // "Checks" used to name the length of the findings list, so a clean project
+    // printed `Checks: 0` beside `Result: passed` and read as a pass over
+    // nothing evaluated. Findings and coverage are now separate lines, and
+    // coverage says what was actually looked at (LC-108).
     "Findings:",
     `  Errors: ${report.errors.length}`,
     `  Warnings: ${report.warnings.length}`,
-    `  Checks: ${report.checks.length}`
+    "",
+    "Coverage:",
+    `  Checks performed: ${report.coverage?.checksPerformed ?? report.checks.length}`,
+    ...(report.coverage === undefined
+      ? []
+      : [
+          `  Checks skipped: ${report.coverage.skippedChecks.length}`,
+          ...report.coverage.skippedChecks.map(
+            (entry) => `    ${entry.inspection} — ${entry.reason}`
+          )
+        ])
   ];
 
   if (report.metrics !== undefined) {

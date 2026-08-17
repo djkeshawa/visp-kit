@@ -361,6 +361,8 @@ Generated artifacts:
 
 Evaluation checks workflow completeness, policy/gate health, traceability, context budget, implementation checklist progress, evidence reports, overrides, and PR readiness. It does not call an LLM.
 
+The report separates **findings** from **coverage**. `checks` holds problems; `coverage` records which checks ran, which could not, and why. An evaluation that ran no checks is reported as `failed` with the reasons stated — never as `passed`.
+
 ## `visp-kit verify [path]`
 
 Purpose: validate artifacts, traceability, commands, scope, and dependencies.
@@ -454,6 +456,12 @@ artifacts — the review records a blocking `scope` finding and returns `failed`
 A verdict with no evidence behind it is inconclusive, and reporting it as clean
 is worse than reporting nothing.
 
+**A review that saw none of the task's `expectedFiles` fails too.** `expectedFiles`
+are the task's declared deliverables, and a review in which none of them changed
+has judged none of the declared work — even when the files it did examine were
+inside `allowedFiles`. The reviewed subset is recorded as
+`scopeReview.reviewedExpectedFiles`.
+
 Common flags:
 
 - `--feature <id-or-slug-or-folder>`
@@ -479,6 +487,13 @@ Generated artifacts:
 ## `visp-kit reconcile [path]`
 
 Purpose: compare spec, plan, tasks, context, evidence, traceability, and Git diff.
+
+When `--update-task-status` moves a task to `done` or `verified`, the task record
+also gains a `statusBasis`: the review result, the review's stated basis, how many
+files it examined, which of the task's expected files it saw, and whether
+verification passed. A status carries what it was decided on, and the write
+happens before the reconciliation report is serialised, so the report records what
+occurred rather than what was intended.
 
 Common flags:
 

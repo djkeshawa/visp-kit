@@ -42,7 +42,9 @@ function expectOk<T>(result: { ok: true; value: T } | { ok: false }): T {
 }
 
 function gitRunner(
-  filePath: string | readonly string[] = "src/notes/sort.ts",
+  // T001 declares `tests/notes/sort.test.ts` as an expected file, so a review
+  // that never sees it has judged none of the task's declared work (LC-130).
+  filePath: string | readonly string[] = ["src/notes/sort.ts", "tests/notes/sort.test.ts"],
   untrackedFiles: readonly string[] = []
 ): CommandRunner {
   const trackedFiles = typeof filePath === "string" ? [filePath] : filePath;
@@ -115,6 +117,8 @@ async function createReviewFixture(rootPath: string): Promise<void> {
 
   await mkdir(path.join(rootPath, "src", "notes"), { recursive: true });
   await writeFile(path.join(rootPath, "src", "notes", "sort.ts"), "export {};\n");
+  await mkdir(path.join(rootPath, "tests", "notes"), { recursive: true });
+  await writeFile(path.join(rootPath, "tests", "notes", "sort.test.ts"), "export {};\n");
   await writeArtifact(
     featureIntentArtifactPath(rootPath, featureKey),
     featureIntentSchema,

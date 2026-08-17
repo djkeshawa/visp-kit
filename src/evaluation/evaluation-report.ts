@@ -20,16 +20,31 @@ export function renderEvaluationMarkdown(report: EvaluationReport): string {
     `- Result: ${report.result}`,
     `- Feature: ${report.featureId ?? "none"}`,
     `- Task: ${report.taskId ?? "none"}`,
-    `- Checks: ${report.checks.length}`,
+    `- Checks performed: ${report.coverage?.checksPerformed ?? report.checks.length}`,
+    `- Findings: ${report.checks.length}`,
     `- Errors: ${report.errors.length}`,
     `- Warnings: ${report.warnings.length}`,
-    "",
-    "## Checks",
     ""
   ];
 
+  if (report.coverage !== undefined) {
+    lines.push(
+      "## Coverage",
+      "",
+      report.coverage.description,
+      "",
+      ...report.coverage.performedChecks.map((name) => `- Checked: ${name}`),
+      ...report.coverage.skippedChecks.map(
+        (entry) => `- Not checked: ${entry.inspection} — ${entry.reason}`
+      ),
+      ""
+    );
+  }
+
+  lines.push("## Findings", "");
+
   if (report.checks.length === 0) {
-    lines.push("- No checks were produced.");
+    lines.push("- No findings. See Coverage above for what was checked.");
   } else {
     lines.push(
       ...report.checks.map(

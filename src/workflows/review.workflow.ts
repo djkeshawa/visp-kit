@@ -70,6 +70,7 @@ import { finding, numberFindings, type ReviewFindingDraft } from "../review/revi
 import { renderReviewChecklist } from "../review/review-checklist.js";
 import { renderReviewMarkdown } from "../review/review-report.js";
 import { renderReviewPrompt } from "../review/review-prompt.js";
+import { reviewNextCommand } from "../review/review-recovery.js";
 import {
   formatReviewSummary,
   reviewSummaryFromReport,
@@ -214,16 +215,6 @@ function collectMessages(input: {
     ],
     errors: [...new Set(input.sections.flatMap((section) => section.errors))]
   };
-}
-
-function nextCommand(report: Pick<ReviewReport, "result" | "taskId">): string {
-  if (report.result === "failed") {
-    return report.taskId === null ? "visp-kit verify" : `visp-kit verify --task ${report.taskId}`;
-  }
-
-  return report.taskId === null
-    ? "visp-kit reconcile"
-    : `visp-kit reconcile --task ${report.taskId}`;
 }
 
 function outputPaths(input: {
@@ -506,6 +497,17 @@ export async function runReviewWorkflow(
     diffSource: diff.value.diffSource,
     baseRef: diff.value.baseRef
   });
+  // The scope section reported `passed` whenever it had no errors, including
+  // when it had no files — printed directly beneath the report's own "nothing
+  // to review — this verdict is inconclusive" (LC-131). One definition of
+  // "empty" drives both, so the sub-verdict cannot disagree with the verdict.
+  const scopeReview = scopeBasis.empty
+    ? {
+        ...scope.scopeReview,
+        status: "failed" as const,
+        errors: [...scope.scopeReview.errors, emptyScopeMessage(scopeBasis)]
+      }
+    : scope.scopeReview;
   const gateBlocks =
     policyGate === undefined
       ? policyGateUnavailable !== undefined
@@ -563,7 +565,7 @@ export async function runReviewWorkflow(
         warnings: [],
         errors: scopeBasis.empty ? [emptyScopeMessage(scopeBasis)] : []
       },
-      scope.scopeReview,
+      scopeReview,
       trace.traceabilityReview,
       verify.verificationReview,
       test.testReview,
@@ -601,7 +603,7 @@ export async function runReviewWorkflow(
       baseRef: diff.value.baseRef
     }),
     scopeBasis,
-    scopeReview: scope.scopeReview,
+    scopeReview,
     traceabilityReview: trace.traceabilityReview,
     verificationReview: verify.verificationReview,
     testReview: test.testReview,
@@ -628,7 +630,7 @@ export async function runReviewWorkflow(
   };
   const report = {
     ...baseReport,
-    nextCommand: nextCommand(baseReport)
+    nextCommand: reviewNextCommand(baseReport)
   };
   const parsed = reviewReportSchema.safeParse(report);
 

@@ -73,6 +73,21 @@ export function unpinNote(note: Note): Note {
 `,
     "utf8"
   );
+
+  // T001 declares `tests/notes.test.ts` as an expected file. A review that
+  // never sees it has judged none of the task's declared work (LC-130), so the
+  // fixture now writes the work the task said it would do.
+  const testPath = path.join(rootPath, "tests", "notes.test.ts");
+
+  await writeFile(
+    testPath,
+    `${await readFile(testPath, "utf8")}
+test("unpinNote", () => {
+  expect(unpinNote({ id: "1", title: "A", pinned: true }).pinned).toBe(false);
+});
+`,
+    "utf8"
+  );
 }
 
 async function corruptOverrideStore(rootPath: string): Promise<void> {
@@ -143,9 +158,9 @@ describe("visp-kit review command", () => {
 
     expect(printed).toContain("Scope:");
     expect(printed).toContain("Uncommitted working tree");
-    expect(printed).toContain("Files examined: 1");
+    expect(printed).toContain("Files examined: 2");
     expect(printed).toContain("src/notes.ts");
-    expect(printed).toContain("Reviewable files: 1");
+    expect(printed).toContain("Reviewable files: 2");
     expect(
       await readFile(
         path.join(tempDir, ".visp", "features", "001-add-note-pinning", "review", "T001.review.md"),
@@ -290,7 +305,10 @@ describe("visp-kit review command", () => {
     expect(errors.join("")).toBe("");
     expect(summary.success).toBe(true);
     expect(summary.taskId).toBe("T001");
-    expect(summary.changedFiles.map((file) => file.path)).toEqual(["src/notes.ts"]);
+    expect(summary.changedFiles.map((file) => file.path)).toEqual([
+      "src/notes.ts",
+      "tests/notes.test.ts"
+    ]);
   });
 
   it("prompt-only writes only prompt files", async () => {

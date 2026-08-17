@@ -37,6 +37,50 @@ describe("visp-kit eval command", () => {
     expect(await exists(reportPath)).toBe(true);
   });
 
+  it("says how many checks it ran, not just how many findings it had", async () => {
+    // LC-108: the summary printed `Checks: 0` — the length of the findings list
+    // — beside `Result: passed`, so a clean project and a project nothing could
+    // be checked on printed the same line.
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "eval", tempDir]);
+
+    const printed = output.join("");
+
+    expect(printed).toContain("Coverage:");
+    expect(printed).toContain("Checks performed:");
+    expect(printed).not.toContain("Checks: 0");
+  });
+
+  it("records which checks could not run and why", async () => {
+    await createPhase8Fixture(tempDir);
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "eval", tempDir, "--json"]);
+
+    const report = JSON.parse(output.join("")) as {
+      coverage: {
+        checksPerformed: number;
+        performedChecks: readonly string[];
+        skippedChecks: readonly { inspection: string; reason: string }[];
+        empty: boolean;
+      };
+    };
+
+    expect(report.coverage.checksPerformed).toBeGreaterThan(0);
+    expect(report.coverage.empty).toBe(false);
+    expect(report.coverage.performedChecks).toContain("project initialization");
+    expect(
+      report.coverage.skippedChecks.some((entry) => entry.inspection === "review evidence")
+    ).toBe(true);
+    expect(report.coverage.skippedChecks.every((entry) => entry.reason.trim().length > 0)).toBe(
+      true
+    );
+  });
+
   it("returns JSON only", async () => {
     await createPhase8Fixture(tempDir);
     const output: string[] = [];

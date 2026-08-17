@@ -33,6 +33,7 @@ import {
   revokeOracleApproval,
   validateOracleLock
 } from "../oracle/oracle-authorization.js";
+import { oraclePrerequisiteMissing } from "../oracle/oracle-prerequisites.js";
 import { clearTaskImplementMarker } from "../gates/implement-marker.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { runOracleValidateWorkflow } from "./oracle.workflow.js";
@@ -129,6 +130,16 @@ async function loadCurrentPlan(options: OracleAuthorizationWorkflowOptions): Pro
   const feature = await resolveActiveFeature({ targetPath, feature: options.feature });
   if (!feature.ok) return feature;
   const absolutePlanPath = oraclePlanArtifactPath(targetPath, feature.value.key, taskId.value);
+  const planExists = await pathExists(absolutePlanPath);
+  if (!planExists.ok) return planExists;
+  if (!planExists.value) {
+    return oraclePrerequisiteMissing({
+      artifact: "plan",
+      taskId: taskId.value,
+      artifactPath: relativePath(targetPath, absolutePlanPath)
+    });
+  }
+
   const plan = await readArtifact(absolutePlanPath, oraclePlanSchema, {
     artifactName: "oracle plan"
   });
@@ -270,6 +281,16 @@ export async function runOracleLockWorkflow(
   let approval: OracleApproval | undefined;
   let approvalPath: string | undefined;
   if (loaded.value.plan.assuranceProfile === "critical") {
+    const approvalExists = await pathExists(approvalAbsolutePath);
+    if (!approvalExists.ok) return approvalExists;
+    if (!approvalExists.value) {
+      return oraclePrerequisiteMissing({
+        artifact: "approval",
+        taskId: loaded.value.plan.taskId,
+        artifactPath: relativePath(loaded.value.targetPath, approvalAbsolutePath)
+      });
+    }
+
     const read = await readArtifact(approvalAbsolutePath, oracleApprovalSchema, {
       artifactName: "oracle approval"
     });
@@ -362,6 +383,16 @@ export async function loadOracleAuthorization(
     loaded.value.featureKey,
     loaded.value.plan.taskId
   );
+  const lockExists = await pathExists(lockAbsolutePath);
+  if (!lockExists.ok) return lockExists;
+  if (!lockExists.value) {
+    return oraclePrerequisiteMissing({
+      artifact: "lock",
+      taskId: loaded.value.plan.taskId,
+      artifactPath: relativePath(loaded.value.targetPath, lockAbsolutePath)
+    });
+  }
+
   const lock = await readArtifact(lockAbsolutePath, oracleLockSchema, {
     artifactName: "oracle lock"
   });

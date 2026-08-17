@@ -38,6 +38,7 @@ export function reviewScope(input: {
     readonly forbiddenFiles: readonly string[];
     readonly outOfScopeFiles: readonly string[];
     readonly preExistingOutOfScopeFiles: readonly string[];
+    readonly reviewedExpectedFiles: readonly string[];
     readonly forbiddenChangedFiles: readonly string[];
     readonly unmappedChangedFiles: readonly string[];
     readonly warnings: readonly string[];
@@ -83,6 +84,14 @@ export function reviewScope(input: {
     input.task === undefined && allowedSet.size > 0
       ? implementationFiles.filter((file) => !allowedSet.has(file.path)).map((file) => file.path)
       : [];
+  // Matched against every changed file rather than the in-scope subset: an
+  // expected file is an explicit declaration by the task, so if the task
+  // declared it and it changed, the review saw it — even for a path the scope
+  // filter exempts.
+  const expectedSet = new Set(expectedFiles);
+  const reviewedExpectedFiles = changedFiles
+    .filter((file) => !file.isGeneratedVispFile && expectedSet.has(file.path))
+    .map((file) => file.path);
 
   if (input.task !== undefined && allowedFiles.length === 0) {
     warnings.push("Selected task has no allowedFiles; scope review is advisory.");
@@ -169,6 +178,34 @@ export function reviewScope(input: {
     );
   }
 
+  // `expectedFiles` are the task's declared deliverables, but until LC-130 they
+  // only ever widened the allowed set — nothing checked that the review saw
+  // any of them. A one-comment edit to an allowed file passed review, and
+  // `done` wrote a durable `verified` on it while both expected files sat
+  // untouched. A review that saw none of the declared work has not judged the
+  // task, whatever else it looked at.
+  if (input.task !== undefined && expectedFiles.length > 0 && reviewedExpectedFiles.length === 0) {
+    const message =
+      `No expected file for ${input.task.id} appears in this review: ` +
+      `${expectedFiles.join(", ")}. Examined ${changedFiles.length} changed file(s).`;
+    errors.push(message);
+    findings.push(
+      finding({
+        category: "scope",
+        severity: "error",
+        title: "Task's expected files were not reviewed",
+        description:
+          "The task declares expected files and this review saw none of them change, so it has judged none of the declared work.",
+        evidence: message,
+        recommendation:
+          "Implement the expected files, or if the work is already committed re-run with `--base <git-ref>` so the review covers it.",
+        relatedTaskId: input.task.id,
+        relatedRequirementIds: input.task.requirementIds,
+        relatedAcceptanceCriterionIds: input.task.acceptanceCriterionIds
+      })
+    );
+  }
+
   if (unmappedChangedFiles.length > 0) {
     const message = `Changed file is not mapped to any task: ${unmappedChangedFiles.join(", ")}.`;
     warnings.push(message);
@@ -194,6 +231,7 @@ export function reviewScope(input: {
       forbiddenFiles,
       outOfScopeFiles,
       preExistingOutOfScopeFiles,
+      reviewedExpectedFiles,
       forbiddenChangedFiles,
       unmappedChangedFiles,
       warnings,

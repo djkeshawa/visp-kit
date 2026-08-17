@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { type ZodError } from "zod";
+
 import {
   oracleApprovalSchema,
   oracleLockSchema,
@@ -13,6 +15,22 @@ import { err, ok, type Result } from "../core/result.js";
 import { canonicalJsonV1 } from "../integration/canonical-json.js";
 
 const oracleLockIdentityDomain = "visp.oracle-lock\0canonical-1.0\0";
+
+/**
+ * Zod's message alone says what the constraint is but not what it applies to —
+ * `--reason too short` surfaced as "String must contain at least 12
+ * character(s)", with nothing to tell the caller which of the four inputs was
+ * wrong. The field name is the whole diagnosis here.
+ */
+function describeSchemaIssue(error: ZodError): string {
+  const issue = error.issues[0];
+
+  if (issue === undefined) return "unknown error";
+
+  const field = issue.path.join(".");
+
+  return field.length === 0 ? issue.message : `${field}: ${issue.message}`;
+}
 
 type ApprovalInput = {
   readonly plan: OraclePlan;
@@ -75,9 +93,7 @@ export function createOracleApproval(input: ApprovalInput): Result<OracleApprova
   };
   const parsed = oracleApprovalSchema.safeParse(candidate);
   if (!parsed.success) {
-    return failure(
-      `Oracle approval is invalid: ${parsed.error.issues[0]?.message ?? "unknown error"}.`
-    );
+    return failure(`Oracle approval is invalid: ${describeSchemaIssue(parsed.error)}.`);
   }
   if (
     parsed.data.expiresAt !== null &&
@@ -105,9 +121,7 @@ export function revokeOracleApproval(input: {
     revokedReason: input.reason
   });
   if (!parsed.success) {
-    return failure(
-      `Revoked oracle approval is invalid: ${parsed.error.issues[0]?.message ?? "unknown error"}.`
-    );
+    return failure(`Revoked oracle approval is invalid: ${describeSchemaIssue(parsed.error)}.`);
   }
   if (Date.parse(parsed.data.revokedAt ?? "") < Date.parse(parsed.data.approvedAt)) {
     return failure("Oracle approval cannot be revoked before it was approved.");
@@ -124,9 +138,7 @@ export function validateOracleApproval(input: {
 }): Result<OracleApproval, VispError> {
   const parsed = oracleApprovalSchema.safeParse(input.approval);
   if (!parsed.success) {
-    return failure(
-      `Oracle approval is invalid: ${parsed.error.issues[0]?.message ?? "unknown error"}.`
-    );
+    return failure(`Oracle approval is invalid: ${describeSchemaIssue(parsed.error)}.`);
   }
   if (parsed.data.status !== "approved") {
     return failure(`Oracle approval for task ${input.plan.taskId} has been revoked.`);
@@ -190,9 +202,7 @@ export function createOracleLock(input: LockInput): Result<OracleLock, VispError
     lockedAt: input.lockedAt
   });
   if (!parsed.success) {
-    return failure(
-      `Oracle lock is invalid: ${parsed.error.issues[0]?.message ?? "unknown error"}.`
-    );
+    return failure(`Oracle lock is invalid: ${describeSchemaIssue(parsed.error)}.`);
   }
 
   return ok(parsed.data);
