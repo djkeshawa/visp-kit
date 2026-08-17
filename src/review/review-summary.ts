@@ -25,6 +25,11 @@ export type ReviewSummary = {
     readonly category: string;
     readonly severity: string;
     readonly title: string;
+    /**
+     * Carried through so `visp-kit done` can print the finding's own repair
+     * instead of a command that reproduces the failure (LC-131).
+     */
+    readonly recommendation: string;
   }[];
   readonly reportPath: string | null;
   readonly promptPath: string | null;
@@ -62,7 +67,8 @@ export function reviewSummaryFromReport(input: {
       id: finding.id,
       category: finding.category,
       severity: finding.severity,
-      title: finding.title
+      title: finding.title,
+      recommendation: finding.recommendation
     })),
     reportPath: input.dryRun ? null : input.report.reportPath,
     promptPath: input.dryRun ? null : input.report.promptPath,

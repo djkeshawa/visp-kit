@@ -33,6 +33,7 @@ import {
   type OracleBaseCommit,
   type OraclePlanGenerationInput
 } from "../oracle/oracle-plan.js";
+import { testStrengthChangedMessage } from "../oracle/test-strength-recovery.js";
 import { formatHeader, formatKeyValue } from "../theme/terminal.js";
 import { resolveActiveFeature } from "./shared/active-feature.js";
 import { writeGeneratedFiles, type WorkflowFileAction } from "./shared/generated-files.js";
@@ -298,12 +299,7 @@ async function validateEvidenceFiles(input: {
       return err(
         new VispError(
           "VALIDATION_FAILED",
-          `Test-strength evidence changed: ${evidence.path}. ` +
-            "The locked oracle pins this file by hash, so a change to it invalidates " +
-            "the lock. If the change was accidental, restore the file. If authoring " +
-            "this test is the task's declared deliverable, re-plan with " +
-            `\`visp-kit oracle plan --task <id> --pre-approved-test ${evidence.path} --force\`, ` +
-            "which records the file as explicitly pre-approved, then lock again."
+          testStrengthChangedMessage({ evidence, taskId: input.plan.taskId })
         )
       );
     }

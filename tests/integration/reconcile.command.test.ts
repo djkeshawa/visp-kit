@@ -73,6 +73,21 @@ export function unpinNote(note: Note): Note {
 `,
     "utf8"
   );
+
+  // T001 declares `tests/notes.test.ts` as an expected file. A review that
+  // never sees it has judged none of the task's declared work (LC-130), so the
+  // fixture now writes the work the task said it would do.
+  const testPath = path.join(rootPath, "tests", "notes.test.ts");
+
+  await writeFile(
+    testPath,
+    `${await readFile(testPath, "utf8")}
+test("unpinNote", () => {
+  expect(unpinNote({ id: "1", title: "A", pinned: true }).pinned).toBe(false);
+});
+`,
+    "utf8"
+  );
 }
 
 async function corruptOverrideStore(rootPath: string): Promise<void> {
@@ -259,7 +274,9 @@ describe("visp-kit reconcile command", () => {
     ) as { tasks: Array<{ status: string }> };
 
     expect(traceability.entries[0]?.filePaths).toContain("src/notes.ts");
-    expect(traceability.entries[0]?.status).toBe("partial");
+    // The fixture now writes the task's expected test file too, so the
+    // requirement has both implementation and test evidence.
+    expect(traceability.entries[0]?.status).toBe("verified");
     expect(taskGraph.tasks[0]?.status).toBe("verified");
   });
 

@@ -34,6 +34,34 @@ export const evaluationCheckSchema = z
   })
   .strict();
 
+/**
+ * One inspection eval could not run, and why.
+ *
+ * `checks` holds findings — problems — so an empty `checks` array meant "no
+ * problems found" and was rendered as `Checks: 0`. Nothing distinguished that
+ * from "nothing was inspected", and both printed `Result: passed`. LC-108.
+ */
+export const evaluationSkippedCheckSchema = z
+  .object({
+    inspection: nonEmptyStringSchema,
+    reason: nonEmptyStringSchema
+  })
+  .strict();
+
+/**
+ * What the evaluation was actually able to look at. A `passed` verdict is only
+ * worth something when at least one inspection ran; `empty` says it did not.
+ */
+export const evaluationCoverageSchema = z
+  .object({
+    description: nonEmptyStringSchema,
+    checksPerformed: z.number().int().nonnegative(),
+    performedChecks: stringListSchema,
+    skippedChecks: z.array(evaluationSkippedCheckSchema),
+    empty: z.boolean()
+  })
+  .strict();
+
 export const benchmarkMetricsSchema = z
   .object({
     contextEfficiency: z
@@ -82,6 +110,11 @@ export const evaluationReportSchema = z
     errors: stringListSchema,
     reportPath: pathStringSchema.nullable(),
     jsonPath: pathStringSchema.nullable(),
+    /**
+     * Optional so evaluation reports written before coverage existed keep
+     * validating. Every report this version writes carries it.
+     */
+    coverage: evaluationCoverageSchema.optional(),
     nextCommand: nonEmptyStringSchema,
     // Optional so evaluation reports written before benchmarking existed keep
     // validating; populated only when eval runs with --benchmark.
@@ -91,5 +124,7 @@ export const evaluationReportSchema = z
 
 export type EvaluationResult = z.infer<typeof evaluationResultSchema>;
 export type EvaluationCheck = z.infer<typeof evaluationCheckSchema>;
+export type EvaluationSkippedCheck = z.infer<typeof evaluationSkippedCheckSchema>;
+export type EvaluationCoverage = z.infer<typeof evaluationCoverageSchema>;
 export type BenchmarkMetrics = z.infer<typeof benchmarkMetricsSchema>;
 export type EvaluationReport = z.infer<typeof evaluationReportSchema>;

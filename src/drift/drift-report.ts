@@ -45,6 +45,19 @@ Recommended: ${finding.recommendation}
     );
   }
 
+  const recovery = report.recovery ?? [];
+
+  if (recovery.length > 0) {
+    lines.push(
+      "",
+      "## Recovery",
+      "",
+      "Run these in order. Out of order they do not clear the findings above.",
+      "",
+      ...recovery.map((step, index) => `${index + 1}. \`${step.command}\` — ${step.reason}`)
+    );
+  }
+
   lines.push("", "## Next", "", `\`${report.nextCommand}\``, "");
 
   return lines.join("\n");

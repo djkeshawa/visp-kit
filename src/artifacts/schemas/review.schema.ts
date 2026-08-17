@@ -130,6 +130,16 @@ export const reviewScopeSchema = z
      * before this field remain valid.
      */
     preExistingOutOfScopeFiles: z.array(pathStringSchema).optional(),
+    /**
+     * The subset of `expectedFiles` this review actually saw change.
+     *
+     * `expectedFiles` only ever widened the allowed set, so a review could pass
+     * having examined a one-line edit to an allowed file while none of the
+     * task's declared deliverables appeared at all — and `done` then wrote a
+     * durable `verified` on that basis (LC-130). Optional so reviews written
+     * before this field remain valid.
+     */
+    reviewedExpectedFiles: z.array(pathStringSchema).optional(),
     forbiddenChangedFiles: z.array(pathStringSchema),
     unmappedChangedFiles: z.array(pathStringSchema),
     warnings: stringListSchema,

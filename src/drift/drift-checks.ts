@@ -32,6 +32,25 @@ function draft(input: DriftFindingDraft): DriftFindingDraft {
   return input;
 }
 
+/**
+ * `--force` is not optional here. `visp-kit context <id>` on an existing pack
+ * keeps the superseded file and still exits 0, so the recommendation that
+ * omitted it sent the reader round a loop that could not terminate (LC-109).
+ */
+function regenerateContextPack(taskId: string): string {
+  return `visp-kit context ${taskId} --force`;
+}
+
+/**
+ * Included-file hashes come from the scan cache, and `drift` hashes the working
+ * tree, so a pack rebuilt from a stale cache carries the same stale hash. The
+ * scan has to come first, and it then invalidates every other pack's
+ * provenance — `driftRecoveryPlan` owns that sequencing.
+ */
+function refreshScanThenContextPack(taskId: string): string {
+  return `visp-kit scan && ${regenerateContextPack(taskId)}`;
+}
+
 export function checkStaleContextProvenance(
   pack: ContextPack,
   files: CurrentFileState
@@ -62,7 +81,7 @@ export function checkStaleContextProvenance(
           expectedHash: provenance.hash,
           actualHash: null,
           evidence: `Context pack for ${pack.taskId} was grounded on ${provenance.label} (${provenance.path}), which no longer exists.`,
-          recommendation: `Regenerate the context pack: visp-kit context ${pack.taskId}.`
+          recommendation: regenerateContextPack(pack.taskId)
         })
       ];
     }
@@ -77,7 +96,7 @@ export function checkStaleContextProvenance(
           expectedHash: provenance.hash,
           actualHash: actual,
           evidence: `${provenance.label} (${provenance.path}) changed after the context pack for ${pack.taskId} was compiled.`,
-          recommendation: `Regenerate the context pack: visp-kit context ${pack.taskId}.`
+          recommendation: regenerateContextPack(pack.taskId)
         })
       ];
     }
@@ -109,10 +128,7 @@ export function checkCodeChangedAfterContext(
         expectedHash: file.hash,
         actualHash: actual,
         evidence: `${file.path} changed after the context pack for ${pack.taskId} was compiled.`,
-        recommendation:
-          pack.selectedTask.status === "done" || pack.selectedTask.status === "verified"
-            ? `Task ${pack.taskId} is complete; regenerate context before reusing it.`
-            : `Refresh the context pack (visp-kit context ${pack.taskId}) so the agent works from current code.`
+        recommendation: refreshScanThenContextPack(pack.taskId)
       })
     ];
   });

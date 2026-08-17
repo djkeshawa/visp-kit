@@ -11,7 +11,9 @@ import { runCandidateVerificationWorkflow } from "./candidate-verification.workf
 import { runChecklistStatusWorkflow } from "./checklist.workflow.js";
 import { runNextWorkflow } from "./next.workflow.js";
 import { oraclePlanExists } from "./oracle-authorization.workflow.js";
+import { type TaskStatusUpdate } from "../artifacts/schemas/reconcile.schema.js";
 import { describeTaskStatusUpdate } from "../reconcile/task-status-update.js";
+import { reviewFailureRecovery } from "../review/review-recovery.js";
 import { runReconcileWorkflow } from "./reconcile.workflow.js";
 import { runReviewWorkflow } from "./review.workflow.js";
 import { runVerifyWorkflow } from "./verify.workflow.js";
@@ -55,6 +57,70 @@ export type DoneWorkflowSummary = {
   readonly steps: readonly DoneStepResult[];
   readonly nextCommand: string | null;
 };
+
+/**
+ * The command that repairs the budget step, in the mode the caller asked for.
+ * `--usage-unavailable` fails for a missing `--usage-note`, and answering that
+ * with `--input-tokens` would have the caller invent the counts they had just
+ * said they did not have.
+ */
+function budgetFailureRecovery(input: {
+  readonly taskId: string;
+  readonly recordsUsage: boolean;
+  readonly usageUnavailable: boolean;
+}): string {
+  if (input.usageUnavailable && !input.recordsUsage) {
+    return `visp-kit budget --task ${input.taskId} --record-usage-unavailable --usage-note "<why the counts are unavailable>" --write-report`;
+  }
+
+  return `visp-kit budget --task ${input.taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report`;
+}
+
+const noStatusRecord = "reconcile report carries no task status record";
+
+/**
+ * The reconcile step reports three distinct outcomes — reconciliation failed,
+ * it passed and the task moved, it passed and the task did not — and each has
+ * its own repair. Written as one expression it was a three-level nested ternary
+ * with an inline fallback object inside it.
+ */
+function describeReconcileStep(input: {
+  readonly taskId: string;
+  readonly reconciled: boolean;
+  readonly result: string;
+  readonly taskAdvanced: boolean;
+  readonly statusUpdate?: TaskStatusUpdate;
+  readonly recoveryCommand: string;
+}): { readonly detail: string; readonly recovery?: string } {
+  if (!input.reconciled) {
+    return {
+      detail: "Reconciliation failed. Fix the reported drift, then rerun.",
+      recovery: input.recoveryCommand
+    };
+  }
+
+  if (!input.taskAdvanced) {
+    return {
+      detail: `Reconciliation ${input.result} but the task status did not move: ${
+        input.statusUpdate?.skippedReason ?? noStatusRecord
+      }.`,
+      recovery: `${input.recoveryCommand} --force`
+    };
+  }
+
+  const transition = describeTaskStatusUpdate(
+    input.statusUpdate ?? {
+      requested: true,
+      performed: false,
+      taskId: input.taskId,
+      previousStatus: null,
+      newStatus: null,
+      skippedReason: noStatusRecord
+    }
+  );
+
+  return { detail: `Reconciliation ${input.result}. ${transition}.` };
+}
 
 function step(input: {
   readonly name: DoneStepName;
@@ -217,15 +283,26 @@ export async function runDoneWorkflow(
     });
 
     if (!budget.ok) {
+      // The recovery has to match the mode the caller asked for. It used to be
+      // the token-count form unconditionally, so a run that failed for a
+      // missing `--usage-note` was told to supply token counts it had just
+      // declared unavailable — and the summary carried no `Next:` at all
+      // (LC-131).
+      const budgetRecovery = budgetFailureRecovery({
+        taskId,
+        recordsUsage,
+        usageUnavailable: options.usageUnavailable === true
+      });
+
       steps.push(
         step({
           name: "budget",
           success: false,
           detail: budget.error.message,
-          recovery: `visp-kit budget --task ${taskId} --record-usage --input-tokens <n> --output-tokens <n> --write-report`
+          recovery: budgetRecovery
         })
       );
-      return ok(summarize(null));
+      return ok(summarize(budgetRecovery));
     }
 
     steps.push(
@@ -277,12 +354,17 @@ export async function runDoneWorkflow(
       detail: review.value.success
         ? `Review ${review.value.result}.${reviewedFiles}`
         : `Review failed: ${blockingReviewFindings.join("; ") || "fix the blocking findings, then rerun"}.${reviewedFiles}`,
-      recovery: review.value.success ? undefined : `visp-kit review --task ${taskId}`
+      recovery: review.value.success
+        ? undefined
+        : reviewFailureRecovery({
+            findings: review.value.findings,
+            fallbackCommand: review.value.nextCommand
+          })
     })
   );
 
   if (!review.value.success) {
-    return ok(summarize(`visp-kit review --task ${taskId}`));
+    return ok(summarize(review.value.nextCommand));
   }
 
   // `updateTaskStatus` is what moves the task out of `pending`, and reconcile
@@ -316,32 +398,21 @@ export async function runDoneWorkflow(
   const taskAdvanced = dryRun || statusUpdate?.performed === true;
   const reconcileRecovery = `visp-kit reconcile --task ${taskId} --update-traceability --update-task-status`;
 
+  const reconcileOutcome = describeReconcileStep({
+    taskId,
+    reconciled: reconcile.value.success,
+    result: reconcile.value.result,
+    taskAdvanced,
+    ...(statusUpdate === null || statusUpdate === undefined ? {} : { statusUpdate }),
+    recoveryCommand: reconcileRecovery
+  });
+
   steps.push(
     step({
       name: "reconcile",
       success: reconcile.value.success && taskAdvanced,
-      detail: !reconcile.value.success
-        ? "Reconciliation failed. Fix the reported drift, then rerun."
-        : taskAdvanced
-          ? `Reconciliation ${reconcile.value.result}. ${describeTaskStatusUpdate(
-              statusUpdate ?? {
-                requested: true,
-                performed: false,
-                taskId,
-                previousStatus: null,
-                newStatus: null,
-                skippedReason: "reconcile report carries no task status record"
-              }
-            )}.`
-          : `Reconciliation ${reconcile.value.result} but the task status did not move: ${
-              statusUpdate?.skippedReason ?? "reconcile report carries no task status record"
-            }.`,
-      recovery:
-        reconcile.value.success && taskAdvanced
-          ? undefined
-          : reconcile.value.success
-            ? `${reconcileRecovery} --force`
-            : reconcileRecovery
+      detail: reconcileOutcome.detail,
+      ...(reconcileOutcome.recovery === undefined ? {} : { recovery: reconcileOutcome.recovery })
     })
   );
 

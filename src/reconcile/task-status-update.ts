@@ -3,6 +3,24 @@ import {
   type TaskStatusUpdate
 } from "../artifacts/schemas/reconcile.schema.js";
 import { type Task } from "../artifacts/schemas/task.schema.js";
+import { type TaskStatus } from "../artifacts/schemas/common.schema.js";
+
+/**
+ * The decision, before anything is written.
+ *
+ * `skip` already knows its final shape, because not writing is complete in
+ * itself. `write` deliberately carries no `performed` flag: the plan may not
+ * claim the transition happened, only `applyTaskStatusUpdate` may, and only
+ * after the write succeeds (LC-130).
+ */
+export type TaskStatusUpdatePlan =
+  | { readonly kind: "skip"; readonly update: TaskStatusUpdate }
+  | {
+      readonly kind: "write";
+      readonly taskId: string;
+      readonly previousStatus: TaskStatus | null;
+      readonly newStatus: Extract<TaskStatus, "done" | "verified">;
+    };
 
 /**
  * Decides whether reconciliation may move the selected task's status, and
@@ -10,8 +28,8 @@ import { type Task } from "../artifacts/schemas/task.schema.js";
  *
  * Split out of `reconcile.workflow.ts` rather than added to it: the workflow is
  * already far past the length this repository asks for, and the decision is
- * worth reading and testing on its own. The write itself stays in the workflow,
- * which owns artifact IO.
+ * worth reading and testing on its own. The write lives in
+ * `task-status-writer.ts`.
  */
 export function planTaskStatusUpdate(input: {
   readonly requested: boolean;
@@ -33,16 +51,19 @@ export function planTaskStatusUpdate(input: {
    */
   readonly closeOnWarnings: boolean;
   readonly verificationPassed: boolean;
-}): TaskStatusUpdate {
+}): TaskStatusUpdatePlan {
   const taskId = input.task?.id ?? null;
   const previousStatus = input.task?.status ?? null;
-  const skipped = (skippedReason: string): TaskStatusUpdate => ({
-    requested: input.requested,
-    performed: false,
-    taskId,
-    previousStatus,
-    newStatus: null,
-    skippedReason
+  const skipped = (skippedReason: string): TaskStatusUpdatePlan => ({
+    kind: "skip",
+    update: {
+      requested: input.requested,
+      performed: false,
+      taskId,
+      previousStatus,
+      newStatus: null,
+      skippedReason
+    }
   });
 
   if (!input.requested) return skipped("not requested");
@@ -58,23 +79,19 @@ export function planTaskStatusUpdate(input: {
 
   if (input.dryRun) {
     return {
-      requested: true,
-      performed: false,
-      taskId,
-      previousStatus,
-      newStatus,
-      skippedReason: "dry-run"
+      kind: "skip",
+      update: {
+        requested: true,
+        performed: false,
+        taskId,
+        previousStatus,
+        newStatus,
+        skippedReason: "dry-run"
+      }
     };
   }
 
-  return {
-    requested: true,
-    performed: true,
-    taskId,
-    previousStatus,
-    newStatus,
-    skippedReason: null
-  };
+  return { kind: "write", taskId: input.task.id, previousStatus, newStatus };
 }
 
 export function describeTaskStatusUpdate(update: TaskStatusUpdate): string {

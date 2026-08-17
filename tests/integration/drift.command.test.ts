@@ -84,6 +84,55 @@ describe("visp-kit drift command", () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it("prints a recovery that actually clears the drift it reports", async () => {
+    // LC-109: the printed recovery was `visp-kit context <id>` without --force,
+    // which keeps the existing pack and still exits 0 — following it literally
+    // reproduced the same findings forever.
+    await prepareContext();
+
+    const specPath = path.join(tempDir, ".visp", "features", "001-add-note-pinning", "spec.json");
+    const spec = JSON.parse(await readFile(specPath, "utf8")) as { title: string };
+
+    spec.title = "Edited after context";
+    await writeFile(specPath, `${JSON.stringify(spec, null, 2)}\n`, "utf8");
+
+    const output: string[] = [];
+    const program = createCli({ writeOut: (value) => output.push(value) });
+
+    await program.parseAsync(["node", "visp", "drift", tempDir, "--json"]);
+
+    const report = JSON.parse(output.join("")) as {
+      result: string;
+      nextCommand: string;
+      recovery: readonly { command: string; reason: string }[];
+    };
+
+    expect(report.result).toBe("failed");
+    expect(report.recovery.map((step) => step.command)).toEqual(["visp-kit context T001 --force"]);
+    expect(report.nextCommand).toBe("visp-kit context T001 --force");
+
+    const recoveryProgram = createCli({ writeOut: () => undefined });
+
+    for (const step of report.recovery) {
+      await recoveryProgram.parseAsync([
+        "node",
+        "visp",
+        ...step.command.split(" ").slice(1),
+        tempDir
+      ]);
+    }
+
+    process.exitCode = undefined;
+    const afterOutput: string[] = [];
+    const afterProgram = createCli({ writeOut: (value) => afterOutput.push(value) });
+
+    await afterProgram.parseAsync(["node", "visp", "drift", tempDir, "--json"]);
+
+    const after = JSON.parse(afterOutput.join("")) as { result: string };
+
+    expect(after.result).toBe("passed");
+  });
+
   it("blocks the PR gate through VSP021 when context provenance is stale", async () => {
     await prepareContext();
     const strictProgram = createCli({ writeOut: () => undefined });
