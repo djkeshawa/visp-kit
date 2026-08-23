@@ -18,7 +18,7 @@ import {
   runAgentInstall,
   type AgentInstallSummary
 } from "./agent-installer.js";
-import { memoryToolingDetected } from "./memory-detection.js";
+import { memoryStoreDetected } from "./memory-detection.js";
 import { targetFiles } from "./targets/target-files.js";
 import { targetPathFrom } from "../core/paths.js";
 
@@ -73,12 +73,16 @@ async function dryRunInstallSummary(input: {
       : ok(false);
 
   if (!fallbackExists.ok) return fallbackExists;
+  const memoryDetected = await memoryStoreDetected(input.targetPath);
+
+  if (!memoryDetected.ok) return memoryDetected;
+
   const targetFilePlan = targetFiles({
     target: input.target,
     targetPath: input.targetPath,
     strictness: input.strictness,
     useFallbackAgentsFile,
-    memoryDetected: await memoryToolingDetected(input.targetPath)
+    memoryDetected: memoryDetected.value
   });
   const createdFiles = [
     ...targetFilePlan.map((file) => relativePath(input.targetPath, file.path)),

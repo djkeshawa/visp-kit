@@ -25,6 +25,9 @@ export type TargetFilesInput = {
  * decision be answered two different ways (see `sharedGuidanceFile`): a per-target
  * input added to one copy and missed in another makes a dry run promise something
  * the real run does not do.
+ *
+ * `agent doctor` still keeps its own per-target list of expected paths, which is
+ * the same hazard one step further on and wants the same treatment.
  */
 export function targetFiles(input: TargetFilesInput): readonly AgentTextFile[] {
   const shared = {

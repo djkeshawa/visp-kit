@@ -1,61 +1,52 @@
-import { access, constants } from "node:fs/promises";
-import { delimiter, join } from "node:path";
+import path from "node:path";
 
+import { type VispError } from "../core/errors.js";
 import { pathExists } from "../core/file-system.js";
-import { joinPath } from "../core/paths.js";
-
-/** Written by `visp-memory init`. Its presence means this project already uses memory. */
-export const memoryStoreManifest = "visp-memory.yaml";
-
-const memoryExecutableName = "visp-memory";
-
-/** Windows resolves a bare name through these; POSIX runs the file as named. */
-const executableSuffixes = process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""];
-
-async function isExecutableFile(candidate: string): Promise<boolean> {
-  try {
-    await access(candidate, constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function executableOnPath(name: string): Promise<boolean> {
-  const search = process.env["PATH"];
-
-  if (search === undefined || search === "") return false;
-
-  for (const directory of search.split(delimiter)) {
-    if (directory === "") continue;
-
-    for (const suffix of executableSuffixes) {
-      if (await isExecutableFile(join(directory, `${name}${suffix}`))) return true;
-    }
-  }
-
-  return false;
-}
+import { ok, type Result } from "../core/result.js";
 
 /**
- * Is `visp-memory` part of this project's world?
+ * The config forms `visp-memory` itself accepts, in its own order.
  *
- * Read-only: a PATH scan and a file probe, never a spawn. Kit is deciding what to
- * write into a guidance file, and that decision must not depend on running another
- * product's binary.
- *
- * Either signal is enough, deliberately. Hyper's `memoryStoreIsReachable` requires
- * both because it is choosing a memory mode it must then actually use. This
- * question is different: an installed CLI with no store yet is the ordinary case
- * when Kit is bootstrapped before `visp-memory init`, and an initialised store
- * whose CLI is not on this machine's PATH still means the project uses memory.
- * Requiring both would blank the section in exactly the situation the guidance is
- * for.
+ * Mirrors `MemoryConfig.find_and_load` in the `visp-memory` package: the same
+ * three names, searched from the project directory upwards. A monorepo whose
+ * store is configured at the repository root is one memory uses and therefore one
+ * Kit has to see.
  */
-export async function memoryToolingDetected(targetPath: string): Promise<boolean> {
-  const manifest = await pathExists(joinPath(targetPath, memoryStoreManifest));
+export const memoryConfigNames = [
+  "visp-memory.yaml",
+  "visp-memory.json",
+  path.join(".visp-memory", "config.yaml")
+] as const;
 
-  if (manifest.ok && manifest.value) return true;
+/**
+ * Does this project have a `visp-memory` store?
+ *
+ * Read-only, and deliberately a question about the *project*, not the machine.
+ * `AGENTS.md` is a committed file that every contributor and CI shares, so the
+ * answer has to be the same for all of them: keying it on whether the CLI happens
+ * to be on one developer's `PATH` would let an ordinary `agent refresh` on a
+ * second machine silently delete the section the first machine wrote.
+ *
+ * It is also the honest question. Every memory command refuses in a project with
+ * no store — `recall` exits with "No repository scope is configured … run
+ * visp-memory init" — so an installed CLI alone is not something to write
+ * instructions about.
+ */
+export async function memoryStoreDetected(targetPath: string): Promise<Result<boolean, VispError>> {
+  let directory = path.resolve(targetPath);
 
-  return executableOnPath(memoryExecutableName);
+  for (;;) {
+    for (const name of memoryConfigNames) {
+      const found = await pathExists(path.join(directory, name));
+
+      if (!found.ok) return found;
+      if (found.value) return ok(true);
+    }
+
+    const parent = path.dirname(directory);
+
+    if (parent === directory) return ok(false);
+
+    directory = parent;
+  }
 }
