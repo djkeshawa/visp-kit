@@ -2,13 +2,33 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * `stat` is the one absence Kit cannot provoke through the real filesystem:
+ * the branch needs the projection to be reachable by `access` and unsizable by
+ * `stat`, and nothing a test can put on disk is both. Every other call passes
+ * straight through to the real implementation, so this file exercises real
+ * files everywhere else.
+ */
+const statMock = vi.hoisted(() => vi.fn());
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+
+  return { ...actual, stat: statMock };
+});
 
 import { type IntelProjection } from "../../../src/artifacts/schemas/intel-projection.schema.js";
 import {
+  intelStoreAbsenceReasons,
+  type IntelStoreAbsenceReason
+} from "../../../src/artifacts/schemas/intel-scan.schema.js";
+import {
   INTEL_PROJECTION_MAX_BYTES,
   collapseToFileGraph,
-  loadIntelGraph
+  loadIntelGraph,
+  readScanIntelInstanceId
 } from "../../../src/scanner/intel-graph.js";
 import { buildModuleMap } from "../../../src/scanner/module-map.js";
 import { type FileIndexEntry, type FileSummary } from "../../../src/scanner/types.js";
@@ -75,6 +95,13 @@ async function writeProjection(root: string, value: unknown): Promise<void> {
     "utf8"
   );
 }
+
+beforeEach(async () => {
+  const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+
+  statMock.mockReset();
+  statMock.mockImplementation(actual.stat);
+});
 
 describe("collapsing intel's consumer projection to file grain", () => {
   it("resolves internal imports to file paths and externals to module names", () => {
@@ -308,8 +335,18 @@ describe("loading intel's consumer projection", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it("returns nothing and warns nothing when the project has no intel store", async () => {
-    expect(await loadIntelGraph(tempDir)).toEqual({ warnings: [] });
+  /**
+   * The absence nobody could see. A project with no `.visp-intel/` raises no
+   * warning — correctly, there is nothing for a human to do — and used to
+   * return nothing else either, so `scan` wrote `store: null` while holding the
+   * reason and discarding it. Silence on the warnings line is still the
+   * behaviour; silence about the CAUSE is not.
+   */
+  it("returns nothing and warns nothing when the project has no intel store, and still says why", async () => {
+    expect(await loadIntelGraph(tempDir)).toEqual({
+      warnings: [],
+      storeAbsenceReason: "intel_absent"
+    });
   });
 
   it("names the missing projection when only the archival export is present", async () => {
@@ -388,5 +425,217 @@ describe("loading intel's consumer projection", () => {
     expect(loaded.warnings).toEqual([]);
     expect(loaded.fileGraph?.filePaths).toContain("src/a.ts");
     expect(loaded.fileGraph?.internalEdges.get("src/a.ts")).toEqual(["src/b.ts"]);
+  });
+});
+
+/**
+ * One scenario per way `loadIntelGraph` can return without a file graph, in the
+ * order it evaluates them. The point of the table is that the LAST test in the
+ * block compares the reasons these nine scenarios actually produce against the
+ * enumeration itself: a tenth branch added without a code, or a code nobody
+ * ever produces, fails here rather than reaching an artifact as a bare `null`.
+ */
+const absenceScenarios: readonly {
+  readonly reason: IntelStoreAbsenceReason;
+  readonly situation: string;
+  readonly arrange: (root: string) => Promise<void>;
+}[] = [
+  {
+    reason: "projection_path_unreadable",
+    situation: "the projection path cannot be probed at all",
+    // A file where the projection directory belongs: `access` fails ENOTDIR,
+    // which is not ENOENT, so this is a failure to look rather than an absence.
+    arrange: async (root) => {
+      await mkdir(path.join(root, ".visp-intel"), { recursive: true });
+      await writeFile(path.join(root, ".visp-intel", "projection"), "not a directory", "utf8");
+    }
+  },
+  {
+    reason: "intel_absent",
+    situation: "the project has neither a projection nor an archival export",
+    arrange: async () => {}
+  },
+  {
+    reason: "projection_missing_export_present",
+    situation: "only the archival export is on disk",
+    arrange: async (root) => {
+      await mkdir(path.join(root, ".visp-intel"), { recursive: true });
+      await writeFile(path.join(root, ".visp-intel", "graph.json"), "{}", "utf8");
+    }
+  },
+  {
+    reason: "projection_above_read_limit",
+    situation: "the projection is above the read limit",
+    arrange: async (root) => {
+      await writeProjection(root, {
+        ...projection(),
+        filler: "x".repeat(INTEL_PROJECTION_MAX_BYTES + 1)
+      });
+    }
+  },
+  {
+    reason: "projection_size_unreadable",
+    situation: "the projection cannot be sized",
+    arrange: async (root) => {
+      await writeProjection(root, projection());
+      statMock.mockRejectedValue(Object.assign(new Error("stat failed"), { code: "EIO" }));
+    }
+  },
+  {
+    reason: "projection_unreadable",
+    situation: "the projection is not JSON",
+    arrange: async (root) => {
+      await mkdir(path.join(root, ".visp-intel", "projection"), { recursive: true });
+      await writeFile(
+        path.join(root, ".visp-intel", "projection", "graph.json"),
+        "{ not json",
+        "utf8"
+      );
+    }
+  },
+  {
+    reason: "projection_shape_mismatch",
+    situation: "the archival export is put at the projection path",
+    arrange: async (root) => {
+      await writeProjection(root, {
+        schemaVersion: "1.0",
+        repositoryInstanceId: "urn:visp-intel:repository-instance:1.0:sha256:repo",
+        headSnapshotId: SNAPSHOT,
+        entities: [],
+        relations: []
+      });
+    }
+  },
+  {
+    reason: "projection_snapshot_not_head",
+    situation: "the rows describe a snapshot that was not the head",
+    arrange: async (root) => {
+      const value = projection();
+      await writeProjection(root, {
+        ...value,
+        identity: { ...value.identity, snapshotId: "urn:visp-intel:snapshot:1.0:sha256:older" }
+      });
+    }
+  },
+  {
+    reason: "projection_indexed_no_files",
+    situation: "the projection is valid and indexed nothing",
+    arrange: async (root) => {
+      const value = projection();
+      await writeProjection(root, {
+        ...value,
+        dictionaries: { ...value.dictionaries, paths: [] },
+        nodes: { ...value.nodes, rows: [] },
+        edges: { ...value.edges, rows: [] }
+      });
+    }
+  }
+];
+
+describe("recording why scan read no intel store", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "visp-intel-absence-"));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  for (const scenario of absenceScenarios) {
+    it(`reports ${scenario.reason} when ${scenario.situation}`, async () => {
+      await scenario.arrange(tempDir);
+
+      const loaded = await loadIntelGraph(tempDir);
+
+      expect(loaded.fileGraph).toBeUndefined();
+      expect(loaded.storeAbsenceReason).toBe(scenario.reason);
+    });
+  }
+
+  it("produces exactly the reasons the enumeration declares", async () => {
+    const produced: string[] = [];
+
+    for (const scenario of absenceScenarios) {
+      const root = await mkdtemp(path.join(os.tmpdir(), "visp-intel-absence-all-"));
+
+      statMock.mockImplementation(
+        (await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises")).stat
+      );
+      await scenario.arrange(root);
+      produced.push(String((await loadIntelGraph(root)).storeAbsenceReason));
+      await rm(root, { recursive: true, force: true });
+    }
+
+    expect([...produced].sort()).toEqual([...intelStoreAbsenceReasons].sort());
+  });
+
+  it("reports no absence reason when the projection is read", async () => {
+    await writeProjection(tempDir, projection());
+
+    const loaded = await loadIntelGraph(tempDir);
+
+    expect(loaded.fileGraph).toBeDefined();
+    expect(loaded.storeAbsenceReason).toBeUndefined();
+  });
+});
+
+describe("reading the intel instance id the last scan recorded", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(path.join(os.tmpdir(), "visp-intel-provenance-"));
+    await mkdir(path.join(tempDir, ".visp", "cache"), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  async function writeProvenance(value: unknown): Promise<void> {
+    await writeFile(
+      path.join(tempDir, ".visp", "cache", "intel-scan.json"),
+      JSON.stringify(value),
+      "utf8"
+    );
+  }
+
+  /**
+   * The compatibility direction that matters at the reader: an artifact written
+   * before the absence field exists is still a valid record of a store, and the
+   * gate that matches on its instance id must go on matching.
+   */
+  it("reads a store recorded by a Kit that wrote no absence reason", async () => {
+    await writeProvenance({
+      generatedAt: "2026-01-01T00:00:00.000Z",
+      store: {
+        repositoryInstanceId: "urn:visp-intel:repository-instance:1.0:sha256:repo",
+        headSnapshotId: SNAPSHOT,
+        indexedFileCount: 3
+      }
+    });
+
+    expect(await readScanIntelInstanceId(tempDir)).toBe(
+      "urn:visp-intel:repository-instance:1.0:sha256:repo"
+    );
+  });
+
+  it("reports no instance id for a null store written before the reason existed", async () => {
+    await writeProvenance({ generatedAt: "2026-01-01T00:00:00.000Z", store: null });
+
+    expect(await readScanIntelInstanceId(tempDir)).toBeUndefined();
+  });
+
+  it("reports no instance id whatever the reason says", async () => {
+    for (const storeAbsenceReason of intelStoreAbsenceReasons) {
+      await writeProvenance({
+        generatedAt: "2026-01-01T00:00:00.000Z",
+        store: null,
+        storeAbsenceReason
+      });
+
+      expect(await readScanIntelInstanceId(tempDir)).toBeUndefined();
+    }
   });
 });

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { policyArtifactPath } from "../../src/artifacts/artifact-paths.js";
 import { type GateResult } from "../../src/artifacts/schemas/gate.schema.js";
+import { intelStoreAbsenceReasons } from "../../src/artifacts/schemas/intel-scan.schema.js";
 import { evaluateGate } from "../../src/gates/gate-engine.js";
 import { runContextWorkflow } from "../../src/workflows/context.workflow.js";
 import { runOverrideCreateWorkflow } from "../../src/workflows/override.workflow.js";
@@ -638,5 +639,67 @@ describe("VSP026 understanding gate", () => {
     expect(vsp026(result)).toEqual([]);
     expect(result.overriddenRules).toContain("VSP026");
     expect(result.appliedOverrides[0]?.reason).toContain("Legacy task");
+  });
+
+  /**
+   * A reason field RECORDS; it never authorizes.
+   *
+   * `.visp/cache/intel-scan.json` is read by this gate and by the context
+   * compiler, so the field added to it has to be provably inert: the fact that
+   * decides anything is `store`, and a `null` store is a `null` store whatever
+   * the reason beside it says. The comparison is the whole gate result, not one
+   * rule — a reason that moved a warning, a passed rule or an evidence line
+   * would fail here too.
+   *
+   * The BEFORE is the artifact shape a Kit without the field wrote: `store:
+   * null` and nothing else. The AFTERS are all nine reasons.
+   */
+  describe("the recorded absence reason authorizes nothing", () => {
+    async function writeProvenance(value: Record<string, unknown>): Promise<void> {
+      await writeFile(
+        path.join(tempDir, ".visp", "cache", "intel-scan.json"),
+        `${JSON.stringify({ generatedAt: "2026-01-01T00:00:00.000Z", ...value }, null, 2)}\n`,
+        "utf8"
+      );
+    }
+
+    it("returns the identical verdict for every reason, and for no reason at all", async () => {
+      await enableVsp026();
+      await writeUnderstandingExport(understandingExport({}));
+
+      await writeProvenance({ store: null });
+      const before = await implementGate();
+
+      // Not a vacuous baseline: with no intel instance id to match against, the
+      // case cannot be current, so this verdict is a real block that a reason
+      // would be a tempting excuse to open.
+      expect(before.allowed).toBe(false);
+      expect(vsp026(before).join(" ")).toContain("G1");
+
+      for (const storeAbsenceReason of intelStoreAbsenceReasons) {
+        await writeProvenance({ store: null, storeAbsenceReason });
+
+        expect(await implementGate()).toEqual(before);
+      }
+    });
+
+    it("keeps the verdict the store earns, which the reason never changes", async () => {
+      // The other half of the same claim: what moves the verdict is `store`.
+      await enableVsp026();
+      await writeUnderstandingExport(understandingExport({}));
+
+      await writeProvenance({
+        store: {
+          repositoryInstanceId: REPOSITORY_INSTANCE,
+          headSnapshotId: SNAPSHOT,
+          indexedFileCount: 3
+        }
+      });
+
+      const withStore = await implementGate();
+
+      expect(withStore.allowed).toBe(true);
+      expect(vsp026(withStore)).toEqual([]);
+    });
   });
 });

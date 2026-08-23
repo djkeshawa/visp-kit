@@ -10,6 +10,49 @@ import { pathExists, readJsonFile } from "../../../src/core/file-system.js";
 import { isErr, isOk } from "../../../src/core/result.js";
 import { runInitWorkflow } from "../../../src/workflows/init.workflow.js";
 import { runScanWorkflow } from "../../../src/workflows/scan.workflow.js";
+import { writeScanPlan } from "../../../src/workflows/scan/write-plan.js";
+
+const SNAPSHOT = "urn:visp-intel:snapshot:1.0:sha256:head";
+
+/** Intel's consumer projection, minimal but real: one indexed file, at head. */
+async function writeIntelProjection(rootPath: string): Promise<void> {
+  await mkdir(path.join(rootPath, ".visp-intel", "projection"), { recursive: true });
+  await writeFile(
+    path.join(rootPath, ".visp-intel", "projection", "graph.json"),
+    JSON.stringify({
+      kind: "consumer-graph-projection",
+      schemaVersion: "1.0",
+      identity: {
+        repositoryInstanceId: "urn:visp-intel:repository-instance:1.0:sha256:repo",
+        snapshotId: SNAPSHOT,
+        headSnapshotId: SNAPSHOT
+      },
+      dictionaries: {
+        nodeKinds: ["file"],
+        edgeKinds: ["imports"],
+        paths: ["src/index.ts"]
+      },
+      nodes: {
+        columns: ["path", "kind", "name", "startLine", "endLine"],
+        rows: [[0, 0, "src/index.ts", null, null]]
+      },
+      edges: {
+        columns: [
+          "source",
+          "target",
+          "kind",
+          "confidence",
+          "completeness",
+          "modality",
+          "derivationMethod",
+          "uncertaintyReasonCount"
+        ],
+        rows: []
+      }
+    }),
+    "utf8"
+  );
+}
 
 function expectOk<T>(result: { ok: true; value: T } | { ok: false }): T {
   expect(result.ok).toBe(true);
@@ -284,6 +327,66 @@ describe("runScanWorkflow", () => {
     // store must overwrite the instance id a previous scan recorded, or a case
     // from a deleted store keeps looking current.
     expect(provenance.store).toBeNull();
+  });
+
+  /**
+   * The writer half of "additive in both directions": scan never records an
+   * absence it cannot account for. `intel_absent` is the reason that used to be
+   * carried by nothing at all — no warning, no field — so a fixture with no
+   * `.visp-intel/` is exactly the case that proves the field is populated
+   * rather than merely permitted.
+   */
+  it("records why the intel store was absent, not just that it was", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await createTypeScriptFixture(tempDir);
+    expectOk(await runScanWorkflow({ targetPath: tempDir }));
+
+    const provenance = expectOk(
+      await readJsonFile<Record<string, unknown>>(
+        path.join(tempDir, ".visp", "cache", "intel-scan.json")
+      )
+    );
+
+    expect(provenance.storeAbsenceReason).toBe("intel_absent");
+    expect(Object.keys(provenance).sort()).toEqual(["generatedAt", "store", "storeAbsenceReason"]);
+  });
+
+  /**
+   * The write schema, exercised through the workflow's own writer rather than
+   * against the schema alone: an unexplained `null` fails validation before it
+   * reaches the disk, so there is no path through `scan` that produces one.
+   */
+  it("refuses to write a null store with no reason", async () => {
+    const failure = await writeScanPlan([
+      {
+        kind: "intelScan",
+        path: path.join(tempDir, "intel-scan.json"),
+        displayPath: "intel-scan.json",
+        value: { generatedAt: "2026-01-01T00:00:00.000Z", store: null }
+      }
+    ]);
+
+    expect(isErr(failure)).toBe(true);
+    expect(await exists(path.join(tempDir, "intel-scan.json"))).toBe(false);
+  });
+
+  it("reports the store as read when a projection is present", async () => {
+    expectOk(await runInitWorkflow({ targetPath: tempDir, agent: "none" }));
+    await createTypeScriptFixture(tempDir);
+    await writeIntelProjection(tempDir);
+
+    const summary = expectOk(await runScanWorkflow({ targetPath: tempDir }));
+
+    expect(summary.intelStore.read).toBe(true);
+
+    const provenance = expectOk(
+      await readJsonFile<Record<string, unknown>>(
+        path.join(tempDir, ".visp", "cache", "intel-scan.json")
+      )
+    );
+
+    expect(provenance.store).not.toBeNull();
+    expect(provenance.storeAbsenceReason).toBeUndefined();
   });
 
   it("returns ok results", async () => {

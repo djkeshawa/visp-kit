@@ -20,7 +20,7 @@ import { buildTestMap } from "../scanner/scan-tests.js";
 import { buildFileSummaries } from "../scanner/summarize-project.js";
 import { type ProjectDetection, type ScanCounts } from "../scanner/types.js";
 import { patternsMarkdown, projectSummaryMarkdown, scanReportMarkdown } from "./scan/reports.js";
-import { type ScanSummary } from "./scan/scan-summary.js";
+import { type ScanIntelStore, type ScanSummary } from "./scan/scan-summary.js";
 import { ensureScanDirectories, plannedScanWrites, writeScanPlan } from "./scan/write-plan.js";
 
 export type ScanWorkflowOptions = {
@@ -82,6 +82,7 @@ function createSummary(input: {
   readonly counts: ScanCounts;
   readonly warnings: readonly string[];
   readonly writtenFiles: readonly string[];
+  readonly intelStore: ScanIntelStore;
 }): ScanSummary {
   return {
     success: true,
@@ -97,6 +98,7 @@ function createSummary(input: {
     ...input.counts,
     writtenFiles: input.writtenFiles,
     warnings: input.warnings,
+    intelStore: input.intelStore,
     nextCommand: "visp-kit constitution"
   };
 }
@@ -150,6 +152,10 @@ export async function runScanWorkflow(
 
     warnings.push(...intel.warnings);
 
+    const intelStore: ScanIntelStore =
+      intel.fileGraph === undefined
+        ? { read: false, absenceReason: intel.storeAbsenceReason }
+        : { read: true, indexedFileCount: intel.fileGraph.filePaths.length };
     const moduleMap = buildModuleMap({
       files: scan.files,
       summaries: summaries.cache.items,
@@ -204,16 +210,23 @@ export async function runScanWorkflow(
       // added key stayed compatible. Written on every scan, `store: null`
       // included, so a scan that finds no store overwrites the instance id a
       // previous scan recorded.
+      //
+      // A `null` store is recorded WITH the reason it is null. `loadIntelGraph`
+      // already distinguished nine ways a store can be absent and scan was
+      // discarding all nine into one bare `null`, including the one case that
+      // raises no warning either — so the artifact said "no intel" and nothing
+      // on disk said why. The write schema refuses the unexplained `null`.
       intelScan: {
         generatedAt: now,
-        store:
-          intel.fileGraph === undefined
-            ? null
-            : {
+        ...(intel.fileGraph === undefined
+          ? { store: null, storeAbsenceReason: intel.storeAbsenceReason }
+          : {
+              store: {
                 repositoryInstanceId: intel.fileGraph.repositoryInstanceId,
                 headSnapshotId: intel.fileGraph.headSnapshotId,
                 indexedFileCount: intel.fileGraph.filePaths.length
               }
+            })
       },
       projectSummary: projectSummaryMarkdown({
         detection: scan.detection,
@@ -245,7 +258,8 @@ export async function runScanWorkflow(
         detection: scan.detection,
         counts: summaries.counts,
         warnings,
-        writtenFiles: writes.map((write) => write.displayPath)
+        writtenFiles: writes.map((write) => write.displayPath),
+        intelStore
       })
     );
   } catch (error) {

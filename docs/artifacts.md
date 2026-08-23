@@ -43,6 +43,20 @@ It is deliberately not part of any other artifact: `scan-meta.json` briefly
 carried an `intel` key and that widened an artifact other tools already parse,
 for a fact only the understanding gate consumes.
 
+When `store` is `null`, `storeAbsenceReason` says which of the nine ways that
+happened — `projection_path_unreadable`, `intel_absent`,
+`projection_missing_export_present`, `projection_above_read_limit`,
+`projection_size_unreadable`, `projection_unreadable`,
+`projection_shape_mismatch`, `projection_snapshot_not_head` or
+`projection_indexed_no_files`. The list is closed, and `scan` prints the same
+fact on its always-present `Intel store:` line. **The reason records; it
+authorizes nothing.** No gate reads it, and `store: null` fails closed exactly
+as it did before the field existed.
+
+The field is additive: it is optional when reading, so an `intel-scan.json`
+written before it existed still parses, and required when writing a `null`
+store, so scan cannot record an absence it cannot account for.
+
 ## Memory
 
 ```text
