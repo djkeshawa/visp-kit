@@ -7,7 +7,8 @@ describe("generic target", () => {
     const files = genericTargetFiles({
       targetPath: "/repo",
       strictness: "locked",
-      useFallbackAgentsFile: false
+      useFallbackAgentsFile: false,
+      memoryDetected: false
     });
 
     // Normalize separators so the assertion holds on both POSIX and Windows.

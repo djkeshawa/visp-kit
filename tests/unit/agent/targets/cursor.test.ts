@@ -7,7 +7,8 @@ describe("cursor target", () => {
   it("renders the base rule, shared rules file, and five workflow rules", () => {
     const files = cursorTargetFiles({
       targetPath: "/repo",
-      strictness: "strict"
+      strictness: "strict",
+      memoryDetected: false
     });
 
     expect(files.map((file) => toPosixPath(file.path))).toEqual([

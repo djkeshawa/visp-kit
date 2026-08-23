@@ -18,13 +18,8 @@ import {
   runAgentInstall,
   type AgentInstallSummary
 } from "./agent-installer.js";
-import { claudeTargetFiles } from "./targets/claude.js";
-import { codexTargetFiles } from "./targets/codex.js";
-import { copilotTargetFiles } from "./targets/copilot.js";
-import { cursorTargetFiles } from "./targets/cursor.js";
-import { geminiTargetFiles } from "./targets/gemini.js";
-import { genericTargetFiles } from "./targets/generic.js";
-import { opencodeTargetFiles } from "./targets/opencode.js";
+import { memoryStoreDetected } from "./memory-detection.js";
+import { targetFiles } from "./targets/target-files.js";
 import { targetPathFrom } from "../core/paths.js";
 
 export type AgentBootstrapOptions = {
@@ -78,49 +73,19 @@ async function dryRunInstallSummary(input: {
       : ok(false);
 
   if (!fallbackExists.ok) return fallbackExists;
-  const targetFiles = (() => {
-    switch (input.target) {
-      case "codex":
-        return codexTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "generic":
-        return genericTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "claude":
-        return claudeTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness
-        });
-      case "copilot":
-        return copilotTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "opencode":
-        return opencodeTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "cursor":
-        return cursorTargetFiles({ targetPath: input.targetPath, strictness: input.strictness });
-      case "gemini":
-        return geminiTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-    }
-  })();
+  const memoryDetected = await memoryStoreDetected(input.targetPath);
+
+  if (!memoryDetected.ok) return memoryDetected;
+
+  const targetFilePlan = targetFiles({
+    target: input.target,
+    targetPath: input.targetPath,
+    strictness: input.strictness,
+    useFallbackAgentsFile,
+    memoryDetected: memoryDetected.value
+  });
   const createdFiles = [
-    ...targetFiles.map((file) => relativePath(input.targetPath, file.path)),
+    ...targetFilePlan.map((file) => relativePath(input.targetPath, file.path)),
     relativePath(input.targetPath, installedTargetsPath(input.targetPath)),
     relativePath(input.targetPath, agentGuidePath(input.targetPath)),
     relativePath(input.targetPath, workflowMapPath(input.targetPath))

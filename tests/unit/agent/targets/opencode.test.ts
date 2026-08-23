@@ -8,7 +8,8 @@ describe("opencode target", () => {
     const files = opencodeTargetFiles({
       targetPath: "/repo",
       strictness: "strict",
-      useFallbackAgentsFile: false
+      useFallbackAgentsFile: false,
+      memoryDetected: false
     });
 
     // Normalize separators so the assertion holds on both POSIX and Windows.
@@ -33,7 +34,8 @@ describe("opencode target", () => {
     const input = {
       targetPath: "/repo",
       strictness: "locked" as const,
-      useFallbackAgentsFile: false
+      useFallbackAgentsFile: false,
+      memoryDetected: false
     };
 
     expect(opencodeTargetFiles(input)).toEqual(genericTargetFiles(input));

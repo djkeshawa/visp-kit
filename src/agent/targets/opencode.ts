@@ -9,6 +9,7 @@ export function opencodeTargetFiles(input: {
   readonly targetPath: string;
   readonly strictness: StrictnessMode;
   readonly useFallbackAgentsFile: boolean;
+  readonly memoryDetected: boolean;
 }): readonly AgentTextFile[] {
   return genericTargetFiles(input);
 }

@@ -102,6 +102,45 @@ Always run the command shown on the line after \`Next:\`. Never proceed past a b
 
 export const vispRulesDisplayPath = ".visp/prompts/visp-rules.md";
 
+/**
+ * One command per capability, and no more.
+ *
+ * Two constraints meet here. `visp-memory`'s own reachability check counts an
+ * instruction file as an entry point only when the executable is followed by a
+ * real subcommand on the same line — naming the package in prose is reported as
+ * "mentioned", not "reachable" — so at least one runnable form has to survive any
+ * edit. Against that, this file is read on every task, so the section names the
+ * capability and one way in, not the command surface.
+ */
+export const memoryEntryCommands = {
+  recall: 'visp-memory recall "<topic>"',
+  record: 'visp-memory record "<what happened>"',
+  intent: 'visp-memory goal "<intent>"'
+} as const;
+
+/**
+ * Memory is a sibling tool, not part of the gate. This section exists so an agent
+ * learns memory is there at all — without it, nothing in a Kit-bootstrapped project
+ * names `visp-memory` and the entry point is never found.
+ *
+ * Rendered only where memory was actually detected, so a project that does not use
+ * it is not told to. The non-authoritative sentence is a contract, not a caveat:
+ * Kit decides permission, scope, evidence and completion; memory supplies cited
+ * knowledge and nothing else.
+ */
+export function memorySection(): string {
+  return `## Memory (optional, non-authoritative)
+
+\`visp-memory\` holds cited notes from earlier work on this project. It never grants permission, changes scope, certifies evidence, or marks work done — Visp Kit decides all of that. Treat what it returns as a claim to check, not as evidence.
+
+- Recall what the project already knows, before planning: \`${memoryEntryCommands.recall}\`.
+- Record what the work turned up, once it is real: \`${memoryEntryCommands.record}\`.
+- Set the intent you are working toward: \`${memoryEntryCommands.intent}\`.
+
+\`visp-memory --help\` lists the rest. Memory is never required to proceed.
+`;
+}
+
 export function criticalRulesDigest(strictness: StrictnessMode): string {
   return `## Rules digest
 

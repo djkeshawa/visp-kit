@@ -17,6 +17,7 @@ export function geminiTargetFiles(input: {
   readonly targetPath: string;
   readonly strictness: StrictnessMode;
   readonly useFallbackAgentsFile: boolean;
+  readonly memoryDetected: boolean;
 }): readonly AgentTextFile[] {
   const guidancePath = input.useFallbackAgentsFile
     ? geminiVispMarkdownPath(input.targetPath)
@@ -28,7 +29,8 @@ export function geminiTargetFiles(input: {
       path: guidancePath,
       contents: renderAgentsMarkdown({
         target: "gemini",
-        strictness: input.strictness
+        strictness: input.strictness,
+        memoryDetected: input.memoryDetected
       })
     },
     {

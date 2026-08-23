@@ -17,6 +17,7 @@ export function genericTargetFiles(input: {
   readonly targetPath: string;
   readonly strictness: StrictnessMode;
   readonly useFallbackAgentsFile: boolean;
+  readonly memoryDetected: boolean;
 }): readonly AgentTextFile[] {
   const agentsPath = input.useFallbackAgentsFile
     ? agentsVispMarkdownPath(input.targetPath)
@@ -28,7 +29,8 @@ export function genericTargetFiles(input: {
       path: agentsPath,
       contents: renderAgentsMarkdown({
         target: "generic",
-        strictness: input.strictness
+        strictness: input.strictness,
+        memoryDetected: input.memoryDetected
       })
     },
     {

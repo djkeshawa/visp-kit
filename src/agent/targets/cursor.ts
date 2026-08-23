@@ -7,12 +7,16 @@ import { renderVispRulesFile } from "../templates/visp-rules.js";
 export function cursorTargetFiles(input: {
   readonly targetPath: string;
   readonly strictness: StrictnessMode;
+  readonly memoryDetected: boolean;
 }): readonly AgentTextFile[] {
   return [
     {
       kind: "text",
       path: cursorRulePath(input.targetPath, "visp-rules"),
-      contents: renderCursorBaseRule({ strictness: input.strictness })
+      contents: renderCursorBaseRule({
+        strictness: input.strictness,
+        memoryDetected: input.memoryDetected
+      })
     },
     {
       kind: "text",

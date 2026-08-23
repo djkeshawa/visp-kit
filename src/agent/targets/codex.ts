@@ -13,6 +13,7 @@ export function codexTargetFiles(input: {
   readonly targetPath: string;
   readonly strictness: StrictnessMode;
   readonly useFallbackAgentsFile: boolean;
+  readonly memoryDetected: boolean;
 }): readonly AgentTextFile[] {
   const agentsPath = input.useFallbackAgentsFile
     ? agentsVispMarkdownPath(input.targetPath)
@@ -24,7 +25,8 @@ export function codexTargetFiles(input: {
       path: agentsPath,
       contents: renderAgentsMarkdown({
         target: "codex",
-        strictness: input.strictness
+        strictness: input.strictness,
+        memoryDetected: input.memoryDetected
       })
     },
     {

@@ -46,8 +46,8 @@ import {
 } from "../../agent/agent-paths.js";
 import { buildWorkflowMapForTargets, renderAgentGuide } from "../../agent/agent-renderer.js";
 import { buildAgentCapabilities } from "../../agent/agent-capabilities.js";
-import { codexTargetFiles } from "../../agent/targets/codex.js";
-import { genericTargetFiles } from "../../agent/targets/generic.js";
+import { memoryStoreDetected } from "../../agent/memory-detection.js";
+import { targetFiles } from "../../agent/targets/target-files.js";
 import { workflowManifestSchema } from "../../artifacts/schemas/workflow.schema.js";
 import { defaultWorkflowManifest } from "../../workflow-manifest/default-workflow.js";
 import {
@@ -276,19 +276,20 @@ async function agentPlan(input: InitFilePlanInput): Promise<Result<InitFilePlan,
   }
 
   const useFallbackAgentsFile = agentsExists.value && !input.force;
-  const targetFiles =
-    target === "codex"
-      ? codexTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        })
-      : genericTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-  const targetFilePaths = targetFiles.map((file) =>
+  const memoryDetected = await memoryStoreDetected(input.targetPath);
+
+  if (!memoryDetected.ok) {
+    return memoryDetected;
+  }
+
+  const files = targetFiles({
+    target,
+    targetPath: input.targetPath,
+    strictness: input.strictness,
+    useFallbackAgentsFile,
+    memoryDetected: memoryDetected.value
+  });
+  const targetFilePaths = files.map((file) =>
     path.relative(input.targetPath, file.path).split(path.sep).join("/")
   );
   const installedTargets: InstalledAgentTargets = {
@@ -308,7 +309,7 @@ async function agentPlan(input: InitFilePlanInput): Promise<Result<InitFilePlan,
   return ok({
     directories: target === "codex" ? [path.join(input.targetPath, ".agents", "skills")] : [],
     files: [
-      ...targetFiles.map((file) => textFile(input.targetPath, file.path, file.contents)),
+      ...files.map((file) => textFile(input.targetPath, file.path, file.contents)),
       artifactFile(
         input.targetPath,
         installedTargetsPath(input.targetPath),

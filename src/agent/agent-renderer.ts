@@ -8,6 +8,7 @@ import { renderVispTaskTemplate } from "./templates/visp-task.js";
 import {
   blockingRulesSection,
   gateReadingSection,
+  memorySection,
   strictPolicySection,
   vispRulesDisplayPath
 } from "./templates/shared-agent-rules.js";
@@ -91,14 +92,21 @@ alwaysApply: false
 ${renderWorkflowTemplate(workflow, strictness)}`;
 }
 
-export function renderCursorBaseRule(input: { readonly strictness: StrictnessMode }): string {
+export function renderCursorBaseRule(input: {
+  readonly strictness: StrictnessMode;
+  readonly memoryDetected: boolean;
+}): string {
   return `---
 description: Visp Kit workflow guardrails. Always applied.
 globs:
 alwaysApply: true
 ---
 
-${renderAgentsMarkdown({ target: "cursor", strictness: input.strictness })}`;
+${renderAgentsMarkdown({
+  target: "cursor",
+  strictness: input.strictness,
+  memoryDetected: input.memoryDetected
+})}`;
 }
 
 export function renderGeminiCommand(
@@ -146,6 +154,8 @@ function targetLabel(target: AgentTargetName): string {
 export function renderAgentsMarkdown(input: {
   readonly target: AgentTargetName;
   readonly strictness: StrictnessMode;
+  /** Rendered with a memory section only where `visp-memory` was actually found. */
+  readonly memoryDetected: boolean;
 }): string {
   return `# Visp Kit Agent Guidance
 
@@ -173,7 +183,7 @@ The granular commands remain available: \`visp-kit verify\`, \`visp-kit review\`
 
 Do not claim a task is complete until \`visp-kit done\` reports every step passed or the user explicitly accepts recorded warnings.
 
-Full shared rules: ${vispRulesDisplayPath}
+${input.memoryDetected ? `${memorySection()}\n` : ""}Full shared rules: ${vispRulesDisplayPath}
 `;
 }
 
