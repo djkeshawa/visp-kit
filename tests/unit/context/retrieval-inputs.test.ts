@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -147,5 +149,42 @@ describe("the file index's language-recognition flag", () => {
     expect(fileIndexCacheSchema.parse({ files: [bare] }).files[0]?.isRecognisedTextFile).toBe(
       false
     );
+  });
+});
+
+/**
+ * The separator inside a path/hash pair is a recorded value, not an
+ * implementation detail: every retrieval-input fingerprint ever written to a
+ * provenance or drift record was produced with it. Every test above compares
+ * one hash to another, so all of them would still pass if the separator were
+ * swapped wholesale. These two are the ones that would not.
+ */
+describe("the byte the path/hash separator emits", () => {
+  it("is a single NUL, whatever the source happens to spell it as", () => {
+    // Empty path and empty hash, so the hashed string is the separator alone.
+    const separatorOnly = retrievalInputContentHash({
+      label: RETRIEVAL_INPUT_LABELS.fileIndex,
+      raw: { files: [{ path: "", hash: "" }] }
+    });
+
+    expect(separatorOnly).toBe(createHash("sha256").update("\u0000").digest("hex"));
+  });
+
+  it("keeps the digests recorded before LC-80 rewrote that byte as an escape", () => {
+    const files = [
+      { path: "src/b.ts", hash: "bbb" },
+      { path: "src/a.ts", hash: "aaa" },
+      { path: "src/z/nested.ts", hash: "ccc" }
+    ];
+
+    expect(
+      retrievalInputContentHash({ label: RETRIEVAL_INPUT_LABELS.fileIndex, raw: { files } })
+    ).toBe("506c9de195a212054f80d0521c0fb10e69f44a01a54d31ff59516fa3229ac642");
+    expect(
+      retrievalInputContentHash({
+        label: RETRIEVAL_INPUT_LABELS.fileSummaries,
+        raw: { items: files }
+      })
+    ).toBe("506c9de195a212054f80d0521c0fb10e69f44a01a54d31ff59516fa3229ac642");
   });
 });
