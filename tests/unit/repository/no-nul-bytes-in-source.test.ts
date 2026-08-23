@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 
 const SCANNED_ROOTS = ["src", "tests", "scripts"];
-const SCANNED_EXTENSIONS = [".ts", ".mts", ".js", ".mjs", ".cjs", ".json", ".md"];
+const SCANNED_EXTENSIONS = [".ts", ".mts", ".js", ".mjs", ".cjs", ".json", ".md", ".py", ".sh"];
 
 /**
  * Extensions whose files are binary by design, and which are therefore never
