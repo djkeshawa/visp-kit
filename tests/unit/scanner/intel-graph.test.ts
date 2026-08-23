@@ -5,18 +5,30 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * `stat` is the one absence Kit cannot provoke through the real filesystem:
- * the branch needs the projection to be reachable by `access` and unsizable by
- * `stat`, and nothing a test can put on disk is both. Every other call passes
- * straight through to the real implementation, so this file exercises real
- * files everywhere else.
+ * Two absences are failures of the filesystem CALL, not states a directory tree
+ * can be put into, so both are injected at the boundary instead of arranged on
+ * disk:
+ *
+ * - `access` failing with anything other than ENOENT. What the underlying error
+ *   is depends entirely on the platform. A regular file standing where the
+ *   projection directory belongs raises ENOTDIR on Linux and macOS, but Windows
+ *   reports that path as simply not there — ENOENT — so `pathExists` answers
+ *   "absent" and the honest reason becomes `intel_absent`. The branch is real
+ *   on every platform (a denied ACL or a locked file reaches it on Windows too)
+ *   and only the fixture was POSIX-shaped.
+ * - `stat` failing on a projection `access` just accepted. Nothing a test can
+ *   put on disk is both reachable and unsizable.
+ *
+ * Every other call passes straight through to the real implementation, so this
+ * file exercises real files everywhere else.
  */
+const accessMock = vi.hoisted(() => vi.fn());
 const statMock = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
 
-  return { ...actual, stat: statMock };
+  return { ...actual, access: accessMock, stat: statMock };
 });
 
 import { type IntelProjection } from "../../../src/artifacts/schemas/intel-projection.schema.js";
@@ -96,12 +108,27 @@ async function writeProjection(root: string, value: unknown): Promise<void> {
   );
 }
 
-beforeEach(async () => {
+/**
+ * Both mocks answer as the real filesystem until a scenario says otherwise, so
+ * every test that is not about a failing syscall runs against real files.
+ */
+async function useRealFileSystem(): Promise<void> {
   const actual = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
 
+  accessMock.mockReset();
+  accessMock.mockImplementation(actual.access);
   statMock.mockReset();
   statMock.mockImplementation(actual.stat);
-});
+}
+
+/** A syscall failure that is NOT "the path is not there". */
+function syscallError(code: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(`${code}: simulated failure`), { code });
+}
+
+beforeEach(useRealFileSystem);
+// Disarm whatever a scenario injected, so a failure cannot outlive its test.
+afterEach(useRealFileSystem);
 
 describe("collapsing intel's consumer projection to file grain", () => {
   it("resolves internal imports to file paths and externals to module names", () => {
@@ -443,11 +470,13 @@ const absenceScenarios: readonly {
   {
     reason: "projection_path_unreadable",
     situation: "the projection path cannot be probed at all",
-    // A file where the projection directory belongs: `access` fails ENOTDIR,
-    // which is not ENOENT, so this is a failure to look rather than an absence.
-    arrange: async (root) => {
-      await mkdir(path.join(root, ".visp-intel"), { recursive: true });
-      await writeFile(path.join(root, ".visp-intel", "projection"), "not a directory", "utf8");
+    // Injected, not arranged on disk: the branch is "the probe FAILED", which
+    // `pathExists` distinguishes from "the path is absent" by the error being
+    // anything other than ENOENT — and which error a real filesystem raises for
+    // a given tree is platform-specific. EACCES is the case that reaches this
+    // branch identically on POSIX and on Windows.
+    arrange: async () => {
+      accessMock.mockRejectedValue(syscallError("EACCES"));
     }
   },
   {
@@ -478,7 +507,7 @@ const absenceScenarios: readonly {
     situation: "the projection cannot be sized",
     arrange: async (root) => {
       await writeProjection(root, projection());
-      statMock.mockRejectedValue(Object.assign(new Error("stat failed"), { code: "EIO" }));
+      statMock.mockRejectedValue(syscallError("EIO"));
     }
   },
   {
@@ -558,13 +587,14 @@ describe("recording why scan read no intel store", () => {
     const produced: string[] = [];
 
     for (const scenario of absenceScenarios) {
+      await useRealFileSystem();
+
       const root = await mkdtemp(path.join(os.tmpdir(), "visp-intel-absence-all-"));
 
-      statMock.mockImplementation(
-        (await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises")).stat
-      );
       await scenario.arrange(root);
       produced.push(String((await loadIntelGraph(root)).storeAbsenceReason));
+      // Before the cleanup, so a scenario's injected failure cannot reach it.
+      await useRealFileSystem();
       await rm(root, { recursive: true, force: true });
     }
 
