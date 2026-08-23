@@ -7,7 +7,8 @@ describe("copilot target", () => {
     const files = copilotTargetFiles({
       targetPath: "/repo",
       strictness: "locked",
-      useFallbackAgentsFile: false
+      useFallbackAgentsFile: false,
+      memoryDetected: false
     });
 
     // Normalize separators so the assertion holds on both POSIX and Windows.
@@ -39,7 +40,8 @@ describe("copilot target", () => {
     const files = copilotTargetFiles({
       targetPath: "/repo",
       strictness: "standard",
-      useFallbackAgentsFile: true
+      useFallbackAgentsFile: true,
+      memoryDetected: false
     });
 
     expect(files[0]?.path.replace(/\\/g, "/")).toBe("/repo/AGENTS.visp.md");

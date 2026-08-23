@@ -8,7 +8,8 @@ describe("gemini target", () => {
     const files = geminiTargetFiles({
       targetPath: "/repo",
       strictness: "strict",
-      useFallbackAgentsFile: false
+      useFallbackAgentsFile: false,
+      memoryDetected: false
     });
 
     expect(files.map((file) => toPosixPath(file.path))).toEqual([
@@ -45,7 +46,8 @@ describe("gemini target", () => {
     const files = geminiTargetFiles({
       targetPath: "/repo",
       strictness: "standard",
-      useFallbackAgentsFile: true
+      useFallbackAgentsFile: true,
+      memoryDetected: false
     });
 
     expect(toPosixPath(files[0]?.path ?? "")).toBe("/repo/GEMINI.visp.md");

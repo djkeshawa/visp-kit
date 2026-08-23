@@ -30,6 +30,7 @@ export function copilotTargetFiles(input: {
   readonly targetPath: string;
   readonly strictness: StrictnessMode;
   readonly useFallbackAgentsFile: boolean;
+  readonly memoryDetected: boolean;
 }): readonly AgentTextFile[] {
   const agentsPath = input.useFallbackAgentsFile
     ? agentsVispMarkdownPath(input.targetPath)
@@ -41,7 +42,8 @@ export function copilotTargetFiles(input: {
       path: agentsPath,
       contents: renderAgentsMarkdown({
         target: "copilot",
-        strictness: input.strictness
+        strictness: input.strictness,
+        memoryDetected: input.memoryDetected
       })
     },
     {

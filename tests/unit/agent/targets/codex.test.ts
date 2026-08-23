@@ -7,7 +7,8 @@ describe("codex target", () => {
     const files = codexTargetFiles({
       targetPath: "/repo",
       strictness: "strict",
-      useFallbackAgentsFile: false
+      useFallbackAgentsFile: false,
+      memoryDetected: false
     });
 
     // Normalize separators so the assertion holds on both POSIX and Windows.
@@ -37,7 +38,8 @@ describe("codex target", () => {
     const files = codexTargetFiles({
       targetPath: "/repo",
       strictness: "standard",
-      useFallbackAgentsFile: true
+      useFallbackAgentsFile: true,
+      memoryDetected: false
     });
 
     expect(files[0]?.path.replace(/\\/g, "/")).toBe("/repo/AGENTS.visp.md");

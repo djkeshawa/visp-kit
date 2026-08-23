@@ -35,13 +35,8 @@ import {
   type AgentFileAction,
   type AgentPlannedFile
 } from "./agent-file-plan.js";
-import { codexTargetFiles } from "./targets/codex.js";
-import { genericTargetFiles } from "./targets/generic.js";
-import { claudeTargetFiles } from "./targets/claude.js";
-import { copilotTargetFiles } from "./targets/copilot.js";
-import { cursorTargetFiles } from "./targets/cursor.js";
-import { geminiTargetFiles } from "./targets/gemini.js";
-import { opencodeTargetFiles } from "./targets/opencode.js";
+import { memoryToolingDetected } from "./memory-detection.js";
+import { targetFiles } from "./targets/target-files.js";
 import { targetPathFrom } from "../core/paths.js";
 
 export type AgentInstallOptions = {
@@ -198,7 +193,7 @@ export function fallbackAgentsNote(input: {
     : `${input.primaryName} already exists. Wrote ${input.fallbackName} for manual merge or reference.`;
 }
 
-async function targetFiles(input: {
+async function plannedTargetFiles(input: {
   readonly targetPath: string;
   readonly target: AgentTargetName;
   readonly strictness: StrictnessMode;
@@ -225,47 +220,13 @@ async function targetFiles(input: {
 
   const useFallbackAgentsFile = guidanceExists.value && !input.force;
 
-  const files = (() => {
-    switch (input.target) {
-      case "codex":
-        return codexTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "generic":
-        return genericTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "claude":
-        return claudeTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness
-        });
-      case "copilot":
-        return copilotTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "opencode":
-        return opencodeTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-      case "cursor":
-        return cursorTargetFiles({ targetPath: input.targetPath, strictness: input.strictness });
-      case "gemini":
-        return geminiTargetFiles({
-          targetPath: input.targetPath,
-          strictness: input.strictness,
-          useFallbackAgentsFile
-        });
-    }
-  })();
+  const files = targetFiles({
+    target: input.target,
+    targetPath: input.targetPath,
+    strictness: input.strictness,
+    useFallbackAgentsFile,
+    memoryDetected: await memoryToolingDetected(input.targetPath)
+  });
 
   return ok(
     useFallbackAgentsFile && guidance !== undefined
@@ -391,7 +352,7 @@ export async function runAgentInstall(
     });
   }
 
-  const plan = await targetFiles({
+  const plan = await plannedTargetFiles({
     targetPath,
     target: options.target,
     strictness,
