@@ -9,7 +9,10 @@ import {
   intelProjectionSchema,
   type IntelProjection
 } from "../artifacts/schemas/intel-projection.schema.js";
-import { intelScanProvenanceSchema } from "../artifacts/schemas/intel-scan.schema.js";
+import {
+  intelScanProvenanceSchema,
+  type IntelStoreAbsenceReason
+} from "../artifacts/schemas/intel-scan.schema.js";
 import { pathExists, readJsonFile } from "../core/file-system.js";
 import { toPosixPath } from "../core/paths.js";
 
@@ -257,10 +260,33 @@ export async function readScanIntelInstanceId(targetPath: string): Promise<strin
   return parsed.data.store.repositoryInstanceId;
 }
 
-export type IntelGraphLoad = {
-  readonly fileGraph?: IntelFileGraph;
-  readonly warnings: readonly string[];
-};
+/**
+ * Either a usable file graph or the reason there is none — never neither.
+ *
+ * A union rather than two optional fields, so a caller that has established
+ * `fileGraph === undefined` is handed the reason by the type system and cannot
+ * record an unexplained absence even by accident. The warning list is
+ * independent of it: eight of the nine absences carry a warning a human can
+ * act on, one does not, and all nine now carry a code.
+ */
+export type IntelGraphLoad =
+  | {
+      readonly fileGraph: IntelFileGraph;
+      readonly storeAbsenceReason?: undefined;
+      readonly warnings: readonly string[];
+    }
+  | {
+      readonly fileGraph?: undefined;
+      readonly storeAbsenceReason: IntelStoreAbsenceReason;
+      readonly warnings: readonly string[];
+    };
+
+function absent(
+  storeAbsenceReason: IntelStoreAbsenceReason,
+  warnings: readonly string[] = []
+): IntelGraphLoad {
+  return { storeAbsenceReason, warnings };
+}
 
 /**
  * Load intel's consumer projection if this project has one. Absence is not a
@@ -268,7 +294,12 @@ export type IntelGraphLoad = {
  * projection returns no file graph plus, where a human could act on it, a
  * warning — and scan carries on with its own analysis.
  *
- * A project with no `.visp-intel/` at all is the common case and stays silent.
+ * A project with no `.visp-intel/` at all is the common case and raises no
+ * warning, because there is nothing for a human to do about it. It still
+ * reports WHY there is no graph: every path out of here carries an
+ * `IntelStoreAbsenceReason`, so scan can record the cause of an absence it
+ * would otherwise write down as a bare `null`.
+ *
  * A project holding the ARCHIVAL export and no projection is warned, because
  * that project has intel and is one command away from scan reading it; scan
  * used to read that file and no longer does.
@@ -278,41 +309,41 @@ export async function loadIntelGraph(targetPath: string): Promise<IntelGraphLoad
   const exists = await pathExists(projectionPath);
 
   if (!exists.ok) {
-    return { warnings: [`Unable to access ${PROJECTION_DISPLAY_PATH}: ${exists.error.message}`] };
+    return absent("projection_path_unreadable", [
+      `Unable to access ${PROJECTION_DISPLAY_PATH}: ${exists.error.message}`
+    ]);
   }
 
-  if (!exists.value) return { warnings: await missingProjectionWarnings(targetPath) };
+  if (!exists.value) return missingProjectionAbsence(targetPath);
 
   try {
     const info = await stat(projectionPath);
 
     if (info.size > INTEL_PROJECTION_MAX_BYTES) {
-      return {
-        warnings: [
-          `Intel consumer projection ${PROJECTION_DISPLAY_PATH} is ${info.size} bytes, above the ${INTEL_PROJECTION_MAX_BYTES}-byte read limit; used Kit's own file analysis.`
-        ]
-      };
+      return absent("projection_above_read_limit", [
+        `Intel consumer projection ${PROJECTION_DISPLAY_PATH} is ${info.size} bytes, above the ${INTEL_PROJECTION_MAX_BYTES}-byte read limit; used Kit's own file analysis.`
+      ]);
     }
   } catch (error) {
-    return {
-      warnings: [`Unable to size ${PROJECTION_DISPLAY_PATH}: ${(error as Error).message}`]
-    };
+    return absent("projection_size_unreadable", [
+      `Unable to size ${PROJECTION_DISPLAY_PATH}: ${(error as Error).message}`
+    ]);
   }
 
   const json = await readJsonFile<unknown>(projectionPath);
 
   if (!json.ok) {
-    return { warnings: [`Intel consumer projection is unreadable: ${json.error.message}`] };
+    return absent("projection_unreadable", [
+      `Intel consumer projection is unreadable: ${json.error.message}`
+    ]);
   }
 
   const parsed = intelProjectionSchema.safeParse(json.value);
 
   if (!parsed.success) {
-    return {
-      warnings: [
-        `${PROJECTION_DISPLAY_PATH} does not match intel's consumer-projection shape: ${parsed.error.issues[0]?.message ?? "unknown error"}. Rebuild it with \`visp-intel repo projection\`; the archival \`repo export\` is a different artifact and scan no longer reads it.`
-      ]
-    };
+    return absent("projection_shape_mismatch", [
+      `${PROJECTION_DISPLAY_PATH} does not match intel's consumer-projection shape: ${parsed.error.issues[0]?.message ?? "unknown error"}. Rebuild it with \`visp-intel repo projection\`; the archival \`repo export\` is a different artifact and scan no longer reads it.`
+    ]);
   }
 
   // Staleness is Kit's call: intel states both snapshot ids and carries no
@@ -323,32 +354,38 @@ export async function loadIntelGraph(targetPath: string): Promise<IntelGraphLoad
   // when the repository is re-indexed, and nothing in the artifact can tell Kit
   // when that last happened.
   if (parsed.data.identity.snapshotId !== parsed.data.identity.headSnapshotId) {
-    return {
-      warnings: [
-        `Intel consumer projection ${PROJECTION_DISPLAY_PATH} describes a snapshot that was not the repository head when it was built; used Kit's own file analysis.`
-      ]
-    };
+    return absent("projection_snapshot_not_head", [
+      `Intel consumer projection ${PROJECTION_DISPLAY_PATH} describes a snapshot that was not the repository head when it was built; used Kit's own file analysis.`
+    ]);
   }
 
   const fileGraph = collapseToFileGraph(parsed.data);
 
   if (fileGraph.filePaths.length === 0) {
-    return {
-      warnings: [
-        "Intel consumer projection indexed no files in its snapshot; used Kit's own file analysis."
-      ]
-    };
+    return absent("projection_indexed_no_files", [
+      "Intel consumer projection indexed no files in its snapshot; used Kit's own file analysis."
+    ]);
   }
 
   return { fileGraph, warnings: [] };
 }
 
-async function missingProjectionWarnings(targetPath: string): Promise<readonly string[]> {
+/**
+ * No consumer projection. Whether the project has intel AT ALL decides both
+ * the code and whether a human is warned: a project holding the archival export
+ * is one command away from scan reading it, a project holding neither has
+ * nothing to act on and stays silent on the warnings line — which is exactly
+ * why it needs a code of its own.
+ *
+ * A failed probe of the archival path is `intel_absent` too. It reports what
+ * scan concluded, and scan concluded there was no store to read.
+ */
+async function missingProjectionAbsence(targetPath: string): Promise<IntelGraphLoad> {
   const archival = await pathExists(intelExportArtifactPath(targetPath));
 
-  if (!archival.ok || !archival.value) return [];
+  if (!archival.ok || !archival.value) return absent("intel_absent");
 
-  return [
+  return absent("projection_missing_export_present", [
     `Found ${EXPORT_DISPLAY_PATH} but no ${PROJECTION_DISPLAY_PATH}; scan reads the consumer projection now. Run \`visp-intel repo projection\` to make the graph reach the module map.`
-  ];
+  ]);
 }

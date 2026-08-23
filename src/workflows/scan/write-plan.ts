@@ -14,7 +14,7 @@ import {
   testMapArtifactPath
 } from "../../artifacts/artifact-paths.js";
 import { writeArtifact } from "../../artifacts/artifact-writer.js";
-import { intelScanProvenanceSchema } from "../../artifacts/schemas/intel-scan.schema.js";
+import { intelScanProvenanceWriteSchema } from "../../artifacts/schemas/intel-scan.schema.js";
 import { projectProfileSchema } from "../../artifacts/schemas/project.schema.js";
 import { type VispError } from "../../core/errors.js";
 import { ensureDir, writeJsonFile, writeTextFile } from "../../core/file-system.js";
@@ -82,7 +82,7 @@ export async function writeScanPlan(
             artifactName: "project profile"
           })
         : file.kind === "intelScan"
-          ? await writeArtifact(file.path, intelScanProvenanceSchema, file.value, {
+          ? await writeArtifact(file.path, intelScanProvenanceWriteSchema, file.value, {
               artifactName: "intel scan provenance"
             })
           : file.kind === "json"

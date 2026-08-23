@@ -486,8 +486,11 @@ Kit reads two optional files from `.visp-intel/` and writes neither:
   back `module-map.json` with resolved file-to-file imports and real external
   module names. `dependency-map.json` stays manifest-derived: its fields are
   package-manager facts (versions, scripts, lockfiles) that a code graph does
-  not carry. Scan writes what it read to `.visp/cache/intel-scan.json`; the
-  other scan artifacts are unchanged by the presence of a store.
+  not carry. Scan writes what it read to `.visp/cache/intel-scan.json` —
+  including, when it read nothing, which of the nine absences it met — and the
+  other scan artifacts are unchanged by the presence of a store. **That reason
+  is a record, not a permission:** the gate below reads `store`, never the
+  reason, and a `null` store fails closed however it came to be `null`.
 
   **`visp-kit context` reads the same file.** From the files a task already
   touches — its declared `allowedFiles`/`expectedFiles`, the understanding
